@@ -1,8 +1,10 @@
 // Admin logic: Auth gate, roles, Firestore reads, Chart.js rendering
 
-async function ensureFirebase() {
-    if (window.firebaseReady) return true;
-    await new Promise(r => setTimeout(r, 200));
+async function ensureFirebase(maxWaitMs = 5000) {
+    const start = Date.now();
+    while (!window.firebaseReady && Date.now() - start < maxWaitMs) {
+        await new Promise(r => setTimeout(r, 150));
+    }
     return !!window.firebaseReady;
 }
 
@@ -175,15 +177,19 @@ async function main() {
             return;
         }
         nameEl.textContent = user.displayName || user.email || 'Usuário';
-        const role = await fetchRole(user.uid);
+        let role = { role: 'viewer' };
+        try {
+            role = await fetchRole(user.uid);
+        } catch {}
         roleBadge.textContent = `Permissões: ${role.role || 'viewer'}`;
 
+        // Mostra o dashboard imediatamente, independentemente de erros posteriores
         gate.classList.add('hidden');
         dash.classList.remove('hidden');
 
-        await loadKPIs();
-        await loadCharts();
-        await loadTables(can(role, 'manage_products'));
+        try { await loadKPIs(); } catch (e) { console.error('KPIs error', e); }
+        try { await loadCharts(); } catch (e) { console.error('Charts error', e); }
+        try { await loadTables(can(role, 'manage_products')); } catch (e) { console.error('Tables error', e); }
     });
 }
 
