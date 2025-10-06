@@ -31,11 +31,18 @@
         <section id="authGate" class="hidden">
             <div class="max-w-md mx-auto bg-white border border-gray-200 rounded-2xl p-8">
                 <h2 class="text-2xl font-bold mb-2">Acesso Restrito</h2>
-                <p class="text-gray-600 mb-6">Faça login com uma conta autorizada.</p>
-                <button id="btnGoogleLogin" class="w-full bg-black text-white hover:bg-gray-900 py-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2">
-                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" class="w-5 h-5">
-                    Entrar com Google
-                </button>
+                <p class="text-gray-600 mb-6">Entre com email e senha autorizados.</p>
+                <form id="emailLoginForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Email</label>
+                        <input id="adminEmail" type="email" required class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-black placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="seu@email.com">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Senha</label>
+                        <input id="adminPassword" type="password" required class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-black placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="••••••••">
+                    </div>
+                    <button id="btnEmailLogin" type="submit" class="w-full bg-black text-white hover:bg-gray-900 py-3 rounded-lg font-semibold transition-colors">Entrar</button>
+                </form>
             </div>
         </section>
 

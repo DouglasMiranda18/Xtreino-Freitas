@@ -138,7 +138,7 @@ async function main() {
     const ok = await ensureFirebase();
     const gate = document.getElementById('authGate');
     const dash = document.getElementById('dashboard');
-    const btnGoogle = document.getElementById('btnGoogleLogin');
+    const emailForm = document.getElementById('emailLoginForm');
     const btnLogout = document.getElementById('btnLogout');
     const nameEl = document.getElementById('adminUserName');
     const roleBadge = document.getElementById('roleBadge');
@@ -151,13 +151,16 @@ async function main() {
         return;
     }
 
-    const { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
+    const { onAuthStateChanged, signInWithEmailAndPassword, signOut } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
 
-    btnGoogle?.addEventListener('click', async () => {
+    emailForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('adminEmail').value;
+        const password = document.getElementById('adminPassword').value;
         try {
-            await signInWithPopup(window.firebaseAuth, new GoogleAuthProvider());
-        } catch (e) {
-            alert('Falha no login');
+            await signInWithEmailAndPassword(window.firebaseAuth, email, password);
+        } catch (err) {
+            alert('Credenciais inválidas.');
         }
     });
 
