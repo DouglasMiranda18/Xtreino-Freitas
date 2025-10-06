@@ -27,6 +27,26 @@ function handleLogin(event) {
     openClientArea();
 }
 
+async function loginWithGoogle() {
+    try {
+        if (!window.firebaseReady) {
+            alert('Autenticação indisponível no momento. Configure o Firebase.');
+            return;
+        }
+        const { signInWithPopup } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
+        const result = await signInWithPopup(window.firebaseAuth, window.firebaseProviders.google);
+        const user = result.user;
+        closeLoginModal();
+        // Exibir nome do usuário na Área do Cliente (exemplo)
+        const nameEl = document.querySelector('#clientAreaModal p.text-gray-300');
+        if (nameEl) nameEl.textContent = `Bem-vindo, ${user.displayName || 'Usuário'}!`;
+        openClientArea();
+    } catch (err) {
+        console.error('Login Google falhou:', err);
+        alert('Falha no login com Google.');
+    }
+}
+
 function showRegisterForm() {
     alert('Formulário de cadastro será implementado. Esta é uma demonstração da interface.');
 }
@@ -87,8 +107,35 @@ function scheduleTraining(trainingType) {
 
 function handleContactForm(event) {
     event.preventDefault();
-    alert('Mensagem enviada com sucesso!\n\nEntraremos em contato em breve.');
-    event.target.reset();
+    const form = event.target;
+    const nome = form.querySelector('input[type="text"]').value;
+    const email = form.querySelector('input[type="email"]').value;
+    const assunto = form.querySelector('select').value;
+    const mensagem = form.querySelector('textarea').value;
+
+    // Se Firestore estiver configurado, salvar
+    if (window.firebaseReady) {
+        (async () => {
+            try {
+                const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+                await addDoc(collection(window.firebaseDb, 'contatos'), {
+                    nome,
+                    email,
+                    assunto,
+                    mensagem,
+                    criadoEm: serverTimestamp()
+                });
+                alert('Mensagem enviada com sucesso!');
+                form.reset();
+            } catch (err) {
+                console.error('Erro ao salvar contato:', err);
+                alert('Não foi possível enviar agora. Tente novamente mais tarde.');
+            }
+        })();
+    } else {
+        alert('Mensagem enviada com sucesso!\n\n(Offline: configure o Firebase para salvar no banco)');
+        form.reset();
+    }
 }
 
 // Purchase modal functions
