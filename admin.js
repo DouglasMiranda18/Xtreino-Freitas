@@ -30,14 +30,14 @@ function can(role, permission) {
 }
 
 async function loadKPIs() {
-    const { collection, query, where, orderBy, limit, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const { collection, query, where, orderBy, limit, getDocsFromServer } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     const ordersCol = collection(window.firebaseDb, 'orders');
 
     // Today sales (sum)
     const today = new Date();
     today.setHours(0,0,0,0);
     const qToday = query(ordersCol, where('createdAt', '>=', today));
-    const todaySnap = await getDocs(qToday);
+    const todaySnap = await getDocsFromServer(qToday);
     let sumToday = 0;
     todaySnap.forEach(d => sumToday += Number(d.data().amount || 0));
     document.getElementById('kpiToday').textContent = currencyBRL(sumToday);
@@ -46,7 +46,7 @@ async function loadKPIs() {
     const firstMonth = new Date();
     firstMonth.setDate(1); firstMonth.setHours(0,0,0,0);
     const qMonth = query(ordersCol, where('createdAt', '>=', firstMonth));
-    const monthSnap = await getDocs(qMonth);
+    const monthSnap = await getDocsFromServer(qMonth);
     let sumMonth = 0, receivable = 0;
     monthSnap.forEach(d => {
         const data = d.data();
@@ -59,10 +59,10 @@ async function loadKPIs() {
 }
 
 async function loadCharts() {
-    const { collection, query, orderBy, limit, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const { collection, query, orderBy, limit, getDocsFromServer } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     const ordersCol = collection(window.firebaseDb, 'orders');
     const q = query(ordersCol, orderBy('createdAt', 'desc'), limit(50));
-    const snap = await getDocs(q);
+    const snap = await getDocsFromServer(q);
 
     const byDay = new Map();
     const top = new Map();
@@ -97,11 +97,11 @@ async function loadCharts() {
 }
 
 async function loadTables(canManageProducts) {
-    const { collection, query, orderBy, limit, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const { collection, query, orderBy, limit, getDocsFromServer } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     // Orders
     const ordersCol = collection(window.firebaseDb, 'orders');
     const qOrders = query(ordersCol, orderBy('createdAt', 'desc'), limit(20));
-    const snapOrders = await getDocs(qOrders);
+    const snapOrders = await getDocsFromServer(qOrders);
     const ordersTbody = document.getElementById('ordersTbody');
     ordersTbody.innerHTML = '';
     let count = 0;
@@ -121,7 +121,7 @@ async function loadTables(canManageProducts) {
     // Products
     const productsCol = collection(window.firebaseDb, 'products');
     const qProd = query(productsCol, orderBy('name'), limit(50));
-    const snapProd = await getDocs(qProd);
+    const snapProd = await getDocsFromServer(qProd);
     const productsTbody = document.getElementById('productsTbody');
     productsTbody.innerHTML = '';
     snapProd.forEach(docu => {
