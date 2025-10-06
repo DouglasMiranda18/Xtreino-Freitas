@@ -108,6 +108,12 @@ function scheduleTraining(trainingType) {
 function handleContactForm(event) {
     event.preventDefault();
     const form = event.target;
+    // Honeypot simples: se preenchido, descarta
+    const botField = form.querySelector('input[name="website"]');
+    if (botField && botField.value) {
+        form.reset();
+        return;
+    }
     const nome = form.querySelector('input[type="text"]').value;
     const email = form.querySelector('input[type="email"]').value;
     const assunto = form.querySelector('select').value;
@@ -168,8 +174,39 @@ function closePurchaseModal() {
 
 function handlePurchase(event) {
     event.preventDefault();
-    alert(`Compra do produto "${products[currentProduct].name}" será processada via Mercado Pago. Esta é uma demonstração da interface.`);
-    closePurchaseModal();
+    const product = products[currentProduct];
+    if (!product) {
+        alert('Produto inválido.');
+        return;
+    }
+    // Chamar function segura (Netlify) para criar Preference
+    fetch('/.netlify/functions/create-preference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            title: product.name,
+            unit_price: Number((product.price || '0').replace(/[^0-9,]/g, '').replace(',', '.')) || 0,
+            currency_id: 'BRL',
+            quantity: 1
+        })
+    })
+    .then(async (res) => {
+        if (!res.ok) throw new Error(await res.text());
+        return res.json();
+    })
+    .then((data) => {
+        closePurchaseModal();
+        // Redireciona para o checkout do Mercado Pago
+        if (data.init_point) {
+            window.location.href = data.init_point;
+        } else {
+            alert('Não foi possível iniciar o checkout.');
+        }
+    })
+    .catch((err) => {
+        console.error('Erro no checkout:', err);
+        alert('Falha ao iniciar checkout.');
+    });
 }
 
 // Close modals when clicking outside
