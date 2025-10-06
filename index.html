@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>X-TREINO FREITAS - Treinamento eSports de Alta Performance</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-dark-matte text-white font-sans">
+    <!-- Header -->
+    <header class="fixed w-full top-0 z-50 glass-effect">
+        <nav class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <!-- Logo -->
+                <div class="flex items-center space-x-3">
+                    <div class="w-12 h-12 bg-blue-matte rounded-lg flex items-center justify-center neon-glow">
+                        <span class="text-white font-bold text-xl">X</span>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-white">X-TREINO</h1>
+                        <p class="text-sm text-blue-matte">FREITAS</p>
+                    </div>
+                </div>
+                
+                <!-- Desktop Menu -->
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="#home" class="text-white hover:text-blue-matte transition-colors">HOME</a>
+                    <a href="#xtreinos" class="text-white hover:text-blue-matte transition-colors">XTREINOS/CAMPS</a>
+                    <a href="#loja" class="text-white hover:text-blue-matte transition-colors">LOJA</a>
+                    <a href="#sobre" class="text-white hover:text-blue-matte transition-colors">SOBRE NÓS</a>
+                    <a href="#contato" class="text-white hover:text-blue-matte transition-colors">CONTATO</a>
+                    <button onclick="openLoginModal()" class="bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold transition-colors">
+                        LOGIN
+                    </button>
+                </div>
+                
+                <!-- Mobile Menu Button -->
+                <button onclick="toggleMobileMenu()" class="md:hidden text-white">
+                    <i class="fas fa-bars text-2xl"></i>
+                </button>
+            </div>
+            
+            <!-- Mobile Menu -->
+            <div id="mobileMenu" class="hidden md:hidden mt-4 pb-4">
+                <div class="flex flex-col space-y-4">
+                    <a href="#home" class="text-white hover:text-blue-matte transition-colors">HOME</a>
+                    <a href="#xtreinos" class="text-white hover:text-blue-matte transition-colors">XTREINOS/CAMPS</a>
+                    <a href="#loja" class="text-white hover:text-blue-matte transition-colors">LOJA</a>
+                    <a href="#sobre" class="text-white hover:text-blue-matte transition-colors">SOBRE NÓS</a>
+                    <a href="#contato" class="text-white hover:text-blue-matte transition-colors">CONTATO</a>
+                    <button onclick="openLoginModal()" class="bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold transition-colors w-full">
+                        LOGIN
+                    </button>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section id="home" class="pt-24 min-h-screen gradient-bg flex items-center">
+        <div class="container mx-auto px-6">
+            <div class="grid md:grid-cols-2 gap-12 items-center">
+                <div class="space-y-8">
+                    <h1 class="text-5xl md:text-7xl font-bold leading-tight">
+                        ELEVE SEU
+                        <span class="text-blue-matte">GAME</span>
+                        AO PRÓXIMO
+                        <span class="text-blue-matte">NÍVEL</span>
+                    </h1>
+                    <p class="text-xl text-gray-300 leading-relaxed">
+                        Treinamento eSports de alta performance para jogadores profissionais e aspirantes. 
+                        Desenvolva suas habilidades com os melhores coaches do cenário.
+                    </p>
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <button onclick="scrollToSection('xtreinos')" class="bg-blue-matte hover-blue-matte px-8 py-4 rounded-lg text-white font-bold text-lg transition-colors neon-glow">
+                            COMEÇAR AGORA
+                        </button>
+                        <button onclick="scrollToSection('sobre')" class="border-2 border-blue-matte text-blue-matte hover:bg-blue-matte hover:text-white px-8 py-4 rounded-lg font-bold text-lg transition-colors">
+                            SAIBA MAIS
+                        </button>
+                    </div>
+                </div>
+                <div class="flex justify-center">
+                    <div class="relative">
+                        <div class="w-80 h-80 bg-blue-matte rounded-full opacity-20 animate-float"></div>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <i class="fas fa-gamepad text-8xl text-blue-matte animate-float"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Passe Booyah Destaque -->
+    <section class="py-20 bg-gradient-to-r from-blue-matte to-indigo-600">
+        <div class="container mx-auto px-6 text-center">
+            <div class="max-w-4xl mx-auto">
+                <h2 class="text-4xl md:text-5xl font-bold mb-6">PASSE BOOYAH</h2>
+                <p class="text-xl mb-8 opacity-90">
+                    Acesso ilimitado a todos os XTreinos, materiais exclusivos e suporte personalizado
+                </p>
+                <div class="bg-white bg-opacity-10 rounded-2xl p-8 glass-effect">
+                    <div class="grid md:grid-cols-3 gap-8 mb-8">
+                        <div class="text-center">
+                            <i class="fas fa-infinity text-4xl mb-4"></i>
+                            <h3 class="text-xl font-bold mb-2">Acesso Ilimitado</h3>
+                            <p>Todos os XTreinos disponíveis</p>
+                        </div>
+                        <div class="text-center">
+                            <i class="fas fa-users text-4xl mb-4"></i>
+                            <h3 class="text-xl font-bold mb-2">Suporte VIP</h3>
+                            <p>Atendimento prioritário</p>
+                        </div>
+                        <div class="text-center">
+                            <i class="fas fa-download text-4xl mb-4"></i>
+                            <h3 class="text-xl font-bold mb-2">Materiais Exclusivos</h3>
+                            <p>Planilhas e análises premium</p>
+                        </div>
+                    </div>
+                    <button onclick="openPurchaseModal('passe-booyah')" class="bg-white text-blue-matte px-12 py-4 rounded-lg font-bold text-xl hover:bg-gray-100 transition-colors">
+                        ASSINAR AGORA - R$ 99,90/mês
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- XTreinos Section -->
+    <section id="xtreinos" class="py-20 bg-dark-matte">
+        <div class="container mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl md:text-5xl font-bold mb-6">XTREINOS & CAMPS</h2>
+                <p class="text-xl text-gray-300 max-w-3xl mx-auto">
+                    Sessões intensivas de treinamento com foco em mecânicas avançadas, estratégias e mentalidade competitiva
+                </p>
+            </div>
+            
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div class="glass-effect rounded-2xl p-8 card-hover">
+                    <div class="text-center mb-6">
+                        <i class="fas fa-target text-4xl text-blue-matte mb-4"></i>
+                        <h3 class="text-2xl font-bold mb-2">AIM TRAINING</h3>
+                        <p class="text-gray-300">Melhore sua precisão e tempo de reação</p>
+                    </div>
+                    <div class="space-y-3 mb-6">
+                        <div class="flex justify-between">
+                            <span>Duração:</span>
+                            <span class="text-blue-matte">2 horas</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Nível:</span>
+                            <span class="text-blue-matte">Intermediário</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Preço:</span>
+                            <span class="text-blue-matte font-bold">R$ 49,90</span>
+                        </div>
+                    </div>
+                    <button onclick="openPurchaseModal('aim-training')" class="w-full bg-blue-matte hover-blue-matte py-3 rounded-lg font-semibold transition-colors">
+                        RESERVAR VAGA
+                    </button>
+                </div>
+                
+                <div class="glass-effect rounded-2xl p-8 card-hover">
+                    <div class="text-center mb-6">
+                        <i class="fas fa-chess text-4xl text-blue-matte mb-4"></i>
+                        <h3 class="text-2xl font-bold mb-2">ESTRATÉGIA</h3>
+                        <p class="text-gray-300">Domine as táticas e rotações</p>
+                    </div>
+                    <div class="space-y-3 mb-6">
+                        <div class="flex justify-between">
+                            <span>Duração:</span>
+                            <span class="text-blue-matte">3 horas</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Nível:</span>
+                            <span class="text-blue-matte">Avançado</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Preço:</span>
+                            <span class="text-blue-matte font-bold">R$ 79,90</span>
+                        </div>
+                    </div>
+                    <button onclick="openPurchaseModal('estrategia')" class="w-full bg-blue-matte hover-blue-matte py-3 rounded-lg font-semibold transition-colors">
+                        RESERVAR VAGA
+                    </button>
+                </div>
+                
+                <div class="glass-effect rounded-2xl p-8 card-hover">
+                    <div class="text-center mb-6">
+                        <i class="fas fa-brain text-4xl text-blue-matte mb-4"></i>
+                        <h3 class="text-2xl font-bold mb-2">MENTALIDADE</h3>
+                        <p class="text-gray-300">Desenvolva o mindset competitivo</p>
+                    </div>
+                    <div class="space-y-3 mb-6">
+                        <div class="flex justify-between">
+                            <span>Duração:</span>
+                            <span class="text-blue-matte">1.5 horas</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Nível:</span>
+                            <span class="text-blue-matte">Todos</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Preço:</span>
+                            <span class="text-blue-matte font-bold">R$ 39,90</span>
+                        </div>
+                    </div>
+                    <button onclick="openPurchaseModal('mentalidade')" class="w-full bg-blue-matte hover-blue-matte py-3 rounded-lg font-semibold transition-colors">
+                        RESERVAR VAGA
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Loja Section -->
+    <section id="loja" class="py-20 gradient-bg">
+        <div class="container mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl md:text-5xl font-bold mb-6">LOJA OFICIAL</h2>
+                <p class="text-xl text-gray-300 max-w-3xl mx-auto">
+                    Produtos físicos e digitais para elevar sua performance
+                </p>
+            </div>
+            
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div class="bg-white bg-opacity-5 rounded-2xl p-6 card-hover">
+                    <div class="bg-blue-matte rounded-lg h-48 mb-4 flex items-center justify-center">
+                        <i class="fas fa-tshirt text-4xl text-white"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Camisa Oficial</h3>
+                    <p class="text-gray-300 mb-4">Camisa premium da organização</p>
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-2xl font-bold text-blue-matte">R$ 89,90</span>
+                        <span class="text-sm text-gray-400">Físico</span>
+                    </div>
+                    <button onclick="openPurchaseModal('camisa')" class="w-full bg-blue-matte hover-blue-matte py-2 rounded-lg font-semibold transition-colors">
+                        COMPRAR
+                    </button>
+                </div>
+                
+                <div class="bg-white bg-opacity-5 rounded-2xl p-6 card-hover">
+                    <div class="bg-blue-matte rounded-lg h-48 mb-4 flex items-center justify-center">
+                        <i class="fas fa-chart-line text-4xl text-white"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Planilhas de Análise</h3>
+                    <p class="text-gray-300 mb-4">Análise completa de performance</p>
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-2xl font-bold text-blue-matte">R$ 29,90</span>
+                        <span class="text-sm text-gray-400">Digital</span>
+                    </div>
+                    <button onclick="openPurchaseModal('planilhas')" class="w-full bg-blue-matte hover-blue-matte py-2 rounded-lg font-semibold transition-colors">
+                        COMPRAR
+                    </button>
+                </div>
+                
+                <div class="bg-white bg-opacity-5 rounded-2xl p-6 card-hover">
+                    <div class="bg-blue-matte rounded-lg h-48 mb-4 flex items-center justify-center">
+                        <i class="fas fa-map text-4xl text-white"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Imagens Aéreas</h3>
+                    <p class="text-gray-300 mb-4">Mapas estratégicos detalhados</p>
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-2xl font-bold text-blue-matte">R$ 19,90</span>
+                        <span class="text-sm text-gray-400">Digital</span>
+                    </div>
+                    <button onclick="openPurchaseModal('imagens')" class="w-full bg-blue-matte hover-blue-matte py-2 rounded-lg font-semibold transition-colors">
+                        COMPRAR
+                    </button>
+                </div>
+                
+                <div class="bg-white bg-opacity-5 rounded-2xl p-6 card-hover">
+                    <div class="bg-blue-matte rounded-lg h-48 mb-4 flex items-center justify-center">
+                        <i class="fas fa-sliders-h text-4xl text-white"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Sensibilidades</h3>
+                    <p class="text-gray-300 mb-4">Configurações otimizadas</p>
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-2xl font-bold text-blue-matte">R$ 14,90</span>
+                        <span class="text-sm text-gray-400">Digital</span>
+                    </div>
+                    <button onclick="openPurchaseModal('sensibilidades')" class="w-full bg-blue-matte hover-blue-matte py-2 rounded-lg font-semibold transition-colors">
+                        COMPRAR
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Sobre Nós Section -->
+    <section id="sobre" class="py-20 bg-dark-matte">
+        <div class="container mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl md:text-5xl font-bold mb-6">SOBRE NÓS</h2>
+                <p class="text-xl text-gray-300 max-w-3xl mx-auto">
+                    Conheça a história e metodologia por trás do X-TREINO FREITAS
+                </p>
+            </div>
+            
+            <div class="grid lg:grid-cols-2 gap-16 items-center mb-20">
+                <div class="space-y-6">
+                    <h3 class="text-3xl font-bold text-blue-matte">Nossa Missão</h3>
+                    <p class="text-lg text-gray-300 leading-relaxed">
+                        Transformar jogadores em verdadeiros profissionais do eSports através de metodologia comprovada, 
+                        treinamento intensivo e mentalidade vencedora. Acreditamos que todo jogador tem potencial para 
+                        alcançar a elite, precisando apenas da orientação correta.
+                    </p>
+                    <div class="grid grid-cols-2 gap-6">
+                        <div class="text-center">
+                            <div class="text-3xl font-bold text-blue-matte mb-2">500+</div>
+                            <div class="text-gray-300">Jogadores Treinados</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-3xl font-bold text-blue-matte mb-2">50+</div>
+                            <div class="text-gray-300">Pro-Players Formados</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-blue-matte bg-opacity-20 rounded-2xl p-8 glass-effect">
+                    <div class="text-center">
+                        <i class="fas fa-trophy text-6xl text-blue-matte mb-6"></i>
+                        <h4 class="text-2xl font-bold mb-4">Metodologia Comprovada</h4>
+                        <p class="text-gray-300">
+                            Desenvolvemos uma metodologia única que combina treinamento técnico, 
+                            análise estratégica e preparação mental para formar campeões.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Team Section -->
+            <div class="mb-20">
+                <h3 class="text-3xl font-bold text-center mb-12">Nossa Equipe</h3>
+                <div class="grid md:grid-cols-3 gap-8">
+                    <div class="text-center glass-effect rounded-2xl p-8 card-hover">
+                        <div class="w-24 h-24 bg-blue-matte rounded-full mx-auto mb-4 flex items-center justify-center">
+                            <i class="fas fa-user text-3xl text-white"></i>
+                        </div>
+                        <h4 class="text-xl font-bold mb-2">Coach Freitas</h4>
+                        <p class="text-blue-matte mb-3">Fundador & Head Coach</p>
+                        <p class="text-gray-300 text-sm">
+                            Ex-pro player com mais de 8 anos de experiência competitiva. 
+                            Especialista em desenvolvimento de talentos.
+                        </p>
+                    </div>
+                    <div class="text-center glass-effect rounded-2xl p-8 card-hover">
+                        <div class="w-24 h-24 bg-blue-matte rounded-full mx-auto mb-4 flex items-center justify-center">
+                            <i class="fas fa-chart-line text-3xl text-white"></i>
+                        </div>
+                        <h4 class="text-xl font-bold mb-2">Analista Pro</h4>
+                        <p class="text-blue-matte mb-3">Analista de Performance</p>
+                        <p class="text-gray-300 text-sm">
+                            Especialista em análise de dados e estatísticas. 
+                            Responsável pelas planilhas e relatórios de evolução.
+                        </p>
+                    </div>
+                    <div class="text-center glass-effect rounded-2xl p-8 card-hover">
+                        <div class="w-24 h-24 bg-blue-matte rounded-full mx-auto mb-4 flex items-center justify-center">
+                            <i class="fas fa-brain text-3xl text-white"></i>
+                        </div>
+                        <h4 class="text-xl font-bold mb-2">Mental Coach</h4>
+                        <p class="text-blue-matte mb-3">Preparador Mental</p>
+                        <p class="text-gray-300 text-sm">
+                            Psicólogo esportivo focado em performance competitiva. 
+                            Desenvolve a mentalidade vencedora dos atletas.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Apoiadores Section -->
+            <div>
+                <h3 class="text-3xl font-bold text-center mb-12">Apoiadores & Patrocinadores</h3>
+                <div class="grid md:grid-cols-4 gap-8">
+                    <div class="bg-white bg-opacity-5 rounded-xl p-6 text-center card-hover">
+                        <div class="w-16 h-16 bg-blue-matte rounded-lg mx-auto mb-4 flex items-center justify-center">
+                            <i class="fas fa-gamepad text-2xl text-white"></i>
+                        </div>
+                        <h4 class="font-bold">GameTech</h4>
+                        <p class="text-sm text-gray-400">Equipamentos Gaming</p>
+                    </div>
+                    <div class="bg-white bg-opacity-5 rounded-xl p-6 text-center card-hover">
+                        <div class="w-16 h-16 bg-blue-matte rounded-lg mx-auto mb-4 flex items-center justify-center">
+                            <i class="fas fa-headset text-2xl text-white"></i>
+                        </div>
+                        <h4 class="font-bold">ProAudio</h4>
+                        <p class="text-sm text-gray-400">Headsets Profissionais</p>
+                    </div>
+                    <div class="bg-white bg-opacity-5 rounded-xl p-6 text-center card-hover">
+                        <div class="w-16 h-16 bg-blue-matte rounded-lg mx-auto mb-4 flex items-center justify-center">
+                            <i class="fas fa-desktop text-2xl text-white"></i>
+                        </div>
+                        <h4 class="font-bold">UltraPC</h4>
+                        <p class="text-sm text-gray-400">Computadores Gaming</p>
+                    </div>
+                    <div class="bg-white bg-opacity-5 rounded-xl p-6 text-center card-hover">
+                        <div class="w-16 h-16 bg-blue-matte rounded-lg mx-auto mb-4 flex items-center justify-center">
+                            <i class="fas fa-bolt text-2xl text-white"></i>
+                        </div>
+                        <h4 class="font-bold">EnergyMax</h4>
+                        <p class="text-sm text-gray-400">Suplementos Gamer</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contato Section -->
+    <section id="contato" class="py-20 gradient-bg">
+        <div class="container mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl md:text-5xl font-bold mb-6">CONTATO</h2>
+                <p class="text-xl text-gray-300 max-w-3xl mx-auto">
+                    Entre em contato conosco para dúvidas, suporte ou parcerias
+                </p>
+            </div>
+            
+            <div class="grid lg:grid-cols-2 gap-16">
+                <div class="space-y-8">
+                    <div class="glass-effect rounded-2xl p-8">
+                        <h3 class="text-2xl font-bold mb-6">Informações de Contato</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center space-x-4">
+                                <div class="w-12 h-12 bg-blue-matte rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-envelope text-white"></i>
+                                </div>
+                                <div>
+                                    <p class="font-semibold">Email</p>
+                                    <p class="text-gray-300">contato@xtreinofreitas.com</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-4">
+                                <div class="w-12 h-12 bg-blue-matte rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-phone text-white"></i>
+                                </div>
+                                <div>
+                                    <p class="font-semibold">WhatsApp</p>
+                                    <p class="text-gray-300">(11) 99999-9999</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-4">
+                                <div class="w-12 h-12 bg-blue-matte rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-clock text-white"></i>
+                                </div>
+                                <div>
+                                    <p class="font-semibold">Horário de Atendimento</p>
+                                    <p class="text-gray-300">Segunda a Sexta: 9h às 18h</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-effect rounded-2xl p-8">
+                        <h3 class="text-2xl font-bold mb-6">Redes Sociais</h3>
+                        <div class="grid grid-cols-3 gap-4">
+                            <a href="#" class="bg-blue-matte hover-blue-matte rounded-lg p-4 text-center transition-colors">
+                                <i class="fab fa-instagram text-2xl mb-2"></i>
+                                <p class="text-sm">Instagram</p>
+                            </a>
+                            <a href="#" class="bg-blue-matte hover-blue-matte rounded-lg p-4 text-center transition-colors">
+                                <i class="fab fa-youtube text-2xl mb-2"></i>
+                                <p class="text-sm">YouTube</p>
+                            </a>
+                            <a href="#" class="bg-blue-matte hover-blue-matte rounded-lg p-4 text-center transition-colors">
+                                <i class="fab fa-discord text-2xl mb-2"></i>
+                                <p class="text-sm">Discord</p>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="glass-effect rounded-2xl p-8">
+                    <h3 class="text-2xl font-bold mb-6">Envie uma Mensagem</h3>
+                    <form onsubmit="handleContactForm(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Nome</label>
+                            <input type="text" required class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="Seu nome">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Email</label>
+                            <input type="email" required class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="seu@email.com">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Assunto</label>
+                            <select class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white focus:border-blue-matte focus:outline-none">
+                                <option value="duvida">Dúvida Geral</option>
+                                <option value="suporte">Suporte Técnico</option>
+                                <option value="parceria">Parceria</option>
+                                <option value="outro">Outro</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Mensagem</label>
+                            <textarea required rows="4" class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="Sua mensagem..."></textarea>
+                        </div>
+                        <button type="submit" class="w-full bg-blue-matte hover-blue-matte py-3 rounded-lg font-semibold transition-colors">
+                            ENVIAR MENSAGEM
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Feed de Notícias Section -->
+    <section class="py-20 bg-dark-matte">
+        <div class="container mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl md:text-5xl font-bold mb-6">ÚLTIMAS NOTÍCIAS</h2>
+                <p class="text-xl text-gray-300 max-w-3xl mx-auto">
+                    Fique por dentro das novidades, atualizações e conquistas da comunidade
+                </p>
+            </div>
+            
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <article class="glass-effect rounded-2xl overflow-hidden card-hover">
+                    <div class="bg-blue-matte h-48 flex items-center justify-center">
+                        <i class="fas fa-trophy text-4xl text-white"></i>
+                    </div>
+                    <div class="p-6">
+                        <div class="text-sm text-blue-matte mb-2">15 Nov 2024</div>
+                        <h3 class="text-xl font-bold mb-3">Aluno conquista primeiro lugar em torneio regional</h3>
+                        <p class="text-gray-300 mb-4">João Silva, aluno do X-Treino há 6 meses, conquistou o primeiro lugar no campeonato regional...</p>
+                        <button class="text-blue-matte hover:underline font-semibold">Ler mais</button>
+                    </div>
+                </article>
+                
+                <article class="glass-effect rounded-2xl overflow-hidden card-hover">
+                    <div class="bg-blue-matte h-48 flex items-center justify-center">
+                        <i class="fas fa-rocket text-4xl text-white"></i>
+                    </div>
+                    <div class="p-6">
+                        <div class="text-sm text-blue-matte mb-2">12 Nov 2024</div>
+                        <h3 class="text-xl font-bold mb-3">Nova metodologia de treinamento lançada</h3>
+                        <p class="text-gray-300 mb-4">Desenvolvemos uma nova abordagem para treinamento de aim que aumenta a precisão em 40%...</p>
+                        <button class="text-blue-matte hover:underline font-semibold">Ler mais</button>
+                    </div>
+                </article>
+                
+                <article class="glass-effect rounded-2xl overflow-hidden card-hover">
+                    <div class="bg-blue-matte h-48 flex items-center justify-center">
+                        <i class="fas fa-users text-4xl text-white"></i>
+                    </div>
+                    <div class="p-6">
+                        <div class="text-sm text-blue-matte mb-2">10 Nov 2024</div>
+                        <h3 class="text-xl font-bold mb-3">Parceria com equipe profissional anunciada</h3>
+                        <p class="text-gray-300 mb-4">Firmamos parceria estratégica com a equipe Thunder Gaming para desenvolvimento de talentos...</p>
+                        <button class="text-blue-matte hover:underline font-semibold">Ler mais</button>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-black py-16">
+        <div class="container mx-auto px-6">
+            <div class="grid md:grid-cols-4 gap-8 mb-8">
+                <div>
+                    <div class="flex items-center space-x-3 mb-6">
+                        <div class="w-10 h-10 bg-blue-matte rounded-lg flex items-center justify-center">
+                            <span class="text-white font-bold">X</span>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold">X-TREINO FREITAS</h3>
+                        </div>
+                    </div>
+                    <p class="text-gray-400">
+                        Elevando jogadores ao próximo nível através de treinamento profissional e metodologia comprovada.
+                    </p>
+                </div>
+                
+                <div>
+                    <h4 class="text-lg font-bold mb-4">Links Úteis</h4>
+                    <div class="space-y-2">
+                        <a href="#" class="block text-gray-400 hover:text-blue-matte transition-colors">FAQ</a>
+                        <a href="#" class="block text-gray-400 hover:text-blue-matte transition-colors">Termos de Uso</a>
+                        <a href="#" class="block text-gray-400 hover:text-blue-matte transition-colors">Política de Privacidade</a>
+                        <a href="#" class="block text-gray-400 hover:text-blue-matte transition-colors">Suporte</a>
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 class="text-lg font-bold mb-4">Contato</h4>
+                    <div class="space-y-2">
+                        <p class="text-gray-400">
+                            <i class="fas fa-envelope mr-2"></i>
+                            contato@xtreinofreitas.com
+                        </p>
+                        <p class="text-gray-400">
+                            <i class="fas fa-phone mr-2"></i>
+                            (11) 99999-9999
+                        </p>
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 class="text-lg font-bold mb-4">Redes Sociais</h4>
+                    <div class="flex space-x-4">
+                        <a href="#" class="w-10 h-10 bg-blue-matte rounded-lg flex items-center justify-center hover:bg-opacity-80 transition-colors">
+                            <i class="fab fa-instagram text-white"></i>
+                        </a>
+                        <a href="#" class="w-10 h-10 bg-blue-matte rounded-lg flex items-center justify-center hover:bg-opacity-80 transition-colors">
+                            <i class="fab fa-youtube text-white"></i>
+                        </a>
+                        <a href="#" class="w-10 h-10 bg-blue-matte rounded-lg flex items-center justify-center hover:bg-opacity-80 transition-colors">
+                            <i class="fab fa-discord text-white"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="border-t border-gray-800 pt-8 text-center">
+                <p class="text-gray-400">
+                    © 2024 X-TREINO FREITAS. Todos os direitos reservados.
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- WhatsApp Float Button -->
+    <div class="fixed bottom-6 right-6 z-50">
+        <a href="https://wa.me/5511999999999" target="_blank" rel="noopener noreferrer" class="bg-green-500 hover:bg-green-600 w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl shadow-lg transition-colors neon-glow">
+            <i class="fab fa-whatsapp"></i>
+        </a>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-dark-matte rounded-2xl p-8 max-w-md w-full glass-effect">
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold mb-2">Área do Cliente</h2>
+                <p class="text-gray-300">Acesse sua conta para gerenciar compras e downloads</p>
+            </div>
+            
+            <form onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-2">Email</label>
+                    <input type="email" required class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="seu@email.com">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Senha</label>
+                    <input type="password" required class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="••••••••">
+                </div>
+                <button type="submit" class="w-full bg-blue-matte hover-blue-matte py-3 rounded-lg font-semibold transition-colors">
+                    ENTRAR
+                </button>
+            </form>
+            
+            <div class="text-center mt-6">
+                <p class="text-gray-400">Não tem conta? 
+                    <button onclick="showRegisterForm()" class="text-blue-matte hover:underline">Cadastre-se</button>
+                </p>
+            </div>
+            
+            <button onclick="closeLoginModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Client Area Modal -->
+    <div id="clientAreaModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-dark-matte rounded-2xl p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto glass-effect">
+            <div class="flex justify-between items-center mb-8">
+                <div>
+                    <h2 class="text-3xl font-bold mb-2">Área do Cliente</h2>
+                    <p class="text-gray-300">Bem-vindo, João Silva!</p>
+                </div>
+                <button onclick="closeClientArea()" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+            
+            <!-- Client Area Tabs -->
+            <div class="flex space-x-4 mb-8 border-b border-gray-700">
+                <button onclick="showClientTab('overview')" class="client-tab active px-6 py-3 font-semibold border-b-2 border-blue-matte text-blue-matte">
+                    Visão Geral
+                </button>
+                <button onclick="showClientTab('orders')" class="client-tab px-6 py-3 font-semibold border-b-2 border-transparent text-gray-400 hover:text-white">
+                    Pedidos
+                </button>
+                <button onclick="showClientTab('downloads')" class="client-tab px-6 py-3 font-semibold border-b-2 border-transparent text-gray-400 hover:text-white">
+                    Downloads
+                </button>
+                <button onclick="showClientTab('tokens')" class="client-tab px-6 py-3 font-semibold border-b-2 border-transparent text-gray-400 hover:text-white">
+                    Tokens XTreino
+                </button>
+            </div>
+            
+            <!-- Overview Tab -->
+            <div id="overviewTab" class="client-tab-content">
+                <div class="grid md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-blue-matte bg-opacity-20 rounded-xl p-6 text-center">
+                        <i class="fas fa-shopping-cart text-3xl text-blue-matte mb-3"></i>
+                        <h3 class="text-xl font-bold mb-2">12</h3>
+                        <p class="text-gray-300">Compras Realizadas</p>
+                    </div>
+                    <div class="bg-blue-matte bg-opacity-20 rounded-xl p-6 text-center">
+                        <i class="fas fa-download text-3xl text-blue-matte mb-3"></i>
+                        <h3 class="text-xl font-bold mb-2">8</h3>
+                        <p class="text-gray-300">Downloads Disponíveis</p>
+                    </div>
+                    <div class="bg-blue-matte bg-opacity-20 rounded-xl p-6 text-center">
+                        <i class="fas fa-coins text-3xl text-blue-matte mb-3"></i>
+                        <h3 class="text-xl font-bold mb-2">3</h3>
+                        <p class="text-gray-300">Tokens Disponíveis</p>
+                    </div>
+                </div>
+                
+                <div class="bg-white bg-opacity-5 rounded-xl p-6">
+                    <h3 class="text-xl font-bold mb-4">Status da Assinatura</h3>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-lg font-semibold text-blue-matte">Passe Booyah - Ativo</p>
+                            <p class="text-gray-300">Próxima cobrança: 15/12/2024</p>
+                        </div>
+                        <button class="bg-blue-matte hover-blue-matte px-4 py-2 rounded-lg font-semibold transition-colors">
+                            Gerenciar
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Orders Tab -->
+            <div id="ordersTab" class="client-tab-content hidden">
+                <div class="space-y-4">
+                    <div class="bg-white bg-opacity-5 rounded-xl p-6 flex justify-between items-center">
+                        <div>
+                            <h3 class="font-bold">Pedido #001234</h3>
+                            <p class="text-gray-300">Planilhas de Análise + Sensibilidades</p>
+                            <p class="text-sm text-gray-400">15/11/2024</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-lg font-bold text-blue-matte">R$ 44,80</p>
+                            <span class="bg-green-500 text-white px-3 py-1 rounded-full text-sm">Concluído</span>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white bg-opacity-5 rounded-xl p-6 flex justify-between items-center">
+                        <div>
+                            <h3 class="font-bold">Pedido #001233</h3>
+                            <p class="text-gray-300">XTreino - Aim Training</p>
+                            <p class="text-sm text-gray-400">12/11/2024</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-lg font-bold text-blue-matte">R$ 49,90</p>
+                            <span class="bg-green-500 text-white px-3 py-1 rounded-full text-sm">Concluído</span>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white bg-opacity-5 rounded-xl p-6 flex justify-between items-center">
+                        <div>
+                            <h3 class="font-bold">Pedido #001232</h3>
+                            <p class="text-gray-300">Camisa Oficial - Tamanho M</p>
+                            <p class="text-sm text-gray-400">10/11/2024</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-lg font-bold text-blue-matte">R$ 89,90</p>
+                            <span class="bg-yellow-500 text-white px-3 py-1 rounded-full text-sm">Enviado</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Downloads Tab -->
+            <div id="downloadsTab" class="client-tab-content hidden">
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="bg-white bg-opacity-5 rounded-xl p-6">
+                        <div class="flex items-center mb-4">
+                            <i class="fas fa-chart-line text-2xl text-blue-matte mr-3"></i>
+                            <div>
+                                <h3 class="font-bold">Planilhas de Análise v2.1</h3>
+                                <p class="text-sm text-gray-400">Comprado em 15/11/2024</p>
+                            </div>
+                        </div>
+                        <button onclick="downloadFile('planilhas')" class="w-full bg-blue-matte hover-blue-matte py-2 rounded-lg font-semibold transition-colors">
+                            <i class="fas fa-download mr-2"></i>Download
+                        </button>
+                    </div>
+                    
+                    <div class="bg-white bg-opacity-5 rounded-xl p-6">
+                        <div class="flex items-center mb-4">
+                            <i class="fas fa-sliders-h text-2xl text-blue-matte mr-3"></i>
+                            <div>
+                                <h3 class="font-bold">Sensibilidades Pro</h3>
+                                <p class="text-sm text-gray-400">Comprado em 15/11/2024</p>
+                            </div>
+                        </div>
+                        <button onclick="downloadFile('sensibilidades')" class="w-full bg-blue-matte hover-blue-matte py-2 rounded-lg font-semibold transition-colors">
+                            <i class="fas fa-download mr-2"></i>Download
+                        </button>
+                    </div>
+                    
+                    <div class="bg-white bg-opacity-5 rounded-xl p-6">
+                        <div class="flex items-center mb-4">
+                            <i class="fas fa-map text-2xl text-blue-matte mr-3"></i>
+                            <div>
+                                <h3 class="font-bold">Imagens Aéreas HD</h3>
+                                <p class="text-sm text-gray-400">Comprado em 08/11/2024</p>
+                            </div>
+                        </div>
+                        <button onclick="downloadFile('imagens')" class="w-full bg-blue-matte hover-blue-matte py-2 rounded-lg font-semibold transition-colors">
+                            <i class="fas fa-download mr-2"></i>Download
+                        </button>
+                    </div>
+                    
+                    <div class="bg-white bg-opacity-5 rounded-xl p-6">
+                        <div class="flex items-center mb-4">
+                            <i class="fas fa-video text-2xl text-blue-matte mr-3"></i>
+                            <div>
+                                <h3 class="font-bold">Vídeos Exclusivos</h3>
+                                <p class="text-sm text-gray-400">Passe Booyah</p>
+                            </div>
+                        </div>
+                        <button onclick="viewOnline('videos')" class="w-full bg-blue-matte hover-blue-matte py-2 rounded-lg font-semibold transition-colors">
+                            <i class="fas fa-play mr-2"></i>Assistir Online
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tokens Tab -->
+            <div id="tokensTab" class="client-tab-content hidden">
+                <div class="mb-6">
+                    <h3 class="text-xl font-bold mb-4">Seus Tokens XTreino</h3>
+                    <p class="text-gray-300 mb-6">Use seus tokens para agendar sessões de treinamento específicas</p>
+                </div>
+                
+                <div class="grid md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-blue-matte bg-opacity-20 rounded-xl p-6 text-center">
+                        <i class="fas fa-coins text-3xl text-blue-matte mb-3"></i>
+                        <h3 class="text-2xl font-bold mb-2">3</h3>
+                        <p class="text-gray-300">Tokens Disponíveis</p>
+                    </div>
+                    <div class="bg-white bg-opacity-5 rounded-xl p-6 text-center">
+                        <i class="fas fa-history text-3xl text-gray-400 mb-3"></i>
+                        <h3 class="text-2xl font-bold mb-2">7</h3>
+                        <p class="text-gray-300">Tokens Utilizados</p>
+                    </div>
+                    <div class="bg-white bg-opacity-5 rounded-xl p-6 text-center">
+                        <i class="fas fa-calendar text-3xl text-gray-400 mb-3"></i>
+                        <h3 class="text-2xl font-bold mb-2">2</h3>
+                        <p class="text-gray-300">Agendamentos Ativos</p>
+                    </div>
+                </div>
+                
+                <div class="space-y-4">
+                    <h4 class="text-lg font-bold">Agendar Novo XTreino</h4>
+                    <div class="grid md:grid-cols-3 gap-4">
+                        <button onclick="scheduleTraining('aim')" class="bg-white bg-opacity-5 hover:bg-opacity-10 rounded-xl p-4 text-left transition-colors">
+                            <i class="fas fa-target text-blue-matte mb-2"></i>
+                            <h5 class="font-bold">Aim Training</h5>
+                            <p class="text-sm text-gray-400">1 Token</p>
+                        </button>
+                        <button onclick="scheduleTraining('strategy')" class="bg-white bg-opacity-5 hover:bg-opacity-10 rounded-xl p-4 text-left transition-colors">
+                            <i class="fas fa-chess text-blue-matte mb-2"></i>
+                            <h5 class="font-bold">Estratégia</h5>
+                            <p class="text-sm text-gray-400">2 Tokens</p>
+                        </button>
+                        <button onclick="scheduleTraining('mental')" class="bg-white bg-opacity-5 hover:bg-opacity-10 rounded-xl p-4 text-left transition-colors">
+                            <i class="fas fa-brain text-blue-matte mb-2"></i>
+                            <h5 class="font-bold">Mentalidade</h5>
+                            <p class="text-sm text-gray-400">1 Token</p>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Purchase Modal -->
+    <div id="purchaseModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-dark-matte rounded-2xl p-8 max-w-md w-full glass-effect">
+            <div class="text-center mb-6">
+                <h2 id="purchaseTitle" class="text-2xl font-bold mb-2">Finalizar Compra</h2>
+                <p id="purchaseDescription" class="text-gray-300">Complete os dados para finalizar sua compra</p>
+            </div>
+            
+            <form onsubmit="handlePurchase(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-2">Nome Completo</label>
+                    <input type="text" required class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="Seu nome completo">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Email</label>
+                    <input type="email" required class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="seu@email.com">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Método de Pagamento</label>
+                    <select class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white focus:border-blue-matte focus:outline-none">
+                        <option value="pix">PIX</option>
+                        <option value="cartao">Cartão de Crédito</option>
+                    </select>
+                </div>
+                
+                <div class="bg-blue-matte bg-opacity-20 rounded-lg p-4 mb-4">
+                    <div class="flex justify-between items-center">
+                        <span>Total:</span>
+                        <span id="purchasePrice" class="text-2xl font-bold text-blue-matte">R$ 0,00</span>
+                    </div>
+                </div>
+                
+                <button type="submit" class="w-full bg-blue-matte hover-blue-matte py-3 rounded-lg font-semibold transition-colors">
+                    FINALIZAR COMPRA
+                </button>
+            </form>
+            
+            <button onclick="closePurchaseModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

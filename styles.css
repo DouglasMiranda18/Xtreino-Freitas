@@ -1,0 +1,62 @@
+body {
+    box-sizing: border-box;
+}
+
+.bg-dark-matte {
+    background-color: #1a1a1a;
+}
+
+.bg-blue-matte {
+    background-color: #4a90e2;
+}
+
+.text-blue-matte {
+    color: #4a90e2;
+}
+
+.border-blue-matte {
+    border-color: #4a90e2;
+}
+
+.hover-blue-matte:hover {
+    background-color: #357abd;
+}
+
+.gradient-bg {
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%);
+}
+
+.glass-effect {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.neon-glow {
+    box-shadow: 0 0 20px rgba(74, 144, 226, 0.3);
+}
+
+.animate-float {
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+}
+
+.card-hover {
+    transition: all 0.3s ease;
+}
+
+.card-hover:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px rgba(74, 144, 226, 0.2);
+}
+
+.client-tab.active {
+    border-color: #4a90e2 !important;
+    color: #4a90e2 !important;
+}
+
+
