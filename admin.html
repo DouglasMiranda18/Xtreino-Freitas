@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - X-TREINO FREITAS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-white text-black font-sans">
+    <header class="w-full border-b border-gray-200 bg-white sticky top-0 z-40">
+        <nav class="container mx-auto px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-blue-matte rounded-lg flex items-center justify-center">
+                    <span class="text-black font-bold">X</span>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold">Painel Admin</h1>
+                    <p class="text-xs text-gray-500">X-TREINO FREITAS</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <span id="adminUserName" class="text-sm text-gray-600"></span>
+                <button id="btnLogout" class="text-sm px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-100">Sair</button>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-6 py-8">
+        <section id="authGate" class="hidden">
+            <div class="max-w-md mx-auto bg-white border border-gray-200 rounded-2xl p-8">
+                <h2 class="text-2xl font-bold mb-2">Acesso Restrito</h2>
+                <p class="text-gray-600 mb-6">Faça login com uma conta autorizada.</p>
+                <button id="btnGoogleLogin" class="w-full bg-black text-white hover:bg-gray-900 py-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" class="w-5 h-5">
+                    Entrar com Google
+                </button>
+            </div>
+        </section>
+
+        <section id="dashboard" class="hidden">
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold">Visão Geral</h2>
+                <p id="roleBadge" class="text-sm text-gray-500">Carregando permissões...</p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white border border-gray-200 rounded-xl p-6">
+                    <div class="text-sm text-gray-500">Vendas Hoje</div>
+                    <div id="kpiToday" class="text-3xl font-bold">R$ 0,00</div>
+                </div>
+                <div class="bg-white border border-gray-200 rounded-xl p-6">
+                    <div class="text-sm text-gray-500">Vendas Mês</div>
+                    <div id="kpiMonth" class="text-3xl font-bold">R$ 0,00</div>
+                </div>
+                <div class="bg-white border border-gray-200 rounded-xl p-6">
+                    <div class="text-sm text-gray-500">A Receber</div>
+                    <div id="kpiReceivable" class="text-3xl font-bold">R$ 0,00</div>
+                </div>
+            </div>
+
+            <div class="grid lg:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white border border-gray-200 rounded-xl p-6 lg:col-span-2">
+                    <h3 class="font-bold mb-4">Vendas - Últimos 30 dias</h3>
+                    <canvas id="salesChart" height="120"></canvas>
+                </div>
+                <div class="bg-white border border-gray-200 rounded-xl p-6">
+                    <h3 class="font-bold mb-4">Top Produtos</h3>
+                    <canvas id="topProductsChart" height="120"></canvas>
+                </div>
+            </div>
+
+            <div class="grid lg:grid-cols-2 gap-6">
+                <div class="bg-white border border-gray-200 rounded-xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold">Pedidos Recentes</h3>
+                        <span id="ordersCount" class="text-sm text-gray-500"></span>
+                    </div>
+                    <div id="ordersTable" class="overflow-x-auto text-sm">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="text-left text-gray-500">
+                                    <th class="py-2">#</th>
+                                    <th class="py-2">Cliente</th>
+                                    <th class="py-2">Item</th>
+                                    <th class="py-2">Valor</th>
+                                    <th class="py-2">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ordersTbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="bg-white border border-gray-200 rounded-xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold">Produtos</h3>
+                        <button id="btnAddProduct" class="text-sm bg-blue-matte text-white px-3 py-1 rounded-lg">Novo</button>
+                    </div>
+                    <div id="productsTable" class="overflow-x-auto text-sm">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="text-left text-gray-500">
+                                    <th class="py-2">Nome</th>
+                                    <th class="py-2">Preço</th>
+                                    <th class="py-2">Tipo</th>
+                                    <th class="py-2">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="productsTbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="py-10 text-center text-gray-500 text-sm">
+        © 2024 X-TREINO FREITAS • Admin
+    </footer>
+
+    <script>
+        window.FIREBASE_CONFIG = {
+            apiKey: "AIzaSyCN5HduoIoBW7LcoxU7AA593KTWd3Zxvo4",
+            authDomain: "freitas-52c8b.firebaseapp.com",
+            projectId: "freitas-52c8b",
+            storageBucket: "freitas-52c8b.firebasestorage.app",
+            messagingSenderId: "650008782089",
+            appId: "1:650008782089:web:69a80a1f2e9c8c4d6e5fd8",
+            measurementId: "G-TGLH5NV8ER"
+        };
+    </script>
+    <script type="module" src="firebase.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="admin.js"></script>
+</body>
+</html>
+
+
