@@ -136,6 +136,69 @@ async function loadTables(canManageProducts) {
     });
 }
 
+async function upsertUserProfile(user) {
+    const { doc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    try {
+        await setDoc(doc(window.firebaseDb, 'users', user.uid), {
+            uid: user.uid,
+            email: user.email || null,
+            displayName: user.displayName || null,
+            photoURL: user.photoURL || null,
+            lastLoginAt: serverTimestamp()
+        }, { merge: true });
+    } catch (e) {
+        console.error('user profile upsert error', e);
+    }
+}
+
+async function loadUsersAndRoles(currentRole) {
+    const canEditRoles = can(currentRole, 'view_all');
+    const { collection, getDocsFromServer, doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const usersCol = collection(window.firebaseDb, 'users');
+    const rolesCol = collection(window.firebaseDb, 'roles');
+    const snapUsers = await getDocsFromServer(usersCol);
+    const snapRoles = await getDocsFromServer(rolesCol);
+
+    const uidToRole = new Map();
+    snapRoles.forEach(r => uidToRole.set(r.id, (r.data()||{}).role || 'viewer'));
+
+    const tbody = document.getElementById('usersTbody');
+    tbody.innerHTML = '';
+    snapUsers.forEach(u => {
+        const data = u.data();
+        const role = uidToRole.get(u.id) || 'viewer';
+        const tr = document.createElement('tr');
+        const selectHtml = `<select class="border border-gray-300 rounded px-2 py-1" data-uid="${u.id}" ${canEditRoles ? '' : 'disabled'}>
+            <option value="admin" ${role==='admin'?'selected':''}>admin</option>
+            <option value="manager" ${role==='manager'?'selected':''}>manager</option>
+            <option value="editor" ${role==='editor'?'selected':''}>editor</option>
+            <option value="viewer" ${role==='viewer'?'selected':''}>viewer</option>
+        </select>`;
+        tr.innerHTML = `<td class="py-2">${data.email||'-'}</td>
+        <td class="py-2">${u.id}</td>
+        <td class="py-2">${selectHtml}</td>
+        <td class="py-2">${canEditRoles ? '<button class="text-blue-600" data-save-role="'+u.id+'">Salvar</button>' : '<span class="text-gray-400">-</span>'}</td>`;
+        tbody.appendChild(tr);
+    });
+
+    if (canEditRoles) {
+        tbody.addEventListener('click', async (e) => {
+            const btn = e.target.closest('[data-save-role]');
+            if (!btn) return;
+            const uid = btn.getAttribute('data-save-role');
+            const sel = tbody.querySelector(`select[data-uid="${uid}"]`);
+            if (!sel) return;
+            try {
+                await setDoc(doc(window.firebaseDb, 'roles', uid), { role: sel.value }, { merge: true });
+                btn.textContent = 'Salvo';
+                setTimeout(() => btn.textContent = 'Salvar', 1200);
+            } catch (err) {
+                alert('Erro ao salvar role');
+            }
+        }, { once: true });
+    }
+}
+
 async function main() {
     const ok = await ensureFirebase();
     const gate = document.getElementById('authGate');
@@ -190,6 +253,8 @@ async function main() {
         try { await loadKPIs(); } catch (e) { console.error('KPIs error', e); }
         try { await loadCharts(); } catch (e) { console.error('Charts error', e); }
         try { await loadTables(can(role, 'manage_products')); } catch (e) { console.error('Tables error', e); }
+        try { await upsertUserProfile(user); } catch {}
+        try { await loadUsersAndRoles(role); } catch (e) { console.error('Users error', e); }
     });
 }
 
