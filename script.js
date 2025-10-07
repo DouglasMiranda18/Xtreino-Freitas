@@ -623,7 +623,9 @@ async function submitSchedule(e){
     let regId = 'local-' + Date.now();
     try {
         const isLocal = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
-        if (window.firebaseReady && !isLocal){
+        const isNetlify = /netlify\.app$/i.test(location.hostname);
+        // Evita tentativa de escrita quando em localhost ou domínio Netlify (até ajustar regras)
+        if (window.firebaseReady && !isLocal && !isNetlify){
             const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
             const docRef = await addDoc(collection(window.firebaseDb,'registrations'),{
                 teamName: team,
