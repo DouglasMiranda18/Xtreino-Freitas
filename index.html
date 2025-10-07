@@ -116,16 +116,16 @@
             </div>
 
             <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <!-- XTreino Gratuito e Associado -->
+                <!-- XTreino Associado -->
                 <article class="product-card">
                     <div class="product-media">
                         <img src="XTREINO FREITAS GRATUITO E ASSOCIADO.jpg" alt="XTREINO FREITAS GRATUITO E ASSOCIADO">
                     </div>
-                    <div class="product-title">XTREINO FREITAS GRATUITO E ASSOCIADO</div>
+                    <div class="product-title">XTREINO FREITAS ASSOCIADO</div>
                     <div class="product-desc">
-                        EQUIPES ✔ • LIVE AO VIVO • VAGA EM CAMP PRO TOP¹ • ASSOCIADOS • RANKING • Horários: 14h–23h
+                        Apenas para contas de associado. 1 Token = 1 vaga. Horários: 14h–23h
                     </div>
-                    <button onclick="openFreeWhatsModal()" class="w-full btn-primary py-2 rounded-lg font-semibold">PARTICIPAR</button>
+                    <button onclick="openTokensModal()" class="w-full btn-primary py-2 rounded-lg font-semibold">USAR TOKENS</button>
                 </article>
 
                 <!-- Modo Liga -->
@@ -1137,19 +1137,11 @@
                 <p class="text-sm text-gray-600 mb-4">Cada token vale R$ 1,00 e pode ser usado para vagas em eventos.</p>
             </div>
             
+            <!-- Sem compra de tokens: apenas associados usam -->
             <div class="space-y-3">
-                <h4 class="font-semibold">Comprar Tokens</h4>
-                <div class="flex items-center space-x-2">
-                    <input type="number" id="tokensQuantity" min="1" max="100" value="1" class="flex-1 border border-gray-300 rounded-lg px-3 py-2">
-                    <span class="text-sm text-gray-600">tokens</span>
+                <div class="bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-lg p-3 text-sm">
+                    Tokens não são vendidos. Disponíveis somente para contas de associado.
                 </div>
-                <div class="text-right">
-                    <span class="text-sm text-gray-600">Total: </span>
-                    <span id="tokensTotal" class="font-bold text-blue-matte">R$ 1,00</span>
-                </div>
-                <button onclick="buyTokens()" class="w-full bg-blue-matte hover-blue-matte text-white py-2 rounded-lg font-semibold">
-                    Comprar Tokens
-                </button>
             </div>
             
             <div class="mt-6 pt-4 border-t">

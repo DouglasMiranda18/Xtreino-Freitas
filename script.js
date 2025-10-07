@@ -889,36 +889,7 @@ function closeTokensModal(){
     if (window.innerWidth <= 767) maybeClearMobileModalState();
 }
 
-function buyTokens(){
-    const qtyInput = document.getElementById('tokensQuantity');
-    const qty = Math.max(1, Math.min(100, Number(qtyInput?.value) || 1));
-    const total = qty * 1.00;
-    
-    // Checkout via Netlify Function
-    fetch('/.netlify/functions/create-preference', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            title: `${qty} Token${qty > 1 ? 's' : ''} XTreino`,
-            unit_price: total,
-            currency_id: 'BRL',
-            quantity: 1
-        })
-    })
-    .then(async (res) => {
-        if (!res.ok) throw new Error(await res.text());
-        return res.json();
-    })
-    .then((data) => {
-        closeTokensModal();
-        const url = data.sandbox_init_point || data.init_point;
-        if (url) window.location.href = url; else alert('Não foi possível iniciar o checkout.');
-    })
-    .catch((err) => {
-        console.error('Erro no checkout de tokens:', err);
-        alert('Falha ao iniciar checkout de tokens.');
-    });
-}
+// Compra de tokens removida (somente associados recebem tokens)
 
 function useTokensForEvent(eventType){
     const eventCosts = {
@@ -929,6 +900,14 @@ function useTokensForEvent(eventType){
         'campFases': 5.00
     };
     
+    // Apenas associados podem usar tokens
+    const profile = window.currentUserProfile || {};
+    const isAssociated = profile && (profile.level === window.AssocConfig.levels.ASSOCIADO_TREINO || profile.level === window.AssocConfig.levels.ASSOCIADO_MODO_LIGA);
+    if (!isAssociated){
+        alert('Recurso disponível somente para contas de associado.');
+        return;
+    }
+
     const cost = eventCosts[eventType];
     if (!cost) return;
     
