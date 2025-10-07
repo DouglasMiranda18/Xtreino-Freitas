@@ -689,7 +689,8 @@ function checkoutCart(){
 const scheduleConfig = {
     'modo-liga': { label: 'XTreino Modo Liga', price: 3.00 },
     'camp-freitas': { label: 'Camp Freitas', price: 5.00 },
-    'semanal-freitas': { label: 'Semanal Freitas', price: 3.50 }
+    'semanal-freitas': { label: 'Semanal Freitas', price: 3.50 },
+    'associado': { label: 'XTreino Freitas Associado', price: 1.00, payWithToken: true }
 };
 
 function openScheduleModal(eventType){
@@ -709,7 +710,7 @@ function openScheduleModal(eventType){
     modal.classList.remove('hidden');
     if (window.innerWidth <= 767) document.body.classList.add('modal-open-mobile');
     const hint = document.getElementById('schedHint');
-    if (hint) hint.textContent = cfg.label;
+    if (hint) hint.textContent = cfg.payWithToken ? `${cfg.label} • Pagamento com 1 token` : cfg.label;
 }
 function closeScheduleModal(){
     const modal = document.getElementById('scheduleModal');
@@ -817,6 +818,14 @@ async function submitSchedule(e){
     const email = document.getElementById('schedEmail').value.trim();
     const phone = document.getElementById('schedPhone').value.trim();
     if (!schedule){ alert('Selecione um horário.'); return; }
+
+    // Se pagar com token (associado): validar associação e saldo e debitar
+    if (cfg && cfg.payWithToken){
+        const profile = window.currentUserProfile || {};
+        const isAssociated = profile && (profile.level === window.AssocConfig.levels.ASSOCIADO_TREINO || profile.level === window.AssocConfig.levels.ASSOCIADO_MODO_LIGA);
+        if (!isAssociated){ alert('Apenas associados podem usar tokens.'); if(submitBtn){submitBtn.disabled=false; submitBtn.textContent=oldText;} return; }
+        if (!canSpendTokens(cfg.price)){ alert('Saldo de tokens insuficiente.'); if(submitBtn){submitBtn.disabled=false; submitBtn.textContent=oldText;} return; }
+    }
     // cria documento pendente no Firestore (se disponível)
     let regId = 'local-' + Date.now();
     try {
@@ -837,7 +846,16 @@ async function submitSchedule(e){
             regId = docRef.id;
         }
     } catch(_) {}
-    // Checkout via Netlify Function (usa preference como no carrinho)
+    if (cfg && cfg.payWithToken){
+        // Debita token e confirma
+        spendTokens(cfg.price);
+        closeScheduleModal();
+        alert('Reserva confirmada com uso de token!');
+        if (submitBtn){ submitBtn.disabled = false; submitBtn.textContent = oldText; }
+        return;
+    }
+
+    // Fluxo normal: Checkout via Netlify Function
     const total = Number(cfg.price.toFixed(2));
     fetch('/.netlify/functions/create-preference',{
         method:'POST', headers:{'Content-Type':'application/json'},
