@@ -38,6 +38,8 @@ async function loginWithGoogle() {
         const { signInWithPopup } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
         const result = await signInWithPopup(window.firebaseAuth, window.firebaseProviders.google);
         const user = result.user;
+        // garante perfil do usuário (Firestore ou localStorage)
+        await ensureUserProfile(user);
         closeLoginModal();
         // Exibir nome do usuário na Área do Cliente (exemplo)
         const nameEl = document.querySelector('#clientAreaModal p.text-gray-300');
@@ -51,6 +53,153 @@ async function loginWithGoogle() {
 
 function showRegisterForm() {
     alert('Formulário de cadastro será implementado. Esta é uma demonstração da interface.');
+}
+
+// ---------------- Área de Associados: cargos, níveis, permissões e tokens ----------------
+// Configuração centralizada acessível via window.AssocConfig
+window.AssocConfig = {
+    roles: {
+        GERENTE: 'Gerente',
+        CEO: 'Ceo',
+        STAFF: 'Staff',
+        VENDEDOR: 'Vendedor'
+    },
+    levels: {
+        ASSOCIADO_TREINO: 'Associado Treino',
+        ASSOCIADO_MODO_LIGA: 'Associado Modo Liga'
+    },
+    // Permissões por cargo
+    permissionsByRole: {
+        Gerente: {
+            redeemTokens: true,
+            purchaseItems: true,
+            accessExclusive: true,
+            manageSalesFlow: false
+        },
+        Ceo: {
+            redeemTokens: true,
+            purchaseItems: true,
+            accessExclusive: true,
+            manageSalesFlow: true
+        },
+        Staff: {
+            redeemTokens: true,
+            purchaseItems: true,
+            accessExclusive: true,
+            manageSalesFlow: false
+        },
+        Vendedor: {
+            redeemTokens: false,
+            purchaseItems: false,
+            accessExclusive: false,
+            manageSalesFlow: false,
+            salesAndChat: true
+        }
+    },
+    // Regras de valor dos tokens (BRL -> tipo de vaga)
+    tokenPricingBRL: [
+        { amount: 1.00, benefit: '1 vaga treino normal', key: 'treino' },
+        { amount: 3.00, benefit: '1 vaga modo liga', key: 'modoLiga' },
+        { amount: 3.50, benefit: '1 vaga semanal', key: 'semanal' },
+        { amount: 7.00, benefit: '1 vaga final semanal', key: 'finalSemanal' },
+        { amount: 5.00, benefit: '1 vaga camp de fases', key: 'campFases' }
+    ]
+};
+
+// Estado local do usuário autenticado (perfil minimalista)
+window.currentUserProfile = null;
+
+// Helpers de permissão
+function hasPermission(permission) {
+    const profile = window.currentUserProfile;
+    if (!profile) return false;
+    const role = profile.role || 'Vendedor';
+    const perms = window.AssocConfig.permissionsByRole[role] || {};
+    return !!perms[permission];
+}
+
+// Helpers de token (saldo simples em perfil.tokens, número decimal em BRL)
+function getTokenBalance() {
+    return Number(window.currentUserProfile?.tokens || 0);
+}
+function canSpendTokens(amountBRL) {
+    return getTokenBalance() >= Number(amountBRL || 0);
+}
+function spendTokens(amountBRL) {
+    const amt = Number(amountBRL || 0);
+    if (!canSpendTokens(amt)) return false;
+    window.currentUserProfile.tokens = Number((getTokenBalance() - amt).toFixed(2));
+    persistUserProfile(window.currentUserProfile);
+    return true;
+}
+function grantTokens(amountBRL) {
+    const amt = Number(amountBRL || 0);
+    window.currentUserProfile = window.currentUserProfile || {};
+    window.currentUserProfile.tokens = Number(((window.currentUserProfile.tokens || 0) + amt).toFixed(2));
+    persistUserProfile(window.currentUserProfile);
+}
+
+// Persistência de perfil: Firestore quando possível; fallback localStorage
+async function ensureUserProfile(user) {
+    const baseProfile = {
+        uid: user?.uid || null,
+        name: user?.displayName || '',
+        email: user?.email || '',
+        phone: '',
+        nickname: '',
+        teamName: '',
+        orgName: '',
+        age: '',
+        role: window.AssocConfig.roles.VENDEDOR, // padrão mínimo
+        level: window.AssocConfig.levels.ASSOCIADO_TREINO,
+        tokens: 0
+    };
+    try {
+        const isLocal = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+        const isNetlify = /netlify\.app$/i.test(location.hostname);
+        if (window.firebaseReady && !isLocal && !isNetlify && user?.uid){
+            const { doc, getDoc, setDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            const ref = doc(collection(window.firebaseDb, 'users'), user.uid);
+            const snap = await getDoc(ref);
+            if (!snap.exists()) {
+                await setDoc(ref, baseProfile);
+                window.currentUserProfile = baseProfile;
+            } else {
+                window.currentUserProfile = { ...baseProfile, ...snap.data() };
+            }
+        } else {
+            // fallback local
+            const key = 'assoc_profile';
+            const stored = JSON.parse(localStorage.getItem(key) || 'null');
+            if (stored && stored.uid === (user?.uid || null)) {
+                window.currentUserProfile = stored;
+            } else {
+                window.currentUserProfile = baseProfile;
+                localStorage.setItem(key, JSON.stringify(baseProfile));
+            }
+        }
+    } catch (err) {
+        console.warn('Perfil: usando fallback local.', err);
+        const key = 'assoc_profile';
+        window.currentUserProfile = baseProfile;
+        localStorage.setItem(key, JSON.stringify(baseProfile));
+    }
+}
+
+async function persistUserProfile(profile){
+    try {
+        const isLocal = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+        const isNetlify = /netlify\.app$/i.test(location.hostname);
+        if (window.firebaseReady && !isLocal && !isNetlify && profile?.uid){
+            const { doc, setDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            const ref = doc(collection(window.firebaseDb, 'users'), profile.uid);
+            await setDoc(ref, profile, { merge: true });
+        } else {
+            localStorage.setItem('assoc_profile', JSON.stringify(profile));
+        }
+    } catch(_) {
+        localStorage.setItem('assoc_profile', JSON.stringify(profile));
+    }
 }
 
 // Client Area Functions
