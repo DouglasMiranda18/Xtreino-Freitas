@@ -501,6 +501,12 @@ function openScheduleModal(eventType){
     modal.dataset.eventType = eventType;
     document.getElementById('schedPrice').textContent = cfg.price.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
     initScheduleDate();
+    // re-render quando a data mudar
+    const dateInput = document.getElementById('schedDate');
+    if (dateInput && !dateInput._schedBound){
+        dateInput.addEventListener('change', renderScheduleTimes);
+        dateInput._schedBound = true;
+    }
     renderScheduleTimes();
     modal.classList.remove('hidden');
     if (window.innerWidth <= 767) document.body.classList.add('modal-open-mobile');
@@ -541,13 +547,14 @@ async function renderScheduleTimes(){
     const day = dayNames[d.getDay()];
     const slots = ['19h','20h','21h','22h','23h'];
     // buscar ocupações confirmadas no Firestore se disponível
-    const occupied = await fetchOccupiedForDate(day, date);
+    let occupied = {};
+    try { occupied = await fetchOccupiedForDate(day, date); } catch(_) { occupied = {}; }
     slots.forEach(time => {
         const schedule = `${day} - ${time}`;
         const taken = occupied[schedule] || 0;
         const available = 12 - taken;
         const btn = document.createElement('button');
-        btn.className = `px-3 py-2 rounded border ${available>0? 'border-green-500 text-green-700':'border-gray-400 text-gray-400 cursor-not-allowed'}`;
+        btn.className = `px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${available>0? 'border border-green-500 text-green-700 hover:bg-green-50':'border border-gray-300 text-gray-400 cursor-not-allowed bg-gray-50'}`;
         btn.textContent = `${time} (${available}/12)`;
         btn.disabled = available<=0;
         btn.onclick = ()=>{ document.getElementById('schedSelectedTime').value = schedule; highlightSelectedSlot(btn, timesWrap); };
@@ -555,8 +562,8 @@ async function renderScheduleTimes(){
     });
 }
 function highlightSelectedSlot(selectedBtn, container){
-    Array.from(container.children).forEach(el=> el.classList.remove('bg-green-50'));
-    selectedBtn.classList.add('bg-green-50');
+    Array.from(container.children).forEach(el=> el.classList.remove('bg-green-100','ring-2','ring-green-400'));
+    selectedBtn.classList.add('bg-green-100','ring-2','ring-green-400');
 }
 async function fetchOccupiedForDate(day, date){
     const map = {};
