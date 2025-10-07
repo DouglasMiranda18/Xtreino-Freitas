@@ -487,6 +487,42 @@ function checkoutCart(){
     .catch(()=> alert('Falha no checkout.'));
 }
 
+// --- Integração XtreinoHKS ---
+function openHksScheduleModal(eventType){
+    const modal = document.getElementById('hksModal');
+    const frame = document.getElementById('hksFrame');
+    if (!modal || !frame) return;
+    // Opção 1: embed da Agenda do HKS com hash indicando o evento (se suportado)
+    const base = 'https://xtreinohks.netlify.app/';
+    const url = `${base}#agenda?src=freitas&event=${encodeURIComponent(eventType)}`;
+    frame.src = url;
+    modal.classList.remove('hidden');
+    if (window.innerWidth <= 767) document.body.classList.add('modal-open-mobile');
+}
+function closeHksModal(){
+    const modal = document.getElementById('hksModal');
+    const frame = document.getElementById('hksFrame');
+    if (frame) frame.src = '';
+    if (modal) modal.classList.add('hidden');
+    if (window.innerWidth <= 767) maybeClearMobileModalState();
+}
+
+// XTreino Gratuito: abrir WhatsApp com mensagem
+function openFreeWhatsModal(){
+    const modal = document.getElementById('freeWhatsModal');
+    const link = document.getElementById('freeWhatsLink');
+    const number = '5581986103152'; // ajuste se necessário
+    const message = 'Vim do site e quero uma vaga gratuita. Quais horários têm disponível?';
+    if (link) link.href = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
+    if (modal) modal.classList.remove('hidden');
+    if (window.innerWidth <= 767) document.body.classList.add('modal-open-mobile');
+}
+function closeFreeWhatsModal(){
+    const modal = document.getElementById('freeWhatsModal');
+    if (modal) modal.classList.add('hidden');
+    if (window.innerWidth <= 767) maybeClearMobileModalState();
+}
+
 // Top alert control (example trigger)
 window.addEventListener('load', () => {
     const alertBar = document.getElementById('topAlert');

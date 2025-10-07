@@ -125,7 +125,7 @@
                     <div class="product-desc">
                         EQUIPES ✔ • LIVE AO VIVO • VAGA EM CAMP PRO TOP¹ • ASSOCIADOS • RANKING • Horários: 14h–23h
                     </div>
-                    <button onclick="openPurchaseModal('evt-xtreino-gratuito')" class="w-full btn-primary py-2 rounded-lg font-semibold">PARTICIPAR</button>
+                    <button onclick="openFreeWhatsModal()" class="w-full btn-primary py-2 rounded-lg font-semibold">PARTICIPAR</button>
                 </article>
 
                 <!-- Modo Liga -->
@@ -137,7 +137,7 @@
                     <div class="product-desc">
                         Inscrição R$ 3,00 • TABELA + PREMIAÇÕES • Vaga em Camp Pro Top¹ • Horários: 14h–23h • Narração + Transmissão
                     </div>
-                    <button onclick="openPurchaseModal('evt-modo-liga')" class="w-full btn-primary py-2 rounded-lg font-semibold">RESERVAR VAGA</button>
+                    <button onclick="openHksScheduleModal('modo-liga')" class="w-full btn-primary py-2 rounded-lg font-semibold">RESERVAR VAGA</button>
                 </article>
 
                 <!-- Camp Freitas -->
@@ -149,7 +149,7 @@
                     <div class="product-desc">
                         Em andamento • Inscrição R$ 5,00 • 19h 20h 21h 22h 23h • Premiação total R$ 2000,00 + Troféu • Transmissão Modo Liga nas semifinais e logo no gelo na final
                     </div>
-                    <button onclick="openPurchaseModal('evt-camp-freitas')" class="w-full btn-primary py-2 rounded-lg font-semibold">INSCREVER</button>
+                    <button onclick="openHksScheduleModal('camp-freitas')" class="w-full btn-primary py-2 rounded-lg font-semibold">INSCREVER</button>
                 </article>
 
                 <!-- Semanal Freitas -->
@@ -161,7 +161,7 @@
                     <div class="product-desc">
                         Inscr.: R$ 3,50 • Premiação: R$ 65,00 • 2 quedas (misto) • Fase 1: 19h (LOTADO), 20h (ON), 21h (ON) • Final 22h • Passam 4 equipes direto
                     </div>
-                    <button onclick="openPurchaseModal('evt-semanal-freitas')" class="w-full btn-primary py-2 rounded-lg font-semibold">INSCREVER</button>
+                    <button onclick="openHksScheduleModal('semanal-freitas')" class="w-full btn-primary py-2 rounded-lg font-semibold">INSCREVER</button>
                 </article>
             </div>
         </div>
@@ -1119,6 +1119,30 @@
                     </form>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- HKS Schedule Modal (embed) -->
+    <div id="hksModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-5xl w-full overflow-hidden relative">
+            <button onclick="closeHksModal()" class="absolute top-4 right-4 text-gray-500 hover:text-black">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+            <div class="h-[80vh]">
+                <iframe id="hksFrame" src="" class="w-full h-full border-0" title="Agenda XtreinoHKS" referrerpolicy="no-referrer" allow="payment *; clipboard-write *;"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <!-- Free WhatsApp Modal -->
+    <div id="freeWhatsModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 relative">
+            <button onclick="closeFreeWhatsModal()" class="absolute top-4 right-4 text-gray-500 hover:text-black">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+            <h3 class="text-xl font-bold mb-3">XTREINO GRATUITO</h3>
+            <p class="text-gray-700 mb-4">Clique abaixo para abrir o WhatsApp e solicitar sua vaga gratuita. Enviaremos os horários disponíveis.</p>
+            <a id="freeWhatsLink" target="_blank" rel="noopener" class="w-full btn-primary py-3 rounded-lg font-semibold block text-center">Abrir WhatsApp</a>
         </div>
     </div>
 
