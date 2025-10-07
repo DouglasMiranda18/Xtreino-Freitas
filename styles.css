@@ -136,6 +136,14 @@ body {
     z-index: 60;
 }
 
+/* Ocultar FAB do carrinho e botão voltar ao topo em mobile quando um modal estiver aberto */
+@media (max-width: 767px) {
+    body.modal-open-mobile #backToTop,
+    body.modal-open-mobile #cartFab {
+        display: none !important;
+    }
+}
+
 /* Fundo empresarial simples (padrão sutil) */
 .enterprise-bg {
     background-image: radial-gradient(rgba(0,0,0,0.03) 1px, transparent 1px);
