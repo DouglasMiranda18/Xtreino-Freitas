@@ -642,7 +642,7 @@ async function submitSchedule(e){
     .then(data=>{
         closeScheduleModal();
         if (data.init_point) window.location.href = data.init_point; else alert('Não foi possível iniciar o pagamento.');
-    }).catch((err)=> alert('Falha ao iniciar pagamento. ' + (err && err.message ? err.message : ''))
+    }).catch((err)=> { alert('Falha ao iniciar pagamento. ' + (err && err.message ? err.message : '')); })
     .finally(()=>{ if (submitBtn){ submitBtn.disabled = false; submitBtn.textContent = oldText; }});
 }
 
