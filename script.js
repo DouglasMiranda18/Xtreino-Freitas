@@ -209,11 +209,11 @@ function showProductModal(productId){
         'planilhas': 'PLANILHAS FREITAS FINALIZADO VERMELHO.png',
         'passe-booyah': 'PASSE ORG FREITAS FEED.png',
         'camisa': 'DIVULGAÇÃO MANTO FREITAS.jpg',
-        // imagens dos eventos (todos .jpg conforme informado)
-        'evt-xtreino-gratuito': 'evento-xtreino-gratuito.jpg',
-        'evt-modo-liga': 'evento-modo-liga.jpg',
-        'evt-camp-freitas': 'evento-camp-freitas.jpg',
-        'evt-semanal-freitas': 'evento-semanal-freitas.jpg'
+        // imagens dos eventos (JPGs no projeto)
+        'evt-xtreino-gratuito': 'XTREINO FREITAS GRATUITO E ASSOCIADO.jpg',
+        'evt-modo-liga': '𝑿𝑻𝑹𝑬𝑰𝑵𝑶 𝑭𝑹𝑬𝑰𝑻𝑨𝑺 𝑴𝑶𝑫𝑶 𝑳𝑰𝑮𝑨.jpg',
+        'evt-camp-freitas': '𝑪𝑨𝑴𝑷 𝑭𝑹𝑬𝑰𝑻𝑨𝑺 .jpg',
+        'evt-semanal-freitas': '𝙎𝙀𝙈𝘼𝙉𝘼𝙇 𝙁𝙍𝙀𝙄𝙏𝘼𝙎.jpg'
     };
     const imgEl = document.getElementById('purchaseImage');
     if (imgEl) imgEl.src = imgMap[productId] || '';
