@@ -41,7 +41,9 @@
                         <a href="https://www.youtube.com/@Organiza%C3%A7%C3%A3oFreitas" target="_blank" rel="noopener" class="text-black hover:text-blue-matte"><i class="fab fa-youtube"></i></a>
                         <a href="#" class="text-black hover:text-blue-matte"><i class="fab fa-discord"></i></a>
                     </div>
-                    
+                    <button id="loginBtnDesktop" onclick="openLoginModal()" class="bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold transition-colors">
+                        LOGIN
+                    </button>
                 </div>
                 
                 <!-- Mobile Menu Button -->
@@ -63,7 +65,9 @@
                         <a href="https://www.youtube.com/@Organiza%C3%A7%C3%A3oFreitas" target="_blank" rel="noopener" class="text-black hover:text-blue-matte"><i class="fab fa-youtube"></i></a>
                         <a href="#" class="text-black hover:text-blue-matte"><i class="fab fa-discord"></i></a>
                     </div>
-                    
+                    <button id="loginBtnMobile" onclick="openLoginModal()" class="bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold transition-colors w-full">
+                        LOGIN
+                    </button>
                 </div>
             </div>
         </nav>
@@ -1122,6 +1126,43 @@
                     </button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Auth Modal (Login/Cadastro/Recuperação) -->
+    <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full border border-gray-200 shadow-xl relative">
+            <button onclick="closeLoginModal()" class="absolute top-4 right-4 text-gray-500 hover:text-black">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+            <div class="flex space-x-4 mb-4 border-b">
+                <button id="tabLogin" class="px-3 py-2 font-semibold border-b-2 border-blue-matte" onclick="showAuthTab('login')">Entrar</button>
+                <button id="tabRegister" class="px-3 py-2 text-gray-500" onclick="showAuthTab('register')">Cadastrar</button>
+                <button id="tabReset" class="px-3 py-2 text-gray-500" onclick="showAuthTab('reset')">Recuperar</button>
+            </div>
+            <div id="authLogin" class="space-y-3">
+                <input id="authEmail" type="email" placeholder="Email" class="w-full border border-gray-300 rounded-lg px-4 py-3" />
+                <input id="authPassword" type="password" placeholder="Senha" class="w-full border border-gray-300 rounded-lg px-4 py-3" />
+                <button onclick="loginWithEmailPassword()" class="w-full bg-blue-matte hover-blue-matte text-white py-3 rounded-lg font-semibold">Entrar</button>
+                <button onclick="loginWithGoogle()" class="w-full bg-white border border-gray-300 hover:bg-gray-100 text-black py-3 rounded-lg font-semibold flex items-center justify-center gap-2">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" class="w-5 h-5"> Entrar com Google
+                </button>
+            </div>
+            <div id="authRegister" class="space-y-3 hidden">
+                <input id="regName" type="text" placeholder="Nome completo" class="w-full border border-gray-300 rounded-lg px-4 py-3" />
+                <input id="regEmail" type="email" placeholder="Email" class="w-full border border-gray-300 rounded-lg px-4 py-3" />
+                <input id="regPhone" type="tel" placeholder="Celular" class="w-full border border-gray-300 rounded-lg px-4 py-3" />
+                <input id="regNickname" type="text" placeholder="Nickname gamer" class="w-full border border-gray-300 rounded-lg px-4 py-3" />
+                <input id="regTeam" type="text" placeholder="Time/Org" class="w-full border border-gray-300 rounded-lg px-4 py-3" />
+                <input id="regAge" type="number" min="10" max="99" placeholder="Idade" class="w-full border border-gray-300 rounded-lg px-4 py-3" />
+                <input id="regPassword" type="password" placeholder="Senha" class="w-full border border-gray-300 rounded-lg px-4 py-3" />
+                <button onclick="registerWithEmailPassword()" class="w-full bg-blue-matte hover-blue-matte text-white py-3 rounded-lg font-semibold">Criar conta</button>
+            </div>
+            <div id="authReset" class="space-y-3 hidden">
+                <input id="resetEmail" type="email" placeholder="Seu email" class="w-full border border-gray-300 rounded-lg px-4 py-3" />
+                <button onclick="sendPasswordReset()" class="w-full bg-blue-matte hover-blue-matte text-white py-3 rounded-lg font-semibold">Enviar link de recuperação</button>
+            </div>
+            <p id="authMsg" class="text-sm text-center mt-3 text-gray-600"></p>
         </div>
     </div>
 

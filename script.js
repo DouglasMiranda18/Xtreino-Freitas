@@ -1,3 +1,83 @@
+// --- Auth (novo) ---
+function openLoginModal(){
+    const m = document.getElementById('loginModal');
+    if (m) m.classList.remove('hidden');
+}
+function closeLoginModal(){
+    const m = document.getElementById('loginModal');
+    if (m) m.classList.add('hidden');
+}
+function showAuthTab(tab){
+    const tabs = ['login','register','reset'];
+    tabs.forEach(t=>{
+        const el = document.getElementById('auth'+t.charAt(0).toUpperCase()+t.slice(1));
+        const btn = document.getElementById('tab'+t.charAt(0).toUpperCase()+t.slice(1));
+        if (!el || !btn) return;
+        if (t===tab){ el.classList.remove('hidden'); btn.classList.add('border-blue-matte'); btn.classList.remove('text-gray-500'); }
+        else { el.classList.add('hidden'); btn.classList.remove('border-blue-matte'); btn.classList.add('text-gray-500'); }
+    });
+    const msg = document.getElementById('authMsg'); if (msg) msg.textContent='';
+}
+
+async function loginWithGoogle(){
+    try{
+        if (!window.firebaseReady){ throw new Error('Firebase não inicializado'); }
+        const { GoogleAuthProvider, signInWithPopup } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
+        const provider = new GoogleAuthProvider();
+        await signInWithPopup(window.firebaseAuth, provider);
+        document.getElementById('authMsg').textContent = 'Login realizado com Google.';
+        closeLoginModal();
+    }catch(e){ document.getElementById('authMsg').textContent = 'Erro no login Google.'; }
+}
+
+async function loginWithEmailPassword(){
+    try{
+        if (!window.firebaseReady){ throw new Error('Firebase não inicializado'); }
+        const email = document.getElementById('authEmail').value.trim();
+        const pass = document.getElementById('authPassword').value.trim();
+        const { signInWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
+        await signInWithEmailAndPassword(window.firebaseAuth, email, pass);
+        document.getElementById('authMsg').textContent = 'Login realizado.';
+        closeLoginModal();
+    }catch(e){ document.getElementById('authMsg').textContent = 'Email ou senha inválidos.'; }
+}
+
+async function registerWithEmailPassword(){
+    try{
+        if (!window.firebaseReady){ throw new Error('Firebase não inicializado'); }
+        const email = document.getElementById('regEmail').value.trim();
+        const pass = document.getElementById('regPassword').value.trim();
+        const name = document.getElementById('regName').value.trim();
+        const phone = document.getElementById('regPhone').value.trim();
+        const nickname = document.getElementById('regNickname').value.trim();
+        const team = document.getElementById('regTeam').value.trim();
+        const age = document.getElementById('regAge').value.trim();
+        const { createUserWithEmailAndPassword, updateProfile } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
+        const cred = await createUserWithEmailAndPassword(window.firebaseAuth, email, pass);
+        await updateProfile(cred.user, { displayName: name });
+        // salva perfil mínimo no Firestore quando possível
+        try{
+            if (window.firebaseReady){
+                const { collection, doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+                const ref = doc(collection(window.firebaseDb,'users'), cred.user.uid);
+                await setDoc(ref, { name, email, phone, nickname, teamName: team, age, createdAt: Date.now() }, { merge: true });
+            }
+        }catch(_){ }
+        document.getElementById('authMsg').textContent = 'Conta criada com sucesso.';
+        showAuthTab('login');
+    }catch(e){ document.getElementById('authMsg').textContent = 'Não foi possível criar a conta.'; }
+}
+
+async function sendPasswordReset(){
+    try{
+        if (!window.firebaseReady){ throw new Error('Firebase não inicializado'); }
+        const email = document.getElementById('resetEmail').value.trim();
+        const { sendPasswordResetEmail } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
+        await sendPasswordResetEmail(window.firebaseAuth, email);
+        document.getElementById('authMsg').textContent = 'Email de recuperação enviado.';
+        showAuthTab('login');
+    }catch(e){ document.getElementById('authMsg').textContent = 'Erro ao enviar recuperação.'; }
+}
 // Mobile menu toggle
 function toggleMobileMenu() {
     const menu = document.getElementById('mobileMenu');
