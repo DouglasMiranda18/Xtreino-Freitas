@@ -14,11 +14,13 @@ async function initializeIfConfigured() {
 
         const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js');
         const { getAuth, GoogleAuthProvider } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
-        const { getFirestore } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const { getFirestore, setLogLevel } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
 
         app = initializeApp(window.FIREBASE_CONFIG);
         auth = getAuth(app);
         db = getFirestore(app);
+        // Reduz ruído de logs no console
+        try { setLogLevel('error'); } catch (_) {}
         providers.google = new GoogleAuthProvider();
 
         window.firebaseApp = app;

@@ -604,6 +604,9 @@ async function updateOccupiedAndRefreshButtons(day, date, container){
 }
 async function submitSchedule(e){
     e.preventDefault();
+    const submitBtn = document.getElementById('schedSubmit');
+    const oldText = submitBtn ? submitBtn.textContent : '';
+    if (submitBtn){ submitBtn.disabled = true; submitBtn.textContent = 'Processando...'; }
     const modal = document.getElementById('scheduleModal');
     const eventType = modal?.dataset?.eventType || 'modo-liga';
     const cfg = scheduleConfig[eventType];
@@ -639,7 +642,8 @@ async function submitSchedule(e){
     .then(data=>{
         closeScheduleModal();
         if (data.init_point) window.location.href = data.init_point; else alert('Não foi possível iniciar o pagamento.');
-    }).catch(()=> alert('Falha ao iniciar pagamento.'));
+    }).catch(()=> alert('Falha ao iniciar pagamento.'))
+    .finally(()=>{ if (submitBtn){ submitBtn.disabled = false; submitBtn.textContent = oldText; }});
 }
 
 // XTreino Gratuito: abrir WhatsApp com mensagem
