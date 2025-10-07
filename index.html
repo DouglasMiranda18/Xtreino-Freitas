@@ -137,7 +137,7 @@
                     <div class="product-desc">
                         Inscrição R$ 3,00 • TABELA + PREMIAÇÕES • Vaga em Camp Pro Top¹ • Horários: 14h–23h • Narração + Transmissão
                     </div>
-                    <button onclick="openHksScheduleModal('modo-liga')" class="w-full btn-primary py-2 rounded-lg font-semibold">RESERVAR VAGA</button>
+                    <button onclick="openHksEmbed('modo-liga')" class="w-full btn-primary py-2 rounded-lg font-semibold">RESERVAR VAGA</button>
                 </article>
 
                 <!-- Camp Freitas -->
@@ -149,7 +149,7 @@
                     <div class="product-desc">
                         Em andamento • Inscrição R$ 5,00 • 19h 20h 21h 22h 23h • Premiação total R$ 2000,00 + Troféu • Transmissão Modo Liga nas semifinais e logo no gelo na final
                     </div>
-                    <button onclick="openHksScheduleModal('camp-freitas')" class="w-full btn-primary py-2 rounded-lg font-semibold">INSCREVER</button>
+                    <button onclick="openHksEmbed('camp-freitas')" class="w-full btn-primary py-2 rounded-lg font-semibold">INSCREVER</button>
                 </article>
 
                 <!-- Semanal Freitas -->
@@ -161,7 +161,7 @@
                     <div class="product-desc">
                         Inscr.: R$ 3,50 • Premiação: R$ 65,00 • 2 quedas (misto) • Fase 1: 19h (LOTADO), 20h (ON), 21h (ON) • Final 22h • Passam 4 equipes direto
                     </div>
-                    <button onclick="openHksScheduleModal('semanal-freitas')" class="w-full btn-primary py-2 rounded-lg font-semibold">INSCREVER</button>
+                    <button onclick="openHksEmbed('semanal-freitas')" class="w-full btn-primary py-2 rounded-lg font-semibold">INSCREVER</button>
                 </article>
             </div>
         </div>
@@ -1122,17 +1122,20 @@
         </div>
     </div>
 
-    <!-- HKS Schedule Modal (embed) -->
-    <div id="hksModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-5xl w-full overflow-hidden relative">
-            <button onclick="closeHksModal()" class="absolute top-4 right-4 text-gray-500 hover:text-black">
-                <i class="fas fa-times text-xl"></i>
-            </button>
-            <div class="h-[80vh]">
-                <iframe id="hksFrame" src="" class="w-full h-full border-0" title="Agenda XtreinoHKS" referrerpolicy="no-referrer" allow="payment *; clipboard-write *;"></iframe>
+    <!-- HKS Schedule Embed (inline) -->
+    <section id="agenda-hks" class="py-10 hidden">
+        <div class="container mx-auto px-6">
+            <div class="bg-white rounded-2xl overflow-hidden shadow border">
+                <div class="flex items-center justify-between px-4 py-3 border-b">
+                    <h3 class="font-bold">Agenda XtreinoHKS</h3>
+                    <button onclick="closeHksEmbed()" class="text-gray-600 hover:text-black"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="h-[80vh]">
+                    <iframe id="hksEmbedFrame" src="" class="w-full h-full border-0" title="Agenda XtreinoHKS" referrerpolicy="no-referrer" allow="payment *; clipboard-write *;"></iframe>
+                </div>
             </div>
         </div>
-    </div>
+    </section>
 
     <!-- Free WhatsApp Modal -->
     <div id="freeWhatsModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
