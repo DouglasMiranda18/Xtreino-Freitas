@@ -55,6 +55,41 @@ async function loginWithGoogle() {
     }
 }
 
+// Email/senha
+async function loginWithEmailPassword(){
+    try {
+        if (!window.firebaseReady){ alert('Autenticação indisponível no momento.'); return; }
+        const email = document.getElementById('loginEmail').value.trim();
+        const password = document.getElementById('loginPassword').value.trim();
+        const { signInWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
+        const cred = await signInWithEmailAndPassword(window.firebaseAuth, email, password);
+        await ensureUserProfile(cred.user);
+        window.isLoggedIn = true;
+        closeLoginModal();
+        refreshAuthButtons(true);
+        openClientArea();
+    } catch (err){
+        alert('Falha no login. Verifique email/senha.');
+    }
+}
+
+async function registerWithEmailPassword(){
+    try {
+        if (!window.firebaseReady){ alert('Cadastro indisponível no momento.'); return; }
+        const email = document.getElementById('loginEmail').value.trim();
+        const password = document.getElementById('loginPassword').value.trim();
+        const { createUserWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
+        const cred = await createUserWithEmailAndPassword(window.firebaseAuth, email, password);
+        await ensureUserProfile(cred.user);
+        window.isLoggedIn = true;
+        closeLoginModal();
+        refreshAuthButtons(true);
+        openClientArea();
+    } catch (err){
+        alert('Falha no cadastro. Tente outro email/senha.');
+    }
+}
+
 function showRegisterForm() {
     alert('Formulário de cadastro será implementado. Esta é uma demonstração da interface.');
 }
