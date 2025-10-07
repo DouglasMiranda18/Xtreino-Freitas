@@ -11,155 +11,33 @@ function scrollToSection(sectionId) {
     });
 }
 
-// Login modal functions
-window.isLoggedIn = false;
-function openLoginModal() {
-    document.getElementById('loginModal').classList.remove('hidden');
-    if (window.innerWidth <= 767) document.body.classList.add('modal-open-mobile');
-}
+// [login removed]
 
-function closeLoginModal() {
-    document.getElementById('loginModal').classList.add('hidden');
-    if (window.innerWidth <= 767) maybeClearMobileModalState();
-}
-
-function handleLogin(event) {
-    event.preventDefault();
-    // Simula login bem-sucedido
-    closeLoginModal();
-    openClientArea();
-    refreshAuthButtons(true);
-}
-
-async function loginWithGoogle() {
-    try {
-        if (!window.firebaseReady) {
-            alert('Autenticação indisponível no momento. Configure o Firebase.');
-            return;
-        }
-        const { signInWithPopup } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
-        const result = await signInWithPopup(window.firebaseAuth, window.firebaseProviders.google);
-        const user = result.user;
-        // garante perfil do usuário (Firestore ou localStorage)
-        await ensureUserProfile(user);
-        window.isLoggedIn = true;
-        closeLoginModal();
-        refreshAuthButtons(true);
-        // Exibir nome do usuário na Área do Cliente (exemplo)
-        const nameEl = document.querySelector('#clientAreaModal p.text-gray-300');
-        if (nameEl) nameEl.textContent = `Bem-vindo, ${user.displayName || 'Usuário'}!`;
-        openClientArea();
-    } catch (err) {
-        console.error('Login Google falhou:', err);
-        alert('Falha no login com Google.');
-    }
-}
+// [login removed]
 
 // Email/senha
-async function loginWithEmailPassword(){
-    try {
-        if (!window.firebaseReady){ alert('Autenticação indisponível no momento.'); return; }
-        const email = document.getElementById('loginEmail').value.trim();
-        const password = document.getElementById('loginPassword').value.trim();
-        const { signInWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
-        const cred = await signInWithEmailAndPassword(window.firebaseAuth, email, password);
-        await ensureUserProfile(cred.user);
-        window.isLoggedIn = true;
-        closeLoginModal();
-        refreshAuthButtons(true);
-        openClientArea();
-    } catch (err){
-        alert('Falha no login. Verifique email/senha.');
-    }
-}
+// [login removed]
 
-async function registerWithEmailPassword(){
-    try {
-        if (!window.firebaseReady){ alert('Cadastro indisponível no momento.'); return; }
-        const email = document.getElementById('loginEmail').value.trim();
-        const password = document.getElementById('loginPassword').value.trim();
-        const { createUserWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
-        const cred = await createUserWithEmailAndPassword(window.firebaseAuth, email, password);
-        await ensureUserProfile(cred.user);
-        window.isLoggedIn = true;
-        closeLoginModal();
-        refreshAuthButtons(true);
-        openClientArea();
-    } catch (err){
-        alert('Falha no cadastro. Tente outro email/senha.');
-    }
-}
+// [login removed]
 
 function showRegisterForm() {
     alert('Formulário de cadastro será implementado. Esta é uma demonstração da interface.');
 }
 
 // Alterna botões Login/Minha Conta conforme estado
-function refreshAuthButtons(isLogged){
-    const desktopLogin = document.getElementById('loginBtnDesktop');
-    const desktopAccount = document.getElementById('accountBtnDesktop');
-    const mobileLogin = document.getElementById('loginBtnMobile');
-    const mobileAccount = document.getElementById('accountBtnMobile');
-    const showAccount = !!isLogged;
-    if (desktopLogin && desktopAccount){
-        desktopLogin.classList.toggle('hidden', showAccount);
-        desktopAccount.classList.toggle('hidden', !showAccount);
-    }
-    if (mobileLogin && mobileAccount){
-        mobileLogin.classList.toggle('hidden', showAccount);
-        mobileAccount.classList.toggle('hidden', !showAccount);
-    }
-}
+function refreshAuthButtons(){ /* removed */ }
 
 // Abrir modal de cadastro direto (atalho)
-function openRegisterModal(){
-    if (!window.isLoggedIn){ openLoginModal(); return; }
-    closeLoginModal();
-    openClientArea();
-    showClientTab('register');
-}
+function openRegisterModal(){ /* removed */ }
 
 // Submissão de cadastro: salva no perfil e persiste
-async function submitRegister(event){
-    event.preventDefault();
-    if (!window.isLoggedIn){ alert('Faça login para concluir o cadastro.'); return; }
-    const profile = {
-        ...window.currentUserProfile,
-        name: document.getElementById('regName').value.trim(),
-        email: document.getElementById('regEmail').value.trim(),
-        phone: document.getElementById('regPhone').value.trim(),
-        nickname: document.getElementById('regNickname').value.trim(),
-        teamName: document.getElementById('regTeam').value.trim(),
-        age: document.getElementById('regAge').value.trim(),
-        role: document.getElementById('regRole').value,
-        level: document.getElementById('regLevel').value
-    };
-    window.currentUserProfile = profile;
-    await persistUserProfile(profile);
-    renderClientArea();
-    alert('Cadastro salvo! Seus benefícios de associado foram atualizados.');
-}
+async function submitRegister(){ /* removed */ }
 
 // Inicializa header conforme sessão prévia
-window.addEventListener('load', () => {
-    window.isLoggedIn = !!(window.currentUserProfile && window.currentUserProfile.uid);
-    refreshAuthButtons(window.isLoggedIn);
-});
+window.addEventListener('load', () => {});
 
 // Logout
-async function logout(){
-    try {
-        if (window.firebaseReady){
-            const { signOut } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
-            await signOut(window.firebaseAuth);
-        }
-    } catch(_) {}
-    window.isLoggedIn = false;
-    window.currentUserProfile = null;
-    localStorage.removeItem('assoc_profile');
-    refreshAuthButtons(false);
-    closeClientArea();
-}
+async function logout(){ /* removed */ }
 
 // ---------------- Área de Associados: cargos, níveis, permissões e tokens ----------------
 // Configuração centralizada acessível via window.AssocConfig
@@ -310,7 +188,6 @@ async function persistUserProfile(profile){
 
 // Client Area Functions
 function openClientArea() {
-    if (!window.isLoggedIn) { openLoginModal(); return; }
     document.getElementById('clientAreaModal').classList.remove('hidden');
     try { renderClientArea(); } catch(_) {}
     if (window.innerWidth <= 767) document.body.classList.add('modal-open-mobile');
@@ -663,9 +540,7 @@ document.addEventListener('click', function(event) {
     const freeWhatsModal = document.getElementById('freeWhatsModal');
     const scheduleModal = document.getElementById('scheduleModal');
     
-    if (event.target === loginModal) {
-        closeLoginModal();
-    }
+    // login modal removido
     if (event.target === purchaseModal) {
         closePurchaseModal();
     }

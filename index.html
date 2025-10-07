@@ -41,12 +41,7 @@
                         <a href="https://www.youtube.com/@Organiza%C3%A7%C3%A3oFreitas" target="_blank" rel="noopener" class="text-black hover:text-blue-matte"><i class="fab fa-youtube"></i></a>
                         <a href="#" class="text-black hover:text-blue-matte"><i class="fab fa-discord"></i></a>
                     </div>
-                    <button id="loginBtnDesktop" onclick="openLoginModal()" class="bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold transition-colors">
-                        LOGIN
-                    </button>
-                    <button id="accountBtnDesktop" onclick="openClientArea()" class="hidden bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold transition-colors">
-                        MINHA CONTA
-                    </button>
+                    
                 </div>
                 
                 <!-- Mobile Menu Button -->
@@ -68,12 +63,7 @@
                         <a href="https://www.youtube.com/@Organiza%C3%A7%C3%A3oFreitas" target="_blank" rel="noopener" class="text-black hover:text-blue-matte"><i class="fab fa-youtube"></i></a>
                         <a href="#" class="text-black hover:text-blue-matte"><i class="fab fa-discord"></i></a>
                     </div>
-                    <button id="loginBtnMobile" onclick="openLoginModal()" class="bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold transition-colors w-full">
-                        LOGIN
-                    </button>
-                    <button id="accountBtnMobile" onclick="openClientArea()" class="hidden bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold transition-colors w-full">
-                        MINHA CONTA
-                    </button>
+                    
                 </div>
             </div>
         </nav>
@@ -715,41 +705,7 @@
         </div>
     </div>
 
-    <!-- Login Modal -->
-    <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl p-8 max-w-md w-full border border-gray-200 shadow-xl">
-            <button onclick="closeLoginModal()" class="absolute top-4 right-4 text-gray-500 hover:text-black">
-                <i class="fas fa-times text-xl"></i>
-            </button>
-            <div class="text-center mb-6">
-                <h2 class="text-2xl font-bold mb-2 text-black">Área do Cliente</h2>
-                <p class="text-gray-600">Acesse com sua conta para gerenciar reservas e perfil</p>
-            </div>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium mb-2 text-black">Email</label>
-                    <input id="loginEmail" type="email" class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-black placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="seu@email.com">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-2 text-black">Senha</label>
-                    <input id="loginPassword" type="password" class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-black placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="••••••••">
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <button type="button" onclick="loginWithEmailPassword()" class="w-full bg-blue-matte hover-blue-matte text-white py-3 rounded-lg font-semibold">Entrar</button>
-                    <button type="button" onclick="registerWithEmailPassword()" class="w-full bg-gray-200 hover:bg-gray-300 text-black py-3 rounded-lg font-semibold">Cadastrar</button>
-                </div>
-                <button type="button" onclick="loginWithGoogle()" class="w-full bg-white text-black hover:bg-gray-100 py-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 border border-gray-300">
-                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" class="w-5 h-5">
-                    Continuar com Google
-                </button>
-                <p class="text-sm text-gray-600 text-center">Não tem conta?
-                    <button onclick="openRegisterModal()" class="text-blue-matte hover:underline">Cadastre-se</button>
-                </p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Client Area Modal -->
+    <!-- Client Area Modal (placeholder removido de login) -->
     <div id="clientAreaModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
         <div class="bg-dark-matte rounded-2xl p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto glass-effect">
             <div class="flex justify-between items-center mb-8">
@@ -779,10 +735,7 @@
                 <button onclick="showClientTab('profile')" class="client-tab px-6 py-3 font-semibold border-b-2 border-transparent text-gray-400 hover:text-white">
                     Meu Perfil
                 </button>
-                <button onclick="showClientTab('register')" class="client-tab px-6 py-3 font-semibold border-b-2 border-transparent text-gray-400 hover:text-white">
-                    Cadastro
-                </button>
-                <button onclick="logout()" class="ml-auto px-4 py-2 text-sm border border-gray-600 rounded-lg text-gray-300 hover:text-white">Sair</button>
+                
             </div>
             
             <!-- Overview Tab -->
@@ -819,62 +772,7 @@
                 </div>
             </div>
             
-            <!-- Register Tab -->
-            <div id="registerTab" class="client-tab-content hidden">
-                <div class="mb-6">
-                    <h3 class="text-xl font-bold mb-4">Cadastro de Associado</h3>
-                    <p class="text-gray-300 mb-6">Preencha seus dados para liberar benefícios de associado</p>
-                </div>
-                <form onsubmit="submitRegister(event)" class="space-y-6">
-                    <div class="grid md:grid-cols-2 gap-6">
-                        <div>
-                            <label class="block text-sm font-medium mb-2">Nome Completo</label>
-                            <input type="text" id="regName" required class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="Seu nome completo">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-2">Email</label>
-                            <input type="email" id="regEmail" required class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="seu@email.com">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-2">Celular</label>
-                            <input type="tel" id="regPhone" class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="(11) 99999-9999">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-2">Nickname Gamer</label>
-                            <input type="text" id="regNickname" class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="Seu nickname">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-2">Nome do Time/Org</label>
-                            <input type="text" id="regTeam" class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="Nome do seu time">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-2">Idade</label>
-                            <input type="number" id="regAge" min="13" max="99" class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="Sua idade">
-                        </div>
-                    </div>
-                    <div class="grid md:grid-cols-2 gap-6">
-                        <div>
-                            <label class="block text-sm font-medium mb-2">Cargo</label>
-                            <select id="regRole" class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white focus:border-blue-matte focus:outline-none">
-                                <option value="Vendedor">Vendedor</option>
-                                <option value="Staff">Staff</option>
-                                <option value="Gerente">Gerente</option>
-                                <option value="Ceo">CEO</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-2">Nível de Associado</label>
-                            <select id="regLevel" class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white focus:border-blue-matte focus:outline-none">
-                                <option value="Associado Treino">Associado Treino</option>
-                                <option value="Associado Modo Liga">Associado Modo Liga</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="flex justify-end">
-                        <button type="submit" class="px-6 py-3 bg-blue-matte hover-blue-matte rounded-lg font-semibold text-white transition-colors">Enviar Cadastro</button>
-                    </div>
-                </form>
-            </div>
+            
             <!-- Orders Tab -->
             <div id="ordersTab" class="client-tab-content hidden">
                 <div class="space-y-4">
