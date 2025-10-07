@@ -85,6 +85,9 @@ function onAuthLogged(user){
     toggleAccountButtons(true);
     closeLoginModal();
     openAccountModal();
+    loadAccountProfile();
+    loadAccountOrders();
+    loadTokensBalance();
 }
 
 function toggleAccountButtons(isLogged){
@@ -108,6 +111,92 @@ async function logout(){
     }catch(_){ }
     toggleAccountButtons(false);
     closeAccountModal();
+}
+
+// --- Account panels logic ---
+function showAccountTab(tab){
+    const map = { profile:'accPanelProfile', tokens:'accPanelTokens', orders:'accPanelOrders' };
+    Object.entries(map).forEach(([k,id])=>{
+        const p = document.getElementById(id);
+        const b = document.getElementById('accTab'+k.charAt(0).toUpperCase()+k.slice(1));
+        if (!p || !b) return;
+        if (k===tab){ p.classList.remove('hidden'); b.classList.add('border-blue-matte'); b.classList.remove('text-gray-500'); }
+        else { p.classList.add('hidden'); b.classList.remove('border-blue-matte'); b.classList.add('text-gray-500'); }
+    });
+}
+
+async function loadAccountProfile(){
+    try{
+        if (!window.firebaseReady || !window.firebaseAuth?.currentUser) return;
+        const uid = window.firebaseAuth.currentUser.uid;
+        const { doc, getDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const ref = doc(collection(window.firebaseDb,'users'), uid);
+        const snap = await getDoc(ref);
+        const d = snap.exists()? snap.data() : {};
+        document.getElementById('accName').value = d.name || window.firebaseAuth.currentUser.displayName || '';
+        document.getElementById('accEmail').value = window.firebaseAuth.currentUser.email || '';
+        document.getElementById('accPhone').value = d.phone || '';
+        document.getElementById('accNickname').value = d.nickname || '';
+        document.getElementById('accTeam').value = d.teamName || '';
+        document.getElementById('accAge').value = d.age || '';
+        document.getElementById('accRole').value = d.role || 'Vendedor';
+        document.getElementById('accLevel').value = d.level || 'Associado Treino';
+        document.getElementById('accTokensBalance').textContent = Number(d.tokens||0);
+    }catch(_){ }
+}
+
+async function saveAccountProfile(){
+    try{
+        if (!window.firebaseReady || !window.firebaseAuth?.currentUser){ document.getElementById('accProfileMsg').textContent='Sessão inválida.'; return; }
+        const uid = window.firebaseAuth.currentUser.uid;
+        const payload = {
+            name: document.getElementById('accName').value.trim(),
+            email: document.getElementById('accEmail').value.trim(),
+            phone: document.getElementById('accPhone').value.trim(),
+            nickname: document.getElementById('accNickname').value.trim(),
+            teamName: document.getElementById('accTeam').value.trim(),
+            age: document.getElementById('accAge').value.trim(),
+            role: document.getElementById('accRole').value,
+            level: document.getElementById('accLevel').value
+        };
+        const { doc, setDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const ref = doc(collection(window.firebaseDb,'users'), uid);
+        await setDoc(ref, payload, { merge:true });
+        document.getElementById('accProfileMsg').textContent='Perfil salvo.';
+    }catch(e){ document.getElementById('accProfileMsg').textContent='Erro ao salvar.'; }
+}
+
+async function loadTokensBalance(){
+    try{
+        if (!window.firebaseReady || !window.firebaseAuth?.currentUser) return;
+        const uid = window.firebaseAuth.currentUser.uid;
+        const { doc, getDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const ref = doc(collection(window.firebaseDb,'users'), uid);
+        const snap = await getDoc(ref);
+        const d = snap.exists()? snap.data():{};
+        document.getElementById('accTokensBalance').textContent = Number(d.tokens||0);
+    }catch(_){ }
+}
+
+async function loadAccountOrders(){
+    const container = document.getElementById('accOrders');
+    if (!container) return;
+    container.innerHTML = '';
+    try{
+        if (!window.firebaseReady || !window.firebaseAuth?.currentUser){ container.textContent='Faça login para ver seus pedidos.'; return; }
+        const uid = window.firebaseAuth.currentUser.uid;
+        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const regs = query(collection(window.firebaseDb,'registrations'), where('uid','==',uid));
+        const snap = await getDocs(regs);
+        if (snap.empty){ container.textContent='Nenhum pedido/inscrição encontrado.'; return; }
+        snap.forEach(docu=>{
+            const r = docu.data();
+            const row = document.createElement('div');
+            row.className = 'border rounded p-3 flex justify-between';
+            row.innerHTML = `<div><div class="font-semibold">${r.title||r.schedule||'Inscrição'}</div><div class="text-gray-500 text-xs">${r.date||''} ${r.schedule||''}</div></div><div class="text-sm">${r.status||'pendente'}</div>`;
+            container.appendChild(row);
+        });
+    }catch(_){ container.textContent='Erro ao carregar pedidos.'; }
 }
 // Mobile menu toggle
 function toggleMobileMenu() {
