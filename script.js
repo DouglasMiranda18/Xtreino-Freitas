@@ -638,11 +638,11 @@ async function submitSchedule(e){
     fetch('/.netlify/functions/create-preference',{
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ title: `${cfg.label} - ${schedule} - ${date}`, unit_price: total, currency_id:'BRL', quantity:1 })
-    }).then(async res=>{ if(!res.ok) throw new Error(await res.text()); return res.json(); })
+    }).then(async res=>{ if(!res.ok){ const t = await res.text(); throw new Error(t || 'Erro na função de pagamento'); } return res.json(); })
     .then(data=>{
         closeScheduleModal();
         if (data.init_point) window.location.href = data.init_point; else alert('Não foi possível iniciar o pagamento.');
-    }).catch(()=> alert('Falha ao iniciar pagamento.'))
+    }).catch((err)=> alert('Falha ao iniciar pagamento. ' + (err && err.message ? err.message : ''))
     .finally(()=>{ if (submitBtn){ submitBtn.disabled = false; submitBtn.textContent = oldText; }});
 }
 
