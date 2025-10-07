@@ -24,9 +24,8 @@ async function loginWithGoogle(){
         if (!window.firebaseReady){ throw new Error('Firebase não inicializado'); }
         const { GoogleAuthProvider, signInWithPopup } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
         const provider = new GoogleAuthProvider();
-        await signInWithPopup(window.firebaseAuth, provider);
-        document.getElementById('authMsg').textContent = 'Login realizado com Google.';
-        closeLoginModal();
+        const res = await signInWithPopup(window.firebaseAuth, provider);
+        onAuthLogged(res.user);
     }catch(e){ document.getElementById('authMsg').textContent = 'Erro no login Google.'; }
 }
 
@@ -36,9 +35,8 @@ async function loginWithEmailPassword(){
         const email = document.getElementById('authEmail').value.trim();
         const pass = document.getElementById('authPassword').value.trim();
         const { signInWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
-        await signInWithEmailAndPassword(window.firebaseAuth, email, pass);
-        document.getElementById('authMsg').textContent = 'Login realizado.';
-        closeLoginModal();
+        const res = await signInWithEmailAndPassword(window.firebaseAuth, email, pass);
+        onAuthLogged(res.user);
     }catch(e){ document.getElementById('authMsg').textContent = 'Email ou senha inválidos.'; }
 }
 
@@ -63,8 +61,7 @@ async function registerWithEmailPassword(){
                 await setDoc(ref, { name, email, phone, nickname, teamName: team, age, createdAt: Date.now() }, { merge: true });
             }
         }catch(_){ }
-        document.getElementById('authMsg').textContent = 'Conta criada com sucesso.';
-        showAuthTab('login');
+        onAuthLogged(cred.user);
     }catch(e){ document.getElementById('authMsg').textContent = 'Não foi possível criar a conta.'; }
 }
 
@@ -77,6 +74,40 @@ async function sendPasswordReset(){
         document.getElementById('authMsg').textContent = 'Email de recuperação enviado.';
         showAuthTab('login');
     }catch(e){ document.getElementById('authMsg').textContent = 'Erro ao enviar recuperação.'; }
+}
+
+function onAuthLogged(user){
+    try{
+        const name = user?.displayName || user?.email || 'Usuário';
+        const welcome = document.getElementById('accWelcome');
+        if (welcome) welcome.textContent = `Bem-vindo, ${name}!`;
+    }catch(_){ }
+    toggleAccountButtons(true);
+    closeLoginModal();
+    openAccountModal();
+}
+
+function toggleAccountButtons(isLogged){
+    const loginDesk = document.getElementById('loginBtnDesktop');
+    const accDesk = document.getElementById('accountBtnDesktop');
+    const loginMob = document.getElementById('loginBtnMobile');
+    const accMob = document.getElementById('accountBtnMobile');
+    if (loginDesk && accDesk){ loginDesk.classList.toggle('hidden', isLogged); accDesk.classList.toggle('hidden', !isLogged); }
+    if (loginMob && accMob){ loginMob.classList.toggle('hidden', isLogged); accMob.classList.toggle('hidden', !isLogged); }
+}
+
+function openAccountModal(){ const m = document.getElementById('accountModal'); if (m) m.classList.remove('hidden'); }
+function closeAccountModal(){ const m = document.getElementById('accountModal'); if (m) m.classList.add('hidden'); }
+
+async function logout(){
+    try{
+        if (window.firebaseReady){
+            const { signOut } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
+            await signOut(window.firebaseAuth);
+        }
+    }catch(_){ }
+    toggleAccountButtons(false);
+    closeAccountModal();
 }
 // Mobile menu toggle
 function toggleMobileMenu() {
