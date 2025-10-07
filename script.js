@@ -205,12 +205,26 @@ async function persistUserProfile(profile){
 // Client Area Functions
 function openClientArea() {
     document.getElementById('clientAreaModal').classList.remove('hidden');
+    try { renderClientArea(); } catch(_) {}
     if (window.innerWidth <= 767) document.body.classList.add('modal-open-mobile');
 }
 
 function closeClientArea() {
     document.getElementById('clientAreaModal').classList.add('hidden');
     if (window.innerWidth <= 767) maybeClearMobileModalState();
+}
+
+// Renderiza informações dinâmicas do cliente (nome, tokens, etc.)
+function renderClientArea(){
+    const p = window.currentUserProfile || {};
+    const nameEl = document.querySelector('#clientAreaModal p.text-gray-300');
+    if (nameEl) nameEl.textContent = `Bem-vindo, ${p.name || p.email || 'Usuário'}!`;
+    // Overview: cards numéricos (usa saldo de tokens real)
+    const overviewTokens = document.querySelector('#overviewTab .bg-blue-matte.bg-opacity-20:nth-child(3) h3');
+    if (overviewTokens) overviewTokens.textContent = String(Math.round(getTokenBalance()));
+    // Tokens Tab: saldo
+    const tokensTab = document.querySelector('#tokensTab .bg-blue-matte.bg-opacity-20 h3');
+    if (tokensTab) tokensTab.textContent = String(Math.round(getTokenBalance()));
 }
 
 function showClientTab(tabName) {
@@ -231,6 +245,10 @@ function showClientTab(tabName) {
     // Add active class to clicked button
     event.target.classList.add('active', 'border-blue-matte', 'text-blue-matte');
     event.target.classList.remove('border-transparent', 'text-gray-400');
+    // atualizar dados dinâmicos ao trocar de aba
+    if (tabName === 'overview' || tabName === 'tokens') {
+        try { renderClientArea(); } catch(_) {}
+    }
 }
 
 function downloadFile(fileType) {
@@ -250,12 +268,21 @@ function viewOnline(contentType) {
 
 function scheduleTraining(trainingType) {
     const trainings = {
-        'aim': 'Aim Training',
-        'strategy': 'Estratégia',
-        'mental': 'Mentalidade'
+        'aim': { label: 'Aim Training', cost: 1.00 },
+        'strategy': { label: 'Estratégia', cost: 2.00 },
+        'mental': { label: 'Mentalidade', cost: 1.00 }
     };
-    
-    alert(`Agendando ${trainings[trainingType]}...\n\nEm uma implementação real, isso abriria um calendário para seleção de horário.`);
+    const t = trainings[trainingType];
+    if (!t) return;
+    if (!canSpendTokens(t.cost)){
+        alert(`Saldo insuficiente. Você precisa de ${t.cost.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})} em tokens.`);
+        return;
+    }
+    if (confirm(`Confirmar uso de ${t.cost.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})} em tokens para ${t.label}?`)){
+        spendTokens(t.cost);
+        renderClientArea();
+        alert('Token resgatado! Nossa equipe entrará em contato para agendar.');
+    }
 }
 
 function handleContactForm(event) {
