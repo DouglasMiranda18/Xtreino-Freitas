@@ -8,7 +8,11 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
-<body class="bg-white text-black font-sans">
+<body class="bg-white text-black enterprise-bg">
+    <!-- Top Alert -->
+    <div id="topAlert" class="w-full bg-[var(--brand-yellow)] text-[var(--brand-black)] text-sm py-2 text-center hidden">
+        <span class="font-semibold">Atenção:</span> Poucas vagas hoje às 20:00! <span class="blink">Garanta já sua vaga.</span>
+    </div>
     <!-- Header -->
     <header class="fixed w-full top-0 z-50 glass-effect">
         <nav class="container mx-auto px-6 py-4">
@@ -32,6 +36,11 @@
                     <a href="#sobre" class="text-black hover:text-blue-matte transition-colors">SOBRE NÓS</a>
                     <a href="#contato" class="text-black hover:text-blue-matte transition-colors">CONTATO</a>
                     <a href="admin.html" class="text-black hover:text-blue-matte transition-colors">ADMIN</a>
+                    <div class="flex items-center space-x-3">
+                        <a href="https://www.instagram.com/xtreino_freitas/" target="_blank" rel="noopener" class="text-black hover:text-blue-matte"><i class="fab fa-instagram"></i></a>
+                        <a href="https://www.youtube.com/@Organiza%C3%A7%C3%A3oFreitas" target="_blank" rel="noopener" class="text-black hover:text-blue-matte"><i class="fab fa-youtube"></i></a>
+                        <a href="#" class="text-black hover:text-blue-matte"><i class="fab fa-discord"></i></a>
+                    </div>
                     <button onclick="openLoginModal()" class="bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold transition-colors">
                         LOGIN
                     </button>
@@ -51,6 +60,11 @@
                     <a href="#loja" class="text-black hover:text-blue-matte transition-colors">LOJA</a>
                     <a href="#sobre" class="text-black hover:text-blue-matte transition-colors">SOBRE NÓS</a>
                     <a href="#contato" class="text-black hover:text-blue-matte transition-colors">CONTATO</a>
+                    <div class="flex items-center space-x-3">
+                        <a href="https://www.instagram.com/xtreino_freitas/" target="_blank" rel="noopener" class="text-black hover:text-blue-matte"><i class="fab fa-instagram"></i></a>
+                        <a href="https://www.youtube.com/@Organiza%C3%A7%C3%A3oFreitas" target="_blank" rel="noopener" class="text-black hover:text-blue-matte"><i class="fab fa-youtube"></i></a>
+                        <a href="#" class="text-black hover:text-blue-matte"><i class="fab fa-discord"></i></a>
+                    </div>
                     <button onclick="openLoginModal()" class="bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold transition-colors w-full">
                         LOGIN
                     </button>
@@ -75,20 +89,17 @@
                         Desenvolva suas habilidades com os melhores coaches do cenário.
                     </p>
                     <div class="flex flex-col sm:flex-row gap-4">
-                        <button onclick="scrollToSection('xtreinos')" class="bg-blue-matte hover-blue-matte px-8 py-4 rounded-lg text-white font-bold text-lg transition-colors neon-glow">
+                        <button onclick="scrollToSection('xtreinos')" class="btn-primary px-8 py-4 rounded-lg font-bold text-lg transition-colors neon-glow">
                             COMEÇAR AGORA
                         </button>
-                        <button onclick="scrollToSection('sobre')" class="border-2 border-blue-matte text-blue-matte hover:bg-blue-matte hover:text-white px-8 py-4 rounded-lg font-bold text-lg transition-colors">
+                        <button onclick="scrollToSection('sobre')" class="border-2 border-[var(--brand-yellow)] text-[var(--brand-black)] hover:bg-brand-yellow px-8 py-4 rounded-lg font-bold text-lg transition-colors">
                             SAIBA MAIS
                         </button>
                     </div>
                 </div>
                 <div class="flex justify-center">
-                    <div class="relative">
-                    <div class="w-80 h-80 bg-blue-matte rounded-full opacity-10 animate-float"></div>
-                        <div class="absolute inset-0 flex items-center justify-center">
-                            <i class="fas fa-gamepad text-8xl text-blue-matte animate-float"></i>
-                        </div>
+                    <div class="relative w-full max-w-xl aspect-video rounded-2xl overflow-hidden neon-glow">
+                        <iframe width="100%" height="100%" src="https://www.youtube.com/embed/pb54J4fkic8?autoplay=1&mute=1&loop=1&playlist=pb54J4fkic8" title="Vídeo de Abertura" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
                     </div>
                 </div>
             </div>
@@ -129,8 +140,55 @@
         </div>
     </section>
 
+    <!-- Destaques (Carrossel) -->
+    <section class="py-16 bg-white">
+        <div class="container mx-auto px-6">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold">Destaques</h2>
+                <div class="space-x-2">
+                    <button id="carouselPrev" class="px-3 py-1 border rounded">◀</button>
+                    <button id="carouselNext" class="px-3 py-1 border rounded">▶</button>
+                </div>
+            </div>
+            <div class="overflow-hidden rounded-2xl border border-gray-200">
+                <div id="carouselTrack" class="flex transition-transform duration-500">
+                    <div class="min-w-full p-8 bg-white">
+                        <div class="grid md:grid-cols-2 gap-6 items-center">
+                            <div>
+                                <h3 class="text-xl font-bold mb-2">Modo Liga - Estratégia</h3>
+                                <p class="text-gray-600 mb-4">Treinos competitivos com pontuação e ranking.</p>
+                                <button onclick="openPurchaseModal('estrategia')" class="bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold">Participar</button>
+                            </div>
+                            <div class="rounded-xl bg-blue-matte bg-opacity-20 h-48"></div>
+                        </div>
+                    </div>
+                    <div class="min-w-full p-8 bg-white">
+                        <div class="grid md:grid-cols-2 gap-6 items-center">
+                            <div>
+                                <h3 class="text-xl font-bold mb-2">Campeonato Semanal</h3>
+                                <p class="text-gray-600 mb-4">Etapas semanais com premiações.</p>
+                                <button onclick="openPurchaseModal('planilhas')" class="bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold">Inscrever</button>
+                            </div>
+                            <div class="rounded-xl bg-blue-matte bg-opacity-20 h-48"></div>
+                        </div>
+                    </div>
+                    <div class="min-w-full p-8 bg-white">
+                        <div class="grid md:grid-cols-2 gap-6 items-center">
+                            <div>
+                                <h3 class="text-xl font-bold mb-2">Camp de Fases</h3>
+                                <p class="text-gray-600 mb-4">Eliminatórias com melhores confrontos.</p>
+                                <button onclick="openPurchaseModal('camp-fases')" class="bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold">Reservar</button>
+                            </div>
+                            <div class="rounded-xl bg-blue-matte bg-opacity-20 h-48"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- XTreinos Section -->
-    <section id="xtreinos" class="py-20 bg-dark-matte">
+    <section id="xtreinos" class="py-20 bg-white">
         <div class="container mx-auto px-6">
             <div class="text-center mb-16">
                 <h2 class="text-4xl md:text-5xl font-bold mb-6">XTREINOS & CAMPS</h2>
@@ -138,11 +196,19 @@
                     Sessões intensivas de treinamento com foco em mecânicas avançadas, estratégias e mentalidade competitiva
                 </p>
             </div>
+            <!-- Menu de Categorias -->
+            <nav class="mb-10 flex flex-wrap gap-3 justify-center text-sm">
+                <a href="#cat-normal" class="px-3 py-2 border border-gray-300 rounded-lg hover:text-blue-matte">Treino Normal</a>
+                <a href="#cat-liga" class="px-3 py-2 border border-gray-300 rounded-lg hover:text-blue-matte">Treinos Modo Liga</a>
+                <a href="#cat-semanal" class="px-3 py-2 border border-gray-300 rounded-lg hover:text-blue-matte">Campeonato Semanal</a>
+                <a href="#cat-fases" class="px-3 py-2 border border-gray-300 rounded-lg hover:text-blue-matte">Campeonato de Fases</a>
+            </nav>
             
             <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <div class="glass-effect rounded-2xl p-8 card-hover">
+                <div class="glass-effect rounded-2xl p-8 card-hover" id="cat-normal">
                     <div class="text-center mb-6">
-                        <i class="fas fa-target text-4xl text-blue-matte mb-4"></i>
+                        <i class="fas fa-target text-4xl text-blue-matte mb-2"></i>
+                        <div class="inline-block text-xs px-2 py-1 rounded bg-[var(--brand-yellow)] text-[var(--brand-black)] mb-2">Treino Normal</div>
                         <h3 class="text-2xl font-bold mb-2">AIM TRAINING</h3>
                         <p class="text-gray-300">Melhore sua precisão e tempo de reação</p>
                     </div>
@@ -165,9 +231,10 @@
                     </button>
                 </div>
                 
-                <div class="glass-effect rounded-2xl p-8 card-hover">
+                <div class="glass-effect rounded-2xl p-8 card-hover" id="cat-liga">
                     <div class="text-center mb-6">
-                        <i class="fas fa-chess text-4xl text-blue-matte mb-4"></i>
+                        <i class="fas fa-chess text-4xl text-blue-matte mb-2"></i>
+                        <div class="inline-block text-xs px-2 py-1 rounded bg-[var(--brand-green-1)] text-[var(--brand-black)] mb-2 blink">Treinos Modo Liga</div>
                         <h3 class="text-2xl font-bold mb-2">ESTRATÉGIA</h3>
                         <p class="text-gray-300">Domine as táticas e rotações</p>
                     </div>
@@ -190,9 +257,10 @@
                     </button>
                 </div>
                 
-                <div class="glass-effect rounded-2xl p-8 card-hover">
+                <div class="glass-effect rounded-2xl p-8 card-hover" id="cat-semanal">
                     <div class="text-center mb-6">
-                        <i class="fas fa-brain text-4xl text-blue-matte mb-4"></i>
+                        <i class="fas fa-brain text-4xl text-blue-matte mb-2"></i>
+                        <div class="inline-block text-xs px-2 py-1 rounded bg-[var(--brand-yellow)] text-[var(--brand-black)] mb-2">Campeonato Semanal</div>
                         <h3 class="text-2xl font-bold mb-2">MENTALIDADE</h3>
                         <p class="text-gray-300">Desenvolva o mindset competitivo</p>
                     </div>
@@ -214,77 +282,121 @@
                         RESERVAR VAGA
                     </button>
                 </div>
+                
+                <!-- Novo: Campeonato de Fases -->
+                <div class="glass-effect rounded-2xl p-8 card-hover" id="cat-fases">
+                    <div class="text-center mb-6">
+                        <i class="fas fa-flag-checkered text-4xl text-blue-matte mb-2"></i>
+                        <div class="inline-block text-xs px-2 py-1 rounded bg-[var(--brand-green-2)] text-[var(--brand-black)] mb-2">Campeonato de Fases</div>
+                        <h3 class="text-2xl font-bold mb-2">CAMP DE FASES</h3>
+                        <p class="text-gray-300">Etapas eliminatórias com ranking</p>
+                    </div>
+                    <div class="space-y-3 mb-6">
+                        <div class="flex justify-between">
+                            <span>Duração:</span>
+                            <span class="text-blue-matte">4 horas</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Nível:</span>
+                            <span class="text-blue-matte">Competitivo</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Preço:</span>
+                            <span class="text-blue-matte font-bold">R$ 99,90</span>
+                        </div>
+                    </div>
+                    <button onclick="openPurchaseModal('camp-fases')" class="w-full bg-blue-matte hover-blue-matte py-3 rounded-lg font-semibold transition-colors">
+                        RESERVAR VAGA
+                    </button>
+                </div>
             </div>
         </div>
     </section>
 
     <!-- Loja Section -->
-    <section id="loja" class="py-20 gradient-bg">
+    <section id="loja" class="py-20 bg-white">
         <div class="container mx-auto px-6">
             <div class="text-center mb-16">
-                <h2 class="text-4xl md:text-5xl font-bold mb-6">LOJA OFICIAL</h2>
+                <h2 class="text-4xl md:text-5xl font-bold mb-6">LOJA VIRTUAL</h2>
                 <p class="text-xl text-gray-300 max-w-3xl mx-auto">
                     Produtos físicos e digitais para elevar sua performance
                 </p>
             </div>
             
-            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-                <div class="bg-white bg-opacity-5 rounded-2xl p-6 card-hover">
-                    <div class="bg-blue-matte rounded-lg h-48 mb-4 flex items-center justify-center">
-                        <i class="fas fa-tshirt text-4xl text-white"></i>
+            <div class="grid md:grid-cols-2 lg:grid-cols-5 gap-6">
+                <div class="product-card relative">
+                    <div class="absolute top-4 right-4 bg-[var(--brand-yellow)] text-[var(--brand-black)] text-xs font-bold px-2 py-1 rounded">MAIS VENDIDO</div>
+                    <div class="product-media">
+                        <img src="BANNER FREITAS SENSIBILIDADE.png" alt="Sensis Freitas">
                     </div>
-                    <h3 class="text-xl font-bold mb-2">Camisa Oficial</h3>
-                    <p class="text-gray-300 mb-4">Camisa premium da organização</p>
-                    <div class="flex justify-between items-center mb-4">
-                        <span class="text-2xl font-bold text-blue-matte">R$ 89,90</span>
-                        <span class="text-sm text-gray-400">Físico</span>
+                    <div class="product-title">Sensis Freitas – PC / Android / iOS</div>
+                    <div class="product-desc">Precisão, estabilidade e controle máximo.</div>
+                    <div class="product-meta flex justify-between items-center mb-3">
+                        <span class="text-2xl font-bold text-blue-matte">R$ 8,00</span>
+                        <span class="text-sm text-gray-500">Digital</span>
                     </div>
-                    <button onclick="openPurchaseModal('camisa')" class="w-full bg-blue-matte hover-blue-matte py-2 rounded-lg font-semibold transition-colors">
+                    <button onclick="openPurchaseModal('sensibilidades')" class="w-full btn-primary py-2 rounded-lg font-semibold transition-colors">
                         COMPRAR
                     </button>
                 </div>
                 
-                <div class="bg-white bg-opacity-5 rounded-2xl p-6 card-hover">
-                    <div class="bg-blue-matte rounded-lg h-48 mb-4 flex items-center justify-center">
-                        <i class="fas fa-chart-line text-4xl text-white"></i>
+                <div class="product-card">
+                    <div class="product-media">
+                        <img src="BANNER FREITAS VENDA DE MAPAS.png" alt="Imagens Aéreas">
                     </div>
-                    <h3 class="text-xl font-bold mb-2">Planilhas de Análise</h3>
-                    <p class="text-gray-300 mb-4">Análise completa de performance</p>
-                    <div class="flex justify-between items-center mb-4">
+                    <div class="product-title">Imagens Aéreas</div>
+                    <div class="product-desc">Mapas e calls estratégicas para estudo tático.</div>
+                    <div class="product-meta flex justify-between items-center mb-3">
+                        <span class="text-2xl font-bold text-blue-matte">a partir de R$ 2,00</span>
+                        <span class="text-sm text-gray-500">Digital</span>
+                    </div>
+                    <button onclick="openPurchaseModal('imagens')" class="w-full btn-primary py-2 rounded-lg font-semibold transition-colors">
+                        COMPRAR
+                    </button>
+                </div>
+                
+                <div class="product-card">
+                    <div class="product-media">
+                        <img src="PLANILHAS FREITAS FINALIZADO VERMELHO.png" alt="Planilhas de Análises">
+                    </div>
+                    <div class="product-title">Planilhas de Análises</div>
+                    <div class="product-desc">Para coachs e analistas – dados precisos e gráficos.</div>
+                    <div class="product-meta flex justify-between items-center mb-3">
                         <span class="text-2xl font-bold text-blue-matte">R$ 29,90</span>
-                        <span class="text-sm text-gray-400">Digital</span>
+                        <span class="text-sm text-gray-500">Digital</span>
                     </div>
-                    <button onclick="openPurchaseModal('planilhas')" class="w-full bg-blue-matte hover-blue-matte py-2 rounded-lg font-semibold transition-colors">
+                    <button onclick="openPurchaseModal('planilhas')" class="w-full btn-primary py-2 rounded-lg font-semibold transition-colors">
                         COMPRAR
                     </button>
                 </div>
                 
-                <div class="bg-white bg-opacity-5 rounded-2xl p-6 card-hover">
-                    <div class="bg-blue-matte rounded-lg h-48 mb-4 flex items-center justify-center">
-                        <i class="fas fa-map text-4xl text-white"></i>
+                <div class="product-card relative">
+                    <div class="absolute top-4 right-4 bg-[var(--brand-yellow)] text-[var(--brand-black)] text-xs font-bold px-2 py-1 rounded">PROMOÇÃO</div>
+                    <div class="product-media">
+                        <img src="PASSE ORG FREITAS FEED.png" alt="Passe Booyah">
                     </div>
-                    <h3 class="text-xl font-bold mb-2">Imagens Aéreas</h3>
-                    <p class="text-gray-300 mb-4">Mapas estratégicos detalhados</p>
-                    <div class="flex justify-between items-center mb-4">
-                        <span class="text-2xl font-bold text-blue-matte">R$ 19,90</span>
-                        <span class="text-sm text-gray-400">Digital</span>
+                    <div class="product-title">Passe Booyah</div>
+                    <div class="product-desc">Entrega rápida. Sem senha/email – apenas ID.</div>
+                    <div class="product-meta flex justify-between items-center mb-3">
+                        <span class="text-2xl font-bold text-blue-matte">R$ 11,00</span>
+                        <span class="text-sm text-gray-500">Assinatura</span>
                     </div>
-                    <button onclick="openPurchaseModal('imagens')" class="w-full bg-blue-matte hover-blue-matte py-2 rounded-lg font-semibold transition-colors">
+                    <button onclick="openPurchaseModal('passe-booyah')" class="w-full btn-primary py-2 rounded-lg font-semibold transition-colors">
                         COMPRAR
                     </button>
                 </div>
-                
-                <div class="bg-white bg-opacity-5 rounded-2xl p-6 card-hover">
-                    <div class="bg-blue-matte rounded-lg h-48 mb-4 flex items-center justify-center">
-                        <i class="fas fa-sliders-h text-4xl text-white"></i>
+
+                <div class="product-card">
+                    <div class="product-media">
+                        <img src="DIVULGAÇÃO MANTO FREITAS.jpg" alt="Camisa Oficial">
                     </div>
-                    <h3 class="text-xl font-bold mb-2">Sensibilidades</h3>
-                    <p class="text-gray-300 mb-4">Configurações otimizadas</p>
-                    <div class="flex justify-between items-center mb-4">
-                        <span class="text-2xl font-bold text-blue-matte">R$ 14,90</span>
-                        <span class="text-sm text-gray-400">Digital</span>
+                    <div class="product-title">Camisa Oficial</div>
+                    <div class="product-desc">Design exclusivo, leve e durável.</div>
+                    <div class="product-meta flex justify-between items-center mb-3">
+                        <span class="text-2xl font-bold text-blue-matte">R$ 89,90</span>
+                        <span class="text-sm text-gray-500">Físico</span>
                     </div>
-                    <button onclick="openPurchaseModal('sensibilidades')" class="w-full bg-blue-matte hover-blue-matte py-2 rounded-lg font-semibold transition-colors">
+                    <button onclick="openPurchaseModal('camisa')" class="w-full btn-primary py-2 rounded-lg font-semibold transition-colors">
                         COMPRAR
                     </button>
                 </div>
@@ -293,19 +405,23 @@
     </section>
 
     <!-- Sobre Nós Section -->
-    <section id="sobre" class="py-20 bg-dark-matte">
+    <section id="sobre" class="py-20 bg-white">
         <div class="container mx-auto px-6">
             <div class="text-center mb-16">
                 <h2 class="text-4xl md:text-5xl font-bold mb-6">SOBRE NÓS</h2>
-                <p class="text-xl text-gray-300 max-w-3xl mx-auto">
-                    Conheça a história e metodologia por trás do X-TREINO FREITAS
+                <p class="text-xl text-gray-700 max-w-3xl mx-auto">
+                    Conheça a história, os objetivos e a metodologia por trás do X-TREINO FREITAS
                 </p>
             </div>
             
             <div class="grid lg:grid-cols-2 gap-16 items-center mb-20">
                 <div class="space-y-6">
-                    <h3 class="text-3xl font-bold text-blue-matte">Nossa Missão</h3>
-                    <p class="text-lg text-gray-300 leading-relaxed">
+                    <h3 class="text-3xl font-bold text-blue-matte">Quem Somos</h3>
+                    <p class="text-lg text-gray-700 leading-relaxed">
+                        Somos uma organização focada em treinos de alto desempenho, desenvolvimento de talentos e formação de equipes vencedoras no cenário eSports.
+                    </p>
+                    <h3 class="text-3xl font-bold text-blue-matte">Objetivo</h3>
+                    <p class="text-lg text-gray-700 leading-relaxed">
                         Transformar jogadores em verdadeiros profissionais do eSports através de metodologia comprovada, 
                         treinamento intensivo e mentalidade vencedora. Acreditamos que todo jogador tem potencial para 
                         alcançar a elite, precisando apenas da orientação correta.
@@ -313,23 +429,51 @@
                     <div class="grid grid-cols-2 gap-6">
                         <div class="text-center">
                             <div class="text-3xl font-bold text-blue-matte mb-2">500+</div>
-                            <div class="text-gray-300">Jogadores Treinados</div>
+                            <div class="text-gray-600">Jogadores Treinados</div>
                         </div>
                         <div class="text-center">
                             <div class="text-3xl font-bold text-blue-matte mb-2">50+</div>
-                            <div class="text-gray-300">Pro-Players Formados</div>
+                            <div class="text-gray-600">Pro-Players Formados</div>
                         </div>
                     </div>
                 </div>
-                <div class="bg-blue-matte bg-opacity-20 rounded-2xl p-8 glass-effect">
+                <div class="bg-blue-matte bg-opacity-10 rounded-2xl p-8 glass-effect">
                     <div class="text-center">
                         <i class="fas fa-trophy text-6xl text-blue-matte mb-6"></i>
                         <h4 class="text-2xl font-bold mb-4">Metodologia Comprovada</h4>
-                        <p class="text-gray-300">
+                        <p class="text-gray-700">
                             Desenvolvemos uma metodologia única que combina treinamento técnico, 
                             análise estratégica e preparação mental para formar campeões.
                         </p>
                     </div>
+                </div>
+            </div>
+
+            <!-- FAQ -->
+            <div class="mb-20">
+                <h3 class="text-3xl font-bold text-center mb-8">Perguntas Frequentes</h3>
+                <div class="max-w-3xl mx-auto divide-y divide-gray-200">
+                    <details class="py-4">
+                        <summary class="font-semibold cursor-pointer">Como funcionam os Treinos Modo Liga?</summary>
+                        <p class="mt-2 text-gray-700">São sessões com regras competitivas, pontuação e ranking semanal.</p>
+                    </details>
+                    <details class="py-4">
+                        <summary class="font-semibold cursor-pointer">Quais são as formas de pagamento?</summary>
+                        <p class="mt-2 text-gray-700">Pagamento via Mercado Pago com redirecionamento seguro.</p>
+                    </details>
+                    <details class="py-4">
+                        <summary class="font-semibold cursor-pointer">Posso cancelar uma inscrição?</summary>
+                        <p class="mt-2 text-gray-700">Sim, conforme política de reembolso. Entre em contato no suporte.</p>
+                    </details>
+                </div>
+            </div>
+
+            <!-- Times associados (login) -->
+            <div id="times" class="mb-10">
+                <h3 class="text-3xl font-bold text-center mb-6">Times Associados</h3>
+                <p class="text-center text-gray-700 mb-6">Cadastre seu time para participar de eventos e treinos exclusivos.</p>
+                <div class="text-center">
+                    <button onclick="openLoginModal()" class="bg-blue-matte hover-blue-matte px-6 py-3 rounded-lg text-white font-semibold">Entrar para cadastrar</button>
                 </div>
             </div>
 
@@ -514,44 +658,44 @@
             <div class="text-center mb-16">
                 <h2 class="text-4xl md:text-5xl font-bold mb-6">ÚLTIMAS NOTÍCIAS</h2>
                 <p class="text-xl text-gray-300 max-w-3xl mx-auto">
-                    Fique por dentro das novidades, atualizações e conquistas da comunidade
+                    Fique por dentro das novidades, eventos e avisos da organização
                 </p>
             </div>
             
             <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <article class="glass-effect rounded-2xl overflow-hidden card-hover">
                     <div class="bg-blue-matte h-48 flex items-center justify-center">
-                        <i class="fas fa-trophy text-4xl text-white"></i>
+                        <i class="fas fa-calendar-alt text-4xl text-white"></i>
                     </div>
                     <div class="p-6">
-                        <div class="text-sm text-blue-matte mb-2">15 Nov 2024</div>
-                        <h3 class="text-xl font-bold mb-3">Aluno conquista primeiro lugar em torneio regional</h3>
-                        <p class="text-gray-300 mb-4">João Silva, aluno do X-Treino há 6 meses, conquistou o primeiro lugar no campeonato regional...</p>
-                        <button class="text-blue-matte hover:underline font-semibold">Ler mais</button>
+                        <div class="text-sm text-blue-matte mb-2">Próximo Sábado</div>
+                        <h3 class="text-xl font-bold mb-3">Evento: Treinos Modo Liga Especial</h3>
+                        <p class="text-gray-300 mb-4">Vagas limitadas às 19h e 21h. Garanta sua inscrição.</p>
+                        <button onclick="scrollToSection('xtreinos')" class="text-blue-matte hover:underline font-semibold">Reservar</button>
                     </div>
                 </article>
                 
                 <article class="glass-effect rounded-2xl overflow-hidden card-hover">
                     <div class="bg-blue-matte h-48 flex items-center justify-center">
-                        <i class="fas fa-rocket text-4xl text-white"></i>
+                        <i class="fas fa-bell text-4xl text-white"></i>
                     </div>
                     <div class="p-6">
-                        <div class="text-sm text-blue-matte mb-2">12 Nov 2024</div>
-                        <h3 class="text-xl font-bold mb-3">Nova metodologia de treinamento lançada</h3>
-                        <p class="text-gray-300 mb-4">Desenvolvemos uma nova abordagem para treinamento de aim que aumenta a precisão em 40%...</p>
-                        <button class="text-blue-matte hover:underline font-semibold">Ler mais</button>
+                        <div class="text-sm text-blue-matte mb-2">Aviso</div>
+                        <h3 class="text-xl font-bold mb-3">Pausa em feriado</h3>
+                        <p class="text-gray-300 mb-4">Sem atividades nos dias 24 e 25. Retorno do semanal na semana seguinte.</p>
+                        <button class="text-blue-matte hover:underline font-semibold">Ver calendário</button>
                     </div>
                 </article>
                 
                 <article class="glass-effect rounded-2xl overflow-hidden card-hover">
                     <div class="bg-blue-matte h-48 flex items-center justify-center">
-                        <i class="fas fa-users text-4xl text-white"></i>
+                        <i class="fas fa-check-circle text-4xl text-white"></i>
                     </div>
                     <div class="p-6">
-                        <div class="text-sm text-blue-matte mb-2">10 Nov 2024</div>
-                        <h3 class="text-xl font-bold mb-3">Parceria com equipe profissional anunciada</h3>
-                        <p class="text-gray-300 mb-4">Firmamos parceria estratégica com a equipe Thunder Gaming para desenvolvimento de talentos...</p>
-                        <button class="text-blue-matte hover:underline font-semibold">Ler mais</button>
+                        <div class="text-sm text-blue-matte mb-2">Confirmado</div>
+                        <h3 class="text-xl font-bold mb-3">Convidado verificado no próximo camp</h3>
+                        <p class="text-gray-300 mb-4">Participação especial em nosso campeonato de fases.</p>
+                        <button class="text-blue-matte hover:underline font-semibold">Detalhes</button>
                     </div>
                 </article>
             </div>
@@ -629,6 +773,34 @@
         <a href="https://wa.me/5511999999999" target="_blank" rel="noopener noreferrer" class="bg-green-500 hover:bg-green-600 w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl shadow-lg transition-colors neon-glow">
             <i class="fab fa-whatsapp"></i>
         </a>
+    </div>
+
+    <!-- Back To Top Button -->
+    <button id="backToTop" class="back-to-top hidden w-12 h-12 rounded-full bg-blue-matte text-white shadow-lg flex items-center justify-center hover-blue-matte" aria-label="Voltar ao topo">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <!-- Cart FAB -->
+    <button id="cartFab" class="cart-fab w-12 h-12 rounded-full bg-[var(--brand-yellow)] text-[var(--brand-black)] shadow-lg flex items-center justify-center hover:opacity-90" aria-label="Carrinho">
+        <i class="fas fa-shopping-cart"></i>
+    </button>
+
+    <!-- Cart Drawer -->
+    <div id="cartDrawer" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+        <div class="absolute right-0 top-0 h-full w-full sm:w-[420px] bg-white p-6 overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-bold">Carrinho</h3>
+                <button onclick="toggleCart(false)" class="text-gray-500"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="cartItems" class="space-y-4 mb-6"></div>
+            <div class="flex items-center justify-between font-bold text-lg mb-4">
+                <span>Total</span>
+                <span id="cartTotal">R$ 0,00</span>
+            </div>
+            <div class="space-y-3">
+                <button onclick="checkoutCart()" class="w-full bg-blue-matte hover-blue-matte text-white py-3 rounded-lg font-semibold">Pagar com Mercado Pago</button>
+            </div>
+        </div>
     </div>
 
     <!-- Login Modal -->
@@ -884,44 +1056,40 @@
 
     <!-- Purchase Modal -->
     <div id="purchaseModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-dark-matte rounded-2xl p-8 max-w-md w-full glass-effect">
-            <div class="text-center mb-6">
-                <h2 id="purchaseTitle" class="text-2xl font-bold mb-2">Finalizar Compra</h2>
-                <p id="purchaseDescription" class="text-gray-300">Complete os dados para finalizar sua compra</p>
-            </div>
-            
-            <form onsubmit="handlePurchase(event)" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium mb-2">Nome Completo</label>
-                    <input type="text" required class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="Seu nome completo">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-2">Email</label>
-                    <input type="email" required class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="seu@email.com">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-2">Método de Pagamento</label>
-                    <select class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white focus:border-blue-matte focus:outline-none">
-                        <option value="pix">PIX</option>
-                        <option value="cartao">Cartão de Crédito</option>
-                    </select>
-                </div>
-                
-                <div class="bg-blue-matte bg-opacity-20 rounded-lg p-4 mb-4">
-                    <div class="flex justify-between items-center">
-                        <span>Total:</span>
-                        <span id="purchasePrice" class="text-2xl font-bold text-blue-matte">R$ 0,00</span>
-                    </div>
-                </div>
-                
-                <button type="submit" class="w-full bg-blue-matte hover-blue-matte py-3 rounded-lg font-semibold transition-colors">
-                    FINALIZAR COMPRA
-                </button>
-            </form>
-            
-            <button onclick="closePurchaseModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+        <div class="bg-white rounded-2xl max-w-3xl w-full border border-gray-200 overflow-hidden relative">
+            <button onclick="closePurchaseModal()" class="absolute top-4 right-4 text-gray-500 hover:text-black">
                 <i class="fas fa-times text-xl"></i>
             </button>
+            <div class="grid md:grid-cols-2">
+                <div class="bg-gray-100 p-4 flex items-center justify-center">
+                    <img id="purchaseImage" src="" alt="Produto" class="max-h-80 rounded-lg object-cover">
+                </div>
+                <div class="p-6">
+                    <h2 id="purchaseTitle" class="text-2xl font-bold mb-2">Produto</h2>
+                    <p id="purchaseDescription" class="text-gray-600 mb-4">Descrição do produto</p>
+                    <form onsubmit="handlePurchase(event)" class="space-y-4">
+                        <div id="purchaseOptions"></div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Nome Completo</label>
+                            <input type="text" required class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-black placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="Seu nome completo">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Email</label>
+                            <input type="email" required class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-black placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="seu@email.com">
+                        </div>
+                        <!-- Método de pagamento removido: checkout é feito no Mercado Pago -->
+                        <div class="bg-blue-matte bg-opacity-20 rounded-lg p-4">
+                            <div class="flex justify-between items-center">
+                                <span>Total:</span>
+                                <span id="purchasePrice" class="text-2xl font-bold text-blue-matte">R$ 0,00</span>
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full btn-primary py-3 rounded-lg font-semibold transition-colors">
+                            FINALIZAR COMPRA
+                        </button>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 

@@ -1,5 +1,52 @@
+/* Branding: cores e fontes */
+:root {
+    --brand-yellow: #ecd414;
+    --brand-green-1: #09d7d1;
+    --brand-green-2: #07b7b4;
+    --brand-green-3: #046d66;
+    --brand-black: #181818;
+}
+
+/* Fontes: substitua as URLs quando disponibilizar os arquivos oficiais */
+/*
+@font-face {
+    font-family: 'Mango';
+    src: url('/fonts/Mango.woff2') format('woff2');
+    font-weight: 400 700;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Stapel';
+    src: url('/fonts/Stapel.woff2') format('woff2');
+    font-weight: 300 800;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Lovtony';
+    src: url('/fonts/Lovtony.woff2') format('woff2');
+    font-weight: 400 700;
+    font-style: normal;
+    font-display: swap;
+}
+*/
+
 body {
     box-sizing: border-box;
+    color: var(--brand-black);
+    font-family: 'Stapel', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+/* Utilitários de marca */
+.bg-brand-yellow { background-color: var(--brand-yellow); }
+.text-brand-black { color: var(--brand-black); }
+.btn-primary {
+    background-color: var(--brand-yellow);
+    color: var(--brand-black);
+}
+.btn-primary:hover {
+    filter: brightness(0.95);
 }
 
 .bg-dark-matte {
@@ -7,23 +54,25 @@ body {
 }
 
 .bg-blue-matte {
-    background-color: #4a90e2;
+    /* Mantemos o nome da classe para evitar refatoração extensa */
+    background-color: var(--brand-green-2);
 }
 
 .text-blue-matte {
-    color: #4a90e2;
+    color: var(--brand-green-2);
 }
 
 .border-blue-matte {
-    border-color: #4a90e2;
+    border-color: var(--brand-green-2);
 }
 
 .hover-blue-matte:hover {
-    background-color: #357abd;
+    background-color: var(--brand-green-3);
 }
 
 .gradient-bg {
-    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%);
+    /* Se desejar usar gradiente com as cores novas */
+    background: linear-gradient(135deg, #ffffff 0%, #f8f8f8 50%, #ffffff 100%);
 }
 
 .glass-effect {
@@ -32,8 +81,13 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+/* Melhorar contraste de textos dentro de cards com glass-effect em fundo claro */
+.glass-effect p { color: #4b5563; }
+.glass-effect .text-gray-300 { color: #374151; }
+.glass-effect .text-gray-400 { color: #4b5563; }
+
 .neon-glow {
-    box-shadow: 0 0 20px rgba(74, 144, 226, 0.3);
+    box-shadow: 0 0 20px rgba(7, 183, 180, 0.3);
 }
 
 .animate-float {
@@ -58,5 +112,59 @@ body {
     border-color: #4a90e2 !important;
     color: #4a90e2 !important;
 }
+
+/* Alerta topo piscando quando poucas vagas */
+.blink {
+    animation: blink 1s steps(2, start) infinite;
+}
+@keyframes blink {
+    to { visibility: hidden; }
+}
+
+/* Botão voltar ao topo */
+.back-to-top {
+    position: fixed;
+    bottom: 24px;
+    right: 96px;
+    z-index: 60;
+}
+
+.cart-fab {
+    position: fixed;
+    bottom: 24px;
+    right: 160px;
+    z-index: 60;
+}
+
+/* Fundo empresarial simples (padrão sutil) */
+.enterprise-bg {
+    background-image: radial-gradient(rgba(0,0,0,0.03) 1px, transparent 1px);
+    background-size: 12px 12px;
+}
+
+/* Loja - cards uniformes */
+.product-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb; /* gray-200 */
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+}
+.product-media {
+    height: 180px;
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f3f4f6; /* gray-100 */
+    margin-bottom: 16px;
+}
+.product-media img { width: 100%; height: 100%; object-fit: cover; }
+.product-title { font-weight: 700; font-size: 1.125rem; margin-bottom: 8px; color: var(--brand-black); }
+.product-desc { color: #4b5563; margin-bottom: 12px; }
+.product-meta { margin-top: auto; }
 
 
