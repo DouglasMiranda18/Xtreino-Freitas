@@ -569,7 +569,9 @@ async function fetchOccupiedForDate(day, date){
     const map = {};
     try {
         const isLocal = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
-        if (!window.firebaseReady || isLocal) return map;
+        const isNetlify = /netlify\.app$/i.test(location.hostname);
+        // Evita consultas em dev local e também no domínio Netlify por enquanto
+        if (!window.firebaseReady || isLocal || isNetlify) return map;
         const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const regsRef = collection(window.firebaseDb, 'registrations');
         const q = query(regsRef, where('date','==', date), where('status','==','confirmed'));
