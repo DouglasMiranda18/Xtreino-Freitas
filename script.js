@@ -158,7 +158,12 @@ const products = {
     'camisa': { name: 'Camisa Oficial', price: 'R$ 89,90', description: 'Produto físico - Camisa premium' },
     'planilhas': { name: 'Planilhas de Análise', price: 'R$ 29,90', description: 'Download digital imediato' },
     'imagens': { name: 'Imagens Aéreas', price: 'R$ 19,90', description: 'Download digital imediato' },
-    'sensibilidades': { name: 'Sensibilidades', price: 'R$ 8,00', description: 'Download digital imediato' }
+    'sensibilidades': { name: 'Sensibilidades', price: 'R$ 8,00', description: 'Download digital imediato' },
+    // Eventos e Reservas (cupom ADMFALL = 5% off)
+    'evt-xtreino-gratuito': { name: 'XTreino Gratuito e Associado', price: 'R$ 0,00', description: 'Evento gratuito/associados — horários 14h–23h' },
+    'evt-modo-liga': { name: 'XTreino Modo Liga', price: 'R$ 3,00', description: 'Tabela + premiações, narração e transmissão — 14h–23h' },
+    'evt-camp-freitas': { name: 'Camp Freitas', price: 'R$ 5,00', description: 'Inscrição — premiação total R$ 2000,00 + troféu' },
+    'evt-semanal-freitas': { name: 'Semanal Freitas', price: 'R$ 3,50', description: '2 quedas, premiação R$ 65,00, fases 19h–22h' }
 };
 
 function openPurchaseModal(productId) {
@@ -203,7 +208,12 @@ function showProductModal(productId){
         'imagens': 'BANNER FREITAS VENDA DE MAPAS.png',
         'planilhas': 'PLANILHAS FREITAS FINALIZADO VERMELHO.png',
         'passe-booyah': 'PASSE ORG FREITAS FEED.png',
-        'camisa': 'DIVULGAÇÃO MANTO FREITAS.jpg'
+        'camisa': 'DIVULGAÇÃO MANTO FREITAS.jpg',
+        // imagens dos eventos (todos .jpg conforme informado)
+        'evt-xtreino-gratuito': 'evento-xtreino-gratuito.jpg',
+        'evt-modo-liga': 'evento-modo-liga.jpg',
+        'evt-camp-freitas': 'evento-camp-freitas.jpg',
+        'evt-semanal-freitas': 'evento-semanal-freitas.jpg'
     };
     const imgEl = document.getElementById('purchaseImage');
     if (imgEl) imgEl.src = imgMap[productId] || '';
@@ -242,12 +252,22 @@ function showProductModal(productId){
         optContainer.appendChild(qtyWrap);
     }
 
+    // Campo de cupom apenas para eventos (ids iniciando com evt-)
+    if (productId.startsWith('evt-')){
+        const cupomWrap = document.createElement('div');
+        cupomWrap.className = 'mt-3';
+        cupomWrap.innerHTML = '<label class="block text-sm font-medium mb-2">Cupom de desconto</label><input id="couponCode" type="text" placeholder="ADMFALL" class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-black placeholder-gray-400 focus:border-blue-matte focus:outline-none">\n<p class="text-xs text-gray-500 mt-1">Use <strong>ADMFALL</strong> para 5% de desconto.</p>';
+        optContainer.appendChild(cupomWrap);
+    }
+
     // Preço inicial e atualização dinâmica
     updatePurchaseTotal(productId);
     const qtyEl = document.getElementById('mapsQty');
     if (qtyEl) qtyEl.addEventListener('input', ()=> updatePurchaseTotal(productId));
     const mapsNamesEl = document.getElementById('mapsNames');
     if (mapsNamesEl) mapsNamesEl.addEventListener('input', ()=> syncMapsQtyWithNames());
+    const couponEl = document.getElementById('couponCode');
+    if (couponEl) couponEl.addEventListener('input', ()=> updatePurchaseTotal(productId));
 
     document.getElementById('purchaseModal').classList.remove('hidden');
     if (window.innerWidth <= 767) document.body.classList.add('modal-open-mobile');
@@ -262,6 +282,13 @@ function updatePurchaseTotal(productId){
     } else {
         const product = products[productId];
         total = Number((product.price || '0').replace(/[^0-9,]/g,'').replace(',','.')) || 0;
+        // aplicar cupom de 5% apenas em eventos
+        if (productId.startsWith('evt-')){
+            const code = (document.getElementById('couponCode')?.value || '').trim().toUpperCase();
+            if (code === 'ADMFALL') {
+                total = Number((total * 0.95).toFixed(2));
+            }
+        }
     }
     const priceEl = document.getElementById('purchasePrice');
     if (priceEl) priceEl.textContent = total.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
