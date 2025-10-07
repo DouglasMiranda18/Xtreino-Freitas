@@ -41,8 +41,11 @@
                         <a href="https://www.youtube.com/@Organiza%C3%A7%C3%A3oFreitas" target="_blank" rel="noopener" class="text-black hover:text-blue-matte"><i class="fab fa-youtube"></i></a>
                         <a href="#" class="text-black hover:text-blue-matte"><i class="fab fa-discord"></i></a>
                     </div>
-                    <button onclick="openLoginModal()" class="bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold transition-colors">
+                    <button id="loginBtnDesktop" onclick="openLoginModal()" class="bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold transition-colors">
                         LOGIN
+                    </button>
+                    <button id="accountBtnDesktop" onclick="openClientArea()" class="hidden bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold transition-colors">
+                        MINHA CONTA
                     </button>
                 </div>
                 
@@ -65,8 +68,11 @@
                         <a href="https://www.youtube.com/@Organiza%C3%A7%C3%A3oFreitas" target="_blank" rel="noopener" class="text-black hover:text-blue-matte"><i class="fab fa-youtube"></i></a>
                         <a href="#" class="text-black hover:text-blue-matte"><i class="fab fa-discord"></i></a>
                     </div>
-                    <button onclick="openLoginModal()" class="bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold transition-colors w-full">
+                    <button id="loginBtnMobile" onclick="openLoginModal()" class="bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold transition-colors w-full">
                         LOGIN
+                    </button>
+                    <button id="accountBtnMobile" onclick="openClientArea()" class="hidden bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold transition-colors w-full">
+                        MINHA CONTA
                     </button>
                 </div>
             </div>
@@ -740,7 +746,7 @@
             
             <div class="text-center mt-6">
                 <p class="text-gray-400">Não tem conta? 
-                    <button onclick="showRegisterForm()" class="text-blue-matte hover:underline">Cadastre-se</button>
+                    <button onclick="openRegisterModal()" class="text-blue-matte hover:underline">Cadastre-se</button>
                 </p>
             </div>
             
@@ -780,6 +786,9 @@
                 <button onclick="showClientTab('profile')" class="client-tab px-6 py-3 font-semibold border-b-2 border-transparent text-gray-400 hover:text-white">
                     Meu Perfil
                 </button>
+                <button onclick="showClientTab('register')" class="client-tab px-6 py-3 font-semibold border-b-2 border-transparent text-gray-400 hover:text-white">
+                    Cadastro
+                </button>
             </div>
             
             <!-- Overview Tab -->
@@ -816,6 +825,62 @@
                 </div>
             </div>
             
+            <!-- Register Tab -->
+            <div id="registerTab" class="client-tab-content hidden">
+                <div class="mb-6">
+                    <h3 class="text-xl font-bold mb-4">Cadastro de Associado</h3>
+                    <p class="text-gray-300 mb-6">Preencha seus dados para liberar benefícios de associado</p>
+                </div>
+                <form onsubmit="submitRegister(event)" class="space-y-6">
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Nome Completo</label>
+                            <input type="text" id="regName" required class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="Seu nome completo">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Email</label>
+                            <input type="email" id="regEmail" required class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="seu@email.com">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Celular</label>
+                            <input type="tel" id="regPhone" class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="(11) 99999-9999">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Nickname Gamer</label>
+                            <input type="text" id="regNickname" class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="Seu nickname">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Nome do Time/Org</label>
+                            <input type="text" id="regTeam" class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="Nome do seu time">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Idade</label>
+                            <input type="number" id="regAge" min="13" max="99" class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="Sua idade">
+                        </div>
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Cargo</label>
+                            <select id="regRole" class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white focus:border-blue-matte focus:outline-none">
+                                <option value="Vendedor">Vendedor</option>
+                                <option value="Staff">Staff</option>
+                                <option value="Gerente">Gerente</option>
+                                <option value="Ceo">CEO</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Nível de Associado</label>
+                            <select id="regLevel" class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white focus:border-blue-matte focus:outline-none">
+                                <option value="Associado Treino">Associado Treino</option>
+                                <option value="Associado Modo Liga">Associado Modo Liga</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex justify-end">
+                        <button type="submit" class="px-6 py-3 bg-blue-matte hover-blue-matte rounded-lg font-semibold text-white transition-colors">Enviar Cadastro</button>
+                    </div>
+                </form>
+            </div>
             <!-- Orders Tab -->
             <div id="ordersTab" class="client-tab-content hidden">
                 <div class="space-y-4">

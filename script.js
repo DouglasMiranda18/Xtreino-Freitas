@@ -27,6 +27,7 @@ function handleLogin(event) {
     // Simula login bem-sucedido
     closeLoginModal();
     openClientArea();
+    refreshAuthButtons(true);
 }
 
 async function loginWithGoogle() {
@@ -41,6 +42,7 @@ async function loginWithGoogle() {
         // garante perfil do usuário (Firestore ou localStorage)
         await ensureUserProfile(user);
         closeLoginModal();
+        refreshAuthButtons(true);
         // Exibir nome do usuário na Área do Cliente (exemplo)
         const nameEl = document.querySelector('#clientAreaModal p.text-gray-300');
         if (nameEl) nameEl.textContent = `Bem-vindo, ${user.displayName || 'Usuário'}!`;
@@ -54,6 +56,55 @@ async function loginWithGoogle() {
 function showRegisterForm() {
     alert('Formulário de cadastro será implementado. Esta é uma demonstração da interface.');
 }
+
+// Alterna botões Login/Minha Conta conforme estado
+function refreshAuthButtons(isLogged){
+    const desktopLogin = document.getElementById('loginBtnDesktop');
+    const desktopAccount = document.getElementById('accountBtnDesktop');
+    const mobileLogin = document.getElementById('loginBtnMobile');
+    const mobileAccount = document.getElementById('accountBtnMobile');
+    const showAccount = !!isLogged;
+    if (desktopLogin && desktopAccount){
+        desktopLogin.classList.toggle('hidden', showAccount);
+        desktopAccount.classList.toggle('hidden', !showAccount);
+    }
+    if (mobileLogin && mobileAccount){
+        mobileLogin.classList.toggle('hidden', showAccount);
+        mobileAccount.classList.toggle('hidden', !showAccount);
+    }
+}
+
+// Abrir modal de cadastro direto (atalho)
+function openRegisterModal(){
+    closeLoginModal();
+    openClientArea();
+    showClientTab('register');
+}
+
+// Submissão de cadastro: salva no perfil e persiste
+async function submitRegister(event){
+    event.preventDefault();
+    const profile = {
+        ...window.currentUserProfile,
+        name: document.getElementById('regName').value.trim(),
+        email: document.getElementById('regEmail').value.trim(),
+        phone: document.getElementById('regPhone').value.trim(),
+        nickname: document.getElementById('regNickname').value.trim(),
+        teamName: document.getElementById('regTeam').value.trim(),
+        age: document.getElementById('regAge').value.trim(),
+        role: document.getElementById('regRole').value,
+        level: document.getElementById('regLevel').value
+    };
+    window.currentUserProfile = profile;
+    await persistUserProfile(profile);
+    renderClientArea();
+    alert('Cadastro salvo! Seus benefícios de associado foram atualizados.');
+}
+
+// Inicializa header conforme sessão prévia
+window.addEventListener('load', () => {
+    refreshAuthButtons(!!window.currentUserProfile);
+});
 
 // ---------------- Área de Associados: cargos, níveis, permissões e tokens ----------------
 // Configuração centralizada acessível via window.AssocConfig
