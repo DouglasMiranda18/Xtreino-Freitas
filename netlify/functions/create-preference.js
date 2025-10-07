@@ -1,22 +1,32 @@
 // Netlify Function: Create Mercado Pago Preference
 // Env var required: MP_ACCESS_TOKEN
 
-export async function handler(event) {
+// CORS helpers
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS'
+};
+
+exports.handler = async function(event) {
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers: corsHeaders, body: 'OK' };
+  }
   if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method Not Allowed' };
+    return { statusCode: 405, headers: corsHeaders, body: 'Method Not Allowed' };
   }
 
   try {
     const accessToken = process.env.MP_ACCESS_TOKEN;
     if (!accessToken) {
-      return { statusCode: 500, body: 'Missing MP_ACCESS_TOKEN' };
+      return { statusCode: 500, headers: corsHeaders, body: 'Missing MP_ACCESS_TOKEN' };
     }
 
     const body = JSON.parse(event.body || '{}');
     const { title, quantity = 1, currency_id = 'BRL', unit_price } = body;
 
-    if (!title || !unit_price) {
-      return { statusCode: 400, body: 'Invalid payload' };
+    if (!title || typeof unit_price === 'undefined') {
+      return { statusCode: 400, headers: corsHeaders, body: 'Invalid payload' };
     }
 
     const preferencePayload = {
@@ -47,17 +57,17 @@ export async function handler(event) {
 
     if (!res.ok) {
       const text = await res.text();
-      return { statusCode: 502, body: `Mercado Pago error: ${text}` };
+      return { statusCode: 502, headers: corsHeaders, body: `Mercado Pago error: ${text}` };
     }
 
     const data = await res.json();
     return {
       statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: data.id, init_point: data.init_point, sandbox_init_point: data.sandbox_init_point })
     };
   } catch (err) {
-    return { statusCode: 500, body: err.message || 'Internal error' };
+    return { statusCode: 500, headers: corsHeaders, body: err && err.message ? err.message : 'Internal error' };
   }
 }
 
