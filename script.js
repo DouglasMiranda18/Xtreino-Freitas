@@ -487,23 +487,130 @@ function checkoutCart(){
     .catch(()=> alert('Falha no checkout.'));
 }
 
-// --- Integração XtreinoHKS (inline iframe) ---
-function openHksEmbed(eventType){
-    const section = document.getElementById('agenda-hks');
-    const frame = document.getElementById('hksEmbedFrame');
-    if (!section || !frame) return;
-    const base = 'https://xtreinohks.netlify.app/';
-    const url = `${base}#agenda?src=freitas&event=${encodeURIComponent(eventType)}`;
-    frame.src = url;
-    section.classList.remove('hidden');
-    // scroll até o embed
-    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+// --- Agendamento nativo (Firestore + Netlify Function) ---
+const scheduleConfig = {
+    'modo-liga': { label: 'XTreino Modo Liga', price: 3.00 },
+    'camp-freitas': { label: 'Camp Freitas', price: 5.00 },
+    'semanal-freitas': { label: 'Semanal Freitas', price: 3.50 }
+};
+
+function openScheduleModal(eventType){
+    const cfg = scheduleConfig[eventType];
+    const modal = document.getElementById('scheduleModal');
+    if (!cfg || !modal) return;
+    modal.dataset.eventType = eventType;
+    document.getElementById('schedPrice').textContent = cfg.price.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+    initScheduleDate();
+    renderScheduleTimes();
+    modal.classList.remove('hidden');
+    if (window.innerWidth <= 767) document.body.classList.add('modal-open-mobile');
+    const hint = document.getElementById('schedHint');
+    if (hint) hint.textContent = cfg.label;
 }
-function closeHksEmbed(){
-    const section = document.getElementById('agenda-hks');
-    const frame = document.getElementById('hksEmbedFrame');
-    if (frame) frame.src = '';
-    if (section) section.classList.add('hidden');
+function closeScheduleModal(){
+    const modal = document.getElementById('scheduleModal');
+    if (modal) modal.classList.add('hidden');
+    if (window.innerWidth <= 767) maybeClearMobileModalState();
+}
+function initScheduleDate(){
+    const input = document.getElementById('schedDate');
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth()+1).padStart(2,'0');
+    const d = String(today.getDate()).padStart(2,'0');
+    input.value = `${y}-${m}-${d}`;
+}
+function setSchedToday(){ initScheduleDate(); renderScheduleTimes(); }
+function setSchedTomorrow(){
+    const input = document.getElementById('schedDate');
+    const t = new Date();
+    t.setDate(t.getDate()+1);
+    const y = t.getFullYear();
+    const m = String(t.getMonth()+1).padStart(2,'0');
+    const d = String(t.getDate()).padStart(2,'0');
+    input.value = `${y}-${m}-${d}`;
+    renderScheduleTimes();
+}
+async function renderScheduleTimes(){
+    const timesWrap = document.getElementById('schedTimes');
+    if (!timesWrap) return;
+    timesWrap.innerHTML = '';
+    const date = document.getElementById('schedDate').value;
+    const dayNames = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+    const d = new Date(date + 'T00:00:00');
+    const day = dayNames[d.getDay()];
+    const slots = ['19h','20h','21h','22h','23h'];
+    // buscar ocupações confirmadas no Firestore se disponível
+    const occupied = await fetchOccupiedForDate(day, date);
+    slots.forEach(time => {
+        const schedule = `${day} - ${time}`;
+        const taken = occupied[schedule] || 0;
+        const available = 12 - taken;
+        const btn = document.createElement('button');
+        btn.className = `px-3 py-2 rounded border ${available>0? 'border-green-500 text-green-700':'border-gray-400 text-gray-400 cursor-not-allowed'}`;
+        btn.textContent = `${time} (${available}/12)`;
+        btn.disabled = available<=0;
+        btn.onclick = ()=>{ document.getElementById('schedSelectedTime').value = schedule; highlightSelectedSlot(btn, timesWrap); };
+        timesWrap.appendChild(btn);
+    });
+}
+function highlightSelectedSlot(selectedBtn, container){
+    Array.from(container.children).forEach(el=> el.classList.remove('bg-green-50'));
+    selectedBtn.classList.add('bg-green-50');
+}
+async function fetchOccupiedForDate(day, date){
+    const map = {};
+    try {
+        if (!window.firebaseReady) return map;
+        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const regsRef = collection(window.firebaseDb, 'registrations');
+        const q = query(regsRef, where('date','==', date), where('status','==','confirmed'));
+        const snap = await getDocs(q);
+        snap.forEach(doc=>{
+            const r = doc.data();
+            map[r.schedule] = (map[r.schedule]||0)+1;
+        });
+    } catch(_) {}
+    return map;
+}
+async function submitSchedule(e){
+    e.preventDefault();
+    const modal = document.getElementById('scheduleModal');
+    const eventType = modal?.dataset?.eventType || 'modo-liga';
+    const cfg = scheduleConfig[eventType];
+    const schedule = document.getElementById('schedSelectedTime').value;
+    const date = document.getElementById('schedDate').value;
+    const team = document.getElementById('schedTeam').value.trim();
+    const email = document.getElementById('schedEmail').value.trim();
+    const phone = document.getElementById('schedPhone').value.trim();
+    if (!schedule){ alert('Selecione um horário.'); return; }
+    // cria documento pendente no Firestore (se disponível)
+    let regId = 'local-' + Date.now();
+    try {
+        if (window.firebaseReady){
+            const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            const docRef = await addDoc(collection(window.firebaseDb,'registrations'),{
+                teamName: team,
+                email,
+                phone,
+                schedule,
+                date,
+                status:'pending',
+                timestamp: serverTimestamp()
+            });
+            regId = docRef.id;
+        }
+    } catch(_) {}
+    // Checkout via Netlify Function (usa preference como no carrinho)
+    const total = Number(cfg.price.toFixed(2));
+    fetch('/.netlify/functions/create-preference',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ title: `${cfg.label} - ${schedule} - ${date}`, unit_price: total, currency_id:'BRL', quantity:1 })
+    }).then(async res=>{ if(!res.ok) throw new Error(await res.text()); return res.json(); })
+    .then(data=>{
+        closeScheduleModal();
+        if (data.init_point) window.location.href = data.init_point; else alert('Não foi possível iniciar o pagamento.');
+    }).catch(()=> alert('Falha ao iniciar pagamento.'));
 }
 
 // XTreino Gratuito: abrir WhatsApp com mensagem
