@@ -193,10 +193,7 @@ function openClientArea() {
     if (window.innerWidth <= 767) document.body.classList.add('modal-open-mobile');
 }
 
-function closeClientArea() {
-    document.getElementById('clientAreaModal').classList.add('hidden');
-    if (window.innerWidth <= 767) maybeClearMobileModalState();
-}
+function closeClientArea() { /* removed - client area não existe mais */ }
 
 // Renderiza informações dinâmicas do cliente (nome, tokens, etc.)
 function renderClientArea(){
@@ -544,9 +541,7 @@ document.addEventListener('click', function(event) {
     if (event.target === purchaseModal) {
         closePurchaseModal();
     }
-    if (event.target === clientAreaModal) {
-        closeClientArea();
-    }
+    // client area removida
     if (event.target === tokensModal) {
         closeTokensModal();
     }
