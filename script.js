@@ -537,6 +537,8 @@ function setSchedTomorrow(){
     input.value = `${y}-${m}-${d}`;
     renderScheduleTimes();
 }
+const scheduleCache = {};
+
 async function renderScheduleTimes(){
     const timesWrap = document.getElementById('schedTimes');
     if (!timesWrap) return;
@@ -546,24 +548,22 @@ async function renderScheduleTimes(){
     const d = new Date(date + 'T00:00:00');
     const day = dayNames[d.getDay()];
     const slots = ['19h','20h','21h','22h','23h'];
-    // buscar ocupações confirmadas no Firestore se disponível
-    let occupied = {};
-    try { occupied = await fetchOccupiedForDate(day, date); } catch(_) { occupied = {}; }
+    // Render imediato com estado neutro e atualiza assíncrono
     slots.forEach(time => {
         const schedule = `${day} - ${time}`;
-        const taken = occupied[schedule] || 0;
-        const available = 12 - taken;
         const btn = document.createElement('button');
-        btn.className = `px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${available>0? 'border border-green-500 text-green-700 hover:bg-green-50':'border border-gray-300 text-gray-400 cursor-not-allowed bg-gray-50'}`;
-        btn.textContent = `${time} (${available}/12)`;
-        btn.disabled = available<=0;
+        btn.className = 'slot-btn';
+        btn.dataset.schedule = schedule;
+        btn.textContent = `${time} (.. /12)`;
         btn.onclick = ()=>{ document.getElementById('schedSelectedTime').value = schedule; highlightSelectedSlot(btn, timesWrap); };
         timesWrap.appendChild(btn);
     });
+    // Atualiza com dados reais
+    updateOccupiedAndRefreshButtons(day, date, timesWrap);
 }
 function highlightSelectedSlot(selectedBtn, container){
-    Array.from(container.children).forEach(el=> el.classList.remove('bg-green-100','ring-2','ring-green-400'));
-    selectedBtn.classList.add('bg-green-100','ring-2','ring-green-400');
+    Array.from(container.children).forEach(el=> el.classList.remove('selected'));
+    selectedBtn.classList.add('selected');
 }
 async function fetchOccupiedForDate(day, date){
     const map = {};
@@ -579,6 +579,28 @@ async function fetchOccupiedForDate(day, date){
         });
     } catch(_) {}
     return map;
+}
+async function updateOccupiedAndRefreshButtons(day, date, container){
+    // cache por data
+    let occupied = scheduleCache[date];
+    if (!occupied) {
+        try { occupied = await fetchOccupiedForDate(day, date); } catch(_) { occupied = {}; }
+        scheduleCache[date] = occupied;
+    }
+    Array.from(container.children).forEach(btn => {
+        const schedule = btn.dataset.schedule;
+        const time = (schedule || '').split(' - ')[1] || '';
+        const taken = occupied[schedule] || 0;
+        const available = Math.max(0, 12 - taken);
+        btn.textContent = `${time} (${String(available).padStart(2,'0')}/12)`;
+        if (available === 0){
+            btn.classList.add('full');
+            btn.disabled = true;
+        } else {
+            btn.classList.remove('full');
+            btn.disabled = false;
+        }
+    });
 }
 async function submitSchedule(e){
     e.preventDefault();

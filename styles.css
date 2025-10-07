@@ -144,6 +144,23 @@ body {
     }
 }
 
+/* Schedule slots - visual melhorado */
+.slot-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
+@media (max-width: 480px) { .slot-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+.slot-btn {
+    border: 2px solid var(--brand-green-2);
+    color: var(--brand-green-2);
+    padding: 10px 14px;
+    border-radius: 9999px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    background: #fff;
+    transition: all .2s ease;
+}
+.slot-btn:hover { background: rgba(7, 183, 180, 0.06); }
+.slot-btn.selected { background: rgba(7,183,180,.12); box-shadow: 0 0 0 3px rgba(7,183,180,.25); }
+.slot-btn.full { border-color: #d1d5db; color: #9ca3af; background: #f9fafb; cursor: not-allowed; }
+
 /* Fundo empresarial simples (padrão sutil) */
 .enterprise-bg {
     background-image: radial-gradient(rgba(0,0,0,0.03) 1px, transparent 1px);
