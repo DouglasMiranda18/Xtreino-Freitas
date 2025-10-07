@@ -1222,6 +1222,14 @@
                     </div>
                     <button onclick="openScheduleModal('associado')" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">Usar 1 token (Associado)</button>
                 </div>
+                <div id="accTokensAdmin" class="hidden bg-gray-100 border rounded p-4 space-y-2">
+                    <div class="text-sm font-semibold">Administração de tokens</div>
+                    <div class="flex gap-2">
+                        <input id="accTokensAmount" type="number" step="0.5" min="0" value="1" class="w-24 border border-gray-300 rounded px-3 py-2">
+                        <button onclick="adminAddTokens()" class="px-3 py-2 bg-blue-matte text-white rounded">Adicionar</button>
+                        <button onclick="adminRemoveTokens()" class="px-3 py-2 bg-red-600 text-white rounded">Remover</button>
+                    </div>
+                </div>
                 <div id="accTokensMsg" class="text-sm text-gray-600"></div>
             </div>
             <div id="accPanelOrders" class="space-y-3 hidden">

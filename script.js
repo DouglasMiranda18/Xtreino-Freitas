@@ -142,6 +142,10 @@ async function loadAccountProfile(){
         document.getElementById('accRole').value = d.role || 'Vendedor';
         document.getElementById('accLevel').value = d.level || 'Associado Treino';
         document.getElementById('accTokensBalance').textContent = Number(d.tokens||0);
+        // exibe painel admin para cargos gerenciais
+        const adminBox = document.getElementById('accTokensAdmin');
+        const isAdmin = (d.role === 'Gerente' || d.role === 'Ceo' || d.role === 'Staff');
+        if (adminBox) adminBox.classList.toggle('hidden', !isAdmin);
     }catch(_){ }
 }
 
@@ -177,6 +181,24 @@ async function loadTokensBalance(){
         document.getElementById('accTokensBalance').textContent = Number(d.tokens||0);
     }catch(_){ }
 }
+
+async function setTokensDelta(delta){
+    try{
+        if (!window.firebaseReady || !window.firebaseAuth?.currentUser) return;
+        const uid = window.firebaseAuth.currentUser.uid;
+        const { doc, getDoc, setDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const ref = doc(collection(window.firebaseDb,'users'), uid);
+        const snap = await getDoc(ref);
+        const d = snap.exists()? snap.data():{};
+        const next = Math.max(0, Number((Number(d.tokens||0) + delta).toFixed(2)));
+        await setDoc(ref, { tokens: next }, { merge:true });
+        document.getElementById('accTokensBalance').textContent = next;
+        document.getElementById('accTokensMsg').textContent = 'Saldo atualizado.';
+    }catch(_){ document.getElementById('accTokensMsg').textContent = 'Erro ao atualizar tokens.'; }
+}
+
+function adminAddTokens(){ const amt = Number(document.getElementById('accTokensAmount').value||0); if (amt>0) setTokensDelta(amt); }
+function adminRemoveTokens(){ const amt = Number(document.getElementById('accTokensAmount').value||0); if (amt>0) setTokensDelta(-amt); }
 
 async function loadAccountOrders(){
     const container = document.getElementById('accOrders');
@@ -1012,6 +1034,7 @@ async function submitSchedule(e){
         if (window.firebaseReady && !isLocal && !isNetlify){
             const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
             const docRef = await addDoc(collection(window.firebaseDb,'registrations'),{
+                uid: (window.firebaseAuth && window.firebaseAuth.currentUser ? window.firebaseAuth.currentUser.uid : null),
                 teamName: team,
                 email,
                 phone,
