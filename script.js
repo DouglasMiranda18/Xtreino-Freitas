@@ -12,6 +12,7 @@ function scrollToSection(sectionId) {
 }
 
 // Login modal functions
+window.isLoggedIn = false;
 function openLoginModal() {
     document.getElementById('loginModal').classList.remove('hidden');
     if (window.innerWidth <= 767) document.body.classList.add('modal-open-mobile');
@@ -41,6 +42,7 @@ async function loginWithGoogle() {
         const user = result.user;
         // garante perfil do usuário (Firestore ou localStorage)
         await ensureUserProfile(user);
+        window.isLoggedIn = true;
         closeLoginModal();
         refreshAuthButtons(true);
         // Exibir nome do usuário na Área do Cliente (exemplo)
@@ -76,6 +78,7 @@ function refreshAuthButtons(isLogged){
 
 // Abrir modal de cadastro direto (atalho)
 function openRegisterModal(){
+    if (!window.isLoggedIn){ openLoginModal(); return; }
     closeLoginModal();
     openClientArea();
     showClientTab('register');
@@ -84,6 +87,7 @@ function openRegisterModal(){
 // Submissão de cadastro: salva no perfil e persiste
 async function submitRegister(event){
     event.preventDefault();
+    if (!window.isLoggedIn){ alert('Faça login para concluir o cadastro.'); return; }
     const profile = {
         ...window.currentUserProfile,
         name: document.getElementById('regName').value.trim(),
@@ -103,8 +107,24 @@ async function submitRegister(event){
 
 // Inicializa header conforme sessão prévia
 window.addEventListener('load', () => {
-    refreshAuthButtons(!!window.currentUserProfile);
+    window.isLoggedIn = !!(window.currentUserProfile && window.currentUserProfile.uid);
+    refreshAuthButtons(window.isLoggedIn);
 });
+
+// Logout
+async function logout(){
+    try {
+        if (window.firebaseReady){
+            const { signOut } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
+            await signOut(window.firebaseAuth);
+        }
+    } catch(_) {}
+    window.isLoggedIn = false;
+    window.currentUserProfile = null;
+    localStorage.removeItem('assoc_profile');
+    refreshAuthButtons(false);
+    closeClientArea();
+}
 
 // ---------------- Área de Associados: cargos, níveis, permissões e tokens ----------------
 // Configuração centralizada acessível via window.AssocConfig
@@ -255,6 +275,7 @@ async function persistUserProfile(profile){
 
 // Client Area Functions
 function openClientArea() {
+    if (!window.isLoggedIn) { openLoginModal(); return; }
     document.getElementById('clientAreaModal').classList.remove('hidden');
     try { renderClientArea(); } catch(_) {}
     if (window.innerWidth <= 767) document.body.classList.add('modal-open-mobile');
