@@ -776,6 +776,9 @@
                 <button onclick="showClientTab('tokens')" class="client-tab px-6 py-3 font-semibold border-b-2 border-transparent text-gray-400 hover:text-white">
                     Tokens XTreino
                 </button>
+                <button onclick="showClientTab('profile')" class="client-tab px-6 py-3 font-semibold border-b-2 border-transparent text-gray-400 hover:text-white">
+                    Meu Perfil
+                </button>
             </div>
             
             <!-- Overview Tab -->
@@ -936,7 +939,12 @@
                 </div>
                 
                 <div class="space-y-4">
-                    <h4 class="text-lg font-bold">Agendar Novo XTreino</h4>
+                    <div class="flex justify-between items-center">
+                        <h4 class="text-lg font-bold">Agendar Novo XTreino</h4>
+                        <button onclick="openTokensModal()" class="bg-blue-matte hover-blue-matte text-white px-4 py-2 rounded-lg font-semibold text-sm">
+                            Gerenciar Tokens
+                        </button>
+                    </div>
                     <div class="grid md:grid-cols-3 gap-4">
                         <button onclick="scheduleTraining('aim')" class="bg-white bg-opacity-5 hover:bg-opacity-10 rounded-xl p-4 text-left transition-colors">
                             <i class="fas fa-target text-blue-matte mb-2"></i>
@@ -955,6 +963,71 @@
                         </button>
                     </div>
                 </div>
+            </div>
+            
+            <!-- Profile Tab -->
+            <div id="profileTab" class="client-tab-content hidden">
+                <div class="mb-6">
+                    <h3 class="text-xl font-bold mb-4">Meu Perfil</h3>
+                    <p class="text-gray-300 mb-6">Gerencie suas informações pessoais e preferências</p>
+                </div>
+                
+                <form onsubmit="updateProfile(event)" class="space-y-6">
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Nome Completo</label>
+                            <input type="text" id="profileName" required class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="Seu nome completo">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Email</label>
+                            <input type="email" id="profileEmail" required class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="seu@email.com">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Celular</label>
+                            <input type="tel" id="profilePhone" class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="(11) 99999-9999">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Nickname Gamer</label>
+                            <input type="text" id="profileNickname" class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="Seu nickname">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Nome do Time/Org</label>
+                            <input type="text" id="profileTeam" class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="Nome do seu time">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Idade</label>
+                            <input type="number" id="profileAge" min="13" max="99" class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="Sua idade">
+                        </div>
+                    </div>
+                    
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Cargo</label>
+                            <select id="profileRole" class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white focus:border-blue-matte focus:outline-none">
+                                <option value="Vendedor">Vendedor</option>
+                                <option value="Staff">Staff</option>
+                                <option value="Gerente">Gerente</option>
+                                <option value="Ceo">CEO</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Nível de Associado</label>
+                            <select id="profileLevel" class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white focus:border-blue-matte focus:outline-none">
+                                <option value="Associado Treino">Associado Treino</option>
+                                <option value="Associado Modo Liga">Associado Modo Liga</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-4">
+                        <button type="button" onclick="loadProfileData()" class="px-6 py-3 border border-gray-600 rounded-lg font-semibold text-gray-300 hover:text-white transition-colors">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="px-6 py-3 bg-blue-matte hover-blue-matte rounded-lg font-semibold text-white transition-colors">
+                            Salvar Alterações
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -1045,6 +1118,60 @@
             <h3 class="text-xl font-bold mb-3">XTREINO GRATUITO</h3>
             <p class="text-gray-700 mb-4">Clique abaixo para abrir o WhatsApp e solicitar sua vaga gratuita. Enviaremos os horários disponíveis.</p>
             <a id="freeWhatsLink" target="_blank" rel="noopener" class="w-full btn-primary py-3 rounded-lg font-semibold block text-center">Abrir WhatsApp</a>
+        </div>
+    </div>
+
+    <!-- Tokens Modal -->
+    <div id="tokensModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 relative">
+            <button onclick="closeTokensModal()" class="absolute top-4 right-4 text-gray-500 hover:text-black">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+            <h3 class="text-xl font-bold mb-3">Sistema de Tokens</h3>
+            <div class="mb-4">
+                <div class="bg-blue-matte bg-opacity-20 rounded-lg p-4 text-center mb-4">
+                    <i class="fas fa-coins text-2xl text-blue-matte mb-2"></i>
+                    <div class="text-2xl font-bold" id="tokensBalance">0</div>
+                    <div class="text-sm text-gray-600">Tokens Disponíveis</div>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Cada token vale R$ 1,00 e pode ser usado para vagas em eventos.</p>
+            </div>
+            
+            <div class="space-y-3">
+                <h4 class="font-semibold">Comprar Tokens</h4>
+                <div class="flex items-center space-x-2">
+                    <input type="number" id="tokensQuantity" min="1" max="100" value="1" class="flex-1 border border-gray-300 rounded-lg px-3 py-2">
+                    <span class="text-sm text-gray-600">tokens</span>
+                </div>
+                <div class="text-right">
+                    <span class="text-sm text-gray-600">Total: </span>
+                    <span id="tokensTotal" class="font-bold text-blue-matte">R$ 1,00</span>
+                </div>
+                <button onclick="buyTokens()" class="w-full bg-blue-matte hover-blue-matte text-white py-2 rounded-lg font-semibold">
+                    Comprar Tokens
+                </button>
+            </div>
+            
+            <div class="mt-6 pt-4 border-t">
+                <h4 class="font-semibold mb-3">Usar Tokens</h4>
+                <div class="space-y-2">
+                    <button onclick="useTokensForEvent('treino')" class="w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg font-semibold">
+                        1 Token = 1 Vaga Treino Normal
+                    </button>
+                    <button onclick="useTokensForEvent('modoLiga')" class="w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg font-semibold">
+                        3 Tokens = 1 Vaga Modo Liga
+                    </button>
+                    <button onclick="useTokensForEvent('semanal')" class="w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg font-semibold">
+                        3,5 Tokens = 1 Vaga Semanal
+                    </button>
+                    <button onclick="useTokensForEvent('finalSemanal')" class="w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg font-semibold">
+                        7 Tokens = 1 Vaga Final Semanal
+                    </button>
+                    <button onclick="useTokensForEvent('campFases')" class="w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg font-semibold">
+                        5 Tokens = 1 Vaga Camp de Fases
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 

@@ -248,6 +248,8 @@ function showClientTab(tabName) {
     // atualizar dados dinâmicos ao trocar de aba
     if (tabName === 'overview' || tabName === 'tokens') {
         try { renderClientArea(); } catch(_) {}
+    } else if (tabName === 'profile') {
+        try { loadProfileData(); } catch(_) {}
     }
 }
 
@@ -542,6 +544,9 @@ document.addEventListener('click', function(event) {
     const loginModal = document.getElementById('loginModal');
     const purchaseModal = document.getElementById('purchaseModal');
     const clientAreaModal = document.getElementById('clientAreaModal');
+    const tokensModal = document.getElementById('tokensModal');
+    const freeWhatsModal = document.getElementById('freeWhatsModal');
+    const scheduleModal = document.getElementById('scheduleModal');
     
     if (event.target === loginModal) {
         closeLoginModal();
@@ -551,6 +556,15 @@ document.addEventListener('click', function(event) {
     }
     if (event.target === clientAreaModal) {
         closeClientArea();
+    }
+    if (event.target === tokensModal) {
+        closeTokensModal();
+    }
+    if (event.target === freeWhatsModal) {
+        closeFreeWhatsModal();
+    }
+    if (event.target === scheduleModal) {
+        closeScheduleModal();
     }
 });
 
@@ -845,6 +859,144 @@ function closeFreeWhatsModal(){
     if (window.innerWidth <= 767) maybeClearMobileModalState();
 }
 
+// --- Modal de Tokens ---
+function openTokensModal(){
+    const modal = document.getElementById('tokensModal');
+    if (!modal) return;
+    
+    // Atualizar saldo de tokens
+    const balanceEl = document.getElementById('tokensBalance');
+    if (balanceEl) balanceEl.textContent = String(Math.round(getTokenBalance()));
+    
+    // Atualizar total ao mudar quantidade
+    const qtyInput = document.getElementById('tokensQuantity');
+    const totalEl = document.getElementById('tokensTotal');
+    if (qtyInput && totalEl) {
+        qtyInput.addEventListener('input', () => {
+            const qty = Math.max(1, Math.min(100, Number(qtyInput.value) || 1));
+            const total = qty * 1.00; // R$ 1,00 por token
+            totalEl.textContent = total.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+        });
+    }
+    
+    modal.classList.remove('hidden');
+    if (window.innerWidth <= 767) document.body.classList.add('modal-open-mobile');
+}
+
+function closeTokensModal(){
+    const modal = document.getElementById('tokensModal');
+    if (modal) modal.classList.add('hidden');
+    if (window.innerWidth <= 767) maybeClearMobileModalState();
+}
+
+function buyTokens(){
+    const qtyInput = document.getElementById('tokensQuantity');
+    const qty = Math.max(1, Math.min(100, Number(qtyInput?.value) || 1));
+    const total = qty * 1.00;
+    
+    // Checkout via Netlify Function
+    fetch('/.netlify/functions/create-preference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            title: `${qty} Token${qty > 1 ? 's' : ''} XTreino`,
+            unit_price: total,
+            currency_id: 'BRL',
+            quantity: 1
+        })
+    })
+    .then(async (res) => {
+        if (!res.ok) throw new Error(await res.text());
+        return res.json();
+    })
+    .then((data) => {
+        closeTokensModal();
+        const url = data.sandbox_init_point || data.init_point;
+        if (url) window.location.href = url; else alert('Não foi possível iniciar o checkout.');
+    })
+    .catch((err) => {
+        console.error('Erro no checkout de tokens:', err);
+        alert('Falha ao iniciar checkout de tokens.');
+    });
+}
+
+function useTokensForEvent(eventType){
+    const eventCosts = {
+        'treino': 1.00,
+        'modoLiga': 3.00,
+        'semanal': 3.50,
+        'finalSemanal': 7.00,
+        'campFases': 5.00
+    };
+    
+    const cost = eventCosts[eventType];
+    if (!cost) return;
+    
+    if (!canSpendTokens(cost)) {
+        alert(`Saldo insuficiente. Você precisa de ${cost.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})} em tokens.`);
+        return;
+    }
+    
+    const eventNames = {
+        'treino': 'Treino Normal',
+        'modoLiga': 'Modo Liga',
+        'semanal': 'Semanal',
+        'finalSemanal': 'Final Semanal',
+        'campFases': 'Camp de Fases'
+    };
+    
+    if (confirm(`Confirmar uso de ${cost.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})} em tokens para ${eventNames[eventType]}?`)) {
+        spendTokens(cost);
+        closeTokensModal();
+        renderClientArea();
+        alert('Token resgatado! Nossa equipe entrará em contato para agendar.');
+    }
+}
+
+// --- Edição de Perfil ---
+function loadProfileData(){
+    const p = window.currentUserProfile || {};
+    document.getElementById('profileName').value = p.name || '';
+    document.getElementById('profileEmail').value = p.email || '';
+    document.getElementById('profilePhone').value = p.phone || '';
+    document.getElementById('profileNickname').value = p.nickname || '';
+    document.getElementById('profileTeam').value = p.teamName || '';
+    document.getElementById('profileAge').value = p.age || '';
+    document.getElementById('profileRole').value = p.role || 'Vendedor';
+    document.getElementById('profileLevel').value = p.level || 'Associado Treino';
+}
+
+function updateProfile(event){
+    event.preventDefault();
+    
+    const profile = {
+        ...window.currentUserProfile,
+        name: document.getElementById('profileName').value.trim(),
+        email: document.getElementById('profileEmail').value.trim(),
+        phone: document.getElementById('profilePhone').value.trim(),
+        nickname: document.getElementById('profileNickname').value.trim(),
+        teamName: document.getElementById('profileTeam').value.trim(),
+        age: document.getElementById('profileAge').value.trim(),
+        role: document.getElementById('profileRole').value,
+        level: document.getElementById('profileLevel').value
+    };
+    
+    // Validar campos obrigatórios
+    if (!profile.name || !profile.email) {
+        alert('Nome e email são obrigatórios.');
+        return;
+    }
+    
+    // Atualizar perfil local
+    window.currentUserProfile = profile;
+    persistUserProfile(profile);
+    
+    // Atualizar UI
+    renderClientArea();
+    
+    alert('Perfil atualizado com sucesso!');
+}
+
 // Top alert control (example trigger)
 window.addEventListener('load', () => {
     const alertBar = document.getElementById('topAlert');
@@ -871,7 +1023,10 @@ function maybeClearMobileModalState(){
         document.getElementById('loginModal'),
         document.getElementById('purchaseModal'),
         document.getElementById('clientAreaModal'),
-        document.getElementById('cartDrawer')
+        document.getElementById('cartDrawer'),
+        document.getElementById('tokensModal'),
+        document.getElementById('freeWhatsModal'),
+        document.getElementById('scheduleModal')
     ].some(el => el && !el.classList.contains('hidden'));
     if (!anyOpen) document.body.classList.remove('modal-open-mobile');
 }
