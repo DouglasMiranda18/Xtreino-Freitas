@@ -118,14 +118,15 @@
             <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <!-- XTreino Associado -->
                 <article class="product-card">
-                    <div class="product-media">
+                    <div class="product-media relative">
+                        <span class="absolute top-2 left-2 bg-blue-matte text-white text-xs font-bold px-2 py-1 rounded">ASSOCIADOS</span>
                         <img src="XTREINO FREITAS GRATUITO E ASSOCIADO.jpg" alt="XTREINO FREITAS GRATUITO E ASSOCIADO">
                     </div>
                     <div class="product-title">XTREINO FREITAS ASSOCIADO</div>
                     <div class="product-desc">
                         Apenas para contas de associado. 1 Token = 1 vaga. Horários: 14h–23h
                     </div>
-                    <button onclick="openTokensModal()" class="w-full btn-primary py-2 rounded-lg font-semibold">USAR TOKENS</button>
+                    <button id="assocTokensBtn" onclick="openTokensModal()" class="w-full btn-primary py-2 rounded-lg font-semibold">USAR TOKENS</button>
                 </article>
 
                 <!-- Modo Liga -->

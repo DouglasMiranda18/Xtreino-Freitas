@@ -225,6 +225,14 @@ function renderClientArea(){
     // Tokens Tab: saldo
     const tokensTab = document.querySelector('#tokensTab .bg-blue-matte.bg-opacity-20 h3');
     if (tokensTab) tokensTab.textContent = String(Math.round(getTokenBalance()));
+    // Habilitar/Desabilitar botão de associados no card
+    const assocBtn = document.getElementById('assocTokensBtn');
+    if (assocBtn){
+        const isAssociated = p && (p.level === window.AssocConfig.levels.ASSOCIADO_TREINO || p.level === window.AssocConfig.levels.ASSOCIADO_MODO_LIGA);
+        assocBtn.disabled = !isAssociated;
+        assocBtn.classList.toggle('opacity-60', !isAssociated);
+        assocBtn.textContent = isAssociated ? 'USAR TOKENS' : 'APENAS ASSOCIADOS';
+    }
 }
 
 function showClientTab(tabName) {
