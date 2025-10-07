@@ -568,7 +568,8 @@ function highlightSelectedSlot(selectedBtn, container){
 async function fetchOccupiedForDate(day, date){
     const map = {};
     try {
-        if (!window.firebaseReady) return map;
+        const isLocal = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+        if (!window.firebaseReady || isLocal) return map;
         const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const regsRef = collection(window.firebaseDb, 'registrations');
         const q = query(regsRef, where('date','==', date), where('status','==','confirmed'));
@@ -619,7 +620,8 @@ async function submitSchedule(e){
     // cria documento pendente no Firestore (se disponível)
     let regId = 'local-' + Date.now();
     try {
-        if (window.firebaseReady){
+        const isLocal = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+        if (window.firebaseReady && !isLocal){
             const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
             const docRef = await addDoc(collection(window.firebaseDb,'registrations'),{
                 teamName: team,
