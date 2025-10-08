@@ -590,6 +590,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                 .then(({ doc, setDoc, collection }) => {
                                     const ref = doc(collection(window.firebaseDb,'registrations'), regId);
                                     return setDoc(ref, { status:'paid' }, { merge:true });
+                                }).then(()=>{
+                                    openPaymentConfirmModal('Pagamento confirmado', 'Seu pagamento foi aprovado. Confira seus acessos na área Minha Conta.');
                                 }).catch(()=>{});
                         }
                     }
@@ -1522,6 +1524,20 @@ function closeFreeWhatsModal(){
     const modal = document.getElementById('freeWhatsModal');
     if (modal) modal.classList.add('hidden');
     if (window.innerWidth <= 767) maybeClearMobileModalState();
+}
+
+// Modal confirmação
+function openPaymentConfirmModal(title, msg){
+    const m = document.getElementById('paymentConfirmModal');
+    const t = document.getElementById('paymentConfirmTitle');
+    const p = document.getElementById('paymentConfirmMsg');
+    if (t) t.textContent = title || 'Pagamento';
+    if (p) p.textContent = msg || '';
+    if (m) m.classList.remove('hidden');
+}
+function closePaymentConfirmModal(){
+    const m = document.getElementById('paymentConfirmModal');
+    if (m) m.classList.add('hidden');
 }
 
 // --- Modal de Tokens ---
