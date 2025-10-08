@@ -84,6 +84,7 @@
       if (snap.exists()) role = (snap.data().role)||'Vendedor';
     }catch(e){}
 
+    console.log('ADMIN UID:', uid, 'ROLE:', role);
     if (!['ceo','gerente','vendedor'].includes((role||'').toLowerCase())){
       authGate.classList.remove('hidden');
       dashboard.classList.add('hidden');
