@@ -1483,7 +1483,7 @@ async function submitSchedule(e){
     }).then(async res=>{ if(!res.ok){ const t = await res.text(); throw new Error(t || 'Erro na função de pagamento'); } return res.json(); })
     .then(data=>{
         closeScheduleModal();
-        const url = data.sandbox_init_point || data.init_point;
+        const url = data.init_point || data.sandbox_init_point; // prioriza produção
         if (url) window.location.href = url; else alert('Não foi possível iniciar o pagamento.');
     }).catch((err)=> { alert('Falha ao iniciar pagamento. ' + (err && err.message ? err.message : '')); })
     .finally(()=>{ if (submitBtn){ submitBtn.disabled = false; submitBtn.textContent = oldText; }});

@@ -61,6 +61,7 @@ exports.handler = async function(event) {
     }
 
     const data = await res.json();
+    // Em produção, use init_point; sandbox_init_point é retornado apenas para contas sandbox
     return {
       statusCode: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
