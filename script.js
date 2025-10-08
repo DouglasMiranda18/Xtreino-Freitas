@@ -203,15 +203,13 @@ async function loadAccountProfile(){
         const ref = doc(collection(window.firebaseDb,'users'), uid);
         const snap = await getDoc(ref);
         const d = snap.exists()? snap.data() : {};
-        document.getElementById('accName').value = d.name || window.firebaseAuth.currentUser.displayName || '';
-        document.getElementById('accEmail').value = window.firebaseAuth.currentUser.email || '';
-        document.getElementById('accPhone').value = d.phone || '';
-        document.getElementById('accNickname').value = d.nickname || '';
-        document.getElementById('accTeam').value = d.teamName || '';
-        document.getElementById('accAge').value = d.age || '';
-        // Campos de cargo e nível são apenas exibidos, não editáveis
-        document.getElementById('profileRoleDisplay').textContent = d.role || 'Vendedor';
-        document.getElementById('profileLevelDisplay').textContent = d.level || 'Associado Treino';
+        document.getElementById('profileName').value = d.name || window.firebaseAuth.currentUser.displayName || '';
+        document.getElementById('profileEmail').value = window.firebaseAuth.currentUser.email || '';
+        document.getElementById('profilePhone').value = d.phone || '';
+        document.getElementById('profileNickname').value = d.nickname || '';
+        document.getElementById('profileTeam').value = d.teamName || '';
+        document.getElementById('profileAge').value = d.age || '';
+        // Campos de cargo e nível foram removidos do perfil do usuário
         document.getElementById('accTokensBalance').textContent = Number(d.tokens||0);
         // Atualiza perfil local para permissões
         window.currentUserProfile = d;
@@ -438,7 +436,15 @@ window.isLoggedIn = false;
 
 // Verifica se há usuário logado ao carregar a página
 document.addEventListener('DOMContentLoaded', function() {
-    checkAuthState();
+    // Aguarda o Firebase estar pronto
+    const checkFirebaseReady = () => {
+        if (window.firebaseReady) {
+            checkAuthState();
+        } else {
+            setTimeout(checkFirebaseReady, 100);
+        }
+    };
+    checkFirebaseReady();
 });
 
 async function checkAuthState() {
@@ -1423,12 +1429,20 @@ function updateProfile(event){
         return;
     }
     
+    // Salvar no Firestore
+    try {
+        if (window.firebaseReady && window.firebaseAuth?.currentUser) {
+            const { doc, setDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            const ref = doc(collection(window.firebaseDb, 'users'), window.firebaseAuth.currentUser.uid);
+            await setDoc(ref, profile, { merge: true });
+            console.log('Perfil salvo no Firestore');
+        }
+    } catch (e) {
+        console.error('Erro ao salvar perfil no Firestore:', e);
+    }
+    
     // Atualizar perfil local
     window.currentUserProfile = profile;
-    persistUserProfile(profile);
-    
-    // Atualizar UI
-    renderClientArea();
     
     alert('Perfil atualizado com sucesso!');
 }
