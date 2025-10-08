@@ -96,7 +96,7 @@
     const roleLower = (role||'').toLowerCase();
     const isManager = ['ceo','gerente'].includes(roleLower);
     const isCeo = roleLower==='ceo';
-    await loadUsersTable(isManager, isCeo);
+    try { await loadUsersTable(isManager, isCeo); } catch(_){}
     if (isManager){
       await loadReports();
       await loadRecentSchedules();
@@ -396,8 +396,9 @@ async function upsertUserProfile(user) {
 }
 
 async function loadUsersAndRoles(currentRole) {
-    const canEditRoles = ['ceo','gerente'].includes((currentRole||'').toLowerCase());
-    const isCeo = (currentRole||'').toLowerCase()==='ceo';
+    const roleStr = String(currentRole || '').toLowerCase();
+    const canEditRoles = ['ceo','gerente'].includes(roleStr);
+    const isCeo = roleStr==='ceo';
     const { collection, getDocsFromServer, doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     const usersCol = collection(window.firebaseDb, 'users');
     const snapUsers = await getDocsFromServer(usersCol);
