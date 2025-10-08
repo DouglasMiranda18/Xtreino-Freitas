@@ -29,9 +29,10 @@
       if (salesChartCard) salesChartCard.classList.add('hidden');
       if (topProductsCard) topProductsCard.classList.add('hidden');
     } else if (role === 'gerente'){
-      // Gerente: vê financeiro, exceto fluxo total mensal -> escondemos apenas o KPI "Vendas Mês"
+      // Gerente: vê financeiro, exceto fluxo total mensal e gráfico de Vendas 30d
       const kpiMonthCard = document.getElementById('kpiMonth')?.closest('.bg-white');
       if (kpiMonthCard) kpiMonthCard.classList.add('hidden');
+      if (salesChartCard) salesChartCard.classList.add('hidden');
     }
   }
 
