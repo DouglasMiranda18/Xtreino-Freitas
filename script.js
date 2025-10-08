@@ -198,23 +198,42 @@ function showAccountTab(tab){
 async function loadAccountProfile(){
     try{
         if (!window.firebaseReady || !window.firebaseAuth?.currentUser) return;
+        
+        // Usa dados do perfil local se disponível
+        if (window.currentUserProfile) {
+            const d = window.currentUserProfile;
+            document.getElementById('profileName').value = d.name || window.firebaseAuth.currentUser.displayName || '';
+            document.getElementById('profileEmail').value = window.firebaseAuth.currentUser.email || '';
+            document.getElementById('profilePhone').value = d.phone || '';
+            document.getElementById('profileNickname').value = d.nickname || '';
+            document.getElementById('profileTeam').value = d.teamName || '';
+            document.getElementById('profileAge').value = d.age || '';
+            document.getElementById('accTokensBalance').textContent = Number(d.tokens||0);
+            updateUIForPermissions();
+            return;
+        }
+        
+        // Se não tem perfil local, tenta carregar do Firestore
         const uid = window.firebaseAuth.currentUser.uid;
         const { doc, getDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const ref = doc(collection(window.firebaseDb,'users'), uid);
         const snap = await getDoc(ref);
         const d = snap.exists()? snap.data() : {};
+        
         document.getElementById('profileName').value = d.name || window.firebaseAuth.currentUser.displayName || '';
         document.getElementById('profileEmail').value = window.firebaseAuth.currentUser.email || '';
         document.getElementById('profilePhone').value = d.phone || '';
         document.getElementById('profileNickname').value = d.nickname || '';
         document.getElementById('profileTeam').value = d.teamName || '';
         document.getElementById('profileAge').value = d.age || '';
-        // Campos de cargo e nível foram removidos do perfil do usuário
         document.getElementById('accTokensBalance').textContent = Number(d.tokens||0);
+        
         // Atualiza perfil local para permissões
         window.currentUserProfile = d;
         updateUIForPermissions();
-    }catch(_){ }
+    }catch(e){ 
+        console.error('Erro ao carregar perfil:', e);
+    }
 }
 
 async function saveAccountProfile(){
@@ -222,14 +241,13 @@ async function saveAccountProfile(){
         if (!window.firebaseReady || !window.firebaseAuth?.currentUser){ document.getElementById('accProfileMsg').textContent='Sessão inválida.'; return; }
         const uid = window.firebaseAuth.currentUser.uid;
         const payload = {
-            name: document.getElementById('accName').value.trim(),
-            email: document.getElementById('accEmail').value.trim(),
-            phone: document.getElementById('accPhone').value.trim(),
-            nickname: document.getElementById('accNickname').value.trim(),
-            teamName: document.getElementById('accTeam').value.trim(),
-            age: document.getElementById('accAge').value.trim(),
-            role: document.getElementById('accRole').value,
-            level: document.getElementById('accLevel').value
+            name: document.getElementById('profileName').value.trim(),
+            email: document.getElementById('profileEmail').value.trim(),
+            phone: document.getElementById('profilePhone').value.trim(),
+            nickname: document.getElementById('profileNickname').value.trim(),
+            teamName: document.getElementById('profileTeam').value.trim(),
+            age: document.getElementById('profileAge').value.trim()
+            // role e level removidos - controlados pelo admin
         };
         const { doc, setDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const ref = doc(collection(window.firebaseDb,'users'), uid);
@@ -1432,10 +1450,17 @@ function updateProfile(event){
     // Salvar no Firestore
     try {
         if (window.firebaseReady && window.firebaseAuth?.currentUser) {
-            const { doc, setDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-            const ref = doc(collection(window.firebaseDb, 'users'), window.firebaseAuth.currentUser.uid);
-            await setDoc(ref, profile, { merge: true });
-            console.log('Perfil salvo no Firestore');
+            import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js')
+                .then(({ doc, setDoc, collection }) => {
+                    const ref = doc(collection(window.firebaseDb, 'users'), window.firebaseAuth.currentUser.uid);
+                    return setDoc(ref, profile, { merge: true });
+                })
+                .then(() => {
+                    console.log('Perfil salvo no Firestore');
+                })
+                .catch((e) => {
+                    console.error('Erro ao salvar perfil no Firestore:', e);
+                });
         }
     } catch (e) {
         console.error('Erro ao salvar perfil no Firestore:', e);
