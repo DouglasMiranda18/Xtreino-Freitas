@@ -137,6 +137,7 @@ async function sendPasswordReset(){
 }
 
 function onAuthLogged(user){
+    console.log('User logged in:', user.email);
     try{
         const name = user?.displayName || user?.email || 'Usuário';
         const welcome = document.getElementById('accWelcome');
@@ -208,8 +209,9 @@ async function loadAccountProfile(){
         document.getElementById('accNickname').value = d.nickname || '';
         document.getElementById('accTeam').value = d.teamName || '';
         document.getElementById('accAge').value = d.age || '';
-        document.getElementById('accRole').value = d.role || 'Vendedor';
-        document.getElementById('accLevel').value = d.level || 'Associado Treino';
+        // Campos de cargo e nível são apenas exibidos, não editáveis
+        document.getElementById('profileRoleDisplay').textContent = d.role || 'Vendedor';
+        document.getElementById('profileLevelDisplay').textContent = d.level || 'Associado Treino';
         document.getElementById('accTokensBalance').textContent = Number(d.tokens||0);
         // Atualiza perfil local para permissões
         window.currentUserProfile = d;
@@ -444,6 +446,7 @@ async function checkAuthState() {
         if (window.firebaseReady && window.firebaseAuth) {
             const { onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
             onAuthStateChanged(window.firebaseAuth, (user) => {
+                console.log('Auth state changed:', user ? 'Logged in' : 'Logged out');
                 if (user) {
                     // Usuário está logado
                     window.isLoggedIn = true;
@@ -1396,9 +1399,8 @@ function updateProfile(event){
         phone: document.getElementById('profilePhone').value.trim(),
         nickname: document.getElementById('profileNickname').value.trim(),
         teamName: document.getElementById('profileTeam').value.trim(),
-        age: document.getElementById('profileAge').value.trim(),
-        role: document.getElementById('profileRole').value,
-        level: document.getElementById('profileLevel').value
+        age: document.getElementById('profileAge').value.trim()
+        // role e level não são editáveis pelo usuário
     };
     
     // Validar campos obrigatórios
