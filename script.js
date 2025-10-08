@@ -146,6 +146,17 @@ function onAuthLogged(user){
     window.isLoggedIn = true;
     toggleAccountButtons(true);
     closeLoginModal();
+    // registra lastLogin
+    try{
+        if (window.firebaseReady && window.firebaseAuth?.currentUser){
+            import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js')
+                .then(({ doc, setDoc, collection }) => {
+                    const uid = window.firebaseAuth.currentUser.uid;
+                    const ref = doc(collection(window.firebaseDb,'users'), uid);
+                    return setDoc(ref, { lastLogin: Date.now() }, { merge:true });
+                }).catch(()=>{});
+        }
+    }catch(_){ }
     // Redireciono para o admin se foi solicitado e o usuário tiver permissão
     if (window.postLoginRedirect === 'admin') {
         setTimeout(async () => {

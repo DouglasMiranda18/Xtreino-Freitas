@@ -97,17 +97,16 @@
   });
 
   // ---- Relatórios ----
+  let charts = {};
+
   async function loadReports(){
     try{
-      await Promise.all([
-        loadKpis(),
-        renderSalesChart(),
-        renderTopProducts(),
-        loadRecentOrders(),
-        // outros relatórios abaixo
-        renderPopularHours(),
-        renderActiveUsers()
-      ]);
+      await loadKpis();
+      await loadRecentOrders();
+      await renderSalesChart();
+      await renderTopProducts();
+      await renderPopularHours();
+      await renderActiveUsers();
     }catch(e){ console.error('Erro ao carregar relatórios', e); }
   }
 
@@ -153,7 +152,8 @@
       if (dataMap[label] !== undefined) dataMap[label] += Number(o.amount || o.total || 0);
     });
     const data = labels.map(l=>dataMap[l]);
-    new Chart(canvas.getContext('2d'), {
+    if (charts.sales) { charts.sales.destroy(); }
+    charts.sales = new Chart(canvas.getContext('2d'), {
       type: 'line', data: { labels, datasets: [{label:'Vendas', data, borderColor:'#2563eb', tension:.3}]}, options:{plugins:{legend:{display:false}}}
     });
   }
@@ -165,7 +165,8 @@
     const map = {};
     snap.forEach(d=>{ const o=d.data(); const name=(o.item||o.productName||'Outro'); map[name]=(map[name]||0)+Number(o.amount||o.total||0); });
     const entries = Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,5);
-    new Chart(canvas.getContext('2d'), { type:'bar', data:{ labels: entries.map(e=>e[0]), datasets:[{label:'Receita', data: entries.map(e=>e[1]), backgroundColor:'#60a5fa'}] }, options:{plugins:{legend:{display:false}}} });
+    if (charts.top) { charts.top.destroy(); }
+    charts.top = new Chart(canvas.getContext('2d'), { type:'bar', data:{ labels: entries.map(e=>e[0]), datasets:[{label:'Receita', data: entries.map(e=>e[1]), backgroundColor:'#60a5fa'}] }, options:{plugins:{legend:{display:false}}} });
   }
 
   async function loadRecentOrders(){
@@ -186,7 +187,20 @@
     const map = Object.fromEntries(hours.map(h=>[h,0]));
     snap.forEach(d=>{ const s=d.data(); const h=(s.hour||'').toString().padStart(2,'0'); if (map[h]!==undefined) map[h]++; });
     const data = hours.map(h=>map[h]);
-    new Chart(canvas.getContext('2d'), { type:'bar', data:{ labels: hours.map(h=>`${h}h`), datasets:[{label:'Agendamentos', data, backgroundColor:'#34d399'}] }, options:{plugins:{legend:{display:false}}} });
+    if (charts.hours) { charts.hours.destroy(); }
+    charts.hours = new Chart(canvas.getContext('2d'), { type:'bar', data:{ labels: hours.map(h=>`${h}h`), datasets:[{label:'Agendamentos', data, backgroundColor:'#34d399'}] }, options:{plugins:{legend:{display:false}}} });
+  }
+
+  // Usuários ativos nos últimos 7 dias (baseado em lastLogin em users)
+  async function renderActiveUsers(){
+    const kpi = document.getElementById('kpiToday'); // placeholder: não há slot dedicado; opcional mover para outro card
+    try{
+      const snap = await getDocs(collection(window.firebaseDb,'users'));
+      const weekAgo = Date.now() - 7*24*60*60*1000;
+      let active = 0; snap.forEach(d=>{ const u=d.data(); if (Number(u.lastLogin||0) >= weekAgo) active++; });
+      // Apenas loga por enquanto
+      console.log('Usuários ativos (7d):', active);
+    }catch(e){ console.log('Erro ativos', e); }
   }
 
   async function renderActiveUsers(){

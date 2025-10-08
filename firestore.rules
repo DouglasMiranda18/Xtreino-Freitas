@@ -1,29 +1,33 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Regras para usuários autenticados
+    function isSignedIn() { return request.auth != null; }
+    function isSelf(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['Ceo','Gerente'];
+    }
+
+    // users: cada usuário lê/escreve o próprio documento; Admins podem ler/escrever todos
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if isSelf(userId) || isAdmin();
+      allow write: if isSelf(userId) || isAdmin();
     }
-    
-    // Regras para coleção de teste
-    match /test/{document} {
-      allow read, write: if request.auth != null;
+
+    // schedules: leitura para logados; escrita para logados; admins podem listar tudo
+    match /schedules/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
-    
-    // Regras para agendamentos
-    match /schedules/{document} {
-      allow read, write: if request.auth != null;
+
+    // orders: leitura para admins; usuário pode ler os próprios (se tiver ownerId). Escrita para logados
+    match /orders/{orderId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.ownerId == request.auth.uid);
+      allow write: if isSignedIn();
     }
-    
-    // Regras para pedidos
-    match /orders/{document} {
-      allow read, write: if request.auth != null;
-    }
-    
-    // Regras para tokens
-    match /tokens/{document} {
-      allow read, write: if request.auth != null;
+
+    // tokens: admins podem gerenciar, usuário lê o próprio saldo
+    match /tokens/{tokenId} {
+      allow read, write: if isAdmin();
     }
   }
 }
