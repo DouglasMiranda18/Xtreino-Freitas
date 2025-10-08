@@ -146,6 +146,25 @@ function onAuthLogged(user){
     window.isLoggedIn = true;
     toggleAccountButtons(true);
     closeLoginModal();
+    // Redireciono para o admin se foi solicitado e o usuário tiver permissão
+    if (window.postLoginRedirect === 'admin') {
+        setTimeout(async () => {
+            try {
+                const uid = user?.uid || window.firebaseAuth?.currentUser?.uid;
+                if (uid) {
+                    await loadUserProfile(uid);
+                    const role = (window.currentUserProfile?.role || '').toLowerCase();
+                    if (role === 'ceo') {
+                        window.postLoginRedirect = null;
+                        window.location.href = 'admin.html';
+                        return;
+                    }
+                }
+                alert('Acesso ao painel restrito ao CEO.');
+                window.postLoginRedirect = null;
+            } catch (_) { window.postLoginRedirect = null; }
+        }, 100);
+    }
     // Não abre automaticamente a área do cliente - só quando clicar em MINHA CONTA
 }
 
@@ -156,6 +175,22 @@ function toggleAccountButtons(isLogged){
     const accMob = document.getElementById('accountBtnMobile');
     if (loginDesk && accDesk){ loginDesk.classList.toggle('hidden', isLogged); accDesk.classList.toggle('hidden', !isLogged); }
     if (loginMob && accMob){ loginMob.classList.toggle('hidden', isLogged); accMob.classList.toggle('hidden', !isLogged); }
+}
+
+function requestAdminAccess(){
+    // Se já estiver logado, valida papel; senão, abre modal de login e marca redirecionamento
+    if (!window.isLoggedIn) {
+        window.postLoginRedirect = 'admin';
+        openLoginModal();
+        return;
+    }
+    // Validar papel do usuário logado
+    const role = (window.currentUserProfile?.role || '').toLowerCase();
+    if (role === 'ceo') {
+        window.location.href = 'admin.html';
+    } else {
+        alert('Acesso ao painel restrito ao CEO.');
+    }
 }
 
 function openAccountModal(){ 
