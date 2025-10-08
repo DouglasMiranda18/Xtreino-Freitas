@@ -167,7 +167,7 @@ function openAccountModal(){
             loadAccountProfile();
             loadAccountOrders();
             loadTokensBalance();
-        }, 100);
+        }, 300);
     }
 }
 function closeAccountModal(){ const m = document.getElementById('accountModal'); if (m) m.classList.add('hidden'); }
@@ -199,101 +199,87 @@ function showAccountTab(tab){
 
 async function loadAccountProfile(){
     try{
-        console.log('Carregando perfil...');
         if (!window.firebaseReady || !window.firebaseAuth?.currentUser) {
-            console.log('Firebase não está pronto ou usuário não logado');
             return;
         }
         
         const uid = window.firebaseAuth.currentUser.uid;
-        console.log('UID do usuário:', uid);
+        const user = window.firebaseAuth.currentUser;
         
-        // Primeiro tenta carregar do localStorage
+        // Tenta carregar do Firestore primeiro
+        try {
+            const { doc, getDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            const ref = doc(collection(window.firebaseDb,'users'), uid);
+            const snap = await getDoc(ref);
+            
+            if (snap.exists()) {
+                const d = snap.data();
+                populateProfileFields(d);
+                localStorage.setItem(`userProfile_${uid}`, JSON.stringify(d));
+                return;
+            }
+        } catch (e) {
+            console.log('Erro ao carregar do Firestore, tentando localStorage');
+        }
+        
+        // Se não tem no Firestore, tenta localStorage
         const localProfile = localStorage.getItem(`userProfile_${uid}`);
         if (localProfile) {
             const d = JSON.parse(localProfile);
-            console.log('Perfil carregado do localStorage:', d);
             populateProfileFields(d);
             return;
         }
         
-        // Se não tem no localStorage, tenta do Firestore
-        const { doc, getDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const ref = doc(collection(window.firebaseDb,'users'), uid);
-        const snap = await getDoc(ref);
-        
-        if (snap.exists()) {
-            const d = snap.data();
-            console.log('Perfil carregado do Firestore:', d);
-            populateProfileFields(d);
-            // Salva no localStorage para próxima vez
-            localStorage.setItem(`userProfile_${uid}`, JSON.stringify(d));
-        } else {
-            console.log('Perfil não encontrado, criando perfil básico');
-            const basicProfile = {
-                name: window.firebaseAuth.currentUser.displayName || '',
-                email: window.firebaseAuth.currentUser.email || '',
-                phone: '',
-                nickname: '',
-                teamName: '',
-                age: '',
-                tokens: 0,
-                role: 'Vendedor',
-                level: 'Associado Treino'
-            };
-            populateProfileFields(basicProfile);
-            // Salva o perfil básico
-            localStorage.setItem(`userProfile_${uid}`, JSON.stringify(basicProfile));
-        }
+        // Se não tem em lugar nenhum, cria perfil básico
+        const basicProfile = {
+            name: user.displayName || '',
+            email: user.email || '',
+            phone: '',
+            nickname: '',
+            teamName: '',
+            age: '',
+            tokens: 0,
+            role: 'Vendedor',
+            level: 'Associado Treino'
+        };
+        populateProfileFields(basicProfile);
         
     }catch(e){ 
         console.error('Erro ao carregar perfil:', e);
-        document.getElementById('accProfileMsg').textContent = 'Erro ao carregar perfil: ' + e.message;
     }
 }
 
 function populateProfileFields(d) {
     try {
-        document.getElementById('profileName').value = d.name || '';
-        document.getElementById('profileEmail').value = d.email || window.firebaseAuth.currentUser.email || '';
-        document.getElementById('profilePhone').value = d.phone || '';
-        document.getElementById('profileNickname').value = d.nickname || '';
-        document.getElementById('profileTeam').value = d.teamName || '';
-        document.getElementById('profileAge').value = d.age || '';
-        
-        const tokensElement = document.getElementById('accTokensBalance');
-        if (tokensElement) {
-            tokensElement.textContent = Number(d.tokens || 0);
-        }
-        
-        window.currentUserProfile = d;
-        updateUIForPermissions();
-        console.log('Campos do perfil preenchidos com sucesso');
+        // Aguarda um pouco para garantir que os elementos existam
+        setTimeout(() => {
+            const nameField = document.getElementById('profileName');
+            const emailField = document.getElementById('profileEmail');
+            const phoneField = document.getElementById('profilePhone');
+            const nicknameField = document.getElementById('profileNickname');
+            const teamField = document.getElementById('profileTeam');
+            const ageField = document.getElementById('profileAge');
+            
+            if (nameField) nameField.value = d.name || '';
+            if (emailField) emailField.value = d.email || window.firebaseAuth.currentUser.email || '';
+            if (phoneField) phoneField.value = d.phone || '';
+            if (nicknameField) nicknameField.value = d.nickname || '';
+            if (teamField) teamField.value = d.teamName || '';
+            if (ageField) ageField.value = d.age || '';
+            
+            const tokensElement = document.getElementById('accTokensBalance');
+            if (tokensElement) {
+                tokensElement.textContent = Number(d.tokens || 0);
+            }
+            
+            window.currentUserProfile = d;
+            updateUIForPermissions();
+        }, 100);
     } catch (e) {
         console.error('Erro ao preencher campos:', e);
     }
 }
 
-function clearLocalData() {
-    try {
-        if (window.firebaseAuth?.currentUser) {
-            const uid = window.firebaseAuth.currentUser.uid;
-            localStorage.removeItem(`userProfile_${uid}`);
-            console.log('Cache local limpo para UID:', uid);
-            document.getElementById('accProfileMsg').textContent = 'Cache limpo! Recarregue os dados.';
-            
-            // Recarrega o perfil
-            setTimeout(() => {
-                loadAccountProfile();
-            }, 500);
-        } else {
-            document.getElementById('accProfileMsg').textContent = 'Usuário não logado';
-        }
-    } catch (e) {
-        console.error('Erro ao limpar cache:', e);
-        document.getElementById('accProfileMsg').textContent = 'Erro ao limpar cache';
-    }
-}
 
 async function saveAccountProfile(){
     try{
@@ -556,34 +542,6 @@ document.addEventListener('DOMContentLoaded', function() {
     checkFirebaseReady();
 });
 
-// Função para testar conexão com Firestore
-async function testFirestoreConnection() {
-    try {
-        if (!window.firebaseReady || !window.firebaseAuth?.currentUser) {
-            console.log('Firebase não está pronto ou usuário não logado');
-            document.getElementById('accProfileMsg').textContent = 'Firebase não está pronto ou usuário não logado';
-            return false;
-        }
-        
-        const { doc, setDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const testRef = doc(collection(window.firebaseDb, 'test'), 'connection');
-        
-        // Tenta escrever um documento de teste
-        await setDoc(testRef, { 
-            test: true, 
-            timestamp: Date.now(),
-            uid: window.firebaseAuth.currentUser.uid 
-        });
-        
-        console.log('Conexão com Firestore OK!');
-        document.getElementById('accProfileMsg').textContent = '✅ Conexão com Firestore funcionando!';
-        return true;
-    } catch (e) {
-        console.error('Erro na conexão com Firestore:', e);
-        document.getElementById('accProfileMsg').textContent = `❌ Erro: ${e.code} - ${e.message}`;
-        return false;
-    }
-}
 
 // Função para sincronizar dados offline quando a conexão voltar
 async function syncOfflineData() {
