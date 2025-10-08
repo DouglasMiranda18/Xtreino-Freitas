@@ -99,16 +99,30 @@ async function registerWithEmailPassword(){
         const { createUserWithEmailAndPassword, updateProfile } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
         const cred = await createUserWithEmailAndPassword(window.firebaseAuth, email, pass);
         await updateProfile(cred.user, { displayName: name });
-        // salva perfil mínimo no Firestore quando possível
+        
+        // salva perfil completo no Firestore
         try{
             if (window.firebaseReady){
                 const { collection, doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
                 const ref = doc(collection(window.firebaseDb,'users'), cred.user.uid);
-                await setDoc(ref, { name, email, phone, nickname, teamName: team, age, createdAt: Date.now() }, { merge: true });
+                await setDoc(ref, { 
+                    name, 
+                    email, 
+                    phone, 
+                    nickname, 
+                    teamName: team, 
+                    age, 
+                    role: 'Vendedor',
+                    level: 'Associado Treino',
+                    tokens: 0,
+                    createdAt: Date.now() 
+                }, { merge: true });
             }
-        }catch(_){ }
+        }catch(e){ 
+            console.error('Erro ao salvar perfil:', e);
+        }
         onAuthLogged(cred.user);
-    }catch(e){ document.getElementById('authMsg').textContent = 'Não foi possível criar a conta.'; }
+    }catch(e){ document.getElementById('authMsg').textContent = e.message || 'Não foi possível criar a conta.'; }
 }
 
 async function sendPasswordReset(){
@@ -128,12 +142,10 @@ function onAuthLogged(user){
         const welcome = document.getElementById('accWelcome');
         if (welcome) welcome.textContent = `Bem-vindo, ${name}!`;
     }catch(_){ }
+    window.isLoggedIn = true;
     toggleAccountButtons(true);
     closeLoginModal();
-    openAccountModal();
-    loadAccountProfile();
-    loadAccountOrders();
-    loadTokensBalance();
+    // Não abre automaticamente a área do cliente - só quando clicar em MINHA CONTA
 }
 
 function toggleAccountButtons(isLogged){
@@ -145,7 +157,16 @@ function toggleAccountButtons(isLogged){
     if (loginMob && accMob){ loginMob.classList.toggle('hidden', isLogged); accMob.classList.toggle('hidden', !isLogged); }
 }
 
-function openAccountModal(){ const m = document.getElementById('accountModal'); if (m) m.classList.remove('hidden'); }
+function openAccountModal(){ 
+    const m = document.getElementById('accountModal'); 
+    if (m) {
+        m.classList.remove('hidden');
+        // Carrega dados quando abre o modal
+        loadAccountProfile();
+        loadAccountOrders();
+        loadTokensBalance();
+    }
+}
 function closeAccountModal(){ const m = document.getElementById('accountModal'); if (m) m.classList.add('hidden'); }
 
 async function logout(){
@@ -155,6 +176,8 @@ async function logout(){
             await signOut(window.firebaseAuth);
         }
     }catch(_){ }
+    window.currentUserProfile = null;
+    window.isLoggedIn = false;
     toggleAccountButtons(false);
     closeAccountModal();
 }
@@ -409,6 +432,61 @@ window.AssocConfig = {
 
 // Estado local do usuário autenticado (perfil minimalista)
 window.currentUserProfile = null;
+window.isLoggedIn = false;
+
+// Verifica se há usuário logado ao carregar a página
+document.addEventListener('DOMContentLoaded', function() {
+    checkAuthState();
+});
+
+async function checkAuthState() {
+    try {
+        if (window.firebaseReady && window.firebaseAuth) {
+            const { onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
+            onAuthStateChanged(window.firebaseAuth, (user) => {
+                if (user) {
+                    // Usuário está logado
+                    window.isLoggedIn = true;
+                    toggleAccountButtons(true);
+                    // Carrega perfil do usuário
+                    loadUserProfile(user.uid);
+                } else {
+                    // Usuário não está logado
+                    window.isLoggedIn = false;
+                    window.currentUserProfile = null;
+                    toggleAccountButtons(false);
+                }
+            });
+        }
+    } catch (e) {
+        console.error('Erro ao verificar estado de autenticação:', e);
+    }
+}
+
+async function loadUserProfile(uid) {
+    try {
+        if (window.firebaseReady) {
+            const { doc, getDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            const ref = doc(collection(window.firebaseDb, 'users'), uid);
+            const snap = await getDoc(ref);
+            if (snap.exists()) {
+                window.currentUserProfile = snap.data();
+            } else {
+                // Cria perfil básico se não existir
+                window.currentUserProfile = {
+                    uid: uid,
+                    email: window.firebaseAuth.currentUser.email,
+                    name: window.firebaseAuth.currentUser.displayName || 'Usuário',
+                    tokens: 0,
+                    role: 'Vendedor',
+                    level: 'Associado Treino'
+                };
+            }
+        }
+    } catch (e) {
+        console.error('Erro ao carregar perfil:', e);
+    }
+}
 
 // Helpers de permissão
 function hasPermission(permission) {
