@@ -502,6 +502,7 @@ async function testFirestoreConnection() {
     try {
         if (!window.firebaseReady || !window.firebaseAuth?.currentUser) {
             console.log('Firebase não está pronto ou usuário não logado');
+            document.getElementById('accProfileMsg').textContent = 'Firebase não está pronto ou usuário não logado';
             return false;
         }
         
@@ -516,9 +517,11 @@ async function testFirestoreConnection() {
         });
         
         console.log('Conexão com Firestore OK!');
+        document.getElementById('accProfileMsg').textContent = '✅ Conexão com Firestore funcionando!';
         return true;
     } catch (e) {
         console.error('Erro na conexão com Firestore:', e);
+        document.getElementById('accProfileMsg').textContent = `❌ Erro: ${e.code} - ${e.message}`;
         return false;
     }
 }

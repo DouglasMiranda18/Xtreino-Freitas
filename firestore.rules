@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Regras para usuários autenticados
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Regras para coleção de teste
+    match /test/{document} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Regras para agendamentos
+    match /schedules/{document} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Regras para pedidos
+    match /orders/{document} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Regras para tokens
+    match /tokens/{document} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
