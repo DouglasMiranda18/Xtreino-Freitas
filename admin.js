@@ -29,9 +29,10 @@
       if (salesChartCard) salesChartCard.classList.add('hidden');
       if (topProductsCard) topProductsCard.classList.add('hidden');
     } else if (role === 'gerente'){
-      // Gerente: tudo, exceto "Fluxo total de vendas" (usaremos kpiReceivable como proxy)
-      const receivableCard = document.getElementById('kpiReceivable')?.closest('.bg-white');
-      if (receivableCard) receivableCard.classList.add('hidden');
+      // Gerente: sem acesso a financeiro. Esconde todos KPIs e gráficos financeiros
+      kpiCards.forEach(e => e && (e.closest('.bg-white').classList.add('hidden')));
+      if (salesChartCard) salesChartCard.classList.add('hidden');
+      if (topProductsCard) topProductsCard.classList.add('hidden');
     }
   }
 
@@ -96,10 +97,17 @@
     const roleLower = (role||'').toLowerCase();
     const isManager = ['ceo','gerente'].includes(roleLower);
     const isCeo = roleLower==='ceo';
+    window.adminRoleLower = roleLower;
     try { await loadUsersTable(isManager, isCeo); } catch(_){}
     if (isManager){
+      if (roleLower==='gerente'){
+        // Sem relatórios financeiros
+        await loadRecentSchedules().catch(()=>{});
+        await loadRecentOrders().catch(()=>{});
+      } else {
       await loadReports();
       await loadRecentSchedules();
+      }
     } else {
       await loadRecentOrders().catch(()=>{});
     }
