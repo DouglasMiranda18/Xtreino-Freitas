@@ -587,12 +587,23 @@ document.addEventListener('DOMContentLoaded', function() {
                         const regId = sessionStorage.getItem('lastRegId');
                         if (regId) {
                             import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js')
-                                .then(({ doc, setDoc, collection }) => {
+                                .then(({ doc, setDoc, getDoc, collection }) => {
                                     const ref = doc(collection(window.firebaseDb,'registrations'), regId);
-                                    return setDoc(ref, { status:'paid' }, { merge:true });
-                                }).then(()=>{
-                                    openPaymentConfirmModal('Pagamento confirmado', 'Seu pagamento foi aprovado. Confira seus acessos na área Minha Conta.');
+                                    return setDoc(ref, { status:'paid' }, { merge:true })
+                                      .then(()=> getDoc(ref))
+                                      .then(snap=>{ const d = snap.exists()? snap.data():{}; return d.groupLink || null; });
+                                }).then((groupLink)=>{
+                                    openPaymentConfirmModal('Pagamento confirmado', 'Seu pagamento foi aprovado. Confira seus acessos na área Minha Conta.', groupLink);
                                 }).catch(()=>{});
+                        } else {
+                            // Fallback: cria registro local para exibir na aba pedidos
+                            try{
+                                const info = JSON.parse(sessionStorage.getItem('lastRegInfo')||'{}');
+                                const orders = JSON.parse(localStorage.getItem('localOrders')||'[]');
+                                orders.unshift({ title: info.title||'Reserva', amount: info.price||0, status:'paid', date: new Date().toISOString() });
+                                localStorage.setItem('localOrders', JSON.stringify(orders));
+                            }catch(_){ }
+                            openPaymentConfirmModal('Pagamento confirmado', 'Seu pagamento foi aprovado. Confira seus acessos na área Minha Conta.');
                         }
                     }
                     history.replaceState({}, document.title, location.pathname);
@@ -1481,9 +1492,8 @@ async function submitSchedule(e){
     let regId = 'local-' + Date.now();
     try {
         const isLocal = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
-        const isNetlify = /netlify\.app$/i.test(location.hostname);
-        // Evita tentativa de escrita quando em localhost ou domínio Netlify (até ajustar regras)
-        if (window.firebaseReady && !isLocal && !isNetlify){
+        // grava reserva (inclusive em Netlify/produção)
+        if (window.firebaseReady && !isLocal){
             const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
             const docRef = await addDoc(collection(window.firebaseDb,'registrations'),{
                 uid: (window.firebaseAuth && window.firebaseAuth.currentUser ? window.firebaseAuth.currentUser.uid : null),
@@ -1497,6 +1507,7 @@ async function submitSchedule(e){
             });
             regId = docRef.id;
             try{ sessionStorage.setItem('lastRegId', regId); }catch(_){ }
+            try{ sessionStorage.setItem('lastRegInfo', JSON.stringify({ schedule, date, eventType: modal.dataset.eventType, price: cfg.price, title: `${cfg.label} - ${schedule} - ${date}` })); }catch(_){ }
         }
     } catch(_) {}
     if (cfg && cfg.payWithToken){
@@ -1547,12 +1558,17 @@ function closeFreeWhatsModal(){
 }
 
 // Modal confirmação
-function openPaymentConfirmModal(title, msg){
+function openPaymentConfirmModal(title, msg, groupLink){
     const m = document.getElementById('paymentConfirmModal');
     const t = document.getElementById('paymentConfirmTitle');
     const p = document.getElementById('paymentConfirmMsg');
+    const g = document.getElementById('paymentGroupBtn');
     if (t) t.textContent = title || 'Pagamento';
     if (p) p.textContent = msg || '';
+    if (g){
+        if (groupLink){ g.href = groupLink; g.classList.remove('hidden'); }
+        else { g.classList.add('hidden'); }
+    }
     if (m) m.classList.remove('hidden');
 }
 function closePaymentConfirmModal(){
