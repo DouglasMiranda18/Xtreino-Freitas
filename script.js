@@ -578,6 +578,24 @@ document.addEventListener('DOMContentLoaded', function() {
             checkAuthState();
             // Tenta sincronizar dados offline quando Firebase estiver pronto
             syncOfflineData();
+            // Trata retorno do Mercado Pago e atualiza vagas
+            try{
+                const sp = new URLSearchParams(location.search);
+                const mpStatus = sp.get('mp_status');
+                if (mpStatus) {
+                    if (mpStatus === 'success') {
+                        const regId = sessionStorage.getItem('lastRegId');
+                        if (regId) {
+                            import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js')
+                                .then(({ doc, setDoc, collection }) => {
+                                    const ref = doc(collection(window.firebaseDb,'registrations'), regId);
+                                    return setDoc(ref, { status:'paid' }, { merge:true });
+                                }).catch(()=>{});
+                        }
+                    }
+                    history.replaceState({}, document.title, location.pathname);
+                }
+            }catch(_){ }
         } else {
             setTimeout(checkFirebaseReady, 100);
         }
@@ -1464,6 +1482,7 @@ async function submitSchedule(e){
                 timestamp: serverTimestamp()
             });
             regId = docRef.id;
+            try{ sessionStorage.setItem('lastRegId', regId); }catch(_){ }
         }
     } catch(_) {}
     if (cfg && cfg.payWithToken){

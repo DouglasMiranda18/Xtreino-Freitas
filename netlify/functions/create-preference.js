@@ -29,6 +29,11 @@ exports.handler = async function(event) {
       return { statusCode: 400, headers: corsHeaders, body: 'Invalid payload' };
     }
 
+    const siteUrl = process.env.MP_BACK_BASE_URL || process.env.SITE_URL || process.env.URL || (event && event.headers && event.headers.host ? (`https://${event.headers.host}`) : null);
+    const successUrl = (process.env.MP_BACK_URL_SUCCESS || (siteUrl ? `${siteUrl}/?mp_status=success` : 'https://example.com/sucesso'));
+    const failureUrl = (process.env.MP_BACK_URL_FAILURE || (siteUrl ? `${siteUrl}/?mp_status=failure` : 'https://example.com/falha'));
+    const pendingUrl = (process.env.MP_BACK_URL_PENDING || (siteUrl ? `${siteUrl}/?mp_status=pending` : 'https://example.com/pendente'));
+
     const preferencePayload = {
       items: [
         {
@@ -38,11 +43,7 @@ exports.handler = async function(event) {
           unit_price: Number(unit_price)
         }
       ],
-      back_urls: {
-        success: process.env.MP_BACK_URL_SUCCESS || 'https://example.com/sucesso',
-        failure: process.env.MP_BACK_URL_FAILURE || 'https://example.com/falha',
-        pending: process.env.MP_BACK_URL_PENDING || 'https://example.com/pendente'
-      },
+      back_urls: { success: successUrl, failure: failureUrl, pending: pendingUrl },
       auto_return: 'approved'
     };
 
