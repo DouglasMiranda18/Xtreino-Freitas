@@ -309,10 +309,10 @@ function currencyBRL(value) {
 }
 
 async function fetchRole(uid) {
-    const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-    const ref = doc(window.firebaseDb, 'roles', uid);
+    const { doc, getDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const ref = doc(collection(window.firebaseDb,'users'), uid);
     const snap = await getDoc(ref);
-    return snap.exists() ? snap.data() : { role: 'viewer' };
+    return snap.exists() ? { role: (snap.data().role || 'Usuario') } : { role: 'Usuario' };
 }
 
 function can(role, permission) {
