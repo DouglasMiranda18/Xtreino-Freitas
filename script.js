@@ -1,4 +1,32 @@
 // --- Auth (novo) ---
+function validateEmail(email) {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+}
+
+function validatePhone(phone) {
+    const re = /^\(\d{2}\)\s\d{4,5}-\d{4}$/;
+    return re.test(phone);
+}
+
+function validateAge(age) {
+    const num = parseInt(age);
+    return num >= 12 && num <= 100;
+}
+
+function formatPhone(input) {
+    let value = input.value.replace(/\D/g, '');
+    if (value.length <= 2) {
+        input.value = value;
+    } else if (value.length <= 6) {
+        input.value = `(${value.slice(0, 2)}) ${value.slice(2)}`;
+    } else if (value.length <= 10) {
+        input.value = `(${value.slice(0, 2)}) ${value.slice(2, 6)}-${value.slice(6)}`;
+    } else {
+        input.value = `(${value.slice(0, 2)}) ${value.slice(2, 7)}-${value.slice(7, 11)}`;
+    }
+}
+
 function openLoginModal(){
     const m = document.getElementById('loginModal');
     if (m) m.classList.remove('hidden');
@@ -50,6 +78,24 @@ async function registerWithEmailPassword(){
         const nickname = document.getElementById('regNickname').value.trim();
         const team = document.getElementById('regTeam').value.trim();
         const age = document.getElementById('regAge').value.trim();
+        
+        // Validações
+        if (!email || !pass || !name || !phone || !nickname || !team || !age) {
+            throw new Error('Todos os campos são obrigatórios');
+        }
+        if (!validateEmail(email)) {
+            throw new Error('Email inválido');
+        }
+        if (pass.length < 6) {
+            throw new Error('Senha deve ter pelo menos 6 caracteres');
+        }
+        if (!validatePhone(phone)) {
+            throw new Error('Telefone inválido. Use o formato (11) 99999-9999');
+        }
+        if (!validateAge(age)) {
+            throw new Error('Idade deve ser entre 12 e 100 anos');
+        }
+        
         const { createUserWithEmailAndPassword, updateProfile } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
         const cred = await createUserWithEmailAndPassword(window.firebaseAuth, email, pass);
         await updateProfile(cred.user, { displayName: name });
@@ -142,10 +188,9 @@ async function loadAccountProfile(){
         document.getElementById('accRole').value = d.role || 'Vendedor';
         document.getElementById('accLevel').value = d.level || 'Associado Treino';
         document.getElementById('accTokensBalance').textContent = Number(d.tokens||0);
-        // exibe painel admin para cargos gerenciais
-        const adminBox = document.getElementById('accTokensAdmin');
-        const isAdmin = (d.role === 'Gerente' || d.role === 'Ceo' || d.role === 'Staff');
-        if (adminBox) adminBox.classList.toggle('hidden', !isAdmin);
+        // Atualiza perfil local para permissões
+        window.currentUserProfile = d;
+        updateUIForPermissions();
     }catch(_){ }
 }
 
@@ -194,11 +239,61 @@ async function setTokensDelta(delta){
         await setDoc(ref, { tokens: next }, { merge:true });
         document.getElementById('accTokensBalance').textContent = next;
         document.getElementById('accTokensMsg').textContent = 'Saldo atualizado.';
+        
+        // Atualiza perfil local
+        if (window.currentUserProfile) {
+            window.currentUserProfile.tokens = next;
+        }
     }catch(_){ document.getElementById('accTokensMsg').textContent = 'Erro ao atualizar tokens.'; }
 }
 
-function adminAddTokens(){ const amt = Number(document.getElementById('accTokensAmount').value||0); if (amt>0) setTokensDelta(amt); }
-function adminRemoveTokens(){ const amt = Number(document.getElementById('accTokensAmount').value||0); if (amt>0) setTokensDelta(-amt); }
+function adminAddTokens(){ 
+    const amt = Number(document.getElementById('accTokensAmount').value||0); 
+    if (amt>0) {
+        setTokensDelta(amt);
+        logTokenAction('add', amt);
+    }
+}
+function adminRemoveTokens(){ 
+    const amt = Number(document.getElementById('accTokensAmount').value||0); 
+    if (amt>0) {
+        setTokensDelta(-amt);
+        logTokenAction('remove', amt);
+    }
+}
+
+function logTokenAction(action, amount) {
+    try {
+        if (!window.firebaseReady || !window.firebaseAuth?.currentUser) return;
+        const uid = window.firebaseAuth.currentUser.uid;
+        const adminUid = uid;
+        const timestamp = Date.now();
+        
+        // Salva log no Firestore
+        const logData = {
+            action,
+            amount,
+            adminUid,
+            timestamp,
+            userUid: uid
+        };
+        
+        // Adiciona ao histórico local também
+        if (!window.tokenHistory) window.tokenHistory = [];
+        window.tokenHistory.push(logData);
+        
+        // Persiste no Firestore quando possível
+        if (window.firebaseDb) {
+            import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js')
+                .then(({ collection, addDoc }) => {
+                    return addDoc(collection(window.firebaseDb, 'token_logs'), logData);
+                })
+                .catch(() => {}); // Falha silenciosa
+        }
+    } catch (e) {
+        console.error('Erro ao logar ação de token:', e);
+    }
+}
 
 async function loadAccountOrders(){
     const container = document.getElementById('accOrders');
@@ -322,6 +417,48 @@ function hasPermission(permission) {
     const role = profile.role || 'Vendedor';
     const perms = window.AssocConfig.permissionsByRole[role] || {};
     return !!perms[permission];
+}
+
+function updateUIForPermissions() {
+    const isAdmin = hasPermission('admin_tokens');
+    const adminPanel = document.getElementById('accTokensAdmin');
+    const historyPanel = document.getElementById('accTokensHistory');
+    
+    if (adminPanel) {
+        adminPanel.classList.toggle('hidden', !isAdmin);
+    }
+    if (historyPanel) {
+        historyPanel.classList.toggle('hidden', !isAdmin);
+        if (isAdmin) {
+            loadTokenHistory();
+        }
+    }
+    
+    // Outras permissões podem ser aplicadas aqui
+    const canViewSales = hasPermission('view_sales');
+    const salesElements = document.querySelectorAll('[data-permission="view_sales"]');
+    salesElements.forEach(el => el.style.display = canViewSales ? 'block' : 'none');
+}
+
+function loadTokenHistory() {
+    const container = document.getElementById('tokenHistoryList');
+    if (!container) return;
+    
+    if (!window.tokenHistory || window.tokenHistory.length === 0) {
+        container.innerHTML = '<div class="text-gray-400">Nenhum histórico encontrado</div>';
+        return;
+    }
+    
+    const history = window.tokenHistory.slice(-10).reverse(); // Últimos 10, mais recentes primeiro
+    container.innerHTML = history.map(log => {
+        const date = new Date(log.timestamp).toLocaleString('pt-BR');
+        const action = log.action === 'add' ? 'Adicionado' : 'Removido';
+        const color = log.action === 'add' ? 'text-green-600' : 'text-red-600';
+        return `<div class="flex justify-between ${color}">
+            <span>${action} ${log.amount} token(s)</span>
+            <span class="text-gray-400">${date}</span>
+        </div>`;
+    }).join('');
 }
 
 // Helpers de token (saldo simples em perfil.tokens, número decimal em BRL)
@@ -1189,6 +1326,20 @@ function updateProfile(event){
     // Validar campos obrigatórios
     if (!profile.name || !profile.email) {
         alert('Nome e email são obrigatórios.');
+        return;
+    }
+    
+    // Validações adicionais
+    if (!validateEmail(profile.email)) {
+        alert('Email inválido.');
+        return;
+    }
+    if (profile.phone && !validatePhone(profile.phone)) {
+        alert('Telefone inválido. Use o formato (11) 99999-9999');
+        return;
+    }
+    if (profile.age && !validateAge(profile.age)) {
+        alert('Idade deve ser entre 12 e 100 anos');
         return;
     }
     
