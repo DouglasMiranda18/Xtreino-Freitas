@@ -175,6 +175,38 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Controle de Horários -->
+            <div class="bg-white border border-gray-200 rounded-xl p-6 mt-6">
+                <div class="flex flex-wrap gap-3 items-end mb-4">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Evento</label>
+                        <select id="boardEventType" class="border rounded px-2 py-1">
+                            <option value="associado">XTREINO FREITAS ASSOCIADO</option>
+                            <option value="liga">XTREINO MODO LIGA</option>
+                            <option value="semanal">SEMANAL FREITAS</option>
+                            <option value="camp">CAMP FREITAS</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Data</label>
+                        <input id="boardDate" type="date" class="border rounded px-2 py-1" />
+                    </div>
+                    <button id="btnLoadBoard" class="px-3 py-2 bg-black text-white rounded">Carregar</button>
+                </div>
+                <div id="scheduleBoard" class="overflow-x-auto text-sm">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="text-left text-gray-500">
+                                <th class="py-2">Hora</th>
+                                <th class="py-2">Ocupadas</th>
+                                <th class="py-2">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="boardTbody"></tbody>
+                    </table>
+                </div>
+            </div>
         </section>
     </main>
 
@@ -196,6 +228,39 @@
     <script type="module" src="firebase.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="admin.js"></script>
+
+    <!-- Modal Adicionar Time -->
+    <div id="modalAddTeam" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-xl max-w-lg w-full p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-lg">Adicionar time ao horário</h3>
+                <button onclick="document.getElementById('modalAddTeam').classList.add('hidden')">✕</button>
+            </div>
+            <form id="formAddTeam" class="space-y-3">
+                <input type="hidden" id="addHour" />
+                <div>
+                    <label class="block text-sm mb-1">Time/Org</label>
+                    <input id="addTeamName" class="w-full border rounded px-3 py-2" required />
+                </div>
+                <div>
+                    <label class="block text-sm mb-1">Contato (email ou celular)</label>
+                    <input id="addContact" class="w-full border rounded px-3 py-2" required />
+                </div>
+                <div>
+                    <label class="block text-sm mb-1">Responsável / Jogador</label>
+                    <input id="addPerson" class="w-full border rounded px-3 py-2" />
+                </div>
+                <div>
+                    <label class="block text-sm mb-1">Observações</label>
+                    <textarea id="addNotes" class="w-full border rounded px-3 py-2"></textarea>
+                </div>
+                <div class="text-right">
+                    <button type="submit" class="px-4 py-2 bg-black text-white rounded">Salvar</button>
+                </div>
+                <p id="addTeamMsg" class="text-sm text-gray-500"></p>
+            </form>
+        </div>
+    </div>
 </body>
 </html>
 

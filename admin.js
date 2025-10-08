@@ -106,6 +106,10 @@
     if (btnOrd) btnOrd.onclick = exportOrdersCsv;
     const btnSch = document.getElementById('btnExportSchedulesCsv');
     if (btnSch) btnSch.onclick = exportSchedulesCsv;
+    const btnLoadBoard = document.getElementById('btnLoadBoard');
+    if (btnLoadBoard) btnLoadBoard.onclick = loadBoard;
+    const formAddTeam = document.getElementById('formAddTeam');
+    if (formAddTeam) formAddTeam.onsubmit = submitAddTeam;
     if (isManager){
       await loadReports();
       await loadRecentSchedules();
