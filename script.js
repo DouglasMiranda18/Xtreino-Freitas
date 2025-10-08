@@ -249,10 +249,22 @@ async function saveAccountProfile(){
             age: document.getElementById('profileAge').value.trim()
             // role e level removidos - controlados pelo admin
         };
-        const { doc, setDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const ref = doc(collection(window.firebaseDb,'users'), uid);
-        await setDoc(ref, payload, { merge:true });
-        document.getElementById('accProfileMsg').textContent='Perfil salvo.';
+        // Salva no localStorage primeiro (sempre funciona)
+        localStorage.setItem(`userProfile_${uid}`, JSON.stringify(payload));
+        
+        // Tenta salvar no Firestore (pode falhar se offline)
+        try {
+            const { doc, setDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            const ref = doc(collection(window.firebaseDb,'users'), uid);
+            await setDoc(ref, payload, { merge:true });
+            document.getElementById('accProfileMsg').textContent='Perfil salvo (online).';
+        } catch (firestoreError) {
+            console.log('Firestore offline, perfil salvo localmente');
+            document.getElementById('accProfileMsg').textContent='Perfil salvo (offline).';
+        }
+        
+        // Atualiza perfil local
+        window.currentUserProfile = payload;
     }catch(e){ document.getElementById('accProfileMsg').textContent='Erro ao salvar.'; }
 }
 
@@ -458,12 +470,34 @@ document.addEventListener('DOMContentLoaded', function() {
     const checkFirebaseReady = () => {
         if (window.firebaseReady) {
             checkAuthState();
+            // Tenta sincronizar dados offline quando Firebase estiver pronto
+            syncOfflineData();
         } else {
             setTimeout(checkFirebaseReady, 100);
         }
     };
     checkFirebaseReady();
 });
+
+// Função para sincronizar dados offline quando a conexão voltar
+async function syncOfflineData() {
+    try {
+        if (!window.firebaseAuth?.currentUser) return;
+        
+        const uid = window.firebaseAuth.currentUser.uid;
+        const localProfile = localStorage.getItem(`userProfile_${uid}`);
+        
+        if (localProfile && window.firebaseReady) {
+            const profile = JSON.parse(localProfile);
+            const { doc, setDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            const ref = doc(collection(window.firebaseDb, 'users'), uid);
+            await setDoc(ref, profile, { merge: true });
+            console.log('Dados offline sincronizados com Firestore');
+        }
+    } catch (e) {
+        console.log('Erro ao sincronizar dados offline:', e);
+    }
+}
 
 async function checkAuthState() {
     try {
@@ -492,12 +526,24 @@ async function checkAuthState() {
 
 async function loadUserProfile(uid) {
     try {
+        // Primeiro tenta carregar do localStorage
+        const localProfile = localStorage.getItem(`userProfile_${uid}`);
+        if (localProfile) {
+            window.currentUserProfile = JSON.parse(localProfile);
+            console.log('Perfil carregado do localStorage');
+            return;
+        }
+
+        // Se não tem perfil local, tenta do Firestore
         if (window.firebaseReady) {
             const { doc, getDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
             const ref = doc(collection(window.firebaseDb, 'users'), uid);
             const snap = await getDoc(ref);
             if (snap.exists()) {
                 window.currentUserProfile = snap.data();
+                // Salva no localStorage para uso offline
+                localStorage.setItem(`userProfile_${uid}`, JSON.stringify(window.currentUserProfile));
+                console.log('Perfil carregado do Firestore e salvo localmente');
             } else {
                 // Cria perfil básico se não existir
                 window.currentUserProfile = {
@@ -508,10 +554,35 @@ async function loadUserProfile(uid) {
                     role: 'Vendedor',
                     level: 'Associado Treino'
                 };
+                // Salva no localStorage
+                localStorage.setItem(`userProfile_${uid}`, JSON.stringify(window.currentUserProfile));
+                console.log('Perfil básico criado e salvo localmente');
             }
+        } else {
+            // Fallback: cria perfil básico se Firebase não estiver pronto
+            window.currentUserProfile = {
+                uid: uid,
+                email: window.firebaseAuth.currentUser.email,
+                name: window.firebaseAuth.currentUser.displayName || 'Usuário',
+                tokens: 0,
+                role: 'Vendedor',
+                level: 'Associado Treino'
+            };
+            localStorage.setItem(`userProfile_${uid}`, JSON.stringify(window.currentUserProfile));
+            console.log('Perfil básico criado (Firebase offline)');
         }
     } catch (e) {
         console.error('Erro ao carregar perfil:', e);
+        // Fallback final: perfil básico
+        window.currentUserProfile = {
+            uid: uid,
+            email: window.firebaseAuth.currentUser.email,
+            name: window.firebaseAuth.currentUser.displayName || 'Usuário',
+            tokens: 0,
+            role: 'Vendedor',
+            level: 'Associado Treino'
+        };
+        localStorage.setItem(`userProfile_${uid}`, JSON.stringify(window.currentUserProfile));
     }
 }
 
@@ -1447,7 +1518,12 @@ function updateProfile(event){
         return;
     }
     
-    // Salvar no Firestore
+    // Salvar no localStorage primeiro (sempre funciona)
+    if (window.firebaseAuth?.currentUser) {
+        localStorage.setItem(`userProfile_${window.firebaseAuth.currentUser.uid}`, JSON.stringify(profile));
+    }
+    
+    // Tenta salvar no Firestore (pode falhar se offline)
     try {
         if (window.firebaseReady && window.firebaseAuth?.currentUser) {
             import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js')
@@ -1459,11 +1535,11 @@ function updateProfile(event){
                     console.log('Perfil salvo no Firestore');
                 })
                 .catch((e) => {
-                    console.error('Erro ao salvar perfil no Firestore:', e);
+                    console.log('Firestore offline, perfil salvo localmente');
                 });
         }
     } catch (e) {
-        console.error('Erro ao salvar perfil no Firestore:', e);
+        console.log('Firestore offline, perfil salvo localmente');
     }
     
     // Atualizar perfil local
