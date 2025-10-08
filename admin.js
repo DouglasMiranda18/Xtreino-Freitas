@@ -19,7 +19,7 @@
     roleBadge.textContent = `Permissão: ${authRole||'desconhecida'}`;
     // Controle de visão
     const kpiCards = document.querySelectorAll('#kpiToday, #kpiMonth, #kpiReceivable');
-    const productsCard = document.getElementById('productsTable')?.closest('.bg-white');
+    const productsCard = document.getElementById('popularHoursChart')?.closest('.bg-white');
     const salesChartCard = document.getElementById('salesChart')?.closest('.bg-white');
     const topProductsCard = document.getElementById('topProductsChart')?.closest('.bg-white');
     if (role === 'vendedor'){
@@ -179,10 +179,14 @@
   }
 
   async function renderPopularHours(){
-    // usa tabela schedules para contar horários
-    const container = document.getElementById('topProductsChart'); // reutiliza ao lado
-    if (!container) return;
-    // opcional: futuro colocar um canvas separado
+    const canvas = document.getElementById('popularHoursChart');
+    if (!canvas) return;
+    const snap = await getDocs(collection(window.firebaseDb,'schedules'));
+    const hours = ['14','15','16','17','18','19','20','21','22','23'];
+    const map = Object.fromEntries(hours.map(h=>[h,0]));
+    snap.forEach(d=>{ const s=d.data(); const h=(s.hour||'').toString().padStart(2,'0'); if (map[h]!==undefined) map[h]++; });
+    const data = hours.map(h=>map[h]);
+    new Chart(canvas.getContext('2d'), { type:'bar', data:{ labels: hours.map(h=>`${h}h`), datasets:[{label:'Agendamentos', data, backgroundColor:'#34d399'}] }, options:{plugins:{legend:{display:false}}} });
   }
 
   async function renderActiveUsers(){
