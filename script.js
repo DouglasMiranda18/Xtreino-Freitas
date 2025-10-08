@@ -515,9 +515,6 @@ async function submitRegister(){ /* removed */ }
 // Inicializa header conforme sessão prévia
 window.addEventListener('load', () => {});
 
-// Logout
-async function logout(){ /* removed */ }
-
 // ---------------- Área de Associados: cargos, níveis, permissões e tokens ----------------
 // Configuração centralizada acessível via window.AssocConfig
 window.AssocConfig = {
