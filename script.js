@@ -238,7 +238,11 @@ async function loadAccountProfile(){
 
 async function saveAccountProfile(){
     try{
-        if (!window.firebaseReady || !window.firebaseAuth?.currentUser){ document.getElementById('accProfileMsg').textContent='Sessão inválida.'; return; }
+        if (!window.firebaseReady || !window.firebaseAuth?.currentUser){ 
+            document.getElementById('accProfileMsg').textContent='Sessão inválida.'; 
+            return; 
+        }
+        
         const uid = window.firebaseAuth.currentUser.uid;
         const payload = {
             name: document.getElementById('profileName').value.trim(),
@@ -246,26 +250,40 @@ async function saveAccountProfile(){
             phone: document.getElementById('profilePhone').value.trim(),
             nickname: document.getElementById('profileNickname').value.trim(),
             teamName: document.getElementById('profileTeam').value.trim(),
-            age: document.getElementById('profileAge').value.trim()
-            // role e level removidos - controlados pelo admin
+            age: document.getElementById('profileAge').value.trim(),
+            updatedAt: Date.now()
         };
+        
+        console.log('Tentando salvar perfil:', payload);
+        
         // Salva no localStorage primeiro (sempre funciona)
         localStorage.setItem(`userProfile_${uid}`, JSON.stringify(payload));
+        console.log('Perfil salvo no localStorage');
         
-        // Tenta salvar no Firestore (pode falhar se offline)
+        // Tenta salvar no Firestore
         try {
             const { doc, setDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
             const ref = doc(collection(window.firebaseDb,'users'), uid);
+            console.log('Tentando salvar no Firestore...');
+            console.log('Referência do documento:', ref);
+            console.log('Payload:', payload);
+            
             await setDoc(ref, payload, { merge:true });
-            document.getElementById('accProfileMsg').textContent='Perfil salvo (online).';
+            console.log('Perfil salvo no Firestore com sucesso!');
+            document.getElementById('accProfileMsg').textContent='Perfil salvo com sucesso!';
         } catch (firestoreError) {
-            console.log('Firestore offline, perfil salvo localmente');
-            document.getElementById('accProfileMsg').textContent='Perfil salvo (offline).';
+            console.error('Erro detalhado ao salvar no Firestore:', firestoreError);
+            console.error('Código do erro:', firestoreError.code);
+            console.error('Mensagem do erro:', firestoreError.message);
+            document.getElementById('accProfileMsg').textContent=`Erro: ${firestoreError.code} - ${firestoreError.message}`;
         }
         
         // Atualiza perfil local
         window.currentUserProfile = payload;
-    }catch(e){ document.getElementById('accProfileMsg').textContent='Erro ao salvar.'; }
+    }catch(e){ 
+        console.error('Erro geral ao salvar:', e);
+        document.getElementById('accProfileMsg').textContent='Erro ao salvar: ' + e.message; 
+    }
 }
 
 async function loadTokensBalance(){
@@ -478,6 +496,32 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     checkFirebaseReady();
 });
+
+// Função para testar conexão com Firestore
+async function testFirestoreConnection() {
+    try {
+        if (!window.firebaseReady || !window.firebaseAuth?.currentUser) {
+            console.log('Firebase não está pronto ou usuário não logado');
+            return false;
+        }
+        
+        const { doc, setDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const testRef = doc(collection(window.firebaseDb, 'test'), 'connection');
+        
+        // Tenta escrever um documento de teste
+        await setDoc(testRef, { 
+            test: true, 
+            timestamp: Date.now(),
+            uid: window.firebaseAuth.currentUser.uid 
+        });
+        
+        console.log('Conexão com Firestore OK!');
+        return true;
+    } catch (e) {
+        console.error('Erro na conexão com Firestore:', e);
+        return false;
+    }
+}
 
 // Função para sincronizar dados offline quando a conexão voltar
 async function syncOfflineData() {
