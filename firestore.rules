@@ -4,7 +4,7 @@ service cloud.firestore {
     function isSignedIn() { return request.auth != null; }
     function isSelf(userId) { return isSignedIn() && request.auth.uid == userId; }
     function isAdmin() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['Ceo','Gerente'];
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['Ceo','CEO','ceo','Gerente','GERENTE','gerente'];
     }
 
     // users: cada usuário lê/escreve o próprio documento; Admins podem ler/escrever todos
