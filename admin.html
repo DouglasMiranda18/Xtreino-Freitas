@@ -72,6 +72,31 @@
                 </div>
             </div>
 
+            <div class="bg-white border border-gray-200 rounded-xl p-4 mb-6 flex flex-wrap items-end gap-3">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Período</label>
+                    <select id="reportPeriod" class="border rounded px-2 py-1">
+                        <option value="today">Hoje</option>
+                        <option value="7d">Últimos 7 dias</option>
+                        <option value="30d">Últimos 30 dias</option>
+                        <option value="custom">Personalizado</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">De</label>
+                    <input id="dateFrom" type="date" class="border rounded px-2 py-1" />
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Até</label>
+                    <input id="dateTo" type="date" class="border rounded px-2 py-1" />
+                </div>
+                <button id="btnApplyFilter" class="px-3 py-2 bg-black text-white rounded">Aplicar</button>
+                <div class="ml-auto flex gap-2">
+                    <button id="btnExportOrdersCsv" class="px-3 py-2 border rounded">Exportar Vendas (CSV)</button>
+                    <button id="btnExportSchedulesCsv" class="px-3 py-2 border rounded">Exportar Inscrições (CSV)</button>
+                </div>
+            </div>
+
             <div class="grid lg:grid-cols-3 gap-6 mb-8">
                 <div class="bg-white border border-gray-200 rounded-xl p-6 lg:col-span-2">
                     <h3 class="font-bold mb-4">Vendas - Últimos 30 dias</h3>

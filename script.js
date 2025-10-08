@@ -112,7 +112,7 @@ async function registerWithEmailPassword(){
                     nickname, 
                     teamName: team, 
                     age, 
-                    role: 'Vendedor',
+                    role: 'Usuario',
                     level: 'Associado Treino',
                     tokens: 0,
                     createdAt: Date.now() 
@@ -675,7 +675,7 @@ async function loadUserProfile(uid) {
                 email: window.firebaseAuth.currentUser.email,
                 name: window.firebaseAuth.currentUser.displayName || 'Usuário',
                 tokens: 0,
-                role: 'Vendedor',
+                role: 'Usuario',
                 level: 'Associado Treino'
             };
             localStorage.setItem(`userProfile_${uid}`, JSON.stringify(window.currentUserProfile));
@@ -689,7 +689,7 @@ async function loadUserProfile(uid) {
             email: window.firebaseAuth.currentUser.email,
             name: window.firebaseAuth.currentUser.displayName || 'Usuário',
             tokens: 0,
-            role: 'Vendedor',
+            role: 'Usuario',
             level: 'Associado Treino'
         };
         localStorage.setItem(`userProfile_${uid}`, JSON.stringify(window.currentUserProfile));

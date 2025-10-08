@@ -99,6 +99,13 @@
     const isCeo = roleLower==='ceo';
     window.adminRoleLower = roleLower;
     try { await loadUsersTable(isManager, isCeo); } catch(_){}
+    // bind filtros e export
+    const btnApply = document.getElementById('btnApplyFilter');
+    if (btnApply) btnApply.onclick = applyFilter;
+    const btnOrd = document.getElementById('btnExportOrdersCsv');
+    if (btnOrd) btnOrd.onclick = exportOrdersCsv;
+    const btnSch = document.getElementById('btnExportSchedulesCsv');
+    if (btnSch) btnSch.onclick = exportSchedulesCsv;
     if (isManager){
       await loadReports();
       await loadRecentSchedules();
@@ -109,6 +116,7 @@
 
   // ---- Relatórios ----
   let charts = {};
+  let period = { from: null, to: null };
 
   async function loadReports(){
     try{
@@ -163,12 +171,13 @@
     if (!canvas) return;
     const ordersSnap = await getDocs(collection(window.firebaseDb,'orders'));
     // agrega últimos 30 dias
-    const days = [...Array(30)].map((_,i)=>{
-      const d = new Date(); d.setDate(d.getDate()-(29-i)); return d;});
+    const days = [...Array(30)].map((_,i)=>{ const d = new Date(); d.setDate(d.getDate()-(29-i)); return d;});
     const labels = days.map(d=>d.toLocaleDateString('pt-BR'));
     const dataMap = Object.fromEntries(labels.map(l=>[l,0]));
     ordersSnap.forEach(d => {
       const o = d.data(); const ts = new Date(o.createdAt || o.timestamp || 0);
+      if (period.from && ts < period.from) return;
+      if (period.to && ts > period.to) return;
       const label = ts.toLocaleDateString('pt-BR');
       if (dataMap[label] !== undefined) dataMap[label] += Number(o.amount || o.total || 0);
     });
@@ -196,7 +205,7 @@
     if (!tbody) return;
     tbody.innerHTML = '';
     const snap = await getDocs(collection(window.firebaseDb,'orders'));
-    let i=1; let total=0; snap.forEach(d=>{ const o=d.data(); total++; const tr=document.createElement('tr'); tr.innerHTML=`<td class="py-2">${i++}</td><td class="py-2">${o.customer||o.buyerEmail||''}</td><td class="py-2">${o.item||o.productName||''}</td><td class="py-2">${brl(Number(o.amount||o.total||0))}</td><td class="py-2">${o.status||'—'}</td>`; tbody.appendChild(tr); });
+    let i=1; let total=0; snap.forEach(d=>{ const o=d.data(); const ts=new Date(o.createdAt||o.timestamp||0); if (period.from&&ts<period.from) return; if (period.to&&ts>period.to) return; total++; const tr=document.createElement('tr'); tr.innerHTML=`<td class="py-2">${i++}</td><td class="py-2">${o.customer||o.buyerEmail||''}</td><td class="py-2">${o.item||o.productName||''}</td><td class="py-2">${brl(Number(o.amount||o.total||0))}</td><td class="py-2">${o.status||'—'}</td>`; tbody.appendChild(tr); });
     if (count) count.textContent = `${total} pedidos`;
   }
 
@@ -206,8 +215,49 @@
     if (!tbody) return;
     tbody.innerHTML = '';
     const snap = await getDocs(collection(window.firebaseDb,'schedules'));
-    let i=1; let total=0; snap.forEach(d=>{ const s=d.data(); total++; const tr=document.createElement('tr'); tr.innerHTML=`<td class="py-2">${i++}</td><td class="py-2">${s.eventType||''}</td><td class="py-2">${s.date||''}</td><td class="py-2">${s.hour||''}</td><td class="py-2">${s.name||s.email||''}</td>`; tbody.appendChild(tr); });
+    let i=1; let total=0; snap.forEach(d=>{ const s=d.data(); const ts=new Date(s.createdAt||s.timestamp||s.date||0); if (period.from&&ts<period.from) return; if (period.to&&ts>period.to) return; total++; const tr=document.createElement('tr'); tr.innerHTML=`<td class="py-2">${i++}</td><td class="py-2">${s.eventType||''}</td><td class="py-2">${s.date||''}</td><td class="py-2">${s.hour||''}</td><td class="py-2">${s.name||s.email||''}</td>`; tbody.appendChild(tr); });
     if (count) count.textContent = `${total} inscrições`;
+  }
+  function parsePeriod(){
+    const sel = document.getElementById('reportPeriod');
+    const fromEl = document.getElementById('dateFrom');
+    const toEl = document.getElementById('dateTo');
+    const v = sel?.value || 'today';
+    const now = new Date();
+    if (v==='today'){ period.from = new Date(now.getFullYear(), now.getMonth(), now.getDate()); period.to = null; }
+    else if (v==='7d'){ const d=new Date(); d.setDate(d.getDate()-7); period.from = d; period.to = null; }
+    else if (v==='30d'){ const d=new Date(); d.setDate(d.getDate()-30); period.from = d; period.to = null; }
+    else { period.from = fromEl?.value? new Date(fromEl.value) : null; period.to = toEl?.value? new Date(toEl.value) : null; }
+  }
+
+  async function applyFilter(){ parsePeriod(); await loadReports(); }
+
+  async function exportOrdersCsv(){
+    const snap = await getDocs(collection(window.firebaseDb,'orders'));
+    const rows = [['id','data','cliente','item','valor','status']];
+    snap.forEach(d=>{ const o=d.data(); const ts=new Date(o.createdAt||o.timestamp||0); if (period.from&&ts<period.from) return; if (period.to&&ts>period.to) return; rows.push([d.id, ts.toISOString(), o.customer||o.buyerEmail||'', o.item||o.productName||'', String(o.amount||o.total||0), o.status||'']); });
+    downloadCsv('vendas.csv', rows);
+  }
+
+  async function exportSchedulesCsv(){
+    const snap = await getDocs(collection(window.firebaseDb,'schedules'));
+    const rows = [['id','data','evento','dia','hora','cliente']];
+    snap.forEach(d=>{ const s=d.data(); const ts=new Date(s.createdAt||s.timestamp||s.date||0); if (period.from&&ts<period.from) return; if (period.to&&ts>period.to) return; rows.push([d.id, ts.toISOString(), s.eventType||'', s.date||'', s.hour||'', s.name||s.email||'']); });
+    downloadCsv('inscricoes.csv', rows);
+  }
+
+  function downloadCsv(filename, rows){
+    const csv = rows.map(r=>r.map(v => '"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+    const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 
   async function renderPopularHours(){
