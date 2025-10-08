@@ -8,7 +8,7 @@
   await waitReady();
 
   const { onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
-  const { collection, getDocs, doc, updateDoc, query, orderBy, limit } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+  const { collection, getDocs, doc, updateDoc, query, where, orderBy } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
 
   const authGate = document.getElementById('authGate');
   const dashboard = document.getElementById('dashboard');
@@ -17,11 +17,21 @@
   function setView(authRole){
     const role = (authRole||'').toLowerCase();
     roleBadge.textContent = `Permissão: ${authRole||'desconhecida'}`;
-    // Hide sections for vendedor
+    // Controle de visão
+    const kpiCards = document.querySelectorAll('#kpiToday, #kpiMonth, #kpiReceivable');
+    const productsCard = document.getElementById('productsTable')?.closest('.bg-white');
+    const salesChartCard = document.getElementById('salesChart')?.closest('.bg-white');
+    const topProductsCard = document.getElementById('topProductsChart')?.closest('.bg-white');
     if (role === 'vendedor'){
-      // hide KPIs and products mgmt
-      const products = document.getElementById('productsTable')?.closest('.bg-white');
-      if (products) products.classList.add('hidden');
+      // Vendedor: vê pedidos recentes e chat (futuro). Esconde KPIs e gestão de produtos.
+      kpiCards.forEach(e => e && (e.closest('.bg-white').classList.add('hidden')));
+      if (productsCard) productsCard.classList.add('hidden');
+      if (salesChartCard) salesChartCard.classList.add('hidden');
+      if (topProductsCard) topProductsCard.classList.add('hidden');
+    } else if (role === 'gerente'){
+      // Gerente: tudo, exceto "Fluxo total de vendas" (usaremos kpiReceivable como proxy)
+      const receivableCard = document.getElementById('kpiReceivable')?.closest('.bg-white');
+      if (receivableCard) receivableCard.classList.add('hidden');
     }
   }
 
@@ -83,7 +93,102 @@
     dashboard.classList.remove('hidden');
     setView(role);
     await loadUsersTable(['ceo','gerente'].includes((role||'').toLowerCase()));
+    await loadReports();
   });
+
+  // ---- Relatórios ----
+  async function loadReports(){
+    try{
+      await Promise.all([
+        loadKpis(),
+        renderSalesChart(),
+        renderTopProducts(),
+        loadRecentOrders(),
+        // outros relatórios abaixo
+        renderPopularHours(),
+        renderActiveUsers()
+      ]);
+    }catch(e){ console.error('Erro ao carregar relatórios', e); }
+  }
+
+  function brl(n){ try {return n.toLocaleString('pt-BR', {style:'currency',currency:'BRL'})} catch(_) {return `R$ ${Number(n||0).toFixed(2)}`;} }
+
+  async function loadKpis(){
+    const kpiTodayEl = document.getElementById('kpiToday');
+    const kpiMonthEl = document.getElementById('kpiMonth');
+    const kpiRecEl = document.getElementById('kpiReceivable');
+    if (!kpiTodayEl || !kpiMonthEl || !kpiRecEl) return;
+
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const ordersSnap = await getDocs(collection(window.firebaseDb,'orders'));
+    let totalToday = 0, totalMonth = 0, receivable = 0;
+    ordersSnap.forEach(d => {
+      const o = d.data();
+      const ts = new Date(o.createdAt || o.timestamp || 0);
+      const amount = Number(o.amount || o.total || 0);
+      if (ts >= startOfDay) totalToday += amount;
+      if (ts >= startOfMonth) totalMonth += amount;
+      if ((o.status||'').toLowerCase() === 'pending') receivable += amount;
+    });
+    kpiTodayEl.textContent = brl(totalToday);
+    kpiMonthEl.textContent = brl(totalMonth);
+    kpiRecEl.textContent = brl(receivable);
+  }
+
+  async function renderSalesChart(){
+    const canvas = document.getElementById('salesChart');
+    if (!canvas) return;
+    const ordersSnap = await getDocs(collection(window.firebaseDb,'orders'));
+    // agrega últimos 30 dias
+    const days = [...Array(30)].map((_,i)=>{
+      const d = new Date(); d.setDate(d.getDate()-(29-i)); return d;});
+    const labels = days.map(d=>d.toLocaleDateString('pt-BR'));
+    const dataMap = Object.fromEntries(labels.map(l=>[l,0]));
+    ordersSnap.forEach(d => {
+      const o = d.data(); const ts = new Date(o.createdAt || o.timestamp || 0);
+      const label = ts.toLocaleDateString('pt-BR');
+      if (dataMap[label] !== undefined) dataMap[label] += Number(o.amount || o.total || 0);
+    });
+    const data = labels.map(l=>dataMap[l]);
+    new Chart(canvas.getContext('2d'), {
+      type: 'line', data: { labels, datasets: [{label:'Vendas', data, borderColor:'#2563eb', tension:.3}]}, options:{plugins:{legend:{display:false}}}
+    });
+  }
+
+  async function renderTopProducts(){
+    const canvas = document.getElementById('topProductsChart');
+    if (!canvas) return;
+    const snap = await getDocs(collection(window.firebaseDb,'orders'));
+    const map = {};
+    snap.forEach(d=>{ const o=d.data(); const name=(o.item||o.productName||'Outro'); map[name]=(map[name]||0)+Number(o.amount||o.total||0); });
+    const entries = Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    new Chart(canvas.getContext('2d'), { type:'bar', data:{ labels: entries.map(e=>e[0]), datasets:[{label:'Receita', data: entries.map(e=>e[1]), backgroundColor:'#60a5fa'}] }, options:{plugins:{legend:{display:false}}} });
+  }
+
+  async function loadRecentOrders(){
+    const tbody = document.getElementById('ordersTbody');
+    const count = document.getElementById('ordersCount');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    const snap = await getDocs(collection(window.firebaseDb,'orders'));
+    let i=1; let total=0; snap.forEach(d=>{ const o=d.data(); total++; const tr=document.createElement('tr'); tr.innerHTML=`<td class="py-2">${i++}</td><td class="py-2">${o.customer||o.buyerEmail||''}</td><td class="py-2">${o.item||o.productName||''}</td><td class="py-2">${brl(Number(o.amount||o.total||0))}</td><td class="py-2">${o.status||'—'}</td>`; tbody.appendChild(tr); });
+    if (count) count.textContent = `${total} pedidos`;
+  }
+
+  async function renderPopularHours(){
+    // usa tabela schedules para contar horários
+    const container = document.getElementById('topProductsChart'); // reutiliza ao lado
+    if (!container) return;
+    // opcional: futuro colocar um canvas separado
+  }
+
+  async function renderActiveUsers(){
+    // Placeholder: poderemos mostrar no futuro um gráfico em outra aba
+    return;
+  }
 })();
 
 // Admin logic: Auth gate, roles, Firestore reads, Chart.js rendering
