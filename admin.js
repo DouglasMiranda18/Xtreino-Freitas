@@ -343,6 +343,7 @@ async function loadTables(canManageProducts) {
     const qOrders = query(ordersCol, orderBy('createdAt', 'desc'), limit(20));
     const snapOrders = await getDocsFromServer(qOrders);
     const ordersTbody = document.getElementById('ordersTbody');
+    if (!ordersTbody) return; // card não existe nesta visão
     ordersTbody.innerHTML = '';
     let count = 0;
     snapOrders.forEach(docu => {
@@ -356,24 +357,27 @@ async function loadTables(canManageProducts) {
         ordersTbody.appendChild(tr);
         count++;
     });
-    document.getElementById('ordersCount').textContent = `${count} pedidos`;
+    const ordersCountEl = document.getElementById('ordersCount');
+    if (ordersCountEl) ordersCountEl.textContent = `${count} pedidos`;
 
     // Products
-    const productsCol = collection(window.firebaseDb, 'products');
-    const qProd = query(productsCol, orderBy('name'), limit(50));
-    const snapProd = await getDocsFromServer(qProd);
     const productsTbody = document.getElementById('productsTbody');
-    productsTbody.innerHTML = '';
-    snapProd.forEach(docu => {
-        const p = docu.data();
-        const canEdit = canManageProducts;
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td class="py-2">${p.name || '-'}</td>
-        <td class="py-2">${currencyBRL(Number(p.price||0))}</td>
-        <td class="py-2">${p.type || '-'}</td>
-        <td class="py-2 space-x-2">${canEdit ? '<button data-id="'+docu.id+'" class="text-blue-600">Editar</button>' : '<span class="text-gray-400">-</span>'}</td>`;
-        productsTbody.appendChild(tr);
-    });
+    if (productsTbody) {
+        const productsCol = collection(window.firebaseDb, 'products');
+        const qProd = query(productsCol, orderBy('name'), limit(50));
+        const snapProd = await getDocsFromServer(qProd);
+        productsTbody.innerHTML = '';
+        snapProd.forEach(docu => {
+            const p = docu.data();
+            const canEdit = canManageProducts;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td class="py-2">${p.name || '-'}</td>
+            <td class="py-2">${currencyBRL(Number(p.price||0))}</td>
+            <td class="py-2">${p.type || '-'}</td>
+            <td class="py-2 space-x-2">${canEdit ? '<button data-id="'+docu.id+'" class="text-blue-600">Editar</button>' : '<span class="text-gray-400">-</span>'}</td>`;
+            productsTbody.appendChild(tr);
+        });
+    }
 }
 
 async function upsertUserProfile(user) {
@@ -392,27 +396,23 @@ async function upsertUserProfile(user) {
 }
 
 async function loadUsersAndRoles(currentRole) {
-    const canEditRoles = can(currentRole, 'view_all');
+    const canEditRoles = ['ceo','gerente'].includes((currentRole||'').toLowerCase());
+    const isCeo = (currentRole||'').toLowerCase()==='ceo';
     const { collection, getDocsFromServer, doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     const usersCol = collection(window.firebaseDb, 'users');
-    const rolesCol = collection(window.firebaseDb, 'roles');
     const snapUsers = await getDocsFromServer(usersCol);
-    const snapRoles = await getDocsFromServer(rolesCol);
-
-    const uidToRole = new Map();
-    snapRoles.forEach(r => uidToRole.set(r.id, (r.data()||{}).role || 'viewer'));
 
     const tbody = document.getElementById('usersTbody');
+    if (!tbody) return;
     tbody.innerHTML = '';
     snapUsers.forEach(u => {
         const data = u.data();
-        const role = uidToRole.get(u.id) || 'viewer';
+        const role = (data.role || 'Vendedor');
         const tr = document.createElement('tr');
         const selectHtml = `<select class="border border-gray-300 rounded px-2 py-1" data-uid="${u.id}" ${canEditRoles ? '' : 'disabled'}>
-            <option value="admin" ${role==='admin'?'selected':''}>admin</option>
-            <option value="manager" ${role==='manager'?'selected':''}>manager</option>
-            <option value="editor" ${role==='editor'?'selected':''}>editor</option>
-            <option value="viewer" ${role==='viewer'?'selected':''}>viewer</option>
+            <option value="Vendedor" ${role==='Vendedor'?'selected':''}>Vendedor</option>
+            <option value="Gerente" ${role==='Gerente'?'selected':''}>Gerente</option>
+            ${isCeo?`<option value="Ceo" ${role==='Ceo'?'selected':''}>Ceo</option>`:''}
         </select>`;
         tr.innerHTML = `<td class="py-2">${data.email||'-'}</td>
         <td class="py-2">${u.id}</td>
@@ -429,7 +429,7 @@ async function loadUsersAndRoles(currentRole) {
             const sel = tbody.querySelector(`select[data-uid="${uid}"]`);
             if (!sel) return;
             try {
-                await setDoc(doc(window.firebaseDb, 'roles', uid), { role: sel.value }, { merge: true });
+                await setDoc(doc(window.firebaseDb, 'users', uid), { role: sel.value }, { merge: true });
                 btn.textContent = 'Salvo';
                 setTimeout(() => btn.textContent = 'Salvar', 1200);
             } catch (err) {
