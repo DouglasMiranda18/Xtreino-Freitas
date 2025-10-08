@@ -934,52 +934,7 @@
                 </div>
             </div>
             
-            <!-- Profile Tab -->
-            <div id="profileTab" class="client-tab-content hidden">
-                <div class="mb-6">
-                    <h3 class="text-xl font-bold mb-4">Meu Perfil</h3>
-                    <p class="text-gray-300 mb-6">Gerencie suas informações pessoais e preferências</p>
-                </div>
-                
-                <form onsubmit="updateProfile(event)" class="space-y-6">
-                    <div class="grid md:grid-cols-2 gap-6">
-                        <div>
-                            <label class="block text-sm font-medium mb-2">Nome Completo</label>
-                            <input type="text" id="profileName" required class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="Seu nome completo">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-2">Email</label>
-                            <input type="email" id="profileEmail" required class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="seu@email.com">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-2">Celular</label>
-                            <input type="tel" id="profilePhone" class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="(11) 99999-9999" oninput="formatPhone(this)">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-2">Nickname Gamer</label>
-                            <input type="text" id="profileNickname" class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="Seu nickname">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-2">Nome do Time/Org</label>
-                            <input type="text" id="profileTeam" class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="Nome do seu time">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-2">Idade</label>
-                            <input type="number" id="profileAge" min="13" max="99" class="w-full bg-white bg-opacity-10 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="Sua idade">
-                        </div>
-                    </div>
-                    
-                    
-                    <div class="flex justify-end space-x-4">
-                        <button type="button" onclick="loadProfileData()" class="px-6 py-3 border border-gray-600 rounded-lg font-semibold text-gray-300 hover:text-white transition-colors">
-                            Cancelar
-                        </button>
-                        <button type="submit" class="px-6 py-3 bg-blue-matte hover-blue-matte rounded-lg font-semibold text-white transition-colors">
-                            Salvar Alterações
-                        </button>
-                    </div>
-                </form>
-            </div>
+            <!-- Profile Tab removed (duplicate fields) -->
         </div>
     </div>
 
