@@ -29,10 +29,9 @@
       if (salesChartCard) salesChartCard.classList.add('hidden');
       if (topProductsCard) topProductsCard.classList.add('hidden');
     } else if (role === 'gerente'){
-      // Gerente: sem acesso a financeiro. Esconde todos KPIs e gráficos financeiros
-      kpiCards.forEach(e => e && (e.closest('.bg-white').classList.add('hidden')));
-      if (salesChartCard) salesChartCard.classList.add('hidden');
-      if (topProductsCard) topProductsCard.classList.add('hidden');
+      // Gerente: vê financeiro, exceto fluxo total mensal -> escondemos apenas o KPI "Vendas Mês"
+      const kpiMonthCard = document.getElementById('kpiMonth')?.closest('.bg-white');
+      if (kpiMonthCard) kpiMonthCard.classList.add('hidden');
     }
   }
 
@@ -100,14 +99,8 @@
     window.adminRoleLower = roleLower;
     try { await loadUsersTable(isManager, isCeo); } catch(_){}
     if (isManager){
-      if (roleLower==='gerente'){
-        // Sem relatórios financeiros
-        await loadRecentSchedules().catch(()=>{});
-        await loadRecentOrders().catch(()=>{});
-      } else {
       await loadReports();
       await loadRecentSchedules();
-      }
     } else {
       await loadRecentOrders().catch(()=>{});
     }
