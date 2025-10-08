@@ -154,13 +154,13 @@ function onAuthLogged(user){
                 if (uid) {
                     await loadUserProfile(uid);
                     const role = (window.currentUserProfile?.role || '').toLowerCase();
-                    if (role === 'ceo') {
+                    if (['ceo','gerente','vendedor'].includes(role)) {
                         window.postLoginRedirect = null;
                         window.location.href = 'admin.html';
                         return;
                     }
                 }
-                alert('Acesso ao painel restrito ao CEO.');
+                alert('Acesso ao painel restrito (CEO, Gerente ou Vendedor).');
                 window.postLoginRedirect = null;
             } catch (_) { window.postLoginRedirect = null; }
         }, 100);
@@ -186,10 +186,10 @@ function requestAdminAccess(){
     }
     // Validar papel do usuário logado
     const role = (window.currentUserProfile?.role || '').toLowerCase();
-    if (role === 'ceo') {
+    if (['ceo','gerente','vendedor'].includes(role)) {
         window.location.href = 'admin.html';
     } else {
-        alert('Acesso ao painel restrito ao CEO.');
+        alert('Acesso ao painel restrito (CEO, Gerente ou Vendedor).');
     }
 }
 

@@ -1,3 +1,91 @@
+// Admin RBAC and dashboards
+(async function(){
+  // Wait firebase
+  const waitReady = () => new Promise(res => {
+    const tick = () => window.firebaseReady ? res() : setTimeout(tick, 50);
+    tick();
+  });
+  await waitReady();
+
+  const { onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
+  const { collection, getDocs, doc, updateDoc, query, orderBy, limit } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+  const authGate = document.getElementById('authGate');
+  const dashboard = document.getElementById('dashboard');
+  const roleBadge = document.getElementById('roleBadge');
+
+  function setView(authRole){
+    const role = (authRole||'').toLowerCase();
+    roleBadge.textContent = `Permissão: ${authRole||'desconhecida'}`;
+    // Hide sections for vendedor
+    if (role === 'vendedor'){
+      // hide KPIs and products mgmt
+      const products = document.getElementById('productsTable')?.closest('.bg-white');
+      if (products) products.classList.add('hidden');
+    }
+  }
+
+  async function loadUsersTable(isManager){
+    const usersBody = document.getElementById('usersTbody');
+    if (!usersBody) return;
+    usersBody.innerHTML = '';
+    try{
+      const snap = await getDocs(collection(window.firebaseDb,'users'));
+      snap.forEach(d => {
+        const u = d.data();
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td class="py-2">${u.email||''}</td>
+          <td class="py-2">${d.id}</td>
+          <td class="py-2">${u.role||'Vendedor'}</td>
+          <td class="py-2">${isManager?`<select data-uid="${d.id}" class="roleSelect border rounded px-2 py-1 text-sm">
+               <option ${ (u.role||'').toLowerCase()==='vendedor'?'selected':''}>Vendedor</option>
+               <option ${ (u.role||'').toLowerCase()==='gerente'?'selected':''}>Gerente</option>
+               <option ${ (u.role||'').toLowerCase()==='ceo'?'selected':''}>Ceo</option>
+             </select>`:''}</td>`;
+        usersBody.appendChild(tr);
+      });
+      if (isManager){
+        usersBody.querySelectorAll('.roleSelect').forEach(sel => {
+          sel.addEventListener('change', async (e) => {
+            const uid = sel.getAttribute('data-uid');
+            const newRole = sel.value;
+            await updateDoc(doc(collection(window.firebaseDb,'users'), uid), { role: newRole });
+            alert('Permissão atualizada');
+          });
+        });
+      }
+    }catch(e){ console.error('Erro ao carregar usuários', e); }
+  }
+
+  onAuthStateChanged(window.firebaseAuth, async (user) => {
+    if (!user){
+      authGate.classList.remove('hidden');
+      dashboard.classList.add('hidden');
+      return;
+    }
+    // fetch role
+    const uid = user.uid;
+    let role = 'Vendedor';
+    try{
+      const { getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+      const { doc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+      const ref = doc(collection(window.firebaseDb,'users'), uid);
+      const snap = await getDoc(ref);
+      if (snap.exists()) role = (snap.data().role)||'Vendedor';
+    }catch(e){}
+
+    if (!['ceo','gerente','vendedor'].includes((role||'').toLowerCase())){
+      authGate.classList.remove('hidden');
+      dashboard.classList.add('hidden');
+      return;
+    }
+    authGate.classList.add('hidden');
+    dashboard.classList.remove('hidden');
+    setView(role);
+    await loadUsersTable(['ceo','gerente'].includes((role||'').toLowerCase()));
+  });
+})();
+
 // Admin logic: Auth gate, roles, Firestore reads, Chart.js rendering
 
 async function ensureFirebase(maxWaitMs = 5000) {
