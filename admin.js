@@ -94,6 +94,7 @@
     setView(role);
     await loadUsersTable(['ceo','gerente'].includes((role||'').toLowerCase()));
     await loadReports();
+    await loadRecentSchedules();
   });
 
   // ---- Relatórios ----
@@ -116,6 +117,7 @@
     const kpiTodayEl = document.getElementById('kpiToday');
     const kpiMonthEl = document.getElementById('kpiMonth');
     const kpiRecEl = document.getElementById('kpiReceivable');
+    const kpiActiveEl = document.getElementById('kpiActiveUsers');
     if (!kpiTodayEl || !kpiMonthEl || !kpiRecEl) return;
 
     const now = new Date();
@@ -135,6 +137,15 @@
     kpiTodayEl.textContent = brl(totalToday);
     kpiMonthEl.textContent = brl(totalMonth);
     kpiRecEl.textContent = brl(receivable);
+
+    if (kpiActiveEl){
+      try{
+        const usersSnap = await getDocs(collection(window.firebaseDb,'users'));
+        const weekAgo = Date.now() - 7*24*60*60*1000;
+        let active = 0; usersSnap.forEach(d=>{ const u=d.data(); if (Number(u.lastLogin||0) >= weekAgo) active++; });
+        kpiActiveEl.textContent = String(active);
+      }catch(_){ kpiActiveEl.textContent = '—'; }
+    }
   }
 
   async function renderSalesChart(){
@@ -177,6 +188,16 @@
     const snap = await getDocs(collection(window.firebaseDb,'orders'));
     let i=1; let total=0; snap.forEach(d=>{ const o=d.data(); total++; const tr=document.createElement('tr'); tr.innerHTML=`<td class="py-2">${i++}</td><td class="py-2">${o.customer||o.buyerEmail||''}</td><td class="py-2">${o.item||o.productName||''}</td><td class="py-2">${brl(Number(o.amount||o.total||0))}</td><td class="py-2">${o.status||'—'}</td>`; tbody.appendChild(tr); });
     if (count) count.textContent = `${total} pedidos`;
+  }
+
+  async function loadRecentSchedules(){
+    const tbody = document.getElementById('schedulesTbody');
+    const count = document.getElementById('schedulesCount');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    const snap = await getDocs(collection(window.firebaseDb,'schedules'));
+    let i=1; let total=0; snap.forEach(d=>{ const s=d.data(); total++; const tr=document.createElement('tr'); tr.innerHTML=`<td class="py-2">${i++}</td><td class="py-2">${s.eventType||''}</td><td class="py-2">${s.date||''}</td><td class="py-2">${s.hour||''}</td><td class="py-2">${s.name||s.email||''}</td>`; tbody.appendChild(tr); });
+    if (count) count.textContent = `${total} inscrições`;
   }
 
   async function renderPopularHours(){
