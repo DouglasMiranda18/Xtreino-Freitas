@@ -1346,6 +1346,18 @@ function openScheduleModal(eventType){
         dateInput._schedBound = true;
     }
     renderScheduleTimes();
+    // Preenche dados se logado
+    try{
+        if (window.isLoggedIn && window.currentUserProfile){
+            const p = window.currentUserProfile;
+            const team = document.getElementById('schedTeam');
+            const email = document.getElementById('schedEmail');
+            const phone = document.getElementById('schedPhone');
+            if (team) team.value = p.teamName || '';
+            if (email) email.value = p.email || '';
+            if (phone) phone.value = p.phone || '';
+        }
+    }catch(_){ }
     modal.classList.remove('hidden');
     if (window.innerWidth <= 767) document.body.classList.add('modal-open-mobile');
     const hint = document.getElementById('schedHint');
@@ -1496,6 +1508,14 @@ async function submitSchedule(e){
         return;
     }
 
+    // Se não logado, exige login primeiro
+    if (!window.isLoggedIn){
+        closeScheduleModal();
+        openLoginModal && openLoginModal();
+        alert('Faça login para continuar a compra.');
+        if (submitBtn){ submitBtn.disabled = false; submitBtn.textContent = oldText; }
+        return;
+    }
     // Fluxo normal: Checkout via Netlify Function
     const total = Number(cfg.price.toFixed(2));
     fetch('/.netlify/functions/create-preference',{
