@@ -204,19 +204,7 @@ function requestAdminAccess(){
     }
 }
 
-function openAccountModal(){ 
-    const m = document.getElementById('accountModal'); 
-    if (m) {
-        m.classList.remove('hidden');
-        // Carrega dados quando abre o modal
-        setTimeout(() => {
-            loadAccountProfile();
-            loadAccountOrders();
-            loadTokensBalance();
-        }, 300);
-    }
-}
-function closeAccountModal(){ const m = document.getElementById('accountModal'); if (m) m.classList.add('hidden'); }
+// Modal de conta removido - agora redireciona para client.html
 
 async function logout(){
     try{
@@ -228,255 +216,17 @@ async function logout(){
     window.currentUserProfile = null;
     window.isLoggedIn = false;
     toggleAccountButtons(false);
-    closeAccountModal();
+    // Modal removido
 }
 
-// --- Account panels logic ---
-function showAccountTab(tab){
-    const map = { profile:'accPanelProfile', tokens:'accPanelTokens', orders:'accPanelOrders' };
-    Object.entries(map).forEach(([k,id])=>{
-        const p = document.getElementById(id);
-        const b = document.getElementById('accTab'+k.charAt(0).toUpperCase()+k.slice(1));
-        if (!p || !b) return;
-        if (k===tab){ p.classList.remove('hidden'); b.classList.add('border-blue-matte'); b.classList.remove('text-gray-500'); }
-        else { p.classList.add('hidden'); b.classList.remove('border-blue-matte'); b.classList.add('text-gray-500'); }
-    });
-}
+// Funções do modal de conta removidas - agora usa client.html
 
-async function loadAccountProfile(){
-    try{
-        if (!window.firebaseReady || !window.firebaseAuth?.currentUser) {
-            return;
-        }
-        
-        const uid = window.firebaseAuth.currentUser.uid;
-        const user = window.firebaseAuth.currentUser;
-        
-        // Tenta carregar do Firestore primeiro
-        try {
-            const { doc, getDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-            const ref = doc(collection(window.firebaseDb,'users'), uid);
-            const snap = await getDoc(ref);
-            
-            if (snap.exists()) {
-                const d = snap.data();
-                populateProfileFields(d);
-                localStorage.setItem(`userProfile_${uid}`, JSON.stringify(d));
-                return;
-            }
-        } catch (e) {
-            console.log('Erro ao carregar do Firestore, tentando localStorage');
-        }
-        
-        // Se não tem no Firestore, tenta localStorage
-        const localProfile = localStorage.getItem(`userProfile_${uid}`);
-        if (localProfile) {
-            const d = JSON.parse(localProfile);
-            populateProfileFields(d);
-            return;
-        }
-        
-        // Se não tem em lugar nenhum, cria perfil básico
-        const basicProfile = {
-            name: user.displayName || '',
-            email: user.email || '',
-            phone: '',
-            nickname: '',
-            teamName: '',
-            age: '',
-            tokens: 0,
-            role: 'Vendedor',
-            level: 'Associado Treino'
-        };
-        populateProfileFields(basicProfile);
-        
-    }catch(e){ 
-        console.error('Erro ao carregar perfil:', e);
-    }
-}
+// Função removida - agora usa client.html
 
-function populateProfileFields(d) {
-    try {
-        // Aguarda um pouco para garantir que os elementos existam
-        setTimeout(() => {
-            const nameField = document.getElementById('profileName');
-            const emailField = document.getElementById('profileEmail');
-            const phoneField = document.getElementById('profilePhone');
-            const nicknameField = document.getElementById('profileNickname');
-            const teamField = document.getElementById('profileTeam');
-            const ageField = document.getElementById('profileAge');
-            
-            if (nameField) nameField.value = d.name || '';
-            if (emailField) emailField.value = d.email || window.firebaseAuth.currentUser.email || '';
-            if (phoneField) phoneField.value = d.phone || '';
-            if (nicknameField) nicknameField.value = d.nickname || '';
-            if (teamField) teamField.value = d.teamName || '';
-            if (ageField) ageField.value = d.age || '';
-            
-            const tokensElement = document.getElementById('accTokensBalance');
-            if (tokensElement) {
-                tokensElement.textContent = Number(d.tokens || 0);
-            }
-            
-            window.currentUserProfile = d;
-            updateUIForPermissions();
-        }, 100);
-    } catch (e) {
-        console.error('Erro ao preencher campos:', e);
-    }
-}
+// Função removida - agora usa client.html
 
 
-async function saveAccountProfile(){
-    try{
-        if (!window.firebaseReady || !window.firebaseAuth?.currentUser){ 
-            document.getElementById('accProfileMsg').textContent='Sessão inválida.'; 
-            return; 
-        }
-        
-        const uid = window.firebaseAuth.currentUser.uid;
-        const payload = {
-            name: document.getElementById('profileName').value.trim(),
-            email: document.getElementById('profileEmail').value.trim(),
-            phone: document.getElementById('profilePhone').value.trim(),
-            nickname: document.getElementById('profileNickname').value.trim(),
-            teamName: document.getElementById('profileTeam').value.trim(),
-            age: document.getElementById('profileAge').value.trim(),
-            updatedAt: Date.now()
-        };
-        
-        console.log('Tentando salvar perfil:', payload);
-        
-        // Salva no localStorage primeiro (sempre funciona)
-        localStorage.setItem(`userProfile_${uid}`, JSON.stringify(payload));
-        console.log('Perfil salvo no localStorage');
-        
-        // Tenta salvar no Firestore
-        try {
-            const { doc, setDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-            const ref = doc(collection(window.firebaseDb,'users'), uid);
-            console.log('Tentando salvar no Firestore...');
-            console.log('Referência do documento:', ref);
-            console.log('Payload:', payload);
-            
-            await setDoc(ref, payload, { merge:true });
-            console.log('Perfil salvo no Firestore com sucesso!');
-            document.getElementById('accProfileMsg').textContent='Perfil salvo com sucesso!';
-        } catch (firestoreError) {
-            console.error('Erro detalhado ao salvar no Firestore:', firestoreError);
-            console.error('Código do erro:', firestoreError.code);
-            console.error('Mensagem do erro:', firestoreError.message);
-            document.getElementById('accProfileMsg').textContent=`Erro: ${firestoreError.code} - ${firestoreError.message}`;
-        }
-        
-        // Atualiza perfil local
-        window.currentUserProfile = payload;
-    }catch(e){ 
-        console.error('Erro geral ao salvar:', e);
-        document.getElementById('accProfileMsg').textContent='Erro ao salvar: ' + e.message; 
-    }
-}
-
-async function loadTokensBalance(){
-    try{
-        if (!window.firebaseReady || !window.firebaseAuth?.currentUser) return;
-        const uid = window.firebaseAuth.currentUser.uid;
-        const { doc, getDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const ref = doc(collection(window.firebaseDb,'users'), uid);
-        const snap = await getDoc(ref);
-        const d = snap.exists()? snap.data():{};
-        document.getElementById('accTokensBalance').textContent = Number(d.tokens||0);
-    }catch(_){ }
-}
-
-async function setTokensDelta(delta){
-    try{
-        if (!window.firebaseReady || !window.firebaseAuth?.currentUser) return;
-        const uid = window.firebaseAuth.currentUser.uid;
-        const { doc, getDoc, setDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const ref = doc(collection(window.firebaseDb,'users'), uid);
-        const snap = await getDoc(ref);
-        const d = snap.exists()? snap.data():{};
-        const next = Math.max(0, Number((Number(d.tokens||0) + delta).toFixed(2)));
-        await setDoc(ref, { tokens: next }, { merge:true });
-        document.getElementById('accTokensBalance').textContent = next;
-        document.getElementById('accTokensMsg').textContent = 'Saldo atualizado.';
-        
-        // Atualiza perfil local
-        if (window.currentUserProfile) {
-            window.currentUserProfile.tokens = next;
-        }
-    }catch(_){ document.getElementById('accTokensMsg').textContent = 'Erro ao atualizar tokens.'; }
-}
-
-function adminAddTokens(){ 
-    const amt = Number(document.getElementById('accTokensAmount').value||0); 
-    if (amt>0) {
-        setTokensDelta(amt);
-        logTokenAction('add', amt);
-    }
-}
-function adminRemoveTokens(){ 
-    const amt = Number(document.getElementById('accTokensAmount').value||0); 
-    if (amt>0) {
-        setTokensDelta(-amt);
-        logTokenAction('remove', amt);
-    }
-}
-
-function logTokenAction(action, amount) {
-    try {
-        if (!window.firebaseReady || !window.firebaseAuth?.currentUser) return;
-        const uid = window.firebaseAuth.currentUser.uid;
-        const adminUid = uid;
-        const timestamp = Date.now();
-        
-        // Salva log no Firestore
-        const logData = {
-            action,
-            amount,
-            adminUid,
-            timestamp,
-            userUid: uid
-        };
-        
-        // Adiciona ao histórico local também
-        if (!window.tokenHistory) window.tokenHistory = [];
-        window.tokenHistory.push(logData);
-        
-        // Persiste no Firestore quando possível
-        if (window.firebaseDb) {
-            import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js')
-                .then(({ collection, addDoc }) => {
-                    return addDoc(collection(window.firebaseDb, 'token_logs'), logData);
-                })
-                .catch(() => {}); // Falha silenciosa
-        }
-    } catch (e) {
-        console.error('Erro ao logar ação de token:', e);
-    }
-}
-
-async function loadAccountOrders(){
-    const container = document.getElementById('accOrders');
-    if (!container) return;
-    container.innerHTML = '';
-    try{
-        if (!window.firebaseReady || !window.firebaseAuth?.currentUser){ container.textContent='Faça login para ver seus pedidos.'; return; }
-        const uid = window.firebaseAuth.currentUser.uid;
-        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const regs = query(collection(window.firebaseDb,'registrations'), where('uid','==',uid));
-        const snap = await getDocs(regs);
-        if (snap.empty){ container.textContent='Nenhum pedido/inscrição encontrado.'; return; }
-        snap.forEach(docu=>{
-            const r = docu.data();
-            const row = document.createElement('div');
-            row.className = 'border rounded p-3 flex justify-between';
-            row.innerHTML = `<div><div class="font-semibold">${r.title||r.schedule||'Inscrição'}</div><div class="text-gray-500 text-xs">${r.date||''} ${r.schedule||''}</div></div><div class="text-sm">${r.status||'pendente'}</div>`;
-            container.appendChild(row);
-        });
-    }catch(_){ container.textContent='Erro ao carregar pedidos.'; }
-}
+// Todas as funções do modal de conta removidas - agora usa client.html
 // Mobile menu toggle
 function toggleMobileMenu() {
     const menu = document.getElementById('mobileMenu');
@@ -582,9 +332,33 @@ document.addEventListener('DOMContentLoaded', function() {
             try{
                 const sp = new URLSearchParams(location.search);
                 const mpStatus = sp.get('mp_status');
-                if (mpStatus) {
+                const preferenceId = sp.get('preference-id');
+                console.log('MP Return Check:', { mpStatus, preferenceId, url: window.location.href });
+                
+                // Se não tem mp_status mas tem preference-id, verificar status via API
+                if (!mpStatus && preferenceId) {
+                    console.log('No mp_status but has preference-id, checking payment status...');
+                    checkPaymentStatus(preferenceId);
+                } else if (!mpStatus) {
+                    // Se não tem mp_status nem preference-id, tentar usar external_reference salvo
+                    const externalRef = sessionStorage.getItem('lastExternalRef');
+                    if (externalRef) {
+                        console.log('No mp_status or preference-id, checking with external_reference...');
+                        checkPaymentStatus(externalRef);
+                    } else {
+                        console.log('No payment tracking data found, user may have returned manually');
+                        // Mostrar modal informativo
+                        openPaymentConfirmModal(
+                            'Pagamento em Processamento', 
+                            'Seu pagamento PIX está sendo processado. Você receberá confirmação em breve na sua conta.',
+                            null
+                        );
+                    }
+                } else if (mpStatus) {
                     if (mpStatus === 'success') {
+                        console.log('Payment successful, processing...');
                         const regId = sessionStorage.getItem('lastRegId');
+                        console.log('RegId from sessionStorage:', regId);
                         if (regId) {
                             import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js')
                                 .then(({ doc, setDoc, getDoc, collection }) => {
@@ -593,16 +367,22 @@ document.addEventListener('DOMContentLoaded', function() {
                                       .then(()=> getDoc(ref))
                                       .then(snap=>{ const d = snap.exists()? snap.data():{}; return d.groupLink || null; });
                                 }).then((groupLink)=>{
+                                    console.log('Registration updated, showing modal');
                                     openPaymentConfirmModal('Pagamento confirmado', 'Seu pagamento foi aprovado. Confira seus acessos na área Minha Conta.', groupLink);
-                                }).catch(()=>{});
+                                }).catch((e)=>{
+                                    console.error('Error updating registration:', e);
+                                    openPaymentConfirmModal('Pagamento confirmado', 'Seu pagamento foi aprovado. Confira seus acessos na área Minha Conta.');
+                                });
                         } else {
+                            console.log('No regId, creating local order');
                             // Fallback: cria registro local para exibir na aba pedidos
                             try{
                                 const info = JSON.parse(sessionStorage.getItem('lastRegInfo')||'{}');
                                 const orders = JSON.parse(localStorage.getItem('localOrders')||'[]');
                                 orders.unshift({ title: info.title||'Reserva', amount: info.price||0, status:'paid', date: new Date().toISOString() });
                                 localStorage.setItem('localOrders', JSON.stringify(orders));
-                            }catch(_){ }
+                                console.log('Local order created:', orders[0]);
+                            }catch(e){ console.error('Error creating local order:', e); }
                             openPaymentConfirmModal('Pagamento confirmado', 'Seu pagamento foi aprovado. Confira seus acessos na área Minha Conta.');
                         }
                     }
@@ -1179,7 +959,8 @@ function handlePurchase(event) {
             title: product.name,
             unit_price: totalNum,
             currency_id: 'BRL',
-            quantity: 1
+            quantity: 1,
+            back_url: window.location.origin + window.location.pathname
         })
     })
     .then(async (res) => {
@@ -1329,7 +1110,13 @@ function checkoutCart(){
     // Mercado Pago preference via Function
     fetch('/.netlify/functions/create-preference', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: 'Carrinho XTreino', unit_price: Number(total.toFixed(2)), currency_id: 'BRL', quantity: 1 })
+        body: JSON.stringify({ 
+            title: 'Carrinho XTreino', 
+            unit_price: Number(total.toFixed(2)), 
+            currency_id: 'BRL', 
+            quantity: 1,
+            back_url: window.location.origin + window.location.pathname
+        })
     }).then(async (res)=>{ if(!res.ok) throw new Error(await res.text()); return res.json(); })
     .then(data=>{ if (data.init_point) window.location.href = data.init_point; else alert('Erro ao iniciar checkout.'); })
     .catch(()=> alert('Falha no checkout.'));
@@ -1531,10 +1318,20 @@ async function submitSchedule(e){
     const total = Number(cfg.price.toFixed(2));
     fetch('/.netlify/functions/create-preference',{
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ title: `${cfg.label} - ${schedule} - ${date}`, unit_price: total, currency_id:'BRL', quantity:1 })
+        body: JSON.stringify({ 
+            title: `${cfg.label} - ${schedule} - ${date}`, 
+            unit_price: total, 
+            currency_id:'BRL', 
+            quantity:1,
+            back_url: window.location.origin + window.location.pathname
+        })
     }).then(async res=>{ if(!res.ok){ const t = await res.text(); throw new Error(t || 'Erro na função de pagamento'); } return res.json(); })
     .then(data=>{
         closeScheduleModal();
+        // Salvar external_reference para verificação posterior
+        if (data.external_reference) {
+            sessionStorage.setItem('lastExternalRef', data.external_reference);
+        }
         const url = data.init_point || data.sandbox_init_point; // prioriza produção
         if (url) window.location.href = url; else alert('Não foi possível iniciar o pagamento.');
     }).catch((err)=> { alert('Falha ao iniciar pagamento. ' + (err && err.message ? err.message : '')); })
@@ -1559,21 +1356,115 @@ function closeFreeWhatsModal(){
 
 // Modal confirmação
 function openPaymentConfirmModal(title, msg, groupLink){
+    console.log('Opening payment confirmation modal:', { title, msg, groupLink });
     const m = document.getElementById('paymentConfirmModal');
     const t = document.getElementById('paymentConfirmTitle');
     const p = document.getElementById('paymentConfirmMsg');
     const g = document.getElementById('paymentGroupBtn');
+    
+    if (!m) {
+        console.error('Payment confirmation modal not found');
+        return;
+    }
+    
     if (t) t.textContent = title || 'Pagamento';
     if (p) p.textContent = msg || '';
     if (g){
         if (groupLink){ g.href = groupLink; g.classList.remove('hidden'); }
         else { g.classList.add('hidden'); }
     }
-    if (m) m.classList.remove('hidden');
+    m.classList.remove('hidden');
+    console.log('Payment confirmation modal opened successfully');
 }
 function closePaymentConfirmModal(){
     const m = document.getElementById('paymentConfirmModal');
     if (m) m.classList.add('hidden');
+}
+
+// Verificar status do pagamento via API do Mercado Pago
+async function checkPaymentStatus(preferenceId) {
+    try {
+        console.log('Checking payment status for preference:', preferenceId);
+        
+        // Fazer requisição para nossa Netlify Function que verifica o status
+        const response = await fetch('/.netlify/functions/check-payment-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                preference_id: preferenceId,
+                external_reference: sessionStorage.getItem('lastExternalRef')
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to check payment status');
+        }
+        
+        const data = await response.json();
+        console.log('Payment status response:', data);
+        
+        if (data.status === 'approved') {
+            console.log('Payment approved, processing...');
+            processSuccessfulPayment();
+        } else if (data.status === 'pending') {
+            console.log('Payment still pending, will check again in 10 seconds...');
+            setTimeout(() => checkPaymentStatus(preferenceId), 10000);
+        } else if (data.status === 'rejected') {
+            console.log('Payment was rejected');
+            openPaymentConfirmModal('Pagamento Rejeitado', 'Seu pagamento foi rejeitado. Tente novamente ou use outro método de pagamento.');
+        } else {
+            console.log('Payment status:', data.status);
+            // Para outros status, mostrar modal informativo
+            openPaymentConfirmModal(
+                'Pagamento em Processamento', 
+                'Seu pagamento está sendo processado. Você receberá confirmação em breve.',
+                null
+            );
+        }
+        
+    } catch (error) {
+        console.error('Error checking payment status:', error);
+        // Fallback: mostrar modal informativo
+        openPaymentConfirmModal(
+            'Pagamento em Processamento', 
+            'Não foi possível verificar o status do pagamento. Se você já pagou, a confirmação aparecerá em breve.',
+            null
+        );
+    }
+}
+
+// Processar pagamento bem-sucedido
+function processSuccessfulPayment() {
+    const regId = sessionStorage.getItem('lastRegId');
+    console.log('Processing successful payment, regId:', regId);
+    
+    if (regId) {
+        // Atualizar status no Firestore
+        import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js')
+            .then(({ doc, setDoc, getDoc, collection }) => {
+                const ref = doc(collection(window.firebaseDb,'registrations'), regId);
+                return setDoc(ref, { status:'paid' }, { merge:true })
+                  .then(()=> getDoc(ref))
+                  .then(snap=>{ const d = snap.exists()? snap.data():{}; return d.groupLink || null; });
+            }).then((groupLink)=>{
+                console.log('Registration updated, showing modal');
+                openPaymentConfirmModal('Pagamento confirmado', 'Seu pagamento foi aprovado. Confira seus acessos na área Minha Conta.', groupLink);
+            }).catch((e)=>{
+                console.error('Error updating registration:', e);
+                openPaymentConfirmModal('Pagamento confirmado', 'Seu pagamento foi aprovado. Confira seus acessos na área Minha Conta.');
+            });
+    } else {
+        console.log('No regId, creating local order');
+        // Fallback: cria registro local para exibir na aba pedidos
+        try{
+            const info = JSON.parse(sessionStorage.getItem('lastRegInfo')||'{}');
+            const orders = JSON.parse(localStorage.getItem('localOrders')||'[]');
+            orders.unshift({ title: info.title||'Reserva', amount: info.price||0, status:'paid', date: new Date().toISOString() });
+            localStorage.setItem('localOrders', JSON.stringify(orders));
+            console.log('Local order created:', orders[0]);
+        }catch(e){ console.error('Error creating local order:', e); }
+        openPaymentConfirmModal('Pagamento confirmado', 'Seu pagamento foi aprovado. Confira seus acessos na área Minha Conta.');
+    }
 }
 
 // --- Modal de Tokens ---
