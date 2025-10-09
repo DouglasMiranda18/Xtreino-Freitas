@@ -30,9 +30,9 @@ service cloud.firestore {
       allow write: if isSignedIn();
     }
 
-    // registrations: usuário pode ler os próprios (campo userId) e admins leem tudo
+    // registrations: leitura pública para contagem de vagas; usuário pode ler os próprios; admins leem tudo
     match /registrations/{regId} {
-      allow read: if isAdmin() || (isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.uid == request.auth.uid));
+      allow read: if true; // Permite leitura pública para contagem de vagas
       allow write: if isSignedIn();
     }
 
