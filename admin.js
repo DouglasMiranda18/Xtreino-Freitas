@@ -132,6 +132,33 @@
   let charts = {};
   let period = { from: null, to: null };
 
+  // Unifica pedidos: orders + registrations
+  async function fetchUnifiedOrders() {
+    const items = [];
+    try {
+      const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+      // Orders
+      try{
+        const snap = await getDocs(collection(window.firebaseDb,'orders'));
+        snap.forEach(d => {
+          const o = d.data();
+          const ts = new Date(o.createdAt || o.timestamp || 0);
+          items.push({ ts, amount: Number(o.amount||o.total||0), item: (o.item||o.productName||'Pedido'), customer:(o.customer||o.buyerEmail||'-'), status:(o.status||'') });
+        });
+      }catch(_){}
+      // Registrations
+      try{
+        const regs = await getDocs(collection(window.firebaseDb,'registrations'));
+        regs.forEach(d => {
+          const r = d.data();
+          const ts = (r.createdAt?.toDate ? r.createdAt.toDate() : (r.timestamp? new Date(r.timestamp) : new Date()));
+          items.push({ ts, amount: Number(r.price||0), item:(r.title||r.eventType||'Reserva'), customer:(r.email||'-'), status:(r.status||'') });
+        });
+      }catch(_){}
+    } catch(_){}
+    return items;
+  }
+
   async function loadReports(){
     try{
       await loadKpis().catch(()=>{});
@@ -156,31 +183,15 @@
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const ordersSnap = await getDocs(collection(window.firebaseDb,'orders'));
+    const all = await fetchUnifiedOrders();
     let totalToday = 0, totalMonth = 0, receivable = 0;
-    ordersSnap.forEach(d => {
-      const o = d.data();
-      const ts = new Date(o.createdAt || o.timestamp || 0);
-      const amount = Number(o.amount || o.total || 0);
-      if (ts >= startOfDay) totalToday += amount;
-      if (ts >= startOfMonth) totalMonth += amount;
-      if ((o.status||'').toLowerCase() === 'pending') receivable += amount;
+    all.forEach(o => {
+      const ts = o.ts;
+      const amount = Number(o.amount||0);
+      if (ts >= startOfDay && (o.status||'').toLowerCase()==='paid') totalToday += amount;
+      if (ts >= startOfMonth && (o.status||'').toLowerCase()==='paid') totalMonth += amount;
+      if ((o.status||'').toLowerCase()==='pending') receivable += amount;
     });
-    // incluir registrations (paid/pending)
-    try{
-      const regsSnap = await getDocs(collection(window.firebaseDb,'registrations'));
-      regsSnap.forEach(d=>{
-        const r = d.data();
-        const ts = (r.createdAt?.toDate ? r.createdAt.toDate() : (r.timestamp? new Date(r.timestamp) : new Date()))
-        const amount = Number(r.price||0);
-        if ((r.status||'').toLowerCase()==='paid'){
-          if (ts >= startOfDay) totalToday += amount;
-          if (ts >= startOfMonth) totalMonth += amount;
-        } else if ((r.status||'').toLowerCase()==='pending'){
-          receivable += amount;
-        }
-      });
-    }catch(_){ }
     kpiTodayEl.textContent = brl(totalToday);
     kpiMonthEl.textContent = brl(totalMonth);
     kpiRecEl.textContent = brl(receivable);
@@ -198,29 +209,18 @@
   async function renderSalesChart(){
     const canvas = document.getElementById('salesChart');
     if (!canvas) return;
-    const ordersSnap = await getDocs(collection(window.firebaseDb,'orders'));
+    const all = await fetchUnifiedOrders();
     // agrega últimos 30 dias
     const days = [...Array(30)].map((_,i)=>{ const d = new Date(); d.setDate(d.getDate()-(29-i)); return d;});
     const labels = days.map(d=>d.toLocaleDateString('pt-BR'));
     const dataMap = Object.fromEntries(labels.map(l=>[l,0]));
-    ordersSnap.forEach(d => {
-      const o = d.data(); const ts = new Date(o.createdAt || o.timestamp || 0);
+    all.forEach(o => {
+      const ts = o.ts;
       if (period.from && ts < period.from) return;
       if (period.to && ts > period.to) return;
       const label = ts.toLocaleDateString('pt-BR');
-      if (dataMap[label] !== undefined) dataMap[label] += Number(o.amount || o.total || 0);
+      if (dataMap[label] !== undefined && (o.status||'').toLowerCase()==='paid') dataMap[label] += Number(o.amount||0);
     });
-    // soma registrations pagas
-    try{
-      const regsSnap = await getDocs(collection(window.firebaseDb,'registrations'));
-      regsSnap.forEach(d=>{
-        const r = d.data(); if ((r.status||'').toLowerCase()!=='paid') return;
-        const ts = (r.createdAt?.toDate ? r.createdAt.toDate() : (r.timestamp? new Date(r.timestamp) : new Date()));
-        if (period.from && ts < period.from) return; if (period.to && ts > period.to) return;
-        const label = ts.toLocaleDateString('pt-BR');
-        if (dataMap[label] !== undefined) dataMap[label] += Number(r.price||0);
-      });
-    }catch(_){ }
     const data = labels.map(l=>dataMap[l]);
     try { if (charts.sales) { charts.sales.destroy(); } } catch(_){}
     charts.sales = new Chart(canvas.getContext('2d'), {
@@ -231,13 +231,9 @@
   async function renderTopProducts(){
     const canvas = document.getElementById('topProductsChart');
     if (!canvas) return;
-    const snap = await getDocs(collection(window.firebaseDb,'orders'));
+    const all = await fetchUnifiedOrders();
     const map = {};
-    snap.forEach(d=>{ const o=d.data(); const name=(o.item||o.productName||'Outro'); map[name]=(map[name]||0)+Number(o.amount||o.total||0); });
-    try{
-      const regsSnap = await getDocs(collection(window.firebaseDb,'registrations'));
-      regsSnap.forEach(d=>{ const r=d.data(); if ((r.status||'').toLowerCase()!=='paid') return; const name=(r.title||r.eventType||'Reserva'); map[name]=(map[name]||0)+Number(r.price||0); });
-    }catch(_){ }
+    all.forEach(o=>{ if ((o.status||'').toLowerCase()!=='paid') return; const name=(o.item||'Item'); map[name]=(map[name]||0)+Number(o.amount||0); });
     const entries = Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,5);
     try { if (charts.top) { charts.top.destroy(); } } catch(_){}
     charts.top = new Chart(canvas.getContext('2d'), { type:'bar', data:{ labels: entries.map(e=>e[0]), datasets:[{label:'Receita', data: entries.map(e=>e[1]), backgroundColor:'#60a5fa'}] }, options:{plugins:{legend:{display:false}}} });
