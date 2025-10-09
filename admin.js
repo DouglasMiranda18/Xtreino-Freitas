@@ -113,6 +113,7 @@
     if (isManager){
       await loadReports();
       await loadRecentSchedules();
+      await loadPending();
     } else {
       await loadRecentOrders().catch(()=>{});
     }
@@ -211,6 +212,57 @@
     const snap = await getDocs(collection(window.firebaseDb,'orders'));
     let i=1; let total=0; snap.forEach(d=>{ const o=d.data(); const ts=new Date(o.createdAt||o.timestamp||0); if (period.from&&ts<period.from) return; if (period.to&&ts>period.to) return; total++; const tr=document.createElement('tr'); tr.innerHTML=`<td class="py-2">${i++}</td><td class="py-2">${o.customer||o.buyerEmail||''}</td><td class="py-2">${o.item||o.productName||''}</td><td class="py-2">${brl(Number(o.amount||o.total||0))}</td><td class="py-2">${o.status||'—'}</td>`; tbody.appendChild(tr); });
     if (count) count.textContent = `${total} pedidos`;
+  }
+  // Pendências (orders.status === 'pending' OU registrations.status === 'pending')
+  async function loadPending(){
+    const tbody = document.getElementById('pendingTbody');
+    const countEl = document.getElementById('pendingCount');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    let total = 0;
+    try{
+      const ordSnap = await getDocs(query(collection(window.firebaseDb,'orders'), where('status','==','pending')));
+      ordSnap.forEach(d=>{
+        const o = d.data();
+        const tr = document.createElement('tr');
+        const created = new Date(o.createdAt||o.timestamp||Date.now()).toLocaleString('pt-BR');
+        tr.innerHTML = `<td class="py-2">${d.id.slice(0,6)}</td>
+          <td class="py-2">${o.customer||o.buyerEmail||'-'}</td>
+          <td class="py-2">${o.item||o.productName||'-'}</td>
+          <td class="py-2">${brl(Number(o.amount||o.total||0))}</td>
+          <td class="py-2">${created}</td>
+          <td class="py-2"><button class="text-blue-600" data-check="${o.external_reference||d.id}">Verificar</button></td>`;
+        tbody.appendChild(tr); total++;
+      });
+    }catch(_){}
+    try{
+      const regSnap = await getDocs(query(collection(window.firebaseDb,'registrations'), where('status','==','pending')));
+      regSnap.forEach(d=>{
+        const r = d.data();
+        const tr = document.createElement('tr');
+        const created = new Date(r.createdAt?.toDate ? r.createdAt.toDate() : (r.timestamp||Date.now())).toLocaleString('pt-BR');
+        tr.innerHTML = `<td class="py-2">${d.id.slice(0,6)}</td>
+          <td class="py-2">${r.email||'-'}</td>
+          <td class="py-2">${r.title||r.eventType||'-'}</td>
+          <td class="py-2">${brl(Number(r.price||0))}</td>
+          <td class="py-2">${created}</td>
+          <td class="py-2"><button class="text-blue-600" data-check="${r.external_reference||d.id}">Verificar</button></td>`;
+        tbody.appendChild(tr); total++;
+      });
+    }catch(_){ }
+    if (countEl) countEl.textContent = `${total} pendentes`;
+    tbody.addEventListener('click', async (e)=>{
+      const btn = e.target.closest('button[data-check]');
+      if (!btn) return;
+      const identifier = btn.getAttribute('data-check');
+      btn.textContent = 'Verificando...'; btn.disabled = true;
+      try{
+        const res = await fetch('/.netlify/functions/check-payment-status', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ preference_id: identifier, external_reference: identifier }) });
+        const data = await res.json();
+        alert('Status: ' + (data.status||'desconhecido'));
+      }catch(_){ alert('Falha ao verificar'); }
+      btn.textContent = 'Verificar'; btn.disabled = false;
+    }, { once: true });
   }
 
   async function loadRecentSchedules(){

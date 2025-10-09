@@ -130,6 +130,27 @@
                     </div>
                 </div>
                 <div class="bg-white border border-gray-200 rounded-xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold">Pedidos Pendentes</h3>
+                        <span id="pendingCount" class="text-sm text-gray-500"></span>
+                    </div>
+                    <div class="overflow-x-auto text-sm">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="text-left text-gray-500">
+                                    <th class="py-2">ID</th>
+                                    <th class="py-2">Cliente</th>
+                                    <th class="py-2">Item</th>
+                                    <th class="py-2">Valor</th>
+                                    <th class="py-2">Criado</th>
+                                    <th class="py-2">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pendingTbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="bg-white border border-gray-200 rounded-xl p-6">
                     <h3 class="font-bold mb-4">Horários mais procurados</h3>
                     <canvas id="popularHoursChart" height="120"></canvas>
                 </div>
