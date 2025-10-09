@@ -1243,7 +1243,7 @@ async function renderScheduleTimes(){
         const { collection, query, where, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         if (window.__schedUnsub) { try{ window.__schedUnsub(); }catch(_){ } }
         window.__schedUnsub = onSnapshot(
-            query(collection(window.firebaseDb,'registrations'), where('date','==', date), where('status','in',['paid','confirmed'])),
+            query(collection(window.firebaseDb,'registrations'), where('date','==', date)),
             ()=> updateOccupiedAndRefreshButtons(day, date, timesWrap)
         );
     }catch(_){ }
@@ -1256,9 +1256,7 @@ async function fetchOccupiedForDate(day, date){
     const map = {};
     try {
         const isLocal = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
-        const isNetlify = /netlify\.app$/i.test(location.hostname);
-        // Evita consultas em dev local e também no domínio Netlify por enquanto
-        if (!window.firebaseReady || isLocal || isNetlify) return map;
+        if (!window.firebaseReady || isLocal) return map;
         const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const regsRef = collection(window.firebaseDb, 'registrations');
         const q = query(regsRef, where('date','==', date), where('status','in',['paid','confirmed']));
