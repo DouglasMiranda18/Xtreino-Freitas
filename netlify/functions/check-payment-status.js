@@ -1,5 +1,4 @@
-const { MercadoPagoConfig, Payment } = require('mercadopago');
-
+// Netlify Function: Verificar status do pagamento via API do Mercado Pago
 exports.handler = async (event, context) => {
     // CORS headers
     const headers = {
@@ -27,26 +26,40 @@ exports.handler = async (event, context) => {
             };
         }
 
-        // Configurar Mercado Pago
-        const client = new MercadoPagoConfig({
-            accessToken: process.env.MP_ACCESS_TOKEN,
-            options: { timeout: 5000 }
+        const accessToken = process.env.MP_ACCESS_TOKEN;
+        if (!accessToken) {
+            return {
+                statusCode: 500,
+                headers,
+                body: JSON.stringify({ error: 'MP_ACCESS_TOKEN not configured' })
+            };
+        }
+
+        // Buscar pagamentos usando a API REST do Mercado Pago
+        const searchUrl = `https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&range=2000&external_reference=${external_reference || preference_id}`;
+        
+        const response = await fetch(searchUrl, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+            }
         });
 
-        const payment = new Payment(client);
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Mercado Pago API error:', errorText);
+            return {
+                statusCode: 502,
+                headers,
+                body: JSON.stringify({ error: 'Failed to query Mercado Pago API' })
+            };
+        }
 
-        // Buscar pagamentos relacionados à preferência ou external_reference
-        const searchParams = {
-            qs: {
-                'external_reference': external_reference || preference_id
-            }
-        };
-
-        const searchResult = await payment.search(searchParams);
-        
+        const searchResult = await response.json();
         console.log('Search result:', JSON.stringify(searchResult, null, 2));
 
-        if (searchResult.results && searchResult.results.length > 0) {
+        if (searchResult && searchResult.results && searchResult.results.length > 0) {
             const latestPayment = searchResult.results[0];
             console.log('Latest payment status:', latestPayment.status);
             

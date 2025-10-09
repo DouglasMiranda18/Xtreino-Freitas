@@ -1,0 +1,15 @@
+{
+  "name": "xtreino-freitas",
+  "version": "1.0.0",
+  "description": "XTreino Freitas - Sistema de agendamento e pagamentos",
+  "main": "index.html",
+  "scripts": {
+    "build": "echo 'No build step required'",
+    "dev": "netlify dev"
+  },
+  "dependencies": {},
+  "devDependencies": {},
+  "keywords": ["xtreino", "freitas", "agendamento", "pagamentos"],
+  "author": "XTreino Freitas",
+  "license": "MIT"
+}
