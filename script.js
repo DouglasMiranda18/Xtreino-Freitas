@@ -1218,11 +1218,32 @@ function setSchedTomorrow(){
 }
 const scheduleCache = {};
 
+// Valida se a data é válida para agendamento (segunda a sexta, não passado)
+function isValidScheduleDate(dateStr){
+    const date = new Date(dateStr + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Não pode ser no passado
+    if (date < today) return false;
+    
+    // Só segunda a sexta (1-5)
+    const dayOfWeek = date.getDay();
+    return dayOfWeek >= 1 && dayOfWeek <= 5;
+}
+
 async function renderScheduleTimes(){
     const timesWrap = document.getElementById('schedTimes');
     if (!timesWrap) return;
     timesWrap.innerHTML = '';
     const date = document.getElementById('schedDate').value;
+    
+    // Valida data antes de renderizar
+    if (!isValidScheduleDate(date)){
+        timesWrap.innerHTML = '<p class="text-red-500 text-center py-4">Agendamentos apenas de segunda a sexta-feira e não em datas passadas.</p>';
+        return;
+    }
+    
     const dayNames = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
     const d = new Date(date + 'T00:00:00');
     const day = dayNames[d.getDay()];
