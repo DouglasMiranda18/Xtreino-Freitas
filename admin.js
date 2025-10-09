@@ -68,6 +68,14 @@
     }catch(e){ console.error('Erro ao carregar usuários', e); }
   }
 
+  // Placeholder para submissão manual de equipe/cadastro rápido
+  async function submitAddTeam(e){
+    try{
+      e?.preventDefault();
+      alert('Função de adicionar equipe será implementada em breve.');
+    }catch(_){ }
+  }
+
   onAuthStateChanged(window.firebaseAuth, async (user) => {
     if (!user){
       authGate.classList.remove('hidden');
