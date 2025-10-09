@@ -26,13 +26,13 @@ service cloud.firestore {
 
     // orders: leitura para admins; usuário pode ler os próprios (se tiver ownerId). Escrita para logados
     match /orders/{orderId} {
-      allow read: if isAdmin() || (isSignedIn() && resource.data.ownerId == request.auth.uid);
+      allow read: if isAdmin() || (isSignedIn() && (resource.data.ownerId == request.auth.uid || resource.data.userId == request.auth.uid || resource.data.uid == request.auth.uid));
       allow write: if isSignedIn();
     }
 
     // registrations: usuário pode ler os próprios (campo userId) e admins leem tudo
     match /registrations/{regId} {
-      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow read: if isAdmin() || (isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.uid == request.auth.uid));
       allow write: if isSignedIn();
     }
 
