@@ -213,6 +213,14 @@
     charts.top = new Chart(canvas.getContext('2d'), { type:'bar', data:{ labels: entries.map(e=>e[0]), datasets:[{label:'Receita', data: entries.map(e=>e[1]), backgroundColor:'#60a5fa'}] }, options:{plugins:{legend:{display:false}}} });
   }
 
+  // Atualiza todos os componentes do dashboard
+  async function refreshDashboard(){
+    try { await loadKpis(); } catch(_){ }
+    try { await renderSalesChart(); } catch(_){ }
+    try { await renderTopProducts(); } catch(_){ }
+    try { await loadRecentOrders(); } catch(_){ }
+  }
+
   async function loadRecentOrders(){
     const tbody = document.getElementById('ordersTbody');
     const count = document.getElementById('ordersCount');
@@ -286,8 +294,7 @@
           await setDoc(doc(collection(window.firebaseDb,'orders'), id), { status:'paid', updatedAt: Date.now() }, { merge:true });
           approve.closest('tr')?.remove();
           // atualizar métricas e recentes
-          await loadRecentOrders().catch(()=>{});
-          await loadKpis().catch(()=>{});
+          await refreshDashboard();
         } else if (approveReg){
           const id = approveReg.getAttribute('data-approve-reg');
           const { doc, setDoc, collection, getDoc, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
@@ -309,20 +316,19 @@
             }
           }catch(_){ }
           approveReg.closest('tr')?.remove();
-          await loadRecentOrders().catch(()=>{});
-          await loadKpis().catch(()=>{});
+          await refreshDashboard();
         } else if (remove){
           const id = remove.getAttribute('data-remove');
           const { doc, deleteDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
           await deleteDoc(doc(collection(window.firebaseDb,'orders'), id));
           remove.closest('tr')?.remove();
-          await loadKpis().catch(()=>{});
+          await refreshDashboard();
         } else if (removeReg){
           const id = removeReg.getAttribute('data-remove-reg');
           const { doc, deleteDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
           await deleteDoc(doc(collection(window.firebaseDb,'registrations'), id));
           removeReg.closest('tr')?.remove();
-          await loadKpis().catch(()=>{});
+          await refreshDashboard();
         }
       }catch(_){ alert('Ação falhou'); }
     });
