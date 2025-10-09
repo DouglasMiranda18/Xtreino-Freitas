@@ -113,9 +113,10 @@
     if (isManager){
       await loadReports();
       await loadRecentSchedules();
-      await loadPending();
+      await loadPending(true);
     } else {
       await loadRecentOrders().catch(()=>{});
+      await loadPending(false);
     }
   });
 
@@ -214,14 +215,18 @@
     if (count) count.textContent = `${total} pedidos`;
   }
   // Pendências (orders.status === 'pending' OU registrations.status === 'pending')
-  async function loadPending(){
+  async function loadPending(isManager){
     const tbody = document.getElementById('pendingTbody');
     const countEl = document.getElementById('pendingCount');
     if (!tbody) return;
     tbody.innerHTML = '';
     let total = 0;
     try{
-      const ordSnap = await getDocs(query(collection(window.firebaseDb,'orders'), where('status','==','pending')));
+      const clauses = [ where('status','==','pending') ];
+      if (!isManager && window.firebaseAuth?.currentUser?.uid){
+        clauses.push(where('ownerId','==', window.firebaseAuth.currentUser.uid));
+      }
+      const ordSnap = await getDocs(query(collection(window.firebaseDb,'orders'), ...clauses));
       ordSnap.forEach(d=>{
         const o = d.data();
         const tr = document.createElement('tr');
@@ -236,7 +241,11 @@
       });
     }catch(_){}
     try{
-      const regSnap = await getDocs(query(collection(window.firebaseDb,'registrations'), where('status','==','pending')));
+      const regClauses = [ where('status','==','pending') ];
+      if (!isManager && window.firebaseAuth?.currentUser?.uid){
+        regClauses.push(where('userId','==', window.firebaseAuth.currentUser.uid));
+      }
+      const regSnap = await getDocs(query(collection(window.firebaseDb,'registrations'), ...regClauses));
       regSnap.forEach(d=>{
         const r = d.data();
         const tr = document.createElement('tr');
