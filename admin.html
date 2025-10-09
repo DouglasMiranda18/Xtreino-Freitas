@@ -109,7 +109,7 @@
             </div>
 
             <div class="grid lg:grid-cols-2 gap-6">
-                <div class="bg-white border border-gray-200 rounded-xl p-6">
+                <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="font-bold">Pedidos Recentes</h3>
                         <span id="ordersCount" class="text-sm text-gray-500"></span>
@@ -117,7 +117,7 @@
                     <div id="ordersTable" class="overflow-x-auto text-sm">
                         <table class="w-full">
                             <thead>
-                                <tr class="text-left text-gray-500">
+                                <tr class="text-left text-gray-600 bg-gray-50">
                                     <th class="py-2">#</th>
                                     <th class="py-2">Cliente</th>
                                     <th class="py-2">Item</th>
@@ -125,11 +125,11 @@
                                     <th class="py-2">Status</th>
                                 </tr>
                             </thead>
-                            <tbody id="ordersTbody"></tbody>
+                            <tbody id="ordersTbody" class="divide-y"></tbody>
                         </table>
                     </div>
                 </div>
-                <div class="bg-white border border-gray-200 rounded-xl p-6">
+                <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="font-bold">Pedidos Pendentes</h3>
                         <span id="pendingCount" class="text-sm text-gray-500"></span>
@@ -137,8 +137,7 @@
                     <div class="overflow-x-auto text-sm">
                         <table class="w-full">
                             <thead>
-                                <tr class="text-left text-gray-500">
-                                    <th class="py-2">ID</th>
+                                <tr class="text-left text-gray-600 bg-yellow-50">
                                     <th class="py-2">Cliente</th>
                                     <th class="py-2">Item</th>
                                     <th class="py-2">Valor</th>
@@ -146,7 +145,7 @@
                                     <th class="py-2">Ações</th>
                                 </tr>
                             </thead>
-                            <tbody id="pendingTbody"></tbody>
+                            <tbody id="pendingTbody" class="divide-y"></tbody>
                         </table>
                     </div>
                 </div>

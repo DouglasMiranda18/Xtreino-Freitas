@@ -239,12 +239,15 @@
         const o = d.data();
         const tr = document.createElement('tr');
         const created = new Date(o.createdAt||o.timestamp||Date.now()).toLocaleString('pt-BR');
-        tr.innerHTML = `<td class="py-2">${d.id.slice(0,6)}</td>
+        tr.innerHTML = `
           <td class="py-2">${o.customer||o.buyerEmail||'-'}</td>
           <td class="py-2">${o.item||o.productName||'-'}</td>
           <td class="py-2">${brl(Number(o.amount||o.total||0))}</td>
           <td class="py-2">${created}</td>
-          <td class="py-2"><button class="text-blue-600" data-check="${o.external_reference||d.id}">Verificar</button></td>`;
+          <td class="py-2 space-x-2">
+            <button class="px-2 py-1 bg-green-600 text-white rounded text-xs" data-approve="${d.id}">Aprovar</button>
+            <button class="px-2 py-1 bg-red-600 text-white rounded text-xs" data-remove="${d.id}">Remover</button>
+          </td>`;
         tbody.appendChild(tr); total++;
       });
     }catch(_){}
@@ -258,28 +261,48 @@
         const r = d.data();
         const tr = document.createElement('tr');
         const created = new Date(r.createdAt?.toDate ? r.createdAt.toDate() : (r.timestamp||Date.now())).toLocaleString('pt-BR');
-        tr.innerHTML = `<td class="py-2">${d.id.slice(0,6)}</td>
+        tr.innerHTML = `
           <td class="py-2">${r.email||'-'}</td>
           <td class="py-2">${r.title||r.eventType||'-'}</td>
           <td class="py-2">${brl(Number(r.price||0))}</td>
           <td class="py-2">${created}</td>
-          <td class="py-2"><button class="text-blue-600" data-check="${r.external_reference||d.id}">Verificar</button></td>`;
+          <td class="py-2 space-x-2">
+            <button class="px-2 py-1 bg-green-600 text-white rounded text-xs" data-approve-reg="${d.id}">Aprovar</button>
+            <button class="px-2 py-1 bg-red-600 text-white rounded text-xs" data-remove-reg="${d.id}">Remover</button>
+          </td>`;
         tbody.appendChild(tr); total++;
       });
     }catch(_){ }
     if (countEl) countEl.textContent = `${total} pendentes`;
     tbody.addEventListener('click', async (e)=>{
-      const btn = e.target.closest('button[data-check]');
-      if (!btn) return;
-      const identifier = btn.getAttribute('data-check');
-      btn.textContent = 'Verificando...'; btn.disabled = true;
+      const approve = e.target.closest('[data-approve]');
+      const approveReg = e.target.closest('[data-approve-reg]');
+      const remove = e.target.closest('[data-remove]');
+      const removeReg = e.target.closest('[data-remove-reg]');
       try{
-        const res = await fetch('/.netlify/functions/check-payment-status', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ preference_id: identifier, external_reference: identifier }) });
-        const data = await res.json();
-        alert('Status: ' + (data.status||'desconhecido'));
-      }catch(_){ alert('Falha ao verificar'); }
-      btn.textContent = 'Verificar'; btn.disabled = false;
-    }, { once: true });
+        if (approve){
+          const id = approve.getAttribute('data-approve');
+          const { doc, setDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+          await setDoc(doc(collection(window.firebaseDb,'orders'), id), { status:'paid', updatedAt: Date.now() }, { merge:true });
+          approve.closest('tr')?.remove();
+        } else if (approveReg){
+          const id = approveReg.getAttribute('data-approve-reg');
+          const { doc, setDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+          await setDoc(doc(collection(window.firebaseDb,'registrations'), id), { status:'paid', paidAt: Date.now() }, { merge:true });
+          approveReg.closest('tr')?.remove();
+        } else if (remove){
+          const id = remove.getAttribute('data-remove');
+          const { doc, deleteDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+          await deleteDoc(doc(collection(window.firebaseDb,'orders'), id));
+          remove.closest('tr')?.remove();
+        } else if (removeReg){
+          const id = removeReg.getAttribute('data-remove-reg');
+          const { doc, deleteDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+          await deleteDoc(doc(collection(window.firebaseDb,'registrations'), id));
+          removeReg.closest('tr')?.remove();
+        }
+      }catch(_){ alert('Ação falhou'); }
+    });
   }
 
   async function loadRecentSchedules(){
