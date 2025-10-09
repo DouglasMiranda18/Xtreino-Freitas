@@ -1,22 +1,30 @@
 // Client Area JavaScript
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
-import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
+import { getAuth, onAuthStateChanged, signOut, browserLocalPersistence, setPersistence } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, orderBy, limit } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 
-// Firebase configuration
-const firebaseConfig = {
-    apiKey: "AIzaSyBqJ8Q9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q",
-    authDomain: "supernatural-51e12.firebaseapp.com",
-    projectId: "supernatural-51e12",
-    storageBucket: "supernatural-51e12.appspot.com",
-    messagingSenderId: "123456789012",
-    appId: "1:123456789012:web:abcdefghijklmnopqrstuv"
-};
+// Reuse global Firebase app/auth/db initialized in firebase.js
+let app = null;
+let auth = null;
+let db = null;
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+if (window.firebaseApp && window.firebaseAuth && window.firebaseDb) {
+  app = window.firebaseApp;
+  auth = window.firebaseAuth;
+  db = window.firebaseDb;
+} else if (window.FIREBASE_CONFIG) {
+  // Fallback: initialize here if global init hasn't run yet
+  app = initializeApp(window.FIREBASE_CONFIG);
+  auth = getAuth(app);
+  db = getFirestore(app);
+} else {
+  console.warn('FIREBASE_CONFIG not found. Authentication may not work on client.html');
+}
+
+// Ensure local persistence for auth session
+if (auth && auth.setPersistence) {
+  try { setPersistence(auth, browserLocalPersistence); } catch(_) {}
+}
 
 // Global variables
 let currentUser = null;
@@ -30,6 +38,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Check authentication state
 function checkAuthState() {
+    if (!auth) {
+        showLoginPrompt();
+        return;
+    }
     onAuthStateChanged(auth, (user) => {
         if (user) {
             currentUser = user;
