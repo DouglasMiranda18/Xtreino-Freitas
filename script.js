@@ -1262,6 +1262,18 @@ async function fetchOccupiedForDate(day, date){
     } catch(_) {}
     return map;
 }
+
+// Verifica disponibilidade (limite 12 por horário)
+async function checkSlotAvailability(date, schedule){
+    try{
+        if (!window.firebaseReady) return true;
+        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const regsRef = collection(window.firebaseDb, 'registrations');
+        const q = query(regsRef, where('date','==', date), where('schedule','==', schedule), where('status','in',['paid','confirmed']));
+        const snap = await getDocs(q);
+        return snap.size < 12;
+    }catch(_){ return true; }
+}
 async function updateOccupiedAndRefreshButtons(day, date, container){
     // cache por data
     let occupied = scheduleCache[date];
@@ -1306,6 +1318,10 @@ async function submitSchedule(e){
         if (!isAssociated){ alert('Apenas associados podem usar tokens.'); if(submitBtn){submitBtn.disabled=false; submitBtn.textContent=oldText;} return; }
         if (!canSpendTokens(cfg.price)){ alert('Saldo de tokens insuficiente.'); if(submitBtn){submitBtn.disabled=false; submitBtn.textContent=oldText;} return; }
     }
+    // checar disponibilidade antes de criar a reserva (evita overbooking)
+    const canBook = await checkSlotAvailability(date, schedule);
+    if (!canBook){ alert('Este horário não possui vagas. Escolha outro horário.'); if (submitBtn){ submitBtn.disabled=false; submitBtn.textContent=oldText; } return; }
+
     // cria documento pendente no Firestore (se disponível)
     let regId = 'local-' + Date.now();
     try {
