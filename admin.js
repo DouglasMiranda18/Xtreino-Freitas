@@ -394,16 +394,16 @@
   async function applyFilter(){ parsePeriod(); await loadReports(); }
 
   async function exportOrdersCsv(){
-    const snap = await getDocs(collection(window.firebaseDb,'orders'));
-    const rows = [['id','data','cliente','item','valor','status']];
-    snap.forEach(d=>{ const o=d.data(); const ts=new Date(o.createdAt||o.timestamp||0); if (period.from&&ts<period.from) return; if (period.to&&ts>period.to) return; rows.push([d.id, ts.toISOString(), o.customer||o.buyerEmail||'', o.item||o.productName||'', String(o.amount||o.total||0), o.status||'']); });
+    const all = await fetchUnifiedOrders();
+    const rows = [['data','cliente','item','valor','status']];
+    all.forEach(o=>{ const ts=o.ts; if (period.from&&ts<period.from) return; if (period.to&&ts>period.to) return; rows.push([ts.toISOString(), o.customer||'', o.item||'', String(o.amount||0), o.status||'']); });
     downloadCsv('vendas.csv', rows);
   }
 
   async function exportSchedulesCsv(){
-    const snap = await getDocs(collection(window.firebaseDb,'schedules'));
+    const regs = await getDocs(collection(window.firebaseDb,'registrations'));
     const rows = [['id','data','evento','dia','hora','cliente']];
-    snap.forEach(d=>{ const s=d.data(); const ts=new Date(s.createdAt||s.timestamp||s.date||0); if (period.from&&ts<period.from) return; if (period.to&&ts>period.to) return; rows.push([d.id, ts.toISOString(), s.eventType||'', s.date||'', s.hour||'', s.name||s.email||'']); });
+    regs.forEach(d=>{ const r=d.data(); const ts=(r.createdAt?.toDate ? r.createdAt.toDate() : (r.timestamp? new Date(r.timestamp) : new Date())); if (period.from&&ts<period.from) return; if (period.to&&ts>period.to) return; const schedule=String(r.schedule||''); const m=schedule.match(/(\d{1,2})h/); const hora=m?`${m[1]}h`:schedule; rows.push([d.id, ts.toISOString(), r.eventType||r.title||'Reserva', r.date||'', hora, r.email||'']); });
     downloadCsv('inscricoes.csv', rows);
   }
 
@@ -424,12 +424,12 @@
   async function renderPopularHours(){
     const canvas = document.getElementById('popularHoursChart');
     if (!canvas) return;
-    const snap = await getDocs(collection(window.firebaseDb,'schedules'));
+    const regs = await getDocs(collection(window.firebaseDb,'registrations'));
     const hours = ['14','15','16','17','18','19','20','21','22','23'];
     const map = Object.fromEntries(hours.map(h=>[h,0]));
-    snap.forEach(d=>{ const s=d.data(); const h=(s.hour||'').toString().padStart(2,'0'); if (map[h]!==undefined) map[h]++; });
+    regs.forEach(d=>{ const r=d.data(); if ((r.status||'').toLowerCase()!=='paid') return; const schedule=String(r.schedule||''); const m=schedule.match(/(\d{1,2})h/); const h=(m?m[1]:schedule).toString().padStart(2,'0'); if (map[h]!==undefined) map[h]++; });
     const data = hours.map(h=>map[h]);
-    try { if (charts.hours) { charts.hours.destroy(); } } catch(_){}
+    try { if (charts.hours) { charts.hours.destroy(); } } catch(_){ }
     charts.hours = new Chart(canvas.getContext('2d'), { type:'bar', data:{ labels: hours.map(h=>`${h}h`), datasets:[{label:'Agendamentos', data, backgroundColor:'#34d399'}] }, options:{plugins:{legend:{display:false}}} });
   }
 
@@ -452,8 +452,8 @@
       const map = {};
       snap.forEach(d=>{
         const r = d.data();
-        // se quiser filtrar por tipo, respeita se existir no doc
-        if (r.eventType && r.eventType !== eventType) return;
+        // filtro por tipo (aceita contains, case-insensitive)
+        if (r.eventType && !String(r.eventType).toLowerCase().includes(String(eventType).toLowerCase())) return;
         const key = r.schedule || r.hour || '—';
         map[key] = (map[key]||0) + 1;
       });
