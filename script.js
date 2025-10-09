@@ -188,6 +188,20 @@ function toggleAccountButtons(isLogged){
     if (loginMob && accMob){ loginMob.classList.toggle('hidden', isLogged); accMob.classList.toggle('hidden', !isLogged); }
 }
 
+// Garantir estado inicial correto dos botões ao carregar a página
+document.addEventListener('DOMContentLoaded', () => {
+    try{
+        const loginDesk = document.getElementById('loginBtnDesktop');
+        const accDesk = document.getElementById('accountBtnDesktop');
+        const loginMob = document.getElementById('loginBtnMobile');
+        const accMob = document.getElementById('accountBtnMobile');
+        if (accDesk) accDesk.classList.add('hidden');
+        if (accMob) accMob.classList.add('hidden');
+        if (loginDesk) loginDesk.classList.remove('hidden');
+        if (loginMob) loginMob.classList.remove('hidden');
+    }catch(_){ /* noop */ }
+});
+
 function requestAdminAccess(){
     // Se já estiver logado, valida papel; senão, abre modal de login e marca redirecionamento
     if (!window.isLoggedIn) {
