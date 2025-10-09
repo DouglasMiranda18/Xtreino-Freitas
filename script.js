@@ -1240,7 +1240,7 @@ async function fetchOccupiedForDate(day, date){
         if (!window.firebaseReady || isLocal || isNetlify) return map;
         const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const regsRef = collection(window.firebaseDb, 'registrations');
-        const q = query(regsRef, where('date','==', date), where('status','==','confirmed'));
+        const q = query(regsRef, where('date','==', date), where('status','in',['paid','confirmed']));
         const snap = await getDocs(q);
         snap.forEach(doc=>{
             const r = doc.data();
@@ -1301,14 +1301,17 @@ async function submitSchedule(e){
         if (window.firebaseReady && !isLocal){
             const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
             const docRef = await addDoc(collection(window.firebaseDb,'registrations'),{
-                uid: (window.firebaseAuth && window.firebaseAuth.currentUser ? window.firebaseAuth.currentUser.uid : null),
+                userId: (window.firebaseAuth && window.firebaseAuth.currentUser ? window.firebaseAuth.currentUser.uid : null),
                 teamName: team,
                 email,
                 phone,
                 schedule,
                 date,
+                eventType,
+                title: `${cfg.label} - ${schedule} - ${date}`,
+                price: Number(cfg.price || 0),
                 status:'pending',
-                timestamp: serverTimestamp()
+                createdAt: serverTimestamp()
             });
             regId = docRef.id;
             try{ sessionStorage.setItem('lastRegId', regId); }catch(_){ }
@@ -1467,7 +1470,7 @@ function processSuccessfulPayment() {
         import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js')
             .then(({ doc, setDoc, getDoc, collection }) => {
                 const ref = doc(collection(window.firebaseDb,'registrations'), regId);
-                return setDoc(ref, { status:'paid' }, { merge:true })
+                return setDoc(ref, { status:'paid', paidAt: Date.now() }, { merge:true })
                   .then(()=> getDoc(ref))
                   .then(snap=>{ const d = snap.exists()? snap.data():{}; return d.groupLink || null; });
             }).then((groupLink)=>{
