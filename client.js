@@ -35,9 +35,11 @@ function checkAuthState() {
             currentUser = user;
             loadUserProfile();
             loadDashboard();
+            // Hide login prompt if user is logged in
+            hideLoginPrompt();
         } else {
-            // Redirect to login
-            window.location.href = 'index.html';
+            // Show login prompt instead of redirecting
+            showLoginPrompt();
         }
     });
 }
@@ -336,10 +338,45 @@ function loadTokens() {
 async function logout() {
     try {
         await signOut(auth);
-        window.location.href = 'index.html';
+        // Show login prompt instead of redirecting
+        showLoginPrompt();
     } catch (error) {
         console.error('Error logging out:', error);
     }
+}
+
+// Show login prompt
+function showLoginPrompt() {
+    const mainContent = document.querySelector('.max-w-7xl');
+    if (mainContent) {
+        mainContent.innerHTML = `
+            <div class="min-h-screen flex items-center justify-center">
+                <div class="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+                    <div class="mb-6">
+                        <svg class="w-16 h-16 mx-auto text-blue-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                        </svg>
+                        <h2 class="text-2xl font-bold text-gray-900 mb-2">Acesso Restrito</h2>
+                        <p class="text-gray-600">Você precisa fazer login para acessar sua área de cliente.</p>
+                    </div>
+                    <div class="space-y-4">
+                        <button onclick="window.location.href='index.html'" class="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">
+                            Ir para Login
+                        </button>
+                        <button onclick="window.location.href='index.html'" class="w-full border border-gray-300 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-50 transition-colors">
+                            Voltar ao Site
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+}
+
+// Hide login prompt
+function hideLoginPrompt() {
+    // This function is called when user is logged in
+    // The main content is already loaded by loadDashboard()
 }
 
 // Helper functions
