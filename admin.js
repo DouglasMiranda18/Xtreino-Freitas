@@ -166,6 +166,21 @@
       if (ts >= startOfMonth) totalMonth += amount;
       if ((o.status||'').toLowerCase() === 'pending') receivable += amount;
     });
+    // incluir registrations (paid/pending)
+    try{
+      const regsSnap = await getDocs(collection(window.firebaseDb,'registrations'));
+      regsSnap.forEach(d=>{
+        const r = d.data();
+        const ts = (r.createdAt?.toDate ? r.createdAt.toDate() : (r.timestamp? new Date(r.timestamp) : new Date()))
+        const amount = Number(r.price||0);
+        if ((r.status||'').toLowerCase()==='paid'){
+          if (ts >= startOfDay) totalToday += amount;
+          if (ts >= startOfMonth) totalMonth += amount;
+        } else if ((r.status||'').toLowerCase()==='pending'){
+          receivable += amount;
+        }
+      });
+    }catch(_){ }
     kpiTodayEl.textContent = brl(totalToday);
     kpiMonthEl.textContent = brl(totalMonth);
     kpiRecEl.textContent = brl(receivable);
@@ -195,6 +210,17 @@
       const label = ts.toLocaleDateString('pt-BR');
       if (dataMap[label] !== undefined) dataMap[label] += Number(o.amount || o.total || 0);
     });
+    // soma registrations pagas
+    try{
+      const regsSnap = await getDocs(collection(window.firebaseDb,'registrations'));
+      regsSnap.forEach(d=>{
+        const r = d.data(); if ((r.status||'').toLowerCase()!=='paid') return;
+        const ts = (r.createdAt?.toDate ? r.createdAt.toDate() : (r.timestamp? new Date(r.timestamp) : new Date()));
+        if (period.from && ts < period.from) return; if (period.to && ts > period.to) return;
+        const label = ts.toLocaleDateString('pt-BR');
+        if (dataMap[label] !== undefined) dataMap[label] += Number(r.price||0);
+      });
+    }catch(_){ }
     const data = labels.map(l=>dataMap[l]);
     try { if (charts.sales) { charts.sales.destroy(); } } catch(_){}
     charts.sales = new Chart(canvas.getContext('2d'), {
@@ -208,6 +234,10 @@
     const snap = await getDocs(collection(window.firebaseDb,'orders'));
     const map = {};
     snap.forEach(d=>{ const o=d.data(); const name=(o.item||o.productName||'Outro'); map[name]=(map[name]||0)+Number(o.amount||o.total||0); });
+    try{
+      const regsSnap = await getDocs(collection(window.firebaseDb,'registrations'));
+      regsSnap.forEach(d=>{ const r=d.data(); if ((r.status||'').toLowerCase()!=='paid') return; const name=(r.title||r.eventType||'Reserva'); map[name]=(map[name]||0)+Number(r.price||0); });
+    }catch(_){ }
     const entries = Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,5);
     try { if (charts.top) { charts.top.destroy(); } } catch(_){}
     charts.top = new Chart(canvas.getContext('2d'), { type:'bar', data:{ labels: entries.map(e=>e[0]), datasets:[{label:'Receita', data: entries.map(e=>e[1]), backgroundColor:'#60a5fa'}] }, options:{plugins:{legend:{display:false}}} });
