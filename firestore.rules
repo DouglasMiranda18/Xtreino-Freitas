@@ -30,6 +30,12 @@ service cloud.firestore {
       allow write: if isSignedIn();
     }
 
+    // registrations: usuário pode ler os próprios (campo userId) e admins leem tudo
+    match /registrations/{regId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow write: if isSignedIn();
+    }
+
     // tokens: admins podem gerenciar, usuário lê o próprio saldo
     match /tokens/{tokenId} {
       allow read, write: if isAdmin();
