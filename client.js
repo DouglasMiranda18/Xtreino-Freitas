@@ -59,16 +59,22 @@ function checkAuthState() {
 // Setup event listeners
 function setupEventListeners() {
     // Tab navigation
-    document.getElementById('dashboardTab').addEventListener('click', () => switchTab('dashboard'));
-    document.getElementById('ordersTab').addEventListener('click', () => switchTab('orders'));
-    document.getElementById('profileTab').addEventListener('click', () => switchTab('profile'));
-    document.getElementById('tokensTab').addEventListener('click', () => switchTab('tokens'));
+    const dashTab = document.getElementById('dashboardTab');
+    const ordersTab = document.getElementById('ordersTab');
+    const profileTab = document.getElementById('profileTab');
+    const tokensTab = document.getElementById('tokensTab');
+    if (dashTab) dashTab.addEventListener('click', () => switchTab('dashboard'));
+    if (ordersTab) ordersTab.addEventListener('click', () => switchTab('orders'));
+    if (profileTab) profileTab.addEventListener('click', () => switchTab('profile'));
+    if (tokensTab) tokensTab.addEventListener('click', () => switchTab('tokens'));
 
     // Logout button
-    document.getElementById('logoutBtn').addEventListener('click', logout);
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) logoutBtn.addEventListener('click', logout);
 
     // Profile form
-    document.getElementById('profileForm').addEventListener('submit', saveProfile);
+    const profileForm = document.getElementById('profileForm');
+    if (profileForm) profileForm.addEventListener('submit', saveProfile);
 }
 
 // Switch between tabs
