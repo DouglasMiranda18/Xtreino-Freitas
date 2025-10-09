@@ -158,24 +158,12 @@ async function loadDashboard() {
 // Load recent orders
 async function loadRecentOrders() {
     try {
-        const ordersQuery = query(
-            collection(db, 'registrations'),
-            where('userId', '==', currentUser.uid),
-            orderBy('createdAt', 'desc'),
-            limit(5)
-        );
-        
-        const ordersSnapshot = await getDocs(ordersQuery);
-        const orders = [];
-        
-        ordersSnapshot.forEach(doc => {
-            const data = doc.data();
-            orders.push({
-                id: doc.id,
-                ...data,
-                date: data.createdAt?.toDate?.() || new Date()
-            });
-        });
+        const regs = await fetchUserDocs('registrations', 5, true);
+        const orders = regs.map(d => ({
+            id: d.id,
+            ...d.data,
+            date: d.data.createdAt?.toDate?.() || new Date()
+        }));
 
         displayRecentOrders(orders);
     } catch (error) {
@@ -214,23 +202,12 @@ function displayRecentOrders(orders) {
 // Load all orders
 async function loadOrders() {
     try {
-        const ordersQuery = query(
-            collection(db, 'registrations'),
-            where('userId', '==', currentUser.uid),
-            orderBy('createdAt', 'desc')
-        );
-        
-        const ordersSnapshot = await getDocs(ordersQuery);
-        const orders = [];
-        
-        ordersSnapshot.forEach(doc => {
-            const data = doc.data();
-            orders.push({
-                id: doc.id,
-                ...data,
-                date: data.createdAt?.toDate?.() || new Date()
-            });
-        });
+        const regs = await fetchUserDocs('registrations', 50, true);
+        const orders = regs.map(d => ({
+            id: d.id,
+            ...d.data,
+            date: d.data.createdAt?.toDate?.() || new Date()
+        }));
 
         displayAllOrders(orders);
     } catch (error) {
@@ -283,20 +260,9 @@ function displayAllOrders(orders) {
 // Load stats
 async function loadStats() {
     try {
-        const ordersQuery = query(
-            collection(db, 'registrations'),
-            where('userId', '==', currentUser.uid)
-        );
-        
-        const ordersSnapshot = await getDocs(ordersQuery);
-        let totalOrders = 0;
-        let totalSpent = 0;
-        
-        ordersSnapshot.forEach(doc => {
-            const data = doc.data();
-            totalOrders++;
-            totalSpent += data.price || 0;
-        });
+        const regs = await fetchUserDocs('registrations', 200, false);
+        let totalOrders = regs.length;
+        let totalSpent = regs.reduce((sum, r) => sum + (r.data.price || 0), 0);
 
         document.getElementById('totalOrders').textContent = totalOrders;
         document.getElementById('totalSpent').textContent = `R$ ${totalSpent.toFixed(2)}`;
@@ -304,6 +270,36 @@ async function loadStats() {
     } catch (error) {
         console.error('Error loading stats:', error);
     }
+}
+
+// Helper to fetch user docs handling different owner field names and rule variations
+async function fetchUserDocs(colName, max = 50, sortDesc = false){
+    const colRef = collection(db, colName);
+    const candidates = [
+        where('userId','==', currentUser.uid),
+        where('uid','==', currentUser.uid),
+        where('ownerId','==', currentUser.uid)
+    ];
+    const results = [];
+    for (const cond of candidates){
+        try{
+            const base = sortDesc ? query(colRef, cond) : query(colRef, cond);
+            const snap = await getDocs(base);
+            snap.forEach(d => results.push({ id: d.id, data: d.data() }));
+            if (results.length > 0) break; // got something
+        }catch(e){
+            // ignore permission errors, try next field
+        }
+    }
+    // limit and sort by createdAt if requested
+    const limited = results
+        .sort((a,b)=>{
+            const at = a.data.createdAt?.toMillis?.() || 0;
+            const bt = b.data.createdAt?.toMillis?.() || 0;
+            return sortDesc ? bt - at : at - bt;
+        })
+        .slice(0, max);
+    return limited;
 }
 
 // Load profile
