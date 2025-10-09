@@ -73,7 +73,7 @@ exports.handler = async (event, context) => {
                 })
             };
         } else {
-            // Se não encontrou pagamentos, pode estar pendente
+            // Se não encontrou pagamentos, continuar como pending para manter o polling
             return {
                 statusCode: 200,
                 headers,

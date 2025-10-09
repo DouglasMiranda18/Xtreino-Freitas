@@ -354,12 +354,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 if (!mpStatus && preferenceId) {
                     console.log('No mp_status but has preference-id, checking payment status...');
+                    // Mostrar modal de processamento enquanto verifica
+                    openPaymentConfirmModal('Pagamento em processamento', 'Estamos aguardando a confirmação do PIX. Assim que aprovado, avisaremos aqui.');
                     checkPaymentStatus(preferenceId);
                 } else if (!mpStatus && hasPaymentEvidence) {
                     // Se não tem mp_status mas há evidência de pagamento, tentar usar external_reference salvo
                     const externalRef = sessionStorage.getItem('lastExternalRef');
                     if (externalRef) {
                         console.log('No mp_status or preference-id, checking with external_reference...');
+                        // Mostrar modal de processamento enquanto verifica
+                        openPaymentConfirmModal('Pagamento em processamento', 'Estamos aguardando a confirmação do PIX. Assim que aprovado, avisaremos aqui.');
                         checkPaymentStatus(externalRef);
                     }
                 } else if (!hasPaymentEvidence) {
@@ -1345,6 +1349,17 @@ async function submitSchedule(e){
         // Salvar external_reference para verificação posterior
         if (data.external_reference) {
             sessionStorage.setItem('lastExternalRef', data.external_reference);
+            // Persistir no registro (se existir) para rastrear via painel
+            try{
+                const regId = sessionStorage.getItem('lastRegId');
+                if (regId && window.firebaseDb){
+                    import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js')
+                      .then(({ doc, setDoc, collection }) => {
+                          const ref = doc(collection(window.firebaseDb,'registrations'), regId);
+                          return setDoc(ref, { external_reference: data.external_reference }, { merge:true });
+                      }).catch(()=>{});
+                }
+            }catch(_){ }
         }
         const url = data.init_point || data.sandbox_init_point; // prioriza produção
         if (url) window.location.href = url; else alert('Não foi possível iniciar o pagamento.');
