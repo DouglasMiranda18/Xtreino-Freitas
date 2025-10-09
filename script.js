@@ -1237,8 +1237,16 @@ async function renderScheduleTimes(){
         btn.onclick = ()=>{ document.getElementById('schedSelectedTime').value = schedule; highlightSelectedSlot(btn, timesWrap); };
         timesWrap.appendChild(btn);
     });
-    // Atualiza com dados reais
+    // Atualiza com dados reais e mantém em tempo real
     updateOccupiedAndRefreshButtons(day, date, timesWrap);
+    try{
+        const { collection, query, where, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        if (window.__schedUnsub) { try{ window.__schedUnsub(); }catch(_){ } }
+        window.__schedUnsub = onSnapshot(
+            query(collection(window.firebaseDb,'registrations'), where('date','==', date), where('status','in',['paid','confirmed'])),
+            ()=> updateOccupiedAndRefreshButtons(day, date, timesWrap)
+        );
+    }catch(_){ }
 }
 function highlightSelectedSlot(selectedBtn, container){
     Array.from(container.children).forEach(el=> el.classList.remove('selected'));
