@@ -285,21 +285,44 @@
           const { doc, setDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
           await setDoc(doc(collection(window.firebaseDb,'orders'), id), { status:'paid', updatedAt: Date.now() }, { merge:true });
           approve.closest('tr')?.remove();
+          // atualizar métricas e recentes
+          await loadRecentOrders().catch(()=>{});
+          await loadKpis().catch(()=>{});
         } else if (approveReg){
           const id = approveReg.getAttribute('data-approve-reg');
-          const { doc, setDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+          const { doc, setDoc, collection, getDoc, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+          // marca registro como pago
           await setDoc(doc(collection(window.firebaseDb,'registrations'), id), { status:'paid', paidAt: Date.now() }, { merge:true });
+          // cria um pedido em 'orders' para alimentar métricas e lista
+          try{
+            const snap = await getDoc(doc(collection(window.firebaseDb,'registrations'), id));
+            if (snap.exists()){
+              const r = snap.data();
+              await addDoc(collection(window.firebaseDb,'orders'), {
+                itemName: r.title || r.eventType || 'Reserva',
+                amount: Number(r.price||0),
+                customerName: r.email || '-',
+                ownerId: r.userId || null,
+                status: 'paid',
+                createdAt: serverTimestamp()
+              });
+            }
+          }catch(_){ }
           approveReg.closest('tr')?.remove();
+          await loadRecentOrders().catch(()=>{});
+          await loadKpis().catch(()=>{});
         } else if (remove){
           const id = remove.getAttribute('data-remove');
           const { doc, deleteDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
           await deleteDoc(doc(collection(window.firebaseDb,'orders'), id));
           remove.closest('tr')?.remove();
+          await loadKpis().catch(()=>{});
         } else if (removeReg){
           const id = removeReg.getAttribute('data-remove-reg');
           const { doc, deleteDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
           await deleteDoc(doc(collection(window.firebaseDb,'registrations'), id));
           removeReg.closest('tr')?.remove();
+          await loadKpis().catch(()=>{});
         }
       }catch(_){ alert('Ação falhou'); }
     });
