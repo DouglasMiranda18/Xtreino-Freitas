@@ -256,9 +256,19 @@
     const count = document.getElementById('ordersCount');
     if (!tbody) return;
     tbody.innerHTML = '';
+    const items = [];
+    // Orders
     const snap = await getDocs(collection(window.firebaseDb,'orders'));
-    let i=1; let total=0; snap.forEach(d=>{ const o=d.data(); const ts=new Date(o.createdAt||o.timestamp||0); if (period.from&&ts<period.from) return; if (period.to&&ts>period.to) return; total++; const tr=document.createElement('tr'); tr.innerHTML=`<td class="py-2">${i++}</td><td class="py-2">${o.customer||o.buyerEmail||''}</td><td class="py-2">${o.item||o.productName||''}</td><td class="py-2">${brl(Number(o.amount||o.total||0))}</td><td class="py-2">${o.status||'—'}</td>`; tbody.appendChild(tr); });
-    if (count) count.textContent = `${total} pedidos`;
+    snap.forEach(d=>{ const o=d.data(); const ts=new Date(o.createdAt||o.timestamp||0); if (period.from&&ts<period.from) return; if (period.to&&ts>period.to) return; items.push({ ts, client: (o.customer||o.buyerEmail||''), item: (o.item||o.productName||''), value: Number(o.amount||o.total||0), status: (o.status||'—') }); });
+    // Registrations pagas também contam como pedido
+    try{
+      const regsSnap = await getDocs(collection(window.firebaseDb,'registrations'));
+      regsSnap.forEach(d=>{ const r=d.data(); const status=(r.status||'').toLowerCase(); if (status!=='paid') return; const ts = (r.createdAt?.toDate ? r.createdAt.toDate() : (r.timestamp? new Date(r.timestamp) : new Date())); if (period.from&&ts<period.from) return; if (period.to&&ts>period.to) return; items.push({ ts, client:(r.email||''), item:(r.title||r.eventType||'Reserva'), value:Number(r.price||0), status:'paid' }); });
+    }catch(_){ }
+    // ordenar por data desc e renderizar
+    items.sort((a,b)=> b.ts - a.ts);
+    let i=1; items.forEach(row=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td class="py-2">${i++}</td><td class="py-2">${row.client}</td><td class="py-2">${row.item}</td><td class="py-2">${brl(row.value)}</td><td class="py-2">${row.status}</td>`; tbody.appendChild(tr); });
+    if (count) count.textContent = `${items.length} pedidos`;
   }
   // Pendências (orders.status === 'pending' OU registrations.status === 'pending')
   async function loadPending(isManager){
