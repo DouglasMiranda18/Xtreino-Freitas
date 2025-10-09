@@ -337,6 +337,48 @@
     charts.hours = new Chart(canvas.getContext('2d'), { type:'bar', data:{ labels: hours.map(h=>`${h}h`), datasets:[{label:'Agendamentos', data, backgroundColor:'#34d399'}] }, options:{plugins:{legend:{display:false}}} });
   }
 
+  // Carrega quadro de horários por data/evento
+  async function loadBoard(){
+    try{
+      const dateEl = document.getElementById('boardDate');
+      const typeEl = document.getElementById('boardEventType');
+      const tbody = document.getElementById('boardTbody');
+      if (!dateEl || !typeEl || !tbody) return;
+      const date = dateEl.value;
+      const eventType = typeEl.value;
+      tbody.innerHTML = '';
+      if (!date) return;
+      const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+      const regs = collection(window.firebaseDb,'registrations');
+      // status pago/confirmado para computar ocupação
+      const q = query(regs, where('date','==', date), where('status','in',['paid','confirmed']));
+      const snap = await getDocs(q);
+      const map = {};
+      snap.forEach(d=>{
+        const r = d.data();
+        // se quiser filtrar por tipo, respeita se existir no doc
+        if (r.eventType && r.eventType !== eventType) return;
+        const key = r.schedule || r.hour || '—';
+        map[key] = (map[key]||0) + 1;
+      });
+      const entries = Object.entries(map).sort((a,b)=>{
+        const na = parseInt(String(a[0]).replace(/\D/g,''))||0;
+        const nb = parseInt(String(b[0]).replace(/\D/g,''))||0;
+        return na-nb;
+      });
+      entries.forEach(([hour, cnt])=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td class="py-2">${hour}</td><td class="py-2">${cnt}/12</td><td class="py-2 text-gray-400">—</td>`;
+        tbody.appendChild(tr);
+      });
+      if (entries.length===0){
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td class="py-2" colspan="3">Sem reservas para esta data.</td>';
+        tbody.appendChild(tr);
+      }
+    }catch(e){ console.error('loadBoard error', e); }
+  }
+
   // Usuários ativos nos últimos 7 dias (baseado em lastLogin em users)
   async function renderActiveUsers(){
     const kpi = document.getElementById('kpiToday'); // placeholder: não há slot dedicado; opcional mover para outro card
