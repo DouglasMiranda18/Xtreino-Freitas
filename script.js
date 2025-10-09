@@ -335,25 +335,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 const preferenceId = sp.get('preference-id');
                 console.log('MP Return Check:', { mpStatus, preferenceId, url: window.location.href });
                 
-                // Se não tem mp_status mas tem preference-id, verificar status via API
+                // Só verificar pagamentos se há evidência real de uma tentativa de pagamento
+                const hasPaymentEvidence = mpStatus || preferenceId || sessionStorage.getItem('lastExternalRef') || sessionStorage.getItem('lastRegId');
+                
                 if (!mpStatus && preferenceId) {
                     console.log('No mp_status but has preference-id, checking payment status...');
                     checkPaymentStatus(preferenceId);
-                } else if (!mpStatus) {
-                    // Se não tem mp_status nem preference-id, tentar usar external_reference salvo
+                } else if (!mpStatus && hasPaymentEvidence) {
+                    // Se não tem mp_status mas há evidência de pagamento, tentar usar external_reference salvo
                     const externalRef = sessionStorage.getItem('lastExternalRef');
                     if (externalRef) {
                         console.log('No mp_status or preference-id, checking with external_reference...');
                         checkPaymentStatus(externalRef);
-                    } else {
-                        console.log('No payment tracking data found, user may have returned manually');
-                        // Mostrar modal informativo
-                        openPaymentConfirmModal(
-                            'Pagamento em Processamento', 
-                            'Seu pagamento PIX está sendo processado. Você receberá confirmação em breve na sua conta.',
-                            null
-                        );
                     }
+                } else if (!hasPaymentEvidence) {
+                    console.log('No payment evidence found - user is just visiting the site normally');
+                    // Limpar dados antigos de pagamento se existirem
+                    sessionStorage.removeItem('lastExternalRef');
+                    sessionStorage.removeItem('lastRegId');
+                    sessionStorage.removeItem('lastRegInfo');
                 } else if (mpStatus) {
                     if (mpStatus === 'success') {
                         console.log('Payment successful, processing...');
@@ -1386,6 +1386,9 @@ async function checkPaymentStatus(preferenceId) {
     try {
         console.log('Checking payment status for preference:', preferenceId);
         
+        // Marcar que estamos verificando um pagamento real
+        sessionStorage.setItem('checkingPayment', 'true');
+        
         // Fazer requisição para nossa Netlify Function que verifica o status
         const response = await fetch('/.netlify/functions/check-payment-status', {
             method: 'POST',
@@ -1414,22 +1417,14 @@ async function checkPaymentStatus(preferenceId) {
             openPaymentConfirmModal('Pagamento Rejeitado', 'Seu pagamento foi rejeitado. Tente novamente ou use outro método de pagamento.');
         } else {
             console.log('Payment status:', data.status);
-            // Para outros status, mostrar modal informativo
-            openPaymentConfirmModal(
-                'Pagamento em Processamento', 
-                'Seu pagamento está sendo processado. Você receberá confirmação em breve.',
-                null
-            );
+            // Para outros status, não mostrar modal automaticamente
+            // O usuário pode verificar o status na área do cliente
         }
         
     } catch (error) {
         console.error('Error checking payment status:', error);
-        // Fallback: mostrar modal informativo
-        openPaymentConfirmModal(
-            'Pagamento em Processamento', 
-            'Não foi possível verificar o status do pagamento. Se você já pagou, a confirmação aparecerá em breve.',
-            null
-        );
+        // Fallback: apenas logar o erro, não mostrar modal
+        // O usuário pode verificar o status na área do cliente
     }
 }
 
