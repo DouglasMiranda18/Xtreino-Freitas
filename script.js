@@ -209,13 +209,26 @@ function requestAdminAccess(){
         openLoginModal();
         return;
     }
-    // Validar papel do usuário logado
-    const role = (window.currentUserProfile?.role || '').toLowerCase();
-    if (['ceo','gerente','vendedor'].includes(role)) {
-        window.location.href = 'admin.html';
-    } else {
-        alert('Acesso ao painel restrito (CEO, Gerente ou Vendedor).');
-    }
+    (async () => {
+        let role = (window.currentUserProfile?.role || '').toLowerCase();
+        if (!role) {
+            try{
+                const uid = window.firebaseAuth?.currentUser?.uid;
+                const { doc, getDoc, collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+                let snap = await getDoc(doc(collection(window.firebaseDb,'users'), uid));
+                if (snap.exists()) role = (snap.data().role||'').toLowerCase();
+                if (!role){
+                    const q = query(collection(window.firebaseDb,'users'), where('uid','==', uid));
+                    const res = await getDocs(q); res.forEach(d=>{ if (!role) role=(d.data().role||'').toLowerCase(); });
+                }
+            }catch(_){ }
+        }
+        if (['ceo','gerente','vendedor'].includes(role)) {
+            window.location.href = 'admin.html';
+        } else {
+            alert('Acesso ao painel restrito (CEO, Gerente ou Vendedor).');
+        }
+    })();
 }
 
 // Modal de conta removido - agora redireciona para client.html

@@ -508,10 +508,20 @@ function currencyBRL(value) {
 }
 
 async function fetchRole(uid) {
-    const { doc, getDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const { doc, getDoc, collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    // 1) tentativa direta por docId == uid
     const ref = doc(collection(window.firebaseDb,'users'), uid);
-    const snap = await getDoc(ref);
-    return snap.exists() ? { role: (snap.data().role || 'Usuario') } : { role: 'Usuario' };
+    let snap = await getDoc(ref);
+    if (snap.exists()) return { role: (snap.data().role || 'Usuario') };
+    // 2) fallback: procurar por campo uid
+    try{
+        const q = query(collection(window.firebaseDb,'users'), where('uid','==', uid));
+        const res = await getDocs(q);
+        let found = null;
+        res.forEach(d=>{ if (!found) found = d.data(); });
+        if (found) return { role: (found.role || 'Usuario') };
+    }catch(_){ }
+    return { role: 'Usuario' };
 }
 
 function can(role, permission) {
