@@ -8,39 +8,31 @@ let app = null;
 let auth = null;
 let db = null;
 
-// Função para aguardar Firebase estar pronto
-async function waitForFirebase() {
-  let attempts = 0;
-  const maxAttempts = 50; // 5 segundos máximo
-  
-  while (attempts < maxAttempts) {
-    if (window.firebaseApp && window.firebaseAuth && window.firebaseDb) {
-      app = window.firebaseApp;
-      auth = window.firebaseAuth;
-      db = window.firebaseDb;
-      console.log('✅ Firebase initialized from global instances');
-      return true;
-    }
-    
-    if (window.FIREBASE_CONFIG && !app) {
-      // Fallback: initialize here if global init hasn't run yet
-      app = initializeApp(window.FIREBASE_CONFIG);
-      auth = getAuth(app);
-      db = getFirestore(app);
-      console.log('✅ Firebase initialized from FIREBASE_CONFIG');
-      return true;
-    }
-    
-    await new Promise(resolve => setTimeout(resolve, 100));
-    attempts++;
+// Inicializar Firebase imediatamente
+function initializeFirebase() {
+  if (window.firebaseApp && window.firebaseAuth && window.firebaseDb) {
+    app = window.firebaseApp;
+    auth = window.firebaseAuth;
+    db = window.firebaseDb;
+    console.log('✅ Firebase initialized from global instances');
+    return true;
   }
   
-  console.error('❌ Firebase initialization timeout');
+  if (window.FIREBASE_CONFIG) {
+    // Fallback: initialize here if global init hasn't run yet
+    app = initializeApp(window.FIREBASE_CONFIG);
+    auth = getAuth(app);
+    db = getFirestore(app);
+    console.log('✅ Firebase initialized from FIREBASE_CONFIG');
+    return true;
+  }
+  
+  console.error('❌ FIREBASE_CONFIG not found');
   return false;
 }
 
 // Inicializar Firebase
-await waitForFirebase();
+initializeFirebase();
 
 // Ensure local persistence for auth session
 if (auth && auth.setPersistence) {
@@ -716,6 +708,16 @@ window.closeTokensPurchaseModal = function() {
 
 window.purchaseTokens = async function(quantity) {
     try {
+        // Verificar se Firebase está inicializado
+        if (!db) {
+            console.error('❌ Firebase not initialized, attempting to reinitialize...');
+            initializeFirebase();
+            if (!db) {
+                alert('Erro: Firebase não foi inicializado. Recarregue a página.');
+                return;
+            }
+        }
+        
         const price = quantity; // R$ 1,00 por token
         
         // Criar preferência no Mercado Pago
@@ -801,6 +803,16 @@ window.purchaseTokens = async function(quantity) {
 // Compra rápida de tokens (botões diretos) - exposta globalmente
 window.purchaseTokensQuick = async function(quantity) {
     try {
+        // Verificar se Firebase está inicializado
+        if (!db) {
+            console.error('❌ Firebase not initialized, attempting to reinitialize...');
+            initializeFirebase();
+            if (!db) {
+                alert('Erro: Firebase não foi inicializado. Recarregue a página.');
+                return;
+            }
+        }
+        
         const currentUser = auth.currentUser;
         if (!currentUser) {
             alert('Você precisa estar logado para comprar tokens');
