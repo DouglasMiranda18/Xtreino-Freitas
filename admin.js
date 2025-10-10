@@ -512,15 +512,71 @@
       });
       entries.forEach(([hour, cnt])=>{
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td class="py-2">${hour}</td><td class="py-2">${cnt}/12</td><td class="py-2 text-gray-400">—</td>`;
+        tr.innerHTML = `<td class="py-2">${hour}</td><td class="py-2">${cnt}/12</td><td class="py-2 space-x-2">
+          <button class="px-2 py-1 bg-blue-600 text-white rounded text-xs" data-add-hour="${hour}">Adicionar</button>
+          <button class="px-2 py-1 bg-gray-200 text-gray-800 rounded text-xs" data-manage-hour="${hour}">Gerenciar</button>
+        </td>`;
         tbody.appendChild(tr);
       });
+      // Bind actions para adicionar/gerenciar
+      tbody.addEventListener('click', (e)=>{
+        const btnAdd = e.target.closest('[data-add-hour]');
+        const btnManage = e.target.closest('[data-manage-hour]');
+        if (btnAdd){
+          const h = btnAdd.getAttribute('data-add-hour');
+          const modal = document.getElementById('modalAddTeam');
+          const hourInput = document.getElementById('addHour');
+          if (hourInput) hourInput.value = h;
+          if (modal) modal.classList.remove('hidden');
+        } else if (btnManage){
+          const h = btnManage.getAttribute('data-manage-hour');
+          openManageHourModal(date, eventType, h);
+        }
+      }, { once: true });
+
       if (entries.length===0){
         const tr = document.createElement('tr');
         tr.innerHTML = '<td class="py-2" colspan="3">Sem reservas para esta data.</td>';
         tbody.appendChild(tr);
       }
     }catch(e){ console.error('loadBoard error', e); }
+  }
+
+  async function openManageHourModal(date, eventType, hour){
+    try{
+      const title = document.getElementById('manageHourTitle');
+      const list = document.getElementById('manageHourList');
+      const modal = document.getElementById('modalManageHour');
+      if (!list || !modal) return;
+      if (title) title.textContent = `Gerenciar ${hour} — ${date}`;
+      list.innerHTML = '<div class="text-sm text-gray-500">Carregando...</div>';
+      const { collection, query, where, getDocs, doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+      const regs = collection(window.firebaseDb,'registrations');
+      const clauses = [ where('date','==', date), where('schedule','==', hour) ];
+      if (eventType) clauses.push(where('eventType','==', eventType));
+      const snap = await getDocs(query(regs, ...clauses));
+      list.innerHTML = '';
+      if (snap.empty){ list.innerHTML = '<div class="text-sm text-gray-500">Nenhum time neste horário.</div>'; }
+      snap.forEach(d=>{
+        const r = d.data();
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between border-b py-2';
+        row.innerHTML = `<div class="text-sm"><div class="font-semibold">${r.teamName||r.email||'-'}</div><div class="text-gray-500">${r.contact||r.phone||''}</div></div>
+          <button class="px-2 py-1 bg-red-600 text-white rounded text-xs" data-remove-reg-id="${d.id}">Remover</button>`;
+        list.appendChild(row);
+      });
+      list.addEventListener('click', async (e)=>{
+        const btn = e.target.closest('[data-remove-reg-id]');
+        if (!btn) return;
+        const id = btn.getAttribute('data-remove-reg-id');
+        try{
+          await deleteDoc(doc(collection(window.firebaseDb,'registrations'), id));
+          btn.closest('.flex')?.remove();
+          try{ await loadBoard(); }catch(_){ }
+        }catch(_){ alert('Falha ao remover.'); }
+      }, { once: true });
+      modal.classList.remove('hidden');
+    }catch(e){ console.error('openManageHourModal error', e); }
   }
 
   // Usuários ativos nos últimos 7 dias (baseado em lastLogin em users)

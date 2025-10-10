@@ -281,6 +281,17 @@
             </form>
         </div>
     </div>
+
+    <!-- Modal Gerenciar Horário -->
+    <div id="modalManageHour" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-xl max-w-xl w-full p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 id="manageHourTitle" class="font-bold text-lg">Gerenciar horário</h3>
+                <button onclick="document.getElementById('modalManageHour').classList.add('hidden')">✕</button>
+            </div>
+            <div id="manageHourList" class="space-y-2"></div>
+        </div>
+    </div>
 </body>
 </html>
 
