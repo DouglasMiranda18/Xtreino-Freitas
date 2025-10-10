@@ -1223,13 +1223,36 @@ function openScheduleModal(eventType){
         }
     }catch(_){ }
     modal.classList.remove('hidden');
-    if (window.innerWidth <= 767) document.body.classList.add('modal-open-mobile');
+    
+    // Ajustes para mobile
+    if (window.innerWidth <= 767) {
+        document.body.classList.add('modal-open-mobile');
+        // Força o modal a ocupar toda a tela no mobile
+        const modalContent = modal.querySelector('div');
+        if (modalContent) {
+            modalContent.style.height = '100vh';
+            modalContent.style.maxHeight = '100vh';
+            modalContent.style.overflowY = 'auto';
+            modalContent.style.webkitOverflowScrolling = 'touch';
+        }
+    }
+    
     const hint = document.getElementById('schedHint');
     if (hint) hint.textContent = cfg.payWithToken ? `${cfg.label} • Pagamento com 1 token` : cfg.label;
 }
 function closeScheduleModal(){
     const modal = document.getElementById('scheduleModal');
-    if (modal) modal.classList.add('hidden');
+    if (modal) {
+        modal.classList.add('hidden');
+        // Remove estilos inline aplicados no mobile
+        const modalContent = modal.querySelector('div');
+        if (modalContent && window.innerWidth <= 767) {
+            modalContent.style.height = '';
+            modalContent.style.maxHeight = '';
+            modalContent.style.overflowY = '';
+            modalContent.style.webkitOverflowScrolling = '';
+        }
+    }
     if (window.innerWidth <= 767) maybeClearMobileModalState();
 }
 function initScheduleDate(){
