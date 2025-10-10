@@ -5,11 +5,10 @@
 [build.environment]
   NODE_VERSION = "18"
 
-[[redirects]]
-  from = "/.netlify/functions/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
-
 # Configurações para as funções
 [functions]
   node_bundler = "esbuild"
+
+# Plugin para instalar dependências das funções
+[[plugins]]
+  package = "@netlify/plugin-functions-install-core"

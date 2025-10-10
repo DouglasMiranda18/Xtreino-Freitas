@@ -1,15 +1,19 @@
 {
   "name": "xtreino-freitas",
   "version": "1.0.0",
-  "description": "XTreino Freitas - Sistema de agendamento e pagamentos",
+  "description": "XTreino Freitas - Treinamento eSports",
   "main": "index.html",
   "scripts": {
     "build": "echo 'No build step required'",
-    "dev": "netlify dev"
+    "dev": "echo 'Use live server or similar'"
   },
-  "dependencies": {},
-  "devDependencies": {},
-  "keywords": ["xtreino", "freitas", "agendamento", "pagamentos"],
+  "dependencies": {
+    "firebase-admin": "^12.0.0"
+  },
+  "engines": {
+    "node": "18.x"
+  },
+  "keywords": ["esports", "gaming", "training"],
   "author": "XTreino Freitas",
   "license": "MIT"
 }
