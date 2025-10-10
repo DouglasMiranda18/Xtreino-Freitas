@@ -532,7 +532,7 @@
           const h = btnManage.getAttribute('data-manage-hour');
           openManageHourModal(date, eventType, h);
         }
-      }, { once: true });
+      });
 
       if (entries.length===0){
         const tr = document.createElement('tr');
@@ -552,19 +552,22 @@
       list.innerHTML = '<div class="text-sm text-gray-500">Carregando...</div>';
       const { collection, query, where, getDocs, doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
       const regs = collection(window.firebaseDb,'registrations');
-      const clauses = [ where('date','==', date), where('schedule','==', hour) ];
-      if (eventType) clauses.push(where('eventType','==', eventType));
-      const snap = await getDocs(query(regs, ...clauses));
+      // Busca por data+horário e filtra eventType no cliente (strings podem variar)
+      const snap = await getDocs(query(regs, where('date','==', date), where('schedule','==', hour)));
       list.innerHTML = '';
-      if (snap.empty){ list.innerHTML = '<div class="text-sm text-gray-500">Nenhum time neste horário.</div>'; }
+      let any = false;
+      const evLower = String(eventType||'').toLowerCase();
       snap.forEach(d=>{
         const r = d.data();
+        if (evLower && r.eventType && !String(r.eventType).toLowerCase().includes(evLower)) return;
+        any = true;
         const row = document.createElement('div');
         row.className = 'flex items-center justify-between border-b py-2';
         row.innerHTML = `<div class="text-sm"><div class="font-semibold">${r.teamName||r.email||'-'}</div><div class="text-gray-500">${r.contact||r.phone||''}</div></div>
           <button class="px-2 py-1 bg-red-600 text-white rounded text-xs" data-remove-reg-id="${d.id}">Remover</button>`;
         list.appendChild(row);
       });
+      if (!any){ list.innerHTML = '<div class="text-sm text-gray-500">Nenhum time neste horário.</div>'; }
       list.addEventListener('click', async (e)=>{
         const btn = e.target.closest('[data-remove-reg-id]');
         if (!btn) return;
@@ -574,7 +577,7 @@
           btn.closest('.flex')?.remove();
           try{ await loadBoard(); }catch(_){ }
         }catch(_){ alert('Falha ao remover.'); }
-      }, { once: true });
+      });
       modal.classList.remove('hidden');
     }catch(e){ console.error('openManageHourModal error', e); }
   }
