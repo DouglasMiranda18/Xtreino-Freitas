@@ -1231,7 +1231,13 @@ const scheduleConfig = {
     'modo-liga': { label: 'XTreino Modo Liga', price: 3.00 },
     'camp-freitas': { label: 'Camp Freitas', price: 5.00 },
     'semanal-freitas': { label: 'Semanal Freitas', price: 3.50 },
-    'associado': { label: 'XTreino Freitas Associado', price: 1.00, payWithToken: true }
+    'associado': { label: 'XTreino Freitas Associado', price: 1.00, payWithToken: true },
+    // Produtos da loja virtual
+    'sensibilidades': { label: 'Sensis Freitas – PC / Android / iOS', price: 8.00, isProduct: true },
+    'imagens': { label: 'Imagens Aéreas', price: 2.00, isProduct: true },
+    'planilhas': { label: 'Planilhas de Análises', price: 29.90, isProduct: true },
+    'passe-booyah': { label: 'Passe Booyah', price: 11.00, isProduct: true },
+    'camisa': { label: 'Camisa Oficial', price: 89.90, isProduct: true }
 };
 
 function openScheduleModal(eventType){
@@ -1241,6 +1247,25 @@ function openScheduleModal(eventType){
     modal.dataset.eventType = eventType;
     document.getElementById('schedPrice').textContent = cfg.price.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
     document.getElementById('schedEventType').textContent = cfg.label;
+    
+    // Se for produto da loja, esconder seleção de data/hora
+    if (cfg.isProduct) {
+        // Esconder seção de data e hora
+        const dateSection = document.querySelector('#scheduleModal .bg-gray-50');
+        if (dateSection) dateSection.style.display = 'none';
+        
+        // Esconder botão "Comprar tokens"
+        const buyTokensBtn = document.getElementById('buyTokensBtn');
+        if (buyTokensBtn) buyTokensBtn.classList.add('hidden');
+        
+        // Mostrar modal
+        modal.classList.remove('hidden');
+        return;
+    }
+    
+    // Para eventos, mostrar seleção de data/hora
+    const dateSection = document.querySelector('#scheduleModal .bg-gray-50');
+    if (dateSection) dateSection.style.display = 'block';
     
     // Mostrar botão "Comprar tokens" apenas para XTreino Associado
     const buyTokensBtn = document.getElementById('buyTokensBtn');
@@ -1517,6 +1542,94 @@ async function updateOccupiedAndRefreshButtons(day, date, eventType, container){
         }
     });
 }
+// Função para lidar com compra de produtos da loja
+async function handleProductPurchase(productId, cfg) {
+    try {
+        // Coletar dados do formulário
+        const team = document.getElementById('schedTeam').value.trim();
+        const email = document.getElementById('schedEmail').value.trim();
+        const phone = document.getElementById('schedPhone').value.trim();
+        
+        if (!email) {
+            alert('Email é obrigatório.');
+            return;
+        }
+        
+        // Coletar opções específicas do produto
+        let productOptions = {};
+        if (productId === 'camisa') {
+            // Para camisa, adicionar campo de tamanho se necessário
+            productOptions.size = 'M'; // Default, pode ser customizado
+        } else if (productId === 'imagens') {
+            // Para imagens, adicionar campos de mapas se necessário
+            productOptions.maps = ['Bermuda']; // Default, pode ser customizado
+            productOptions.quantity = 1;
+        }
+
+        // Salvar order no Firestore ANTES de redirecionar
+        if (window.firebaseDb) {
+            const { addDoc, collection, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            
+            const orderData = {
+                title: cfg.label,
+                description: cfg.label,
+                item: cfg.label,
+                amount: cfg.price,
+                total: cfg.price,
+                quantity: 1,
+                currency: 'BRL',
+                status: 'pending',
+                customer: email,
+                customerName: team,
+                buyerEmail: email,
+                phone: phone,
+                productId: productId,
+                productOptions: productOptions,
+                createdAt: new Date(),
+                timestamp: Date.now(),
+                type: 'digital_product'
+            };
+            
+            console.log('🔍 Attempting to save product order:', orderData);
+            const docRef = await addDoc(collection(window.firebaseDb, 'orders'), orderData);
+            console.log('✅ Product order saved to Firestore with ID:', docRef.id);
+            
+            // Salvar external_reference para o webhook
+            const externalRef = `digital_${docRef.id}`;
+            await updateDoc(docRef, { external_reference: externalRef });
+        }
+
+        // Chamar function segura (Netlify) para criar Preference
+        const response = await fetch('/.netlify/functions/create-preference', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title: cfg.label,
+                unit_price: cfg.price,
+                currency_id: 'BRL',
+                quantity: 1,
+                back_url: window.location.origin + window.location.pathname,
+                external_reference: `digital_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+            })
+        });
+
+        if (!response.ok) throw new Error(await response.text());
+        const data = await response.json();
+        
+        closeScheduleModal();
+        
+        // Redireciona para o checkout do Mercado Pago
+        if (data.init_point) {
+            window.location.href = data.init_point;
+        } else {
+            alert('Não foi possível iniciar o checkout.');
+        }
+    } catch (error) {
+        console.error('Erro na compra do produto:', error);
+        alert('Falha ao processar compra.');
+    }
+}
+
 async function submitSchedule(e){
     e.preventDefault();
     const submitBtn = document.getElementById('schedSubmit');
@@ -1525,6 +1638,15 @@ async function submitSchedule(e){
     const modal = document.getElementById('scheduleModal');
     const eventType = modal?.dataset?.eventType || 'modo-liga';
     const cfg = scheduleConfig[eventType];
+    
+    // Se for produto da loja, usar lógica de compra
+    if (cfg.isProduct) {
+        await handleProductPurchase(eventType, cfg);
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+        return;
+    }
+    
+    // Lógica para eventos (agendamento)
     const schedule = document.getElementById('schedSelectedTime').value;
     const date = document.getElementById('schedDate').value;
     const team = document.getElementById('schedTeam').value.trim();
