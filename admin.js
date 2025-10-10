@@ -210,7 +210,7 @@
   async function loadReports(){
     try{
       await loadKpis().catch(()=>{});
-      await loadRecentOrders().catch(()=>{});
+      await loadTokensData().catch(()=>{});
       await renderSalesChart().catch(()=>{});
       await renderTopProducts().catch(()=>{});
       await renderPopularHours().catch(()=>{});
@@ -292,7 +292,7 @@
     try { await loadKpis(); } catch(_){ }
     try { await renderSalesChart(); } catch(_){ }
     try { await renderTopProducts(); } catch(_){ }
-    try { await loadRecentOrders(); } catch(_){ }
+    try { await loadTokensData(); } catch(_){ }
   }
 
   async function loadRecentOrders(){
@@ -384,6 +384,183 @@
     
     if (count) count.textContent = `${recentItems.length} pedidos`;
   }
+
+  // Nova função para carregar dados de tokens
+  async function loadTokensData(){
+    try {
+      // Carregar compras de tokens
+      await loadTokenPurchases();
+      // Carregar uso de tokens
+      await loadTokenUsage();
+      // Atualizar estatísticas gerais
+      await updateTokenStats();
+    } catch(e) { 
+      console.error('Erro ao carregar dados de tokens:', e); 
+    }
+  }
+
+  // Carregar compras de tokens
+  async function loadTokenPurchases(){
+    const tbody = document.getElementById('tokensTbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    
+    try {
+      const snap = await getDocs(collection(window.firebaseDb,'orders'));
+      const tokenPurchases = [];
+      
+      snap.forEach(d => {
+        const o = d.data();
+        const description = o.description || o.item || '';
+        
+        // Verifica se é uma compra de tokens
+        if (description.toLowerCase().includes('token')) {
+          const ts = new Date(o.createdAt || o.timestamp || 0);
+          if (period.from && ts < period.from) return;
+          if (period.to && ts > period.to) return;
+          
+          // Extrai quantidade de tokens da descrição
+          const tokenMatch = description.match(/(\d+)\s*token/i);
+          const tokenCount = tokenMatch ? parseInt(tokenMatch[1]) : 1;
+          
+          tokenPurchases.push({
+            ts,
+            client: o.customer || o.buyerEmail || '',
+            package: description,
+            tokens: tokenCount,
+            value: Number(o.amount || o.total || 0),
+            id: d.id
+          });
+        }
+      });
+      
+      // Ordenar por data desc e mostrar últimos 10
+      tokenPurchases.sort((a,b) => b.ts - a.ts);
+      const recentPurchases = tokenPurchases.slice(0, 10);
+      
+      recentPurchases.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="py-2">${row.client}</td>
+          <td class="py-2">${row.package}</td>
+          <td class="py-2 font-semibold text-green-600">${row.tokens}</td>
+          <td class="py-2 font-semibold">${brl(row.value)}</td>
+          <td class="py-2 text-gray-500">${row.ts.toLocaleDateString('pt-BR')}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+      
+    } catch(e) { 
+      console.error('Erro ao carregar compras de tokens:', e); 
+    }
+  }
+
+  // Carregar uso de tokens
+  async function loadTokenUsage(){
+    const tbody = document.getElementById('tokenUsageTbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    
+    try {
+      const snap = await getDocs(collection(window.firebaseDb,'registrations'));
+      const tokenUsage = [];
+      
+      snap.forEach(d => {
+        const r = d.data();
+        
+        // Verifica se foi pago com tokens
+        if (r.paidWithTokens === true) {
+          const ts = (r.createdAt?.toDate ? r.createdAt.toDate() : (r.timestamp ? new Date(r.timestamp) : new Date()));
+          if (period.from && ts < period.from) return;
+          if (period.to && ts > period.to) return;
+          
+          // Determina quantidade de tokens baseado no tipo de evento
+          let tokenCount = 1; // padrão
+          const eventType = (r.eventType || '').toLowerCase();
+          if (eventType.includes('modo liga')) tokenCount = 3;
+          else if (eventType.includes('semanal')) tokenCount = 3.5;
+          else if (eventType.includes('final semanal')) tokenCount = 7;
+          else if (eventType.includes('camp')) tokenCount = 5;
+          
+          tokenUsage.push({
+            ts,
+            client: r.email || '',
+            event: r.title || r.eventType || 'Evento',
+            tokens: tokenCount,
+            schedule: r.schedule || '',
+            id: d.id
+          });
+        }
+      });
+      
+      // Ordenar por data desc e mostrar últimos 10
+      tokenUsage.sort((a,b) => b.ts - a.ts);
+      const recentUsage = tokenUsage.slice(0, 10);
+      
+      recentUsage.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="py-2">${row.client}</td>
+          <td class="py-2">${row.event}</td>
+          <td class="py-2 font-semibold text-blue-600">${row.tokens}</td>
+          <td class="py-2 text-gray-500">${row.ts.toLocaleDateString('pt-BR')} ${row.schedule}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+      
+    } catch(e) { 
+      console.error('Erro ao carregar uso de tokens:', e); 
+    }
+  }
+
+  // Atualizar estatísticas gerais de tokens
+  async function updateTokenStats(){
+    try {
+      let totalPurchased = 0;
+      let totalUsed = 0;
+      
+      // Contar tokens comprados
+      const ordersSnap = await getDocs(collection(window.firebaseDb,'orders'));
+      ordersSnap.forEach(d => {
+        const o = d.data();
+        const description = o.description || o.item || '';
+        
+        if (description.toLowerCase().includes('token') && o.status === 'paid') {
+          const tokenMatch = description.match(/(\d+)\s*token/i);
+          const tokenCount = tokenMatch ? parseInt(tokenMatch[1]) : 1;
+          totalPurchased += tokenCount;
+        }
+      });
+      
+      // Contar tokens usados
+      const regsSnap = await getDocs(collection(window.firebaseDb,'registrations'));
+      regsSnap.forEach(d => {
+        const r = d.data();
+        
+        if (r.paidWithTokens === true) {
+          const eventType = (r.eventType || '').toLowerCase();
+          let tokenCount = 1;
+          if (eventType.includes('modo liga')) tokenCount = 3;
+          else if (eventType.includes('semanal')) tokenCount = 3.5;
+          else if (eventType.includes('final semanal')) tokenCount = 7;
+          else if (eventType.includes('camp')) tokenCount = 5;
+          
+          totalUsed += tokenCount;
+        }
+      });
+      
+      // Atualizar elementos
+      const purchasedEl = document.getElementById('totalTokensPurchased');
+      const usedEl = document.getElementById('totalTokensUsed');
+      
+      if (purchasedEl) purchasedEl.textContent = totalPurchased;
+      if (usedEl) usedEl.textContent = totalUsed;
+      
+    } catch(e) { 
+      console.error('Erro ao atualizar estatísticas de tokens:', e); 
+    }
+  }
+
   // Pendências (orders.status === 'pending' OU registrations.status === 'pending')
   async function loadPending(isManager){
     const tbody = document.getElementById('pendingTbody');
