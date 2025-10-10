@@ -1,4 +1,4 @@
-// Netlify Function: Configurar webhook do Mercado Pago - Versão simplificada
+// Netlify Function: Instruções para configurar webhook do Mercado Pago
 exports.handler = async (event, context) => {
     const headers = {
         'Access-Control-Allow-Origin': '*',
@@ -10,78 +10,33 @@ exports.handler = async (event, context) => {
         return { statusCode: 200, headers, body: '' };
     }
 
-    try {
-        const accessToken = process.env.MP_ACCESS_TOKEN;
-        const webhookUrl = 'https://freitasteste.netlify.app/.netlify/functions/payment-notification';
-        
-        if (!accessToken) {
-            return {
-                statusCode: 200,
-                headers,
-                body: JSON.stringify({
-                    error: 'MP_ACCESS_TOKEN não configurado',
-                    status: 'Falha'
-                })
-            };
-        }
-
-        // Configurar webhook via API
-        const webhookPayload = {
-            url: webhookUrl,
-            events: ['payment'],
-            version: 'v1'
-        };
-
-        console.log('Tentando configurar webhook:', webhookPayload);
-
-        const response = await fetch('https://api.mercadopago.com/v1/webhooks', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json'
+    const webhookUrl = 'https://freitasteste.netlify.app/.netlify/functions/payment-notification';
+    
+    return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+            message: 'Configuração manual do webhook necessária',
+            instructions: {
+                step1: 'Acesse: https://www.mercadopago.com.br/developers',
+                step2: 'Faça login com sua conta do Mercado Pago',
+                step3: 'Vá em "Suas integrações" → "Configurações"',
+                step4: 'Procure por "Notificações" ou "Webhooks"',
+                step5: 'Adicione a URL de notificação:',
+                webhookUrl: webhookUrl,
+                step6: 'Selecione o evento: "payment"',
+                step7: 'Salve as configurações'
             },
-            body: JSON.stringify(webhookPayload)
-        });
-
-        const responseText = await response.text();
-        console.log('Resposta do Mercado Pago:', responseText);
-
-        if (!response.ok) {
-            return {
-                statusCode: 200,
-                headers,
-                body: JSON.stringify({
-                    error: 'Falha ao configurar webhook',
-                    status: 'Erro',
-                    details: responseText,
-                    statusCode: response.status
-                })
-            };
-        }
-
-        const webhookData = JSON.parse(responseText);
-        
-        return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify({
-                success: true,
-                message: 'Webhook configurado com sucesso!',
-                webhook: webhookData,
-                url: webhookUrl
-            })
-        };
-
-    } catch (error) {
-        console.error('Erro:', error);
-        return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify({
-                error: 'Erro interno',
-                message: error.message,
-                status: 'Falha'
-            })
-        };
-    }
+            alternative: {
+                message: 'Se não encontrar a opção, use o painel de desenvolvedores:',
+                url: 'https://www.mercadopago.com.br/developers/panel/app',
+                note: 'Procure por "Notificações" ou "Webhooks" nas configurações'
+            },
+            test: {
+                message: 'Para testar se está funcionando:',
+                testUrl: 'https://freitasteste.netlify.app/.netlify/functions/payment-notification',
+                note: 'Faça um pagamento de teste e verifique os logs'
+            }
+        })
+    };
 };
