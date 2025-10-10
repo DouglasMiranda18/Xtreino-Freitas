@@ -8,18 +8,39 @@ let app = null;
 let auth = null;
 let db = null;
 
-if (window.firebaseApp && window.firebaseAuth && window.firebaseDb) {
-  app = window.firebaseApp;
-  auth = window.firebaseAuth;
-  db = window.firebaseDb;
-} else if (window.FIREBASE_CONFIG) {
-  // Fallback: initialize here if global init hasn't run yet
-  app = initializeApp(window.FIREBASE_CONFIG);
-  auth = getAuth(app);
-  db = getFirestore(app);
-} else {
-  console.warn('FIREBASE_CONFIG not found. Authentication may not work on client.html');
+// Função para aguardar Firebase estar pronto
+async function waitForFirebase() {
+  let attempts = 0;
+  const maxAttempts = 50; // 5 segundos máximo
+  
+  while (attempts < maxAttempts) {
+    if (window.firebaseApp && window.firebaseAuth && window.firebaseDb) {
+      app = window.firebaseApp;
+      auth = window.firebaseAuth;
+      db = window.firebaseDb;
+      console.log('✅ Firebase initialized from global instances');
+      return true;
+    }
+    
+    if (window.FIREBASE_CONFIG && !app) {
+      // Fallback: initialize here if global init hasn't run yet
+      app = initializeApp(window.FIREBASE_CONFIG);
+      auth = getAuth(app);
+      db = getFirestore(app);
+      console.log('✅ Firebase initialized from FIREBASE_CONFIG');
+      return true;
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, 100));
+    attempts++;
+  }
+  
+  console.error('❌ Firebase initialization timeout');
+  return false;
 }
+
+// Inicializar Firebase
+await waitForFirebase();
 
 // Ensure local persistence for auth session
 if (auth && auth.setPersistence) {
@@ -719,8 +740,9 @@ window.purchaseTokens = async function(quantity) {
             try {
                 const currentUser = auth.currentUser;
                 console.log('🔍 Current user:', currentUser ? `${currentUser.uid} (${currentUser.email})` : 'Not authenticated');
+                console.log('🔍 DB instance:', db ? 'Available' : 'NULL - Firebase not initialized');
                 
-                if (currentUser) {
+                if (currentUser && db) {
                     const orderData = {
                         title: `${quantity} Token${quantity > 1 ? 's' : ''} XTreino`,
                         description: `${quantity} Token${quantity > 1 ? 's' : ''} XTreino`,
@@ -743,6 +765,10 @@ window.purchaseTokens = async function(quantity) {
                     console.log('🔍 Attempting to save order:', orderData);
                     const docRef = await db.collection('orders').add(orderData);
                     console.log('✅ Order saved to Firestore with ID:', docRef.id);
+                } else {
+                    console.error('❌ Cannot save order: User not authenticated or DB not available');
+                    console.error('❌ User:', currentUser ? 'Authenticated' : 'Not authenticated');
+                    console.error('❌ DB:', db ? 'Available' : 'Not available');
                 }
             } catch (firestoreError) {
                 console.error('❌ Error saving order to Firestore:', firestoreError);
@@ -811,8 +837,10 @@ window.purchaseTokensQuick = async function(quantity) {
             // Salvar order no Firestore ANTES de redirecionar
             try {
                 console.log('🔍 Quick purchase - Current user:', currentUser ? `${currentUser.uid} (${currentUser.email})` : 'Not authenticated');
+                console.log('🔍 Quick purchase - DB instance:', db ? 'Available' : 'NULL - Firebase not initialized');
                 
-                const orderData = {
+                if (currentUser && db) {
+                    const orderData = {
                     title: `${quantity} Token${quantity > 1 ? 's' : ''} XTreino`,
                     description: `${quantity} Token${quantity > 1 ? 's' : ''} XTreino`,
                     item: `${quantity} Token${quantity > 1 ? 's' : ''} XTreino`,
@@ -831,9 +859,14 @@ window.purchaseTokensQuick = async function(quantity) {
                     timestamp: Date.now()
                 };
                 
-                console.log('🔍 Attempting to save quick order:', orderData);
-                const docRef = await db.collection('orders').add(orderData);
-                console.log('✅ Quick order saved to Firestore with ID:', docRef.id);
+                    console.log('🔍 Attempting to save quick order:', orderData);
+                    const docRef = await db.collection('orders').add(orderData);
+                    console.log('✅ Quick order saved to Firestore with ID:', docRef.id);
+                } else {
+                    console.error('❌ Cannot save quick order: User not authenticated or DB not available');
+                    console.error('❌ User:', currentUser ? 'Authenticated' : 'Not authenticated');
+                    console.error('❌ DB:', db ? 'Available' : 'Not available');
+                }
             } catch (firestoreError) {
                 console.error('❌ Error saving quick order to Firestore:', firestoreError);
                 console.error('❌ Error details:', {
