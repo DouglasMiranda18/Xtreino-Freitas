@@ -1462,9 +1462,12 @@ function openScheduleModal(eventType){
     
     // Se for produto da loja, esconder seleção de data/hora e adicionar opções específicas
     if (cfg.isProduct) {
-        // Esconder seção de data e hora
-        const dateSection = document.querySelector('#scheduleModal .bg-gray-50');
-        if (dateSection) dateSection.style.display = 'none';
+        // Esconder TODAS as seções de data e horários para produtos
+        const leftColumn = document.querySelector('#scheduleModal .lg\\:grid-cols-2 > div:first-child');
+        if (leftColumn) {
+            leftColumn.style.display = 'none';
+        }
+        console.log('Modal de produto aberto - coluna esquerda escondida');
         
         // Esconder botão "Comprar tokens"
         const buyTokensBtn = document.getElementById('buyTokensBtn');
@@ -1477,10 +1480,6 @@ function openScheduleModal(eventType){
         modal.classList.remove('hidden');
         return;
     }
-    
-    // Para eventos, mostrar seleção de data/hora
-    const dateSection = document.querySelector('#scheduleModal .bg-gray-50');
-    if (dateSection) dateSection.style.display = 'block';
     
     // Mostrar botão "Comprar tokens" apenas para XTreino Associado
     const buyTokensBtn = document.getElementById('buyTokensBtn');
