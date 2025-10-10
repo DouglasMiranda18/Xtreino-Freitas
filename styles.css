@@ -157,6 +157,31 @@ body {
     } 
 }
 
+/* Correções para modal no desktop */
+@media (min-width: 768px) {
+    #scheduleModal {
+        padding: 1rem !important;
+        align-items: center !important;
+    }
+    
+    #scheduleModal > div {
+        max-height: 90vh !important;
+        max-width: 90vw !important;
+        overflow-y: auto !important;
+        margin: auto !important;
+    }
+    
+    #scheduleModal .lg\\:grid-cols-2 {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 1.5rem !important;
+    }
+    
+    /* Quando a coluna esquerda está escondida (produtos), a direita ocupa toda a largura */
+    #scheduleModal .lg\\:grid-cols-2 > div:first-child[style*="display: none"] + div {
+        grid-column: 1 / -1 !important;
+    }
+}
+
 /* Correções para modal no mobile */
 @media (max-width: 767px) {
     #scheduleModal {
