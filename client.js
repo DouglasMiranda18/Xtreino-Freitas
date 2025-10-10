@@ -34,6 +34,14 @@ let userProfile = null;
 document.addEventListener('DOMContentLoaded', function() {
     checkAuthState();
     setupEventListeners();
+    // Se vier com ?tab=myTokens, abrir direto essa aba
+    try{
+        const sp = new URLSearchParams(location.search);
+        const tab = sp.get('tab');
+        if (tab === 'myTokens') {
+            switchTab('myTokens');
+        }
+    }catch(_){ }
 });
 
 // Check authentication state

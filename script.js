@@ -176,6 +176,12 @@ function onAuthLogged(user){
             } catch (_) { window.postLoginRedirect = null; }
         }, 100);
     }
+    // Redireciono para a aba de Meus Tokens se foi solicitado a partir do agendamento
+    if (window.postLoginRedirect === 'myTokens'){
+        window.postLoginRedirect = null;
+        setTimeout(()=>{ window.location.href = 'client.html?tab=myTokens'; }, 100);
+        return;
+    }
     // Não abre automaticamente a área do cliente - só quando clicar em MINHA CONTA
 }
 
@@ -265,6 +271,18 @@ function scrollToSection(sectionId) {
     document.getElementById(sectionId).scrollIntoView({
         behavior: 'smooth'
     });
+}
+
+// Redireciona para a compra/aba Meus Tokens a partir do modal de reserva
+function goToTokensFromSchedule(){
+    // Se não estiver logado, abre login e, após login, direciona para client.html na aba Meus Tokens
+    if (!window.isLoggedIn) {
+        window.postLoginRedirect = 'myTokens';
+        openLoginModal();
+        return;
+    }
+    // Se já estiver logado, vai direto para a aba Meus Tokens
+    window.location.href = 'client.html?tab=myTokens';
 }
 
 // [login removed]

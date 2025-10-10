@@ -1007,7 +1007,10 @@
                             <div class="text-sm text-gray-500">Valor</div>
                             <div id="schedPrice" class="text-xl font-bold">R$ 0,00</div>
                         </div>
-                        <button type="submit" id="schedSubmit" class="btn-primary px-6 py-3 rounded-lg font-semibold">Confirmar e pagar</button>
+                        <div class="flex gap-2">
+                            <button type="button" onclick="goToTokensFromSchedule()" class="px-4 py-3 border rounded-lg font-semibold text-gray-700 hover:bg-gray-100">Comprar tokens</button>
+                            <button type="submit" id="schedSubmit" class="btn-primary px-6 py-3 rounded-lg font-semibold">Confirmar e pagar</button>
+                        </div>
                     </div>
                 </form>
                 <div id="schedHint" class="text-sm text-gray-500"></div>
