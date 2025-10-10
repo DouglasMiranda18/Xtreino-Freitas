@@ -1702,10 +1702,32 @@ function updateProfile(event){
 // Top alert control (example trigger)
 window.addEventListener('load', () => {
     const alertBar = document.getElementById('topAlert');
-    if (alertBar) {
-        // TODO: lógica real (ex: Firestore), aqui apenas demonstração
-        alertBar.classList.remove('hidden');
-    }
+    if (!alertBar) return;
+    // Lê configuração do Firestore: collection 'config', doc 'topAlert'
+    (async () => {
+        try{
+            if (!window.firebaseReady) { alertBar.classList.add('hidden'); return; }
+            const { doc, getDoc, collection, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            const ref = doc(collection(window.firebaseDb,'config'), 'topAlert');
+            const apply = (data) => {
+                const enabled = !!data?.enabled;
+                const text = data?.text || '';
+                if (enabled && text){
+                    alertBar.innerHTML = text;
+                    alertBar.classList.remove('hidden');
+                } else {
+                    alertBar.classList.add('hidden');
+                }
+            };
+            try{
+                const snap = await getDoc(ref);
+                if (snap.exists()) apply(snap.data()); else alertBar.classList.add('hidden');
+            }catch(_){ alertBar.classList.add('hidden'); }
+            try{
+                onSnapshot(ref, (snap)=>{ if (snap.exists()) apply(snap.data()); });
+            }catch(_){ }
+        }catch(_){ /* fallback: manter oculto */ }
+    })();
 });
 
 // Back to top logic

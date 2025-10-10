@@ -68,12 +68,60 @@
     }catch(e){ console.error('Erro ao carregar usuários', e); }
   }
 
-  // Placeholder para submissão manual de equipe/cadastro rápido
+  // Submissão manual de equipe/cadastro rápido (confirma vaga sem pagamento)
   async function submitAddTeam(e){
-    try{
-      e?.preventDefault();
-      alert('Função de adicionar equipe será implementada em breve.');
-    }catch(_){ }
+  	try{
+  	  e?.preventDefault();
+  	  const hourEl = document.getElementById('addHour');
+  	  const teamEl = document.getElementById('addTeamName');
+  	  const contactEl = document.getElementById('addContact');
+  	  const personEl = document.getElementById('addPerson');
+  	  const notesEl = document.getElementById('addNotes');
+  	  const msgEl = document.getElementById('addTeamMsg');
+  	  const dateEl = document.getElementById('boardDate');
+  	  const typeEl = document.getElementById('boardEventType');
+  	  const schedule = (hourEl?.value || '').trim();
+  	  const teamName = (teamEl?.value || '').trim();
+  	  const contact = (contactEl?.value || '').trim();
+  	  const person = (personEl?.value || '').trim();
+  	  const notes = (notesEl?.value || '').trim();
+  	  const date = (dateEl?.value || '').trim();
+  	  const eventType = (typeEl?.value || '').trim();
+  	  if (!teamName || !contact){
+  	    alert('Informe ao menos Time/Org e Contato.');
+  	    return;
+  	  }
+  	  if (!date){
+  	    alert('Selecione uma data no painel de horários.');
+  	    return;
+  	  }
+  	  // Se horário não estiver definido, cria sem horário específico
+  	  const payload = {
+  	    teamName,
+  	    contact,
+  	    person: person || null,
+  	    notes: notes || null,
+  	    date,
+  	    schedule: schedule || '—',
+  	    eventType: eventType || null,
+  	    status: 'confirmed'
+  	  };
+  	  try{
+  	    const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+  	    await addDoc(collection(window.firebaseDb,'registrations'), { ...payload, createdAt: serverTimestamp() });
+  	    if (msgEl) msgEl.textContent = 'Time adicionado com sucesso!';
+  	    // limpar campos
+  	    if (teamEl) teamEl.value = '';
+  	    if (contactEl) contactEl.value = '';
+  	    if (personEl) personEl.value = '';
+  	    if (notesEl) notesEl.value = '';
+  	    // Atualiza quadro e pendências
+  	    try { await loadBoard(); } catch(_){}
+  	    try { await loadPending(true); } catch(_){}
+  	  }catch(err){
+  	    alert('Falha ao salvar time.');
+  	  }
+  	}catch(_){ }
   }
 
   onAuthStateChanged(window.firebaseAuth, async (user) => {
@@ -477,20 +525,17 @@
 
   // Usuários ativos nos últimos 7 dias (baseado em lastLogin em users)
   async function renderActiveUsers(){
-    const kpi = document.getElementById('kpiToday'); // placeholder: não há slot dedicado; opcional mover para outro card
-    try{
-      const snap = await getDocs(collection(window.firebaseDb,'users'));
-      const weekAgo = Date.now() - 7*24*60*60*1000;
-      let active = 0; snap.forEach(d=>{ const u=d.data(); if (Number(u.lastLogin||0) >= weekAgo) active++; });
-      // Apenas loga por enquanto
-      console.log('Usuários ativos (7d):', active);
-    }catch(e){ console.log('Erro ativos', e); }
+  	try{
+  	  const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+  	  const snap = await getDocs(collection(window.firebaseDb,'users'));
+  	  const weekAgo = Date.now() - 7*24*60*60*1000;
+  	  let active = 0; snap.forEach(d=>{ const u=d.data(); if (Number(u.lastLogin||0) >= weekAgo) active++; });
+  	  const kpiActiveEl = document.getElementById('kpiActiveUsers');
+  	  if (kpiActiveEl) kpiActiveEl.textContent = String(active);
+  	}catch(e){ console.log('Erro ativos', e); }
   }
 
-  async function renderActiveUsers(){
-    // Placeholder: poderemos mostrar no futuro um gráfico em outra aba
-    return;
-  }
+  // [removido duplicado]
 })();
 
 // Admin logic: Auth gate, roles, Firestore reads, Chart.js rendering
