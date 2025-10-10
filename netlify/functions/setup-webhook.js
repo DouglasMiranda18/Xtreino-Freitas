@@ -3,11 +3,22 @@ exports.handler = async (event, context) => {
     const headers = {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     };
 
     if (event.httpMethod === 'OPTIONS') {
         return { statusCode: 200, headers, body: '' };
+    }
+
+    if (event.httpMethod === 'GET') {
+        return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({
+                message: 'Para configurar o webhook, use POST',
+                instructions: 'Execute: curl -X POST https://freitasteste.netlify.app/.netlify/functions/setup-webhook'
+            })
+        };
     }
 
     if (event.httpMethod !== 'POST') {
