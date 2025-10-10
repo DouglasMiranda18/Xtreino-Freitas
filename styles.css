@@ -197,6 +197,20 @@ body {
     .media-compact {
         height: 180px !important;
     }
+    
+    /* Modal mais compacto para telas grandes */
+    #scheduleModal > div {
+        max-width: 700px !important;
+        max-height: 75vh !important;
+    }
+    
+    #scheduleModal .p-6 {
+        padding: 1.5rem !important;
+    }
+    
+    #scheduleModal .space-y-6 > * + * {
+        margin-top: 1rem !important;
+    }
 }
 
 /* Otimizações gerais para reduzir scroll */
@@ -370,11 +384,13 @@ body {
     #scheduleModal {
         padding: 1rem !important;
         align-items: center !important;
+        justify-content: center !important;
     }
     
     #scheduleModal > div {
-        max-height: 90vh !important;
-        max-width: 90vw !important;
+        max-height: 80vh !important;
+        max-width: 800px !important;
+        width: 90% !important;
         overflow-y: auto !important;
         margin: auto !important;
     }
@@ -392,6 +408,31 @@ body {
     /* Quando a coluna esquerda está visível (eventos), manter grid normal */
     #scheduleModal .lg\\:grid-cols-2 > div:first-child[style*="display: block"] + div {
         grid-column: auto !important;
+    }
+    
+    /* Otimizar espaçamentos internos do modal */
+    #scheduleModal .p-6 {
+        padding: 1.5rem !important;
+    }
+    
+    #scheduleModal .space-y-6 > * + * {
+        margin-top: 1.25rem !important;
+    }
+    
+    #scheduleModal .space-y-4 > * + * {
+        margin-top: 0.75rem !important;
+    }
+    
+    /* Reduzir padding dos cards internos */
+    #scheduleModal .bg-gray-50 {
+        padding: 1.25rem !important;
+    }
+    
+    /* Centralizar melhor o modal */
+    #scheduleModal {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
     }
 }
 
