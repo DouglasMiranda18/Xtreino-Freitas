@@ -1,4 +1,4 @@
-// Netlify Function: Verificar orders no Firestore
+// Netlify Function: Teste simples do Firestore
 const admin = require('firebase-admin');
 
 // Inicializar Firebase Admin se ainda não foi inicializado
@@ -30,29 +30,24 @@ exports.handler = async (event, context) => {
     try {
         const db = admin.firestore();
         
-        // Buscar todos os orders (sem orderBy para evitar erro de índice)
-        const ordersSnapshot = await db.collection('orders').limit(10).get();
+        // Teste simples: contar orders
+        const ordersSnapshot = await db.collection('orders').get();
+        const ordersCount = ordersSnapshot.size;
         
+        // Teste simples: contar users
+        const usersSnapshot = await db.collection('users').get();
+        const usersCount = usersSnapshot.size;
+        
+        // Pegar alguns orders para debug
         const orders = [];
         ordersSnapshot.forEach(doc => {
             const data = doc.data();
             orders.push({
                 id: doc.id,
-                ...data,
-                createdAt: data.createdAt ? data.createdAt.toDate() : null
-            });
-        });
-        
-        // Buscar todos os users
-        const usersSnapshot = await db.collection('users').get();
-        
-        const users = [];
-        usersSnapshot.forEach(doc => {
-            const data = doc.data();
-            users.push({
-                id: doc.id,
-                email: data.email,
-                tokens: data.tokens || 0
+                title: data.title,
+                status: data.status,
+                external_reference: data.external_reference,
+                customer: data.customer
             });
         });
         
@@ -60,22 +55,22 @@ exports.handler = async (event, context) => {
             statusCode: 200,
             headers,
             body: JSON.stringify({
-                message: 'Orders e Users encontrados',
-                ordersCount: orders.length,
-                usersCount: users.length,
-                orders: orders,
-                users: users
+                message: 'Firestore test successful',
+                ordersCount: ordersCount,
+                usersCount: usersCount,
+                orders: orders.slice(0, 5) // Apenas os primeiros 5
             })
         };
         
     } catch (error) {
-        console.error('Error checking orders:', error);
+        console.error('Firestore test error:', error);
         return {
             statusCode: 500,
             headers,
             body: JSON.stringify({
-                error: 'Internal server error',
-                message: error.message
+                error: 'Firestore test failed',
+                message: error.message,
+                stack: error.stack
             })
         };
     }
