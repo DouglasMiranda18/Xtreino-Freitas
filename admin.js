@@ -388,6 +388,36 @@
   // Nova função para carregar dados de tokens
   async function loadTokensData(){
     try {
+      console.log('=== DEBUG: Carregando dados de tokens ===');
+      
+      // Debug: mostrar todos os orders
+      const ordersSnap = await getDocs(collection(window.firebaseDb,'orders'));
+      console.log('Total orders:', ordersSnap.size);
+      ordersSnap.forEach(d => {
+        const o = d.data();
+        console.log('Order:', {
+          id: d.id,
+          description: o.description,
+          item: o.item,
+          status: o.status,
+          customer: o.customer || o.buyerEmail
+        });
+      });
+      
+      // Debug: mostrar todas as registrations
+      const regsSnap = await getDocs(collection(window.firebaseDb,'registrations'));
+      console.log('Total registrations:', regsSnap.size);
+      regsSnap.forEach(d => {
+        const r = d.data();
+        console.log('Registration:', {
+          id: d.id,
+          email: r.email,
+          eventType: r.eventType,
+          paidWithTokens: r.paidWithTokens,
+          status: r.status
+        });
+      });
+      
       // Carregar compras de tokens
       await loadTokenPurchases();
       // Carregar uso de tokens
@@ -413,15 +443,26 @@
         const o = d.data();
         const description = o.description || o.item || '';
         
-        // Verifica se é uma compra de tokens
-        if (description.toLowerCase().includes('token')) {
+        // Verifica se é uma compra de tokens (mais flexível)
+        if (description.toLowerCase().includes('token') || 
+            description.toLowerCase().includes('xtreino') ||
+            (o.item && o.item.toLowerCase().includes('token'))) {
           const ts = new Date(o.createdAt || o.timestamp || 0);
           if (period.from && ts < period.from) return;
           if (period.to && ts > period.to) return;
           
-          // Extrai quantidade de tokens da descrição
-          const tokenMatch = description.match(/(\d+)\s*token/i);
+          // Extrai quantidade de tokens da descrição (mais flexível)
+          const tokenMatch = description.match(/(\d+)\s*token/i) || 
+                           description.match(/token[:\s]*(\d+)/i) ||
+                           description.match(/(\d+)\s*xtreino/i);
           const tokenCount = tokenMatch ? parseInt(tokenMatch[1]) : 1;
+          
+          console.log('Token purchase found:', {
+            description,
+            tokenCount,
+            client: o.customer || o.buyerEmail,
+            status: o.status
+          });
           
           tokenPurchases.push({
             ts,
@@ -470,6 +511,12 @@
         
         // Verifica se foi pago com tokens
         if (r.paidWithTokens === true) {
+          console.log('Token usage found:', {
+            client: r.email,
+            event: r.title || r.eventType,
+            paidWithTokens: r.paidWithTokens,
+            status: r.status
+          });
           const ts = (r.createdAt?.toDate ? r.createdAt.toDate() : (r.timestamp ? new Date(r.timestamp) : new Date()));
           if (period.from && ts < period.from) return;
           if (period.to && ts > period.to) return;
@@ -525,7 +572,10 @@
         const o = d.data();
         const description = o.description || o.item || '';
         
-        if (description.toLowerCase().includes('token') && o.status === 'paid') {
+        if ((description.toLowerCase().includes('token') || 
+             description.toLowerCase().includes('xtreino') ||
+             (o.item && o.item.toLowerCase().includes('token'))) && 
+            o.status === 'paid') {
           const tokenMatch = description.match(/(\d+)\s*token/i);
           const tokenCount = tokenMatch ? parseInt(tokenMatch[1]) : 1;
           totalPurchased += tokenCount;
