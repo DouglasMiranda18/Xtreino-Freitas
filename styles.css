@@ -428,8 +428,8 @@ body {
         padding: 1.25rem !important;
     }
     
-    /* Centralizar melhor o modal */
-    #scheduleModal {
+    /* Centralizar melhor o modal quando visível */
+    #scheduleModal:not(.hidden) {
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
