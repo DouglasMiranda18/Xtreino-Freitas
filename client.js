@@ -734,11 +734,11 @@ window.purchaseTokens = async function(quantity) {
                         buyerEmail: currentUser.email,
                         userId: currentUser.uid,
                         uid: currentUser.uid,
-                        createdAt: firestore.FieldValue.serverTimestamp(),
+                        createdAt: new Date(),
                         timestamp: Date.now()
                     };
                     
-                    await firestore.collection('orders').add(orderData);
+                    await db.collection('orders').add(orderData);
                     console.log('Order saved to Firestore:', orderData);
                 }
             } catch (firestoreError) {
@@ -817,11 +817,11 @@ window.purchaseTokensQuick = async function(quantity) {
                     buyerEmail: currentUser.email,
                     userId: currentUser.uid,
                     uid: currentUser.uid,
-                    createdAt: firestore.FieldValue.serverTimestamp(),
+                    createdAt: new Date(),
                     timestamp: Date.now()
                 };
                 
-                await firestore.collection('orders').add(orderData);
+                await db.collection('orders').add(orderData);
                 console.log('Quick order saved to Firestore:', orderData);
             } catch (firestoreError) {
                 console.error('Error saving quick order to Firestore:', firestoreError);
