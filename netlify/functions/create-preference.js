@@ -23,17 +23,21 @@ exports.handler = async function(event) {
     }
 
     const body = JSON.parse(event.body || '{}');
-    const { title, quantity = 1, currency_id = 'BRL', unit_price } = body;
+    const { title, quantity = 1, currency_id = 'BRL', unit_price, back_url } = body;
 
     if (!title || typeof unit_price === 'undefined') {
       return { statusCode: 400, headers: corsHeaders, body: 'Invalid payload' };
     }
 
-    const siteUrl = process.env.MP_BACK_BASE_URL || process.env.SITE_URL || process.env.URL || (event && event.headers && event.headers.host ? (`https://${event.headers.host}`) : null);
-    const successUrl = (process.env.MP_BACK_URL_SUCCESS || (siteUrl ? `${siteUrl}/?mp_status=success` : 'https://example.com/sucesso'));
-    const failureUrl = (process.env.MP_BACK_URL_FAILURE || (siteUrl ? `${siteUrl}/?mp_status=failure` : 'https://example.com/falha'));
-    const pendingUrl = (process.env.MP_BACK_URL_PENDING || (siteUrl ? `${siteUrl}/?mp_status=pending` : 'https://example.com/pendente'));
+    // Usar back_url do cliente se fornecido, senão usar URLs padrão
+    const baseUrl = back_url || process.env.MP_BACK_BASE_URL || process.env.SITE_URL || process.env.URL || (event && event.headers && event.headers.host ? (`https://${event.headers.host}`) : null);
+    const successUrl = (back_url ? `${back_url}?mp_status=success` : process.env.MP_BACK_URL_SUCCESS || (baseUrl ? `${baseUrl}/?mp_status=success` : 'https://example.com/sucesso'));
+    const failureUrl = (back_url ? `${back_url}?mp_status=failure` : process.env.MP_BACK_URL_FAILURE || (baseUrl ? `${baseUrl}/?mp_status=failure` : 'https://example.com/falha'));
+    const pendingUrl = (back_url ? `${back_url}?mp_status=pending` : process.env.MP_BACK_URL_PENDING || (baseUrl ? `${baseUrl}/?mp_status=pending` : 'https://example.com/pendente'));
 
+    // Gerar external_reference único
+    const externalRef = `xtreino_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
     const preferencePayload = {
       items: [
         {
@@ -44,7 +48,9 @@ exports.handler = async function(event) {
         }
       ],
       back_urls: { success: successUrl, failure: failureUrl, pending: pendingUrl },
-      auto_return: 'approved'
+      auto_return: 'approved',
+      notification_url: `${baseUrl}/.netlify/functions/payment-notification`,
+      external_reference: externalRef
     };
 
     const res = await fetch('https://api.mercadopago.com/checkout/preferences', {
@@ -66,7 +72,12 @@ exports.handler = async function(event) {
     return {
       statusCode: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: data.id, init_point: data.init_point, sandbox_init_point: data.sandbox_init_point })
+      body: JSON.stringify({ 
+        id: data.id, 
+        init_point: data.init_point, 
+        sandbox_init_point: data.sandbox_init_point,
+        external_reference: externalRef
+      })
     };
   } catch (err) {
     return { statusCode: 500, headers: corsHeaders, body: err && err.message ? err.message : 'Internal error' };
