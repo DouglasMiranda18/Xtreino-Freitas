@@ -1250,7 +1250,7 @@ function addProductOptions(productId) {
         // Criar container se não existir
         const container = document.createElement('div');
         container.id = 'productOptions';
-        container.className = 'mt-4 space-y-4';
+        container.className = 'mt-6';
         
         // Inserir após o campo de telefone
         const phoneField = document.getElementById('schedPhone').parentElement;
@@ -1262,46 +1262,103 @@ function addProductOptions(productId) {
     switch (productId) {
         case 'sensibilidades':
             // Sensibilidades não precisa de opções extras
+            container.innerHTML = `
+                <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+                    <div class="flex items-center mb-4">
+                        <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center mr-3">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                        </div>
+                        <h4 class="text-lg font-semibold text-gray-800">Configuração Completa</h4>
+                    </div>
+                    <p class="text-gray-600 text-sm">Inclui: Sensibilidade otimizada (PC/Android/iOS), Pack de Otimização, Configuração Completa, Aprimoramento de Mira e Reação.</p>
+                </div>
+            `;
             break;
             
         case 'imagens':
             // Opções para imagens aéreas
             container.innerHTML = `
-                <div class="bg-blue-50 rounded-lg p-4">
-                    <h4 class="font-semibold text-blue-900 mb-3">📋 Selecionar Mapas</h4>
-                    <div class="space-y-3">
+                <div class="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-6 border border-blue-100">
+                    <div class="flex items-center mb-4">
+                        <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center mr-3">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
+                            </svg>
+                        </div>
+                        <h4 class="text-lg font-semibold text-gray-800">Selecionar Mapas</h4>
+                    </div>
+                    
+                    <div class="grid md:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-blue-800 mb-2">Mapas desejados (separe por vírgula)</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Mapas desejados</label>
                             <input type="text" id="mapsNames" placeholder="Ex.: Bermuda, Kalahari, Purgatório" 
-                                   class="w-full border border-blue-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+                                   class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-colors">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-blue-800 mb-2">Quantidade de mapas (1 a 5)</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Quantidade</label>
                             <input type="number" id="mapsQty" min="1" max="5" value="1" 
-                                   class="w-full border border-blue-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+                                   class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-colors">
                         </div>
-                        <p class="text-xs text-blue-600">💡 Valores: 1 mapa R$2 | 2 por R$4 | 3 por R$5 | 5 por R$7</p>
+                    </div>
+                    
+                    <div class="mt-4 bg-blue-100 rounded-lg p-3">
+                        <div class="flex items-center">
+                            <svg class="w-4 h-4 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span class="text-sm text-blue-800 font-medium">Preços: 1 mapa R$2 | 2 por R$4 | 3 por R$5 | 5 por R$7</span>
+                        </div>
                     </div>
                 </div>
             `;
             break;
             
         case 'planilhas':
-            // Planilhas não precisa de opções extras
+            // Planilhas
+            container.innerHTML = `
+                <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
+                    <div class="flex items-center mb-4">
+                        <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center mr-3">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                            </svg>
+                        </div>
+                        <h4 class="text-lg font-semibold text-gray-800">Análises Profissionais</h4>
+                    </div>
+                    <p class="text-gray-600 text-sm">Para coachs e analistas: análises (kills, dano, tempo), gráficos, ajuste total e vídeo explicativo.</p>
+                </div>
+            `;
             break;
             
         case 'passe-booyah':
             // Opções para passe Booyah
             container.innerHTML = `
-                <div class="bg-green-50 rounded-lg p-4">
-                    <h4 class="font-semibold text-green-900 mb-3">🎮 Informações do Jogo</h4>
-                    <div class="space-y-3">
-                        <div>
-                            <label class="block text-sm font-medium text-green-800 mb-2">ID do Jogador (Free Fire)</label>
-                            <input type="text" id="playerId" placeholder="Ex.: 123456789" 
-                                   class="w-full border border-green-200 rounded-lg px-3 py-2 text-sm focus:border-green-500 focus:outline-none">
+                <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
+                    <div class="flex items-center mb-4">
+                        <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center mr-3">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
                         </div>
-                        <p class="text-xs text-green-600">💡 Entrega rápida! Não pedimos senha/email, apenas o ID.</p>
+                        <h4 class="text-lg font-semibold text-gray-800">Informações do Jogo</h4>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">ID do Jogador (Free Fire)</label>
+                        <input type="text" id="playerId" placeholder="Ex.: 123456789" 
+                               class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 focus:outline-none transition-colors">
+                    </div>
+                    
+                    <div class="mt-4 bg-green-100 rounded-lg p-3">
+                        <div class="flex items-center">
+                            <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span class="text-sm text-green-800 font-medium">Entrega rápida! Não pedimos senha/email, apenas o ID.</span>
+                        </div>
                     </div>
                 </div>
             `;
@@ -1310,12 +1367,20 @@ function addProductOptions(productId) {
         case 'camisa':
             // Opções para camisa
             container.innerHTML = `
-                <div class="bg-purple-50 rounded-lg p-4">
-                    <h4 class="font-semibold text-purple-900 mb-3">👕 Informações da Camisa</h4>
-                    <div class="space-y-3">
+                <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-100">
+                    <div class="flex items-center mb-4">
+                        <div class="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center mr-3">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                            </svg>
+                        </div>
+                        <h4 class="text-lg font-semibold text-gray-800">Informações da Camisa</h4>
+                    </div>
+                    
+                    <div class="grid md:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-purple-800 mb-2">Tamanho</label>
-                            <select id="shirtSize" class="w-full border border-purple-200 rounded-lg px-3 py-2 text-sm focus:border-purple-500 focus:outline-none">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Tamanho</label>
+                            <select id="shirtSize" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
                                 <option value="P">P</option>
                                 <option value="M" selected>M</option>
                                 <option value="G">G</option>
@@ -1323,11 +1388,19 @@ function addProductOptions(productId) {
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-purple-800 mb-2">Endereço de Entrega</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Endereço de Entrega</label>
                             <textarea id="deliveryAddress" placeholder="Rua, número, bairro, cidade, CEP" 
-                                      class="w-full border border-purple-200 rounded-lg px-3 py-2 text-sm focus:border-purple-500 focus:outline-none" rows="3"></textarea>
+                                      class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors" rows="3"></textarea>
                         </div>
-                        <p class="text-xs text-purple-600">💡 Produto físico - será enviado pelo correio</p>
+                    </div>
+                    
+                    <div class="mt-4 bg-purple-100 rounded-lg p-3">
+                        <div class="flex items-center">
+                            <svg class="w-4 h-4 text-purple-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span class="text-sm text-purple-800 font-medium">Produto físico - será enviado pelo correio</span>
+                        </div>
                     </div>
                 </div>
             `;
