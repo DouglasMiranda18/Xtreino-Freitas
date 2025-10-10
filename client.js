@@ -10,20 +10,29 @@ let db = null;
 
 // Inicializar Firebase imediatamente
 function initializeFirebase() {
+  console.log('🔍 Initializing Firebase...');
+  console.log('🔍 window.firebaseApp:', !!window.firebaseApp);
+  console.log('🔍 window.firebaseAuth:', !!window.firebaseAuth);
+  console.log('🔍 window.firebaseDb:', !!window.firebaseDb);
+  console.log('🔍 window.FIREBASE_CONFIG:', !!window.FIREBASE_CONFIG);
+  
   if (window.firebaseApp && window.firebaseAuth && window.firebaseDb) {
     app = window.firebaseApp;
     auth = window.firebaseAuth;
     db = window.firebaseDb;
     console.log('✅ Firebase initialized from global instances');
+    console.log('🔍 DB after global init:', typeof db, db ? db.constructor.name : 'null');
     return true;
   }
   
   if (window.FIREBASE_CONFIG) {
     // Fallback: initialize here if global init hasn't run yet
+    console.log('🔍 Initializing Firebase from FIREBASE_CONFIG...');
     app = initializeApp(window.FIREBASE_CONFIG);
     auth = getAuth(app);
     db = getFirestore(app);
     console.log('✅ Firebase initialized from FIREBASE_CONFIG');
+    console.log('🔍 DB after local init:', typeof db, db ? db.constructor.name : 'null');
     return true;
   }
   
@@ -743,6 +752,9 @@ window.purchaseTokens = async function(quantity) {
                 const currentUser = auth.currentUser;
                 console.log('🔍 Current user:', currentUser ? `${currentUser.uid} (${currentUser.email})` : 'Not authenticated');
                 console.log('🔍 DB instance:', db ? 'Available' : 'NULL - Firebase not initialized');
+                console.log('🔍 DB type:', typeof db);
+                console.log('🔍 DB constructor:', db ? db.constructor.name : 'null');
+                console.log('🔍 DB has collection method:', db && typeof db.collection === 'function' ? 'YES' : 'NO');
                 
                 if (currentUser && db) {
                     const orderData = {
@@ -850,6 +862,9 @@ window.purchaseTokensQuick = async function(quantity) {
             try {
                 console.log('🔍 Quick purchase - Current user:', currentUser ? `${currentUser.uid} (${currentUser.email})` : 'Not authenticated');
                 console.log('🔍 Quick purchase - DB instance:', db ? 'Available' : 'NULL - Firebase not initialized');
+                console.log('🔍 Quick purchase - DB type:', typeof db);
+                console.log('🔍 Quick purchase - DB constructor:', db ? db.constructor.name : 'null');
+                console.log('🔍 Quick purchase - DB has collection method:', db && typeof db.collection === 'function' ? 'YES' : 'NO');
                 
                 if (currentUser && db) {
                     const orderData = {
