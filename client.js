@@ -718,6 +718,8 @@ window.purchaseTokens = async function(quantity) {
             // Salvar order no Firestore ANTES de redirecionar
             try {
                 const currentUser = auth.currentUser;
+                console.log('🔍 Current user:', currentUser ? `${currentUser.uid} (${currentUser.email})` : 'Not authenticated');
+                
                 if (currentUser) {
                     const orderData = {
                         title: `${quantity} Token${quantity > 1 ? 's' : ''} XTreino`,
@@ -738,8 +740,9 @@ window.purchaseTokens = async function(quantity) {
                         timestamp: Date.now()
                     };
                     
-                    await db.collection('orders').add(orderData);
-                    console.log('Order saved to Firestore:', orderData);
+                    console.log('🔍 Attempting to save order:', orderData);
+                    const docRef = await db.collection('orders').add(orderData);
+                    console.log('✅ Order saved to Firestore with ID:', docRef.id);
                 }
             } catch (firestoreError) {
                 console.error('❌ Error saving order to Firestore:', firestoreError);
@@ -807,6 +810,8 @@ window.purchaseTokensQuick = async function(quantity) {
         if (data.init_point) {
             // Salvar order no Firestore ANTES de redirecionar
             try {
+                console.log('🔍 Quick purchase - Current user:', currentUser ? `${currentUser.uid} (${currentUser.email})` : 'Not authenticated');
+                
                 const orderData = {
                     title: `${quantity} Token${quantity > 1 ? 's' : ''} XTreino`,
                     description: `${quantity} Token${quantity > 1 ? 's' : ''} XTreino`,
@@ -826,8 +831,9 @@ window.purchaseTokensQuick = async function(quantity) {
                     timestamp: Date.now()
                 };
                 
-                await db.collection('orders').add(orderData);
-                console.log('Quick order saved to Firestore:', orderData);
+                console.log('🔍 Attempting to save quick order:', orderData);
+                const docRef = await db.collection('orders').add(orderData);
+                console.log('✅ Quick order saved to Firestore with ID:', docRef.id);
             } catch (firestoreError) {
                 console.error('❌ Error saving quick order to Firestore:', firestoreError);
                 console.error('❌ Error details:', {
