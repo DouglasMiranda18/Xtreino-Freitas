@@ -690,13 +690,13 @@ function renderClientArea(){
     // Tokens Tab: saldo
     const tokensTab = document.querySelector('#tokensTab .bg-blue-matte.bg-opacity-20 h3');
     if (tokensTab) tokensTab.textContent = String(Math.round(getTokenBalance()));
-    // Habilitar/Desabilitar botão de associados no card
+    // Habilitar/Desabilitar botão de tokens no card
     const assocBtn = document.getElementById('assocTokensBtn');
     if (assocBtn){
-        const isAssociated = p && (p.level === window.AssocConfig.levels.ASSOCIADO_TREINO || p.level === window.AssocConfig.levels.ASSOCIADO_MODO_LIGA);
-        assocBtn.disabled = !isAssociated;
-        assocBtn.classList.toggle('opacity-60', !isAssociated);
-        assocBtn.textContent = isAssociated ? 'USAR TOKENS' : 'APENAS ASSOCIADOS';
+        const hasTokens = p && p.tokens && p.tokens > 0;
+        assocBtn.disabled = !hasTokens;
+        assocBtn.classList.toggle('opacity-60', !hasTokens);
+        assocBtn.textContent = hasTokens ? 'USAR TOKENS' : 'SALDO INSUFICIENTE';
     }
 }
 
@@ -1347,12 +1347,14 @@ async function submitSchedule(e){
     const phone = document.getElementById('schedPhone').value.trim();
     if (!schedule){ alert('Selecione um horário.'); return; }
 
-    // Se pagar com token (associado): validar associação e saldo e debitar
+    // Se pagar com token: validar saldo e debitar
     if (cfg && cfg.payWithToken){
         const profile = window.currentUserProfile || {};
-        const isAssociated = profile && (profile.level === window.AssocConfig.levels.ASSOCIADO_TREINO || profile.level === window.AssocConfig.levels.ASSOCIADO_MODO_LIGA);
-        if (!isAssociated){ alert('Apenas associados podem usar tokens.'); if(submitBtn){submitBtn.disabled=false; submitBtn.textContent=oldText;} return; }
-        if (!canSpendTokens(cfg.price)){ alert('Saldo de tokens insuficiente.'); if(submitBtn){submitBtn.disabled=false; submitBtn.textContent=oldText;} return; }
+        if (!profile || !profile.tokens || profile.tokens < cfg.price){ 
+            alert(`Saldo de tokens insuficiente. Você precisa de ${cfg.price.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})} em tokens.`); 
+            if(submitBtn){submitBtn.disabled=false; submitBtn.textContent=oldText;} 
+            return; 
+        }
     }
     // checar disponibilidade antes de criar a reserva (evita overbooking)
     const canBook = await checkSlotAvailability(date, schedule, eventType);
@@ -1600,11 +1602,10 @@ function useTokensForEvent(eventType){
         'campFases': 5.00
     };
     
-    // Apenas associados podem usar tokens
+    // Verificar se tem tokens suficientes
     const profile = window.currentUserProfile || {};
-    const isAssociated = profile && (profile.level === window.AssocConfig.levels.ASSOCIADO_TREINO || profile.level === window.AssocConfig.levels.ASSOCIADO_MODO_LIGA);
-    if (!isAssociated){
-        alert('Recurso disponível somente para contas de associado.');
+    if (!profile || !profile.tokens || profile.tokens < cost) {
+        alert(`Saldo insuficiente. Você precisa de ${cost.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})} em tokens.`);
         return;
     }
 

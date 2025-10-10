@@ -63,10 +63,12 @@ function setupEventListeners() {
     const ordersTab = document.getElementById('ordersTab');
     const profileTab = document.getElementById('profileTab');
     const tokensTab = document.getElementById('tokensTab');
+    const myTokensTab = document.getElementById('myTokensTab');
     if (dashTab) dashTab.addEventListener('click', () => switchTab('dashboard'));
     if (ordersTab) ordersTab.addEventListener('click', () => switchTab('orders'));
     if (profileTab) profileTab.addEventListener('click', () => switchTab('profile'));
     if (tokensTab) tokensTab.addEventListener('click', () => switchTab('tokens'));
+    if (myTokensTab) myTokensTab.addEventListener('click', () => switchTab('myTokens'));
 
     // Logout button
     const logoutBtn = document.getElementById('logoutBtn');
@@ -110,7 +112,10 @@ function switchTab(tabName) {
             loadProfile();
             break;
         case 'tokens':
-            loadTokens();
+            loadTokensHistory();
+            break;
+        case 'myTokens':
+            loadMyTokens();
             break;
     }
 }
@@ -331,6 +336,7 @@ async function loadStats() {
         document.getElementById('totalOrders').textContent = totalOrders;
         document.getElementById('totalSpent').textContent = `R$ ${totalSpent.toFixed(2)}`;
         document.getElementById('availableTokens').textContent = userProfile?.tokens || 0;
+        document.getElementById('myTokenBalance').textContent = userProfile?.tokens || 0;
     } catch (error) {
         console.error('Error loading stats:', error);
     }
@@ -405,10 +411,47 @@ async function saveProfile(e) {
     }
 }
 
-// Load tokens
-function loadTokens() {
+// Load tokens history (purchases)
+async function loadTokensHistory() {
+    try {
+        const container = document.getElementById('tokensHistory');
+        if (!container) return;
+        
+        // Buscar compras de tokens (orders com tipo 'tokens')
+        const orders = await fetchUserDocs('orders', 50, true);
+        const tokenOrders = orders.filter(o => o.data.itemName?.toLowerCase().includes('token') || o.data.type === 'tokens');
+        
+        if (tokenOrders.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 text-center">Nenhuma compra de tokens encontrada</p>';
+            return;
+        }
+        
+        const historyHTML = tokenOrders.map(order => `
+            <div class="flex items-center justify-between py-3 border-b border-gray-200 last:border-b-0">
+                <div>
+                    <p class="font-medium text-gray-900">${order.data.itemName || 'Compra de Tokens'}</p>
+                    <p class="text-sm text-gray-500">${formatDate(order.data.createdAt?.toDate?.() || new Date())}</p>
+                </div>
+                <div class="text-right">
+                    <p class="font-medium text-gray-900">R$ ${order.data.amount?.toFixed(2) || '0,00'}</p>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.data.status)}">
+                        ${getStatusText(order.data.status)}
+                    </span>
+                </div>
+            </div>
+        `).join('');
+        
+        container.innerHTML = historyHTML;
+    } catch (error) {
+        console.error('Error loading tokens history:', error);
+        document.getElementById('tokensHistory').innerHTML = '<p class="text-gray-500 text-center">Erro ao carregar histórico</p>';
+    }
+}
+
+// Load my tokens (balance)
+function loadMyTokens() {
     if (userProfile) {
-        document.getElementById('tokenBalance').textContent = `${userProfile.tokens || 0} Tokens`;
+        document.getElementById('myTokenBalance').textContent = `${userProfile.tokens || 0} Tokens`;
     }
 }
 
@@ -495,5 +538,55 @@ function getStatusText(status) {
             return 'Rejeitado';
         default:
             return 'Desconhecido';
+    }
+}
+
+// Token purchase functions
+function openTokensPurchaseModal() {
+    const modal = document.getElementById('tokensPurchaseModal');
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closeTokensPurchaseModal() {
+    const modal = document.getElementById('tokensPurchaseModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+async function purchaseTokens(quantity) {
+    try {
+        const price = quantity; // R$ 1,00 por token
+        
+        // Criar preferência no Mercado Pago
+        const response = await fetch('/.netlify/functions/create-preference', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title: `${quantity} Token${quantity > 1 ? 's' : ''} XTreino`,
+                unit_price: price,
+                currency_id: 'BRL',
+                quantity: 1,
+                back_url: window.location.origin + window.location.pathname
+            })
+        });
+        
+        if (!response.ok) throw new Error('Erro ao criar preferência');
+        
+        const data = await response.json();
+        closeTokensPurchaseModal();
+        
+        if (data.init_point) {
+            // Salvar info da compra para processar após pagamento
+            sessionStorage.setItem('tokenPurchase', JSON.stringify({
+                quantity,
+                price,
+                external_reference: data.external_reference
+            }));
+            window.location.href = data.init_point;
+        } else {
+            alert('Erro ao iniciar pagamento');
+        }
+    } catch (error) {
+        console.error('Error purchasing tokens:', error);
+        alert('Erro ao processar compra de tokens');
     }
 }
