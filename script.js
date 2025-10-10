@@ -403,7 +403,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     sessionStorage.removeItem('lastExternalRef');
                     sessionStorage.removeItem('lastRegId');
                     sessionStorage.removeItem('lastRegInfo');
-                } else if (mpStatus) {
+                    // Não fazer nada mais - usuário está apenas visitando o site
+                    return;
+                } else if (mpStatus === 'success') {
                     if (mpStatus === 'success') {
                         console.log('Payment successful, processing...');
                         const regId = sessionStorage.getItem('lastRegId');
@@ -1560,6 +1562,11 @@ async function checkPaymentStatus(preferenceId) {
 function processSuccessfulPayment() {
     const regId = sessionStorage.getItem('lastRegId');
     console.log('Processing successful payment, regId:', regId);
+    
+    // Limpar dados de pagamento após processar com sucesso
+    sessionStorage.removeItem('lastExternalRef');
+    sessionStorage.removeItem('lastRegId');
+    sessionStorage.removeItem('lastRegInfo');
     
     if (regId) {
         // Atualizar status no Firestore
