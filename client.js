@@ -230,16 +230,58 @@ async function loadOrders() {
     }
 }
 
+// Função para converter data e horário do evento em DateTime
+function getEventDateTime(dateStr, scheduleStr) {
+    try {
+        // Formato da data: YYYY-MM-DD
+        // Formato do schedule: "Segunda - 19h" ou "19h"
+        const date = new Date(dateStr + 'T00:00:00');
+        
+        // Extrair o horário do schedule
+        let timeStr = scheduleStr;
+        if (scheduleStr.includes(' - ')) {
+            timeStr = scheduleStr.split(' - ')[1]; // Pega a parte após " - "
+        }
+        
+        // Converter horário (ex: "19h" -> 19)
+        const hour = parseInt(timeStr.replace('h', ''));
+        
+        // Definir a data e hora do evento
+        date.setHours(hour, 0, 0, 0);
+        
+        return date;
+    } catch (error) {
+        console.error('Erro ao converter data/hora do evento:', error);
+        return new Date(); // Retorna data atual em caso de erro
+    }
+}
+
 // Carrega links do WhatsApp para pedidos confirmados
 async function loadWhatsAppLinks(orders) {
     const whatsappContainer = document.getElementById('whatsappLinks');
     const whatsappList = document.getElementById('whatsappList');
     if (!whatsappContainer || !whatsappList) return;
 
-    const confirmedOrders = orders.filter(order => 
-        (order.status === 'paid' || order.status === 'confirmed') && 
-        (order.eventType || order.title)
-    );
+    const confirmedOrders = orders.filter(order => {
+        // Verificar se o pedido está confirmado
+        if (!(order.status === 'paid' || order.status === 'confirmed') || !(order.eventType || order.title)) {
+            return false;
+        }
+        
+        // Verificar se o link do WhatsApp ainda deve ser exibido (não passou de 1h do evento)
+        if (order.schedule && order.date) {
+            const eventDateTime = getEventDateTime(order.date, order.schedule);
+            const oneHourAfterEvent = new Date(eventDateTime.getTime() + (60 * 60 * 1000)); // +1 hora
+            const now = new Date();
+            
+            // Se passou mais de 1 hora do evento, não mostrar o link
+            if (now > oneHourAfterEvent) {
+                return false;
+            }
+        }
+        
+        return true;
+    });
 
     if (confirmedOrders.length === 0) {
         whatsappContainer.classList.add('hidden');
@@ -271,6 +313,21 @@ async function loadWhatsAppLinks(orders) {
                 whatsappLink = whatsappLinks['xtreino-gratuito'];
             }
         }
+        
+        // Calcular quando o link expira
+        let expiresInfo = '';
+        if (order.schedule && order.date) {
+            const eventDateTime = getEventDateTime(order.date, order.schedule);
+            const oneHourAfterEvent = new Date(eventDateTime.getTime() + (60 * 60 * 1000));
+            const now = new Date();
+            const timeLeft = oneHourAfterEvent.getTime() - now.getTime();
+            
+            if (timeLeft > 0) {
+                const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
+                const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                expiresInfo = `<p class="text-xs text-orange-600 mt-1">⏰ Link expira em ${hoursLeft}h ${minutesLeft}m</p>`;
+            }
+        }
 
         return `
             <div class="border border-gray-200 rounded-lg p-4 mb-4">
@@ -279,6 +336,7 @@ async function loadWhatsAppLinks(orders) {
                         <h4 class="font-medium text-gray-900">${title}</h4>
                         <p class="text-sm text-gray-500">${date.toLocaleDateString('pt-BR')}</p>
                         <p class="text-sm text-green-600 font-medium">Confirmado</p>
+                        ${expiresInfo}
                     </div>
                     <a href="${whatsappLink}" target="_blank" 
                        class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
@@ -291,6 +349,11 @@ async function loadWhatsAppLinks(orders) {
             </div>
         `;
     }).join('');
+    
+    // Atualizar automaticamente a cada minuto para verificar expiração
+    setTimeout(() => {
+        loadWhatsAppLinks(orders);
+    }, 60000); // 60 segundos
 }
 
 // Display all orders
