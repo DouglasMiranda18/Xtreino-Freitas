@@ -144,22 +144,84 @@ body {
     }
 }
 
-/* Schedule slots - visual melhorado */
-.slot-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
-@media (max-width: 480px) { .slot-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
-.slot-btn {
-    border: 2px solid var(--brand-green-2);
-    color: var(--brand-green-2);
-    padding: 10px 14px;
-    border-radius: 9999px;
-    font-weight: 700;
-    font-size: 0.9rem;
-    background: #fff;
-    transition: all .2s ease;
+/* Schedule slots - Novo design moderno */
+.slot-grid { 
+    display: grid; 
+    grid-template-columns: repeat(2, 1fr); 
+    gap: 12px; 
 }
-.slot-btn:hover { background: rgba(7, 183, 180, 0.06); }
-.slot-btn.selected { background: rgba(7,183,180,.12); box-shadow: 0 0 0 3px rgba(7,183,180,.25); }
-.slot-btn.full { border-color: #d1d5db; color: #9ca3af; background: #f9fafb; cursor: not-allowed; }
+@media (max-width: 480px) { 
+    .slot-grid { 
+        grid-template-columns: repeat(2, 1fr); 
+        gap: 8px; 
+    } 
+}
+.slot-btn {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    border: 2px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 16px 12px;
+    font-weight: 700;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+    min-height: 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    font-size: 0.9rem;
+}
+.slot-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    transition: left 0.5s;
+}
+.slot-btn:hover::before {
+    left: 100%;
+}
+.slot-btn:hover { 
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    border-color: #3b82f6;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+}
+.slot-btn.selected { 
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    border-color: #10b981;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+}
+.slot-btn.full { 
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    border-color: #fca5a5;
+    color: #dc2626;
+    cursor: not-allowed;
+    opacity: 0.8;
+}
+.slot-btn.bg-gray-300 {
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    border-color: #d1d5db;
+    color: #9ca3af;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+.slot-btn.bg-red-100 {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    border-color: #fca5a5;
+    color: #dc2626;
+    cursor: not-allowed;
+}
 
 /* Fundo empresarial simples (padrão sutil) */
 .enterprise-bg {

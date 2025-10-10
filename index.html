@@ -977,43 +977,137 @@
         </div>
     </div>
 
-    <!-- Schedule Modal (nativo) -->
-    <div id="scheduleModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-2xl w-full overflow-hidden relative">
-            <button onclick="closeScheduleModal()" class="absolute top-4 right-4 text-gray-500 hover:text-black">
-                <i class="fas fa-times text-xl"></i>
-            </button>
-            <div class="p-6 space-y-4">
-                <h3 class="text-2xl font-bold">Reservar horário</h3>
-                <div class="flex flex-col sm:flex-row gap-3 items-center">
-                    <label class="text-sm font-medium">Dia:</label>
-                    <input type="date" id="schedDate" class="bg-white border border-gray-300 rounded-lg px-4 py-2 flex-1" />
-                    <button onclick="setSchedToday()" class="px-3 py-2 border rounded">Hoje</button>
-                    <button onclick="setSchedTomorrow()" class="px-3 py-2 border rounded">Amanhã</button>
-                </div>
-                <div>
-                    <h4 class="font-semibold mb-2">Horários disponíveis</h4>
-                    <div id="schedTimes" class="slot-grid"></div>
-                </div>
-                <form id="schedForm" onsubmit="submitSchedule(event)" class="space-y-3">
-                    <input type="hidden" id="schedSelectedTime">
-                    <div class="grid sm:grid-cols-2 gap-3">
-                        <input id="schedTeam" type="text" required placeholder="Nome do time" class="bg-white border border-gray-300 rounded-lg px-4 py-2">
-                        <input id="schedEmail" type="email" required placeholder="Email" class="bg-white border border-gray-300 rounded-lg px-4 py-2">
-                        <input id="schedPhone" type="tel" required placeholder="WhatsApp" class="bg-white border border-gray-300 rounded-lg px-4 py-2 sm:col-span-2">
+    <!-- Schedule Modal (Novo Design) -->
+    <div id="scheduleModal" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden relative shadow-2xl">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 relative">
+                <button onclick="closeScheduleModal()" class="absolute top-4 right-4 text-white hover:text-gray-200 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+                <div class="flex items-center space-x-3">
+                    <div class="w-12 h-12 bg-white bg-opacity-20 rounded-xl flex items-center justify-center">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
                     </div>
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <div class="text-sm text-gray-500">Valor</div>
-                            <div id="schedPrice" class="text-xl font-bold">R$ 0,00</div>
+                    <div>
+                        <h3 class="text-2xl font-bold">Reservar Horário</h3>
+                        <p class="text-blue-100 text-sm">Escolha a data e horário para seu evento</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content -->
+            <div class="p-6">
+                <div class="grid lg:grid-cols-2 gap-8">
+                    <!-- Left Column - Date & Time Selection -->
+                    <div class="space-y-6">
+                        <!-- Date Selection -->
+                        <div class="bg-gray-50 rounded-2xl p-6">
+                            <h4 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                </svg>
+                                Selecionar Data
+                            </h4>
+                            <div class="space-y-4">
+                                <input type="date" id="schedDate" class="w-full bg-white border-2 border-gray-200 rounded-xl px-4 py-3 text-lg focus:border-blue-500 focus:ring-0 transition-colors" />
+                                <div class="flex gap-3">
+                                    <button onclick="setSchedToday()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-xl font-semibold transition-colors">
+                                        Hoje
+                                    </button>
+                                    <button onclick="setSchedTomorrow()" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-3 px-4 rounded-xl font-semibold transition-colors">
+                                        Amanhã
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <div class="flex gap-2">
-                            <button type="button" id="buyTokensBtn" onclick="goToTokensFromSchedule()" class="px-4 py-3 border rounded-lg font-semibold text-gray-700 hover:bg-gray-100 hidden">Comprar tokens</button>
-                            <button type="submit" id="schedSubmit" class="btn-primary px-6 py-3 rounded-lg font-semibold">Confirmar e pagar</button>
+
+                        <!-- Time Selection -->
+                        <div class="bg-gray-50 rounded-2xl p-6">
+                            <h4 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                Horários Disponíveis
+                            </h4>
+                            <div id="schedTimes" class="grid grid-cols-2 gap-3"></div>
                         </div>
                     </div>
-                </form>
-                <div id="schedHint" class="text-sm text-gray-500"></div>
+
+                    <!-- Right Column - Form & Payment -->
+                    <div class="space-y-6">
+                        <!-- Event Info -->
+                        <div class="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-6 border border-blue-100">
+                            <div class="flex items-center justify-between mb-4">
+                                <h4 class="text-lg font-semibold text-gray-900">Detalhes do Evento</h4>
+                                <div class="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-semibold" id="schedEventType">Modo Liga</div>
+                            </div>
+                            <div class="space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600">Data selecionada:</span>
+                                    <span class="font-semibold" id="schedSelectedDate">--</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600">Horário:</span>
+                                    <span class="font-semibold" id="schedSelectedTimeDisplay">--</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600">Valor:</span>
+                                    <span class="text-2xl font-bold text-green-600" id="schedPrice">R$ 0,00</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form -->
+                        <form id="schedForm" onsubmit="submitSchedule(event)" class="space-y-4">
+                            <input type="hidden" id="schedSelectedTime">
+                            
+                            <div class="bg-white rounded-2xl p-6 border border-gray-200">
+                                <h4 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                                    <svg class="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                    </svg>
+                                    Informações do Time
+                                </h4>
+                                <div class="space-y-4">
+                                    <input id="schedTeam" type="text" required placeholder="Nome do time" 
+                                           class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-4 py-3 text-lg focus:border-blue-500 focus:ring-0 transition-colors">
+                                    <input id="schedEmail" type="email" required placeholder="Email" 
+                                           class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-4 py-3 text-lg focus:border-blue-500 focus:ring-0 transition-colors">
+                                    <input id="schedPhone" type="tel" required placeholder="WhatsApp (11) 99999-9999" 
+                                           class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-4 py-3 text-lg focus:border-blue-500 focus:ring-0 transition-colors">
+                                </div>
+                            </div>
+
+                            <!-- Payment Section -->
+                            <div class="bg-white rounded-2xl p-6 border border-gray-200">
+                                <h4 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                                    <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+                                    </svg>
+                                    Finalizar Reserva
+                                </h4>
+                                <div class="space-y-4">
+                                    <div class="flex gap-3">
+                                        <button type="button" id="buyTokensBtn" onclick="goToTokensFromSchedule()" 
+                                                class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white py-3 px-4 rounded-xl font-semibold transition-colors hidden">
+                                            💎 Comprar Tokens
+                                        </button>
+                                        <button type="submit" id="schedSubmit" 
+                                                class="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-3 px-4 rounded-xl font-semibold transition-all transform hover:scale-105">
+                                            ✅ Confirmar e Pagar
+                                        </button>
+                                    </div>
+                                    <div id="schedHint" class="text-sm text-gray-500 text-center"></div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

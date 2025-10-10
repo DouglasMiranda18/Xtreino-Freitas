@@ -1187,6 +1187,7 @@ function openScheduleModal(eventType){
     if (!cfg || !modal) return;
     modal.dataset.eventType = eventType;
     document.getElementById('schedPrice').textContent = cfg.price.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+    document.getElementById('schedEventType').textContent = cfg.label;
     
     // Mostrar botão "Comprar tokens" apenas para XTreino Associado
     const buyTokensBtn = document.getElementById('buyTokensBtn');
@@ -1202,7 +1203,10 @@ function openScheduleModal(eventType){
     // re-render quando a data mudar
     const dateInput = document.getElementById('schedDate');
     if (dateInput && !dateInput._schedBound){
-        dateInput.addEventListener('change', renderScheduleTimes);
+        dateInput.addEventListener('change', () => {
+            updateSelectedDate();
+            renderScheduleTimes();
+        });
         dateInput._schedBound = true;
     }
     renderScheduleTimes();
@@ -1236,7 +1240,11 @@ function initScheduleDate(){
     const d = String(today.getDate()).padStart(2,'0');
     input.value = `${y}-${m}-${d}`;
 }
-function setSchedToday(){ initScheduleDate(); renderScheduleTimes(); }
+function setSchedToday(){ 
+    initScheduleDate(); 
+    updateSelectedDate();
+    renderScheduleTimes(); 
+}
 function setSchedTomorrow(){
     const input = document.getElementById('schedDate');
     const t = new Date();
@@ -1245,7 +1253,27 @@ function setSchedTomorrow(){
     const m = String(t.getMonth()+1).padStart(2,'0');
     const d = String(t.getDate()).padStart(2,'0');
     input.value = `${y}-${m}-${d}`;
+    updateSelectedDate();
     renderScheduleTimes();
+}
+
+// Função para atualizar a data selecionada
+function updateSelectedDate() {
+    const dateInput = document.getElementById('schedDate');
+    const selectedDateDisplay = document.getElementById('schedSelectedDate');
+    if (dateInput && selectedDateDisplay) {
+        const date = new Date(dateInput.value);
+        if (!isNaN(date.getTime())) {
+            selectedDateDisplay.textContent = date.toLocaleDateString('pt-BR', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        } else {
+            selectedDateDisplay.textContent = '--';
+        }
+    }
 }
 const scheduleCache = {};
 
@@ -1308,7 +1336,11 @@ async function renderScheduleTimes(){
             btn.onclick = null;
         } else {
             btn.textContent = `${time} (.. /12)`;
-            btn.onclick = ()=>{ document.getElementById('schedSelectedTime').value = schedule; highlightSelectedSlot(btn, timesWrap); };
+            btn.onclick = ()=>{ 
+                document.getElementById('schedSelectedTime').value = schedule; 
+                document.getElementById('schedSelectedTimeDisplay').textContent = time;
+                highlightSelectedSlot(btn, timesWrap); 
+            };
         }
         
         timesWrap.appendChild(btn);
@@ -1401,7 +1433,11 @@ async function updateOccupiedAndRefreshButtons(day, date, eventType, container){
             btn.className = 'slot-btn';
             btn.disabled = false;
             btn.textContent = `${time} (${String(available).padStart(2,'0')}/12)`;
-            btn.onclick = ()=>{ document.getElementById('schedSelectedTime').value = schedule; highlightSelectedSlot(btn, container); };
+            btn.onclick = ()=>{ 
+                document.getElementById('schedSelectedTime').value = schedule; 
+                document.getElementById('schedSelectedTimeDisplay').textContent = time;
+                highlightSelectedSlot(btn, container); 
+            };
         }
     });
 }
