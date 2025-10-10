@@ -590,3 +590,50 @@ async function purchaseTokens(quantity) {
         alert('Erro ao processar compra de tokens');
     }
 }
+
+// Compra rápida de tokens (botões diretos)
+async function purchaseTokensQuick(quantity) {
+    try {
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+            alert('Você precisa estar logado para comprar tokens');
+            return;
+        }
+
+        const price = quantity * 1.00; // R$ 1,00 por token
+        
+        // Confirmar compra
+        const confirmMessage = `Confirmar compra de ${quantity} token${quantity > 1 ? 's' : ''} por R$ ${price.toFixed(2)}?`;
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+
+        // Criar preferência de pagamento
+        const response = await fetch('/.netlify/functions/create-preference', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                items: [{
+                    title: `${quantity} Token${quantity > 1 ? 's' : ''} XTreino`,
+                    quantity,
+                    unit_price: 1.00
+                }],
+                external_reference: `tokens_${currentUser.uid}_${Date.now()}`
+            })
+        });
+
+        const data = await response.json();
+        
+        if (data.init_point) {
+            // Redirecionar para pagamento
+            window.location.href = data.init_point;
+        } else {
+            alert('Erro ao iniciar pagamento');
+        }
+    } catch (error) {
+        console.error('Error in quick purchase:', error);
+        alert('Erro ao processar compra rápida');
+    }
+}

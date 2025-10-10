@@ -227,9 +227,44 @@
                         </ul>
                     </div>
 
-                    <div class="text-center">
-                        <button onclick="openTokensPurchaseModal()" class="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700">
-                            Comprar Tokens
+                    <!-- Card de Compra de Tokens -->
+                    <div class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg p-6 text-white mb-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h5 class="text-lg font-semibold mb-2">💎 Comprar Tokens</h5>
+                                <p class="text-blue-100 text-sm mb-3">Adicione mais tokens à sua conta</p>
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-xs bg-white bg-opacity-20 px-2 py-1 rounded">R$ 1,00</span>
+                                    <span class="text-xs">por token</span>
+                                </div>
+                            </div>
+                            <button onclick="openTokensPurchaseModal()" class="bg-white text-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+                                Comprar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Pacotes Rápidos -->
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+                        <button onclick="purchaseTokensQuick(1)" class="bg-gray-100 hover:bg-gray-200 p-3 rounded-lg text-center transition-colors">
+                            <div class="text-lg font-bold text-gray-900">1</div>
+                            <div class="text-xs text-gray-600">R$ 1,00</div>
+                        </button>
+                        <button onclick="purchaseTokensQuick(5)" class="bg-gray-100 hover:bg-gray-200 p-3 rounded-lg text-center transition-colors">
+                            <div class="text-lg font-bold text-gray-900">5</div>
+                            <div class="text-xs text-gray-600">R$ 5,00</div>
+                        </button>
+                        <button onclick="purchaseTokensQuick(25)" class="bg-gray-100 hover:bg-gray-200 p-3 rounded-lg text-center transition-colors">
+                            <div class="text-lg font-bold text-gray-900">25</div>
+                            <div class="text-xs text-gray-600">R$ 25,00</div>
+                        </button>
+                        <button onclick="purchaseTokensQuick(50)" class="bg-gray-100 hover:bg-gray-200 p-3 rounded-lg text-center transition-colors">
+                            <div class="text-lg font-bold text-gray-900">50</div>
+                            <div class="text-xs text-gray-600">R$ 50,00</div>
+                        </button>
+                        <button onclick="purchaseTokensQuick(100)" class="bg-gray-100 hover:bg-gray-200 p-3 rounded-lg text-center transition-colors">
+                            <div class="text-lg font-bold text-gray-900">100</div>
+                            <div class="text-xs text-gray-600">R$ 100,00</div>
                         </button>
                     </div>
                 </div>
