@@ -549,18 +549,18 @@ function getStatusText(status) {
     }
 }
 
-// Token purchase functions
-function openTokensPurchaseModal() {
+// Token purchase functions - expostas globalmente
+window.openTokensPurchaseModal = function() {
     const modal = document.getElementById('tokensPurchaseModal');
     if (modal) modal.classList.remove('hidden');
 }
 
-function closeTokensPurchaseModal() {
+window.closeTokensPurchaseModal = function() {
     const modal = document.getElementById('tokensPurchaseModal');
     if (modal) modal.classList.add('hidden');
 }
 
-async function purchaseTokens(quantity) {
+window.purchaseTokens = async function(quantity) {
     try {
         const price = quantity; // R$ 1,00 por token
         
@@ -599,8 +599,8 @@ async function purchaseTokens(quantity) {
     }
 }
 
-// Compra rápida de tokens (botões diretos)
-async function purchaseTokensQuick(quantity) {
+// Compra rápida de tokens (botões diretos) - exposta globalmente
+window.purchaseTokensQuick = async function(quantity) {
     try {
         const currentUser = auth.currentUser;
         if (!currentUser) {
