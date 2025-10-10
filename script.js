@@ -1282,14 +1282,35 @@ async function renderScheduleTimes(){
     const d = new Date(date + 'T00:00:00');
     const day = dayNames[d.getDay()];
     const slots = ['19h','20h','21h','22h','23h'];
+    const now = new Date();
+    const selectedDate = new Date(date + 'T00:00:00');
+    const isToday = selectedDate.toDateString() === now.toDateString();
+    
     // Render imediato com estado neutro e atualiza assíncrono
     slots.forEach(time => {
         const schedule = `${day} - ${time}`;
         const btn = document.createElement('button');
         btn.className = 'slot-btn';
         btn.dataset.schedule = schedule;
-        btn.textContent = `${time} (.. /12)`;
-        btn.onclick = ()=>{ document.getElementById('schedSelectedTime').value = schedule; highlightSelectedSlot(btn, timesWrap); };
+        
+        // Verificar se o horário já passou (apenas para hoje)
+        let isPastTime = false;
+        if (isToday) {
+            const hour = parseInt(time.replace('h', ''));
+            const currentHour = now.getHours();
+            isPastTime = hour <= currentHour;
+        }
+        
+        if (isPastTime) {
+            btn.className = 'slot-btn bg-gray-300 text-gray-500 cursor-not-allowed';
+            btn.disabled = true;
+            btn.textContent = `${time} (Horário passou)`;
+            btn.onclick = null;
+        } else {
+            btn.textContent = `${time} (.. /12)`;
+            btn.onclick = ()=>{ document.getElementById('schedSelectedTime').value = schedule; highlightSelectedSlot(btn, timesWrap); };
+        }
+        
         timesWrap.appendChild(btn);
     });
     // Atualiza com dados reais e mantém em tempo real
@@ -1348,18 +1369,39 @@ async function updateOccupiedAndRefreshButtons(day, date, eventType, container){
         try { occupied = await fetchOccupiedForDate(day, date, eventType); } catch(_) { occupied = {}; }
         scheduleCache[cacheKey] = occupied;
     }
+    const now = new Date();
+    const selectedDate = new Date(date + 'T00:00:00');
+    const isToday = selectedDate.toDateString() === now.toDateString();
+    
     Array.from(container.children).forEach(btn => {
         const schedule = btn.dataset.schedule;
         const time = (schedule || '').split(' - ')[1] || '';
         const taken = occupied[schedule] || 0;
         const available = Math.max(0, 12 - taken);
-        btn.textContent = `${time} (${String(available).padStart(2,'0')}/12)`;
-        if (available === 0){
-            btn.classList.add('full');
+        
+        // Verificar se o horário já passou (apenas para hoje)
+        let isPastTime = false;
+        if (isToday) {
+            const hour = parseInt(time.replace('h', ''));
+            const currentHour = now.getHours();
+            isPastTime = hour <= currentHour;
+        }
+        
+        if (isPastTime) {
+            btn.className = 'slot-btn bg-gray-300 text-gray-500 cursor-not-allowed';
             btn.disabled = true;
+            btn.textContent = `${time} (Horário passou)`;
+            btn.onclick = null;
+        } else if (available === 0){
+            btn.className = 'slot-btn bg-red-100 text-red-600 cursor-not-allowed';
+            btn.disabled = true;
+            btn.textContent = `${time} (Lotado)`;
+            btn.onclick = null;
         } else {
-            btn.classList.remove('full');
+            btn.className = 'slot-btn';
             btn.disabled = false;
+            btn.textContent = `${time} (${String(available).padStart(2,'0')}/12)`;
+            btn.onclick = ()=>{ document.getElementById('schedSelectedTime').value = schedule; highlightSelectedSlot(btn, container); };
         }
     });
 }
@@ -1377,6 +1419,23 @@ async function submitSchedule(e){
     const email = document.getElementById('schedEmail').value.trim();
     const phone = document.getElementById('schedPhone').value.trim();
     if (!schedule){ alert('Selecione um horário.'); return; }
+    
+    // Verificar se o horário já passou
+    const now = new Date();
+    const selectedDate = new Date(date + 'T00:00:00');
+    const isToday = selectedDate.toDateString() === now.toDateString();
+    
+    if (isToday) {
+        const timeStr = schedule.split(' - ')[1] || '';
+        const hour = parseInt(timeStr.replace('h', ''));
+        const currentHour = now.getHours();
+        
+        if (hour <= currentHour) {
+            alert('Este horário já passou. Selecione um horário futuro.');
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+            return;
+        }
+    }
 
     // Se pagar com token: validar saldo e debitar
     if (cfg && cfg.payWithToken){
