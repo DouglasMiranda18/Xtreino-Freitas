@@ -1185,6 +1185,17 @@ function openScheduleModal(eventType){
     if (!cfg || !modal) return;
     modal.dataset.eventType = eventType;
     document.getElementById('schedPrice').textContent = cfg.price.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+    
+    // Mostrar botão "Comprar tokens" apenas para XTreino Associado
+    const buyTokensBtn = document.getElementById('buyTokensBtn');
+    if (buyTokensBtn) {
+        if (eventType === 'associado') {
+            buyTokensBtn.classList.remove('hidden');
+        } else {
+            buyTokensBtn.classList.add('hidden');
+        }
+    }
+    
     initScheduleDate();
     // re-render quando a data mudar
     const dateInput = document.getElementById('schedDate');
