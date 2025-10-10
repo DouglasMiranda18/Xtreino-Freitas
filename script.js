@@ -982,16 +982,18 @@ function closePurchaseModal() {
     if (window.innerWidth <= 767) maybeClearMobileModalState();
 }
 
-function handlePurchase(event) {
+async function handlePurchase(event) {
     event.preventDefault();
     const product = products[currentProduct];
     if (!product) {
         alert('Produto inválido.');
         return;
     }
+    
     // total atual do modal
     const totalText = document.getElementById('purchasePrice')?.textContent || '0';
     const totalNum = Number(totalText.replace(/[^0-9,]/g,'').replace(',','.')) || 0;
+    
     // validação específica para imagens (quantidade vs nomes)
     if (currentProduct === 'imagens'){
         const qty = Math.max(1, Math.min(5, Number(document.getElementById('mapsQty')?.value || 1)));
@@ -1002,35 +1004,86 @@ function handlePurchase(event) {
             return;
         }
     }
-    // Chamar function segura (Netlify) para criar Preference
-    fetch('/.netlify/functions/create-preference', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            title: product.name,
-            unit_price: totalNum,
-            currency_id: 'BRL',
-            quantity: 1,
-            back_url: window.location.origin + window.location.pathname
-        })
-    })
-    .then(async (res) => {
-        if (!res.ok) throw new Error(await res.text());
-        return res.json();
-    })
-    .then((data) => {
+
+    // Coletar dados do formulário
+    const formData = new FormData(event.target);
+    const customerName = formData.get('name') || document.querySelector('#purchaseModal input[type="text"]')?.value || '';
+    const customerEmail = formData.get('email') || document.querySelector('#purchaseModal input[type="email"]')?.value || '';
+    
+    // Coletar opções específicas do produto
+    let productOptions = {};
+    if (currentProduct === 'camisa') {
+        const sizeSelect = document.querySelector('#purchaseModal select');
+        productOptions.size = sizeSelect?.value || '';
+    } else if (currentProduct === 'imagens') {
+        const mapsNames = document.getElementById('mapsNames')?.value || '';
+        const mapsQty = document.getElementById('mapsQty')?.value || '1';
+        productOptions.maps = mapsNames.split(',').map(s=>s.trim()).filter(Boolean);
+        productOptions.quantity = parseInt(mapsQty);
+    }
+
+    try {
+        // Salvar order no Firestore ANTES de redirecionar
+        if (window.firebaseDb) {
+            const { addDoc, collection, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            
+            const orderData = {
+                title: product.name,
+                description: product.description,
+                item: product.name,
+                amount: totalNum,
+                total: totalNum,
+                quantity: 1,
+                currency: 'BRL',
+                status: 'pending',
+                customer: customerEmail,
+                customerName: customerName,
+                buyerEmail: customerEmail,
+                productId: currentProduct,
+                productOptions: productOptions,
+                createdAt: new Date(),
+                timestamp: Date.now(),
+                type: 'digital_product' // Marcar como produto digital
+            };
+            
+            console.log('🔍 Attempting to save digital product order:', orderData);
+            const docRef = await addDoc(collection(window.firebaseDb, 'orders'), orderData);
+            console.log('✅ Digital product order saved to Firestore with ID:', docRef.id);
+            
+            // Salvar external_reference para o webhook
+            const externalRef = `digital_${docRef.id}`;
+            await updateDoc(docRef, { external_reference: externalRef });
+        }
+
+        // Chamar function segura (Netlify) para criar Preference
+        const response = await fetch('/.netlify/functions/create-preference', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title: product.name,
+                unit_price: totalNum,
+                currency_id: 'BRL',
+                quantity: 1,
+                back_url: window.location.origin + window.location.pathname,
+                external_reference: `digital_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+            })
+        });
+
+        if (!response.ok) throw new Error(await response.text());
+        const data = await response.json();
+        
         closePurchaseModal();
+        
         // Redireciona para o checkout do Mercado Pago
         if (data.init_point) {
             window.location.href = data.init_point;
         } else {
             alert('Não foi possível iniciar o checkout.');
         }
-    })
-    .catch((err) => {
-        console.error('Erro no checkout:', err);
+    } catch (error) {
+        console.error('Erro no checkout:', error);
         alert('Falha ao iniciar checkout.');
-    });
+    }
 }
 
 // Close modals when clicking outside

@@ -1,6 +1,81 @@
 // Netlify Function: Receber notificações de pagamento do Mercado Pago
 const admin = require('firebase-admin');
 
+// Função para gerar links de download baseado no produto
+function generateDownloadLinks(productId, productOptions = {}) {
+    const baseUrl = 'https://freitasteste.netlify.app/downloads/';
+    
+    switch (productId) {
+        case 'sensibilidades':
+            return [
+                {
+                    name: 'Sensibilidade PC',
+                    url: `${baseUrl}sensibilidade-pc.zip`,
+                    description: 'Arquivo de configuração para PC'
+                },
+                {
+                    name: 'Sensibilidade Mobile',
+                    url: `${baseUrl}sensibilidade-mobile.zip`,
+                    description: 'Arquivo de configuração para Android/iOS'
+                },
+                {
+                    name: 'Guia de Instalação',
+                    url: `${baseUrl}guia-sensibilidade.pdf`,
+                    description: 'Instruções passo a passo'
+                }
+            ];
+            
+        case 'imagens':
+            const maps = productOptions.maps || [];
+            return maps.map(map => ({
+                name: `Imagens Aéreas - ${map}`,
+                url: `${baseUrl}imagens-${map.toLowerCase().replace(' ', '-')}.zip`,
+                description: `~20 imagens com principais calls do mapa ${map}`
+            }));
+            
+        case 'planilhas':
+            return [
+                {
+                    name: 'Planilhas de Análise',
+                    url: `${baseUrl}planilhas-analise.xlsx`,
+                    description: 'Planilhas para coachs e analistas'
+                },
+                {
+                    name: 'Vídeo Explicativo',
+                    url: `${baseUrl}video-explicativo.mp4`,
+                    description: 'Tutorial de uso das planilhas'
+                }
+            ];
+            
+        case 'passe-booyah':
+            return [
+                {
+                    name: 'Instruções de Ativação',
+                    url: `${baseUrl}instrucoes-passe.pdf`,
+                    description: 'Como ativar o passe Booyah'
+                }
+            ];
+            
+        case 'camisa':
+            return [
+                {
+                    name: 'Comprovante de Compra',
+                    url: `${baseUrl}comprovante-camisa.pdf`,
+                    description: 'Comprovante para retirada da camisa'
+                }
+            ];
+            
+        default:
+            return [
+                {
+                    name: 'Produto Digital',
+                    url: `${baseUrl}produto-${productId}.zip`,
+                    description: 'Arquivo do produto comprado'
+                }
+            ];
+    }
+}
+
 // Inicializar Firebase Admin se ainda não foi inicializado
 if (!admin.apps.length) {
     try {
@@ -97,11 +172,12 @@ exports.handler = async (event, context) => {
                         
                         console.log('Order updated to paid:', orderDoc.id);
                         
-                        // Se for compra de tokens, atualizar saldo do usuário
-                        console.log('Checking if this is a token purchase...');
+                        // Verificar tipo de compra
+                        console.log('Checking purchase type...');
                         console.log('Payment description:', payment.description);
                         console.log('Order data:', orderData);
                         
+                        // Se for compra de tokens, atualizar saldo do usuário
                         if (payment.description && payment.description.includes('Token')) {
                             console.log('This is a token purchase! Processing...');
                             const userId = orderData.userId || orderData.uid;
@@ -155,6 +231,32 @@ exports.handler = async (event, context) => {
                             } else {
                                 console.log('❌ No userId or customerEmail found in order data');
                             }
+                        }
+                        
+                        // Se for produto digital, criar entrega digital
+                        else if (orderData.type === 'digital_product') {
+                            console.log('This is a digital product purchase! Processing delivery...');
+                            
+                            // Criar entrega digital
+                            const deliveryData = {
+                                orderId: orderDoc.id,
+                                customerEmail: orderData.customer || orderData.buyerEmail,
+                                customerName: orderData.customerName,
+                                productId: orderData.productId,
+                                productName: orderData.title,
+                                productOptions: orderData.productOptions || {},
+                                status: 'delivered',
+                                deliveredAt: admin.firestore.FieldValue.serverTimestamp(),
+                                downloadLinks: generateDownloadLinks(orderData.productId, orderData.productOptions),
+                                paymentId: payment.id
+                            };
+                            
+                            console.log('Creating digital delivery:', deliveryData);
+                            
+                            // Salvar entrega digital
+                            await db.collection('digital_deliveries').add(deliveryData);
+                            
+                            console.log('✅ Digital delivery created for product:', orderData.productId);
                         }
                     } else {
                         // Se não encontrou em orders, tentar em registrations (para agendamentos)
