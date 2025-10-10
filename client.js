@@ -1,7 +1,7 @@
 // Client Area JavaScript
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import { getAuth, onAuthStateChanged, signOut, browserLocalPersistence, setPersistence } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
-import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, orderBy, limit } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, orderBy, limit, addDoc } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 
 // Reuse global Firebase app/auth/db initialized in firebase.js
 let app = null;
@@ -777,7 +777,7 @@ window.purchaseTokens = async function(quantity) {
                     };
                     
                     console.log('🔍 Attempting to save order:', orderData);
-                    const docRef = await db.collection('orders').add(orderData);
+                    const docRef = await addDoc(collection(db, 'orders'), orderData);
                     console.log('✅ Order saved to Firestore with ID:', docRef.id);
                 } else {
                     console.error('❌ Cannot save order: User not authenticated or DB not available');
@@ -887,7 +887,7 @@ window.purchaseTokensQuick = async function(quantity) {
                 };
                 
                     console.log('🔍 Attempting to save quick order:', orderData);
-                    const docRef = await db.collection('orders').add(orderData);
+                    const docRef = await addDoc(collection(db, 'orders'), orderData);
                     console.log('✅ Quick order saved to Firestore with ID:', docRef.id);
                 } else {
                     console.error('❌ Cannot save quick order: User not authenticated or DB not available');
