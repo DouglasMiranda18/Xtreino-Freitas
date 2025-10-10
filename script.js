@@ -1240,6 +1240,145 @@ const scheduleConfig = {
     'camisa': { label: 'Camisa Oficial', price: 89.90, isProduct: true }
 };
 
+// Função para adicionar opções específicas de cada produto
+function addProductOptions(productId) {
+    // Limpar opções anteriores
+    const optionsContainer = document.getElementById('productOptions');
+    if (optionsContainer) {
+        optionsContainer.innerHTML = '';
+    } else {
+        // Criar container se não existir
+        const container = document.createElement('div');
+        container.id = 'productOptions';
+        container.className = 'mt-4 space-y-4';
+        
+        // Inserir após o campo de telefone
+        const phoneField = document.getElementById('schedPhone').parentElement;
+        phoneField.parentNode.insertBefore(container, phoneField.nextSibling);
+    }
+    
+    const container = document.getElementById('productOptions');
+    
+    switch (productId) {
+        case 'sensibilidades':
+            // Sensibilidades não precisa de opções extras
+            break;
+            
+        case 'imagens':
+            // Opções para imagens aéreas
+            container.innerHTML = `
+                <div class="bg-blue-50 rounded-lg p-4">
+                    <h4 class="font-semibold text-blue-900 mb-3">📋 Selecionar Mapas</h4>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-blue-800 mb-2">Mapas desejados (separe por vírgula)</label>
+                            <input type="text" id="mapsNames" placeholder="Ex.: Bermuda, Kalahari, Purgatório" 
+                                   class="w-full border border-blue-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-blue-800 mb-2">Quantidade de mapas (1 a 5)</label>
+                            <input type="number" id="mapsQty" min="1" max="5" value="1" 
+                                   class="w-full border border-blue-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <p class="text-xs text-blue-600">💡 Valores: 1 mapa R$2 | 2 por R$4 | 3 por R$5 | 5 por R$7</p>
+                    </div>
+                </div>
+            `;
+            break;
+            
+        case 'planilhas':
+            // Planilhas não precisa de opções extras
+            break;
+            
+        case 'passe-booyah':
+            // Opções para passe Booyah
+            container.innerHTML = `
+                <div class="bg-green-50 rounded-lg p-4">
+                    <h4 class="font-semibold text-green-900 mb-3">🎮 Informações do Jogo</h4>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-green-800 mb-2">ID do Jogador (Free Fire)</label>
+                            <input type="text" id="playerId" placeholder="Ex.: 123456789" 
+                                   class="w-full border border-green-200 rounded-lg px-3 py-2 text-sm focus:border-green-500 focus:outline-none">
+                        </div>
+                        <p class="text-xs text-green-600">💡 Entrega rápida! Não pedimos senha/email, apenas o ID.</p>
+                    </div>
+                </div>
+            `;
+            break;
+            
+        case 'camisa':
+            // Opções para camisa
+            container.innerHTML = `
+                <div class="bg-purple-50 rounded-lg p-4">
+                    <h4 class="font-semibold text-purple-900 mb-3">👕 Informações da Camisa</h4>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-purple-800 mb-2">Tamanho</label>
+                            <select id="shirtSize" class="w-full border border-purple-200 rounded-lg px-3 py-2 text-sm focus:border-purple-500 focus:outline-none">
+                                <option value="P">P</option>
+                                <option value="M" selected>M</option>
+                                <option value="G">G</option>
+                                <option value="GG">GG</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-purple-800 mb-2">Endereço de Entrega</label>
+                            <textarea id="deliveryAddress" placeholder="Rua, número, bairro, cidade, CEP" 
+                                      class="w-full border border-purple-200 rounded-lg px-3 py-2 text-sm focus:border-purple-500 focus:outline-none" rows="3"></textarea>
+                        </div>
+                        <p class="text-xs text-purple-600">💡 Produto físico - será enviado pelo correio</p>
+                    </div>
+                </div>
+            `;
+            break;
+    }
+    
+    // Adicionar event listeners para atualizar preço dinamicamente
+    if (productId === 'imagens') {
+        const qtyInput = document.getElementById('mapsQty');
+        const namesInput = document.getElementById('mapsNames');
+        
+        if (qtyInput) {
+            qtyInput.addEventListener('input', () => updateProductPrice(productId));
+        }
+        if (namesInput) {
+            namesInput.addEventListener('input', () => syncMapsQtyWithNames());
+        }
+    }
+}
+
+// Função para atualizar preço baseado nas opções
+function updateProductPrice(productId) {
+    const cfg = scheduleConfig[productId];
+    if (!cfg) return;
+    
+    let finalPrice = cfg.price;
+    
+    if (productId === 'imagens') {
+        const qty = parseInt(document.getElementById('mapsQty')?.value || 1);
+        // Preços: 1 mapa R$2 | 2 por R$4 | 3 por R$5 | 5 por R$7
+        const prices = { 1: 2, 2: 4, 3: 5, 4: 5, 5: 7 };
+        finalPrice = prices[qty] || 2;
+    }
+    
+    document.getElementById('schedPrice').textContent = finalPrice.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+}
+
+// Função para sincronizar quantidade com nomes de mapas
+function syncMapsQtyWithNames() {
+    const namesInput = document.getElementById('mapsNames');
+    const qtyInput = document.getElementById('mapsQty');
+    
+    if (namesInput && qtyInput) {
+        const names = namesInput.value.split(',').map(s => s.trim()).filter(Boolean);
+        if (names.length > 0) {
+            qtyInput.value = names.length;
+            updateProductPrice('imagens');
+        }
+    }
+}
+
 function openScheduleModal(eventType){
     const cfg = scheduleConfig[eventType];
     const modal = document.getElementById('scheduleModal');
@@ -1248,7 +1387,7 @@ function openScheduleModal(eventType){
     document.getElementById('schedPrice').textContent = cfg.price.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
     document.getElementById('schedEventType').textContent = cfg.label;
     
-    // Se for produto da loja, esconder seleção de data/hora
+    // Se for produto da loja, esconder seleção de data/hora e adicionar opções específicas
     if (cfg.isProduct) {
         // Esconder seção de data e hora
         const dateSection = document.querySelector('#scheduleModal .bg-gray-50');
@@ -1257,6 +1396,9 @@ function openScheduleModal(eventType){
         // Esconder botão "Comprar tokens"
         const buyTokensBtn = document.getElementById('buyTokensBtn');
         if (buyTokensBtn) buyTokensBtn.classList.add('hidden');
+        
+        // Adicionar opções específicas do produto
+        addProductOptions(eventType);
         
         // Mostrar modal
         modal.classList.remove('hidden');
@@ -1557,13 +1699,25 @@ async function handleProductPurchase(productId, cfg) {
         
         // Coletar opções específicas do produto
         let productOptions = {};
-        if (productId === 'camisa') {
-            // Para camisa, adicionar campo de tamanho se necessário
-            productOptions.size = 'M'; // Default, pode ser customizado
-        } else if (productId === 'imagens') {
-            // Para imagens, adicionar campos de mapas se necessário
-            productOptions.maps = ['Bermuda']; // Default, pode ser customizado
-            productOptions.quantity = 1;
+        let finalPrice = cfg.price;
+        
+        if (productId === 'imagens') {
+            const mapsNames = document.getElementById('mapsNames')?.value || '';
+            const mapsQty = parseInt(document.getElementById('mapsQty')?.value || 1);
+            productOptions.maps = mapsNames.split(',').map(s => s.trim()).filter(Boolean);
+            productOptions.quantity = mapsQty;
+            
+            // Atualizar preço baseado na quantidade
+            const prices = { 1: 2, 2: 4, 3: 5, 4: 5, 5: 7 };
+            finalPrice = prices[mapsQty] || 2;
+        } else if (productId === 'passe-booyah') {
+            const playerId = document.getElementById('playerId')?.value || '';
+            productOptions.playerId = playerId;
+        } else if (productId === 'camisa') {
+            const shirtSize = document.getElementById('shirtSize')?.value || 'M';
+            const deliveryAddress = document.getElementById('deliveryAddress')?.value || '';
+            productOptions.size = shirtSize;
+            productOptions.deliveryAddress = deliveryAddress;
         }
 
         // Salvar order no Firestore ANTES de redirecionar
@@ -1574,8 +1728,8 @@ async function handleProductPurchase(productId, cfg) {
                 title: cfg.label,
                 description: cfg.label,
                 item: cfg.label,
-                amount: cfg.price,
-                total: cfg.price,
+                amount: finalPrice,
+                total: finalPrice,
                 quantity: 1,
                 currency: 'BRL',
                 status: 'pending',
@@ -1605,7 +1759,7 @@ async function handleProductPurchase(productId, cfg) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 title: cfg.label,
-                unit_price: cfg.price,
+                unit_price: finalPrice,
                 currency_id: 'BRL',
                 quantity: 1,
                 back_url: window.location.origin + window.location.pathname,
