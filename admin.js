@@ -301,18 +301,88 @@
     if (!tbody) return;
     tbody.innerHTML = '';
     const items = [];
-    // Orders
-    const snap = await getDocs(collection(window.firebaseDb,'orders'));
-    snap.forEach(d=>{ const o=d.data(); const ts=new Date(o.createdAt||o.timestamp||0); if (period.from&&ts<period.from) return; if (period.to&&ts>period.to) return; items.push({ ts, client: (o.customer||o.buyerEmail||''), item: (o.item||o.productName||''), value: Number(o.amount||o.total||0), status: (o.status||'—') }); });
-    // Registrations pagas também contam como pedido
+    
+    // Orders - apenas pedidos com dados completos
+    try {
+      const snap = await getDocs(collection(window.firebaseDb,'orders'));
+      snap.forEach(d=>{ 
+        const o = d.data(); 
+        const ts = new Date(o.createdAt||o.timestamp||0); 
+        if (period.from && ts < period.from) return; 
+        if (period.to && ts > period.to) return; 
+        
+        // Só adiciona se tiver dados essenciais
+        const client = o.customer || o.buyerEmail || '';
+        const item = o.item || o.productName || '';
+        const value = Number(o.amount || o.total || 0);
+        const status = o.status || '—';
+        
+        if (client && item && value > 0) {
+          items.push({ 
+            ts, 
+            client, 
+            item, 
+            value, 
+            status,
+            id: d.id 
+          }); 
+        }
+      });
+    } catch(e) { console.error('Erro ao carregar orders:', e); }
+    
+    // Registrations pagas - apenas com dados completos
     try{
       const regsSnap = await getDocs(collection(window.firebaseDb,'registrations'));
-      regsSnap.forEach(d=>{ const r=d.data(); const status=(r.status||'').toLowerCase(); if (status!=='paid') return; const ts = (r.createdAt?.toDate ? r.createdAt.toDate() : (r.timestamp? new Date(r.timestamp) : new Date())); if (period.from&&ts<period.from) return; if (period.to&&ts>period.to) return; items.push({ ts, client:(r.email||''), item:(r.title||r.eventType||'Reserva'), value:Number(r.price||0), status:'paid' }); });
-    }catch(_){ }
+      regsSnap.forEach(d=>{ 
+        const r = d.data(); 
+        const status = (r.status || '').toLowerCase(); 
+        if (status !== 'paid') return; 
+        
+        const ts = (r.createdAt?.toDate ? r.createdAt.toDate() : (r.timestamp ? new Date(r.timestamp) : new Date())); 
+        if (period.from && ts < period.from) return; 
+        if (period.to && ts > period.to) return; 
+        
+        // Só adiciona se tiver dados essenciais
+        const client = r.email || '';
+        const item = r.title || r.eventType || '';
+        const value = Number(r.price || 0);
+        
+        if (client && item && value > 0) {
+          items.push({ 
+            ts, 
+            client, 
+            item, 
+            value, 
+            status: 'paid',
+            id: d.id 
+          }); 
+        }
+      });
+    } catch(e) { console.error('Erro ao carregar registrations:', e); }
+    
     // ordenar por data desc e renderizar
     items.sort((a,b)=> b.ts - a.ts);
-    let i=1; items.forEach(row=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td class="py-2">${i++}</td><td class="py-2">${row.client}</td><td class="py-2">${row.item}</td><td class="py-2">${brl(row.value)}</td><td class="py-2">${row.status}</td>`; tbody.appendChild(tr); });
-    if (count) count.textContent = `${items.length} pedidos`;
+    
+    // Limitar a 20 pedidos mais recentes
+    const recentItems = items.slice(0, 20);
+    
+    recentItems.forEach((row, index) => { 
+      const tr = document.createElement('tr'); 
+      tr.innerHTML = `
+        <td class="py-2 font-mono text-xs">${row.id ? row.id.substring(0, 6) : index + 1}</td>
+        <td class="py-2">${row.client}</td>
+        <td class="py-2">${row.item}</td>
+        <td class="py-2 font-semibold">${brl(row.value)}</td>
+        <td class="py-2">
+          <span class="px-2 py-1 rounded-full text-xs font-semibold ${row.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
+            ${row.status}
+          </span>
+        </td>
+      `; 
+      tbody.appendChild(tr); 
+    });
+    
+    if (count) count.textContent = `${recentItems.length} pedidos`;
   }
   // Pendências (orders.status === 'pending' OU registrations.status === 'pending')
   async function loadPending(isManager){
