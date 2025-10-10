@@ -38,6 +38,10 @@ exports.handler = async (event, context) => {
         // Buscar pagamentos usando a API REST do Mercado Pago
         const searchUrl = `https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&range=2000&external_reference=${external_reference || preference_id}`;
         
+        console.log('Searching payments with URL:', searchUrl);
+        console.log('External reference:', external_reference);
+        console.log('Preference ID:', preference_id);
+        
         const response = await fetch(searchUrl, {
             method: 'GET',
             headers: {
@@ -50,9 +54,14 @@ exports.handler = async (event, context) => {
             const errorText = await response.text();
             console.error('Mercado Pago API error:', errorText);
             return {
-                statusCode: 502,
+                statusCode: 200,
                 headers,
-                body: JSON.stringify({ error: 'Failed to query Mercado Pago API' })
+                body: JSON.stringify({ 
+                    error: 'Failed to query Mercado Pago API',
+                    details: errorText,
+                    statusCode: response.status,
+                    url: searchUrl
+                })
             };
         }
 
