@@ -69,28 +69,31 @@ exports.handler = async (event, context) => {
                     const db = admin.firestore();
                     const externalRef = payment.external_reference;
                     
-                    // Buscar registration pelo external_reference
-                    const registrationsRef = db.collection('registrations');
-                    const snapshot = await registrationsRef.where('external_reference', '==', externalRef).get();
+                    // Primeiro, tentar buscar na coleção 'orders' (para compras de tokens)
+                    const ordersRef = db.collection('orders');
+                    const ordersSnapshot = await ordersRef.where('external_reference', '==', externalRef).get();
                     
-                    if (!snapshot.empty) {
-                        const registrationDoc = snapshot.docs[0];
-                        const registrationData = registrationDoc.data();
+                    if (!ordersSnapshot.empty) {
+                        const orderDoc = ordersSnapshot.docs[0];
+                        const orderData = orderDoc.data();
                         
                         // Atualizar status para 'paid'
-                        await registrationDoc.ref.update({
+                        await orderDoc.ref.update({
                             status: 'paid',
                             paymentId: payment.id,
                             paymentStatus: 'approved',
                             paidAt: admin.firestore.FieldValue.serverTimestamp()
                         });
                         
-                        console.log('Registration updated to paid:', registrationDoc.id);
+                        console.log('Order updated to paid:', orderDoc.id);
                         
                         // Se for compra de tokens, atualizar saldo do usuário
                         if (payment.description && payment.description.includes('Token')) {
-                            const userId = registrationData.userId || registrationData.uid;
+                            const userId = orderData.userId || orderData.uid;
+                            const customerEmail = orderData.customer || orderData.buyerEmail;
+                            
                             if (userId) {
+                                // Buscar usuário por ID
                                 const userRef = db.collection('users').doc(userId);
                                 const userDoc = await userRef.get();
                                 
@@ -104,10 +107,43 @@ exports.handler = async (event, context) => {
                                     
                                     console.log(`Added ${tokensToAdd} tokens to user ${userId}`);
                                 }
+                            } else if (customerEmail) {
+                                // Buscar usuário por email
+                                const usersSnapshot = await db.collection('users').where('email', '==', customerEmail).get();
+                                
+                                if (!usersSnapshot.empty) {
+                                    const userDoc = usersSnapshot.docs[0];
+                                    const currentTokens = userDoc.data().tokens || 0;
+                                    const tokensToAdd = parseInt(payment.description.match(/\d+/)?.[0] || '1');
+                                    
+                                    await userDoc.ref.update({
+                                        tokens: currentTokens + tokensToAdd
+                                    });
+                                    
+                                    console.log(`Added ${tokensToAdd} tokens to user ${customerEmail}`);
+                                }
                             }
                         }
                     } else {
-                        console.log('No registration found for external_reference:', externalRef);
+                        // Se não encontrou em orders, tentar em registrations (para agendamentos)
+                        const registrationsRef = db.collection('registrations');
+                        const registrationsSnapshot = await registrationsRef.where('external_reference', '==', externalRef).get();
+                        
+                        if (!registrationsSnapshot.empty) {
+                            const registrationDoc = registrationsSnapshot.docs[0];
+                            
+                            // Atualizar status para 'paid'
+                            await registrationDoc.ref.update({
+                                status: 'paid',
+                                paymentId: payment.id,
+                                paymentStatus: 'approved',
+                                paidAt: admin.firestore.FieldValue.serverTimestamp()
+                            });
+                            
+                            console.log('Registration updated to paid:', registrationDoc.id);
+                        } else {
+                            console.log('No order or registration found for external_reference:', externalRef);
+                        }
                     }
                 } catch (firebaseError) {
                     console.error('Firebase update error:', firebaseError);

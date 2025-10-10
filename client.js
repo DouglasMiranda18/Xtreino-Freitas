@@ -713,9 +713,41 @@ window.purchaseTokens = async function(quantity) {
         if (!response.ok) throw new Error('Erro ao criar preferência');
         
         const data = await response.json();
-        closeTokensPurchaseModal();
         
         if (data.init_point) {
+            // Salvar order no Firestore ANTES de redirecionar
+            try {
+                const currentUser = auth.currentUser;
+                if (currentUser) {
+                    const orderData = {
+                        title: `${quantity} Token${quantity > 1 ? 's' : ''} XTreino`,
+                        description: `${quantity} Token${quantity > 1 ? 's' : ''} XTreino`,
+                        item: `${quantity} Token${quantity > 1 ? 's' : ''} XTreino`,
+                        amount: price,
+                        total: price,
+                        quantity: 1,
+                        currency: 'BRL',
+                        status: 'pending',
+                        external_reference: data.external_reference,
+                        preference_id: data.id,
+                        customer: currentUser.email,
+                        buyerEmail: currentUser.email,
+                        userId: currentUser.uid,
+                        uid: currentUser.uid,
+                        createdAt: firestore.FieldValue.serverTimestamp(),
+                        timestamp: Date.now()
+                    };
+                    
+                    await firestore.collection('orders').add(orderData);
+                    console.log('Order saved to Firestore:', orderData);
+                }
+            } catch (firestoreError) {
+                console.error('Error saving order to Firestore:', firestoreError);
+                // Continuar mesmo se der erro no Firestore
+            }
+            
+            closeTokensPurchaseModal();
+            
             // Salvar info da compra para processar após pagamento
             sessionStorage.setItem('tokenPurchase', JSON.stringify({
                 quantity,
@@ -768,6 +800,34 @@ window.purchaseTokensQuick = async function(quantity) {
         const data = await response.json();
         
         if (data.init_point) {
+            // Salvar order no Firestore ANTES de redirecionar
+            try {
+                const orderData = {
+                    title: `${quantity} Token${quantity > 1 ? 's' : ''} XTreino`,
+                    description: `${quantity} Token${quantity > 1 ? 's' : ''} XTreino`,
+                    item: `${quantity} Token${quantity > 1 ? 's' : ''} XTreino`,
+                    amount: price,
+                    total: price,
+                    quantity: quantity,
+                    currency: 'BRL',
+                    status: 'pending',
+                    external_reference: data.external_reference,
+                    preference_id: data.id,
+                    customer: currentUser.email,
+                    buyerEmail: currentUser.email,
+                    userId: currentUser.uid,
+                    uid: currentUser.uid,
+                    createdAt: firestore.FieldValue.serverTimestamp(),
+                    timestamp: Date.now()
+                };
+                
+                await firestore.collection('orders').add(orderData);
+                console.log('Quick order saved to Firestore:', orderData);
+            } catch (firestoreError) {
+                console.error('Error saving quick order to Firestore:', firestoreError);
+                // Continuar mesmo se der erro no Firestore
+            }
+            
             // Redirecionar para pagamento
             window.location.href = data.init_point;
         } else {
