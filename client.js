@@ -742,7 +742,12 @@ window.purchaseTokens = async function(quantity) {
                     console.log('Order saved to Firestore:', orderData);
                 }
             } catch (firestoreError) {
-                console.error('Error saving order to Firestore:', firestoreError);
+                console.error('❌ Error saving order to Firestore:', firestoreError);
+                console.error('❌ Error details:', {
+                    message: firestoreError.message,
+                    code: firestoreError.code,
+                    stack: firestoreError.stack
+                });
                 // Continuar mesmo se der erro no Firestore
             }
             
@@ -824,7 +829,12 @@ window.purchaseTokensQuick = async function(quantity) {
                 await db.collection('orders').add(orderData);
                 console.log('Quick order saved to Firestore:', orderData);
             } catch (firestoreError) {
-                console.error('Error saving quick order to Firestore:', firestoreError);
+                console.error('❌ Error saving quick order to Firestore:', firestoreError);
+                console.error('❌ Error details:', {
+                    message: firestoreError.message,
+                    code: firestoreError.code,
+                    stack: firestoreError.stack
+                });
                 // Continuar mesmo se der erro no Firestore
             }
             
