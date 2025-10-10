@@ -36,7 +36,8 @@ exports.handler = async (event, context) => {
         }
 
         // Buscar pagamentos usando a API REST do Mercado Pago
-        const searchUrl = `https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&range=2000&external_reference=${external_reference || preference_id}`;
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const searchUrl = `https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&begin_date=${today}&external_reference=${external_reference || preference_id}`;
         
         console.log('Searching payments with URL:', searchUrl);
         console.log('External reference:', external_reference);
