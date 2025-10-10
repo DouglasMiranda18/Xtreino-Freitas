@@ -1237,6 +1237,9 @@ async function renderScheduleTimes(){
     if (!timesWrap) return;
     timesWrap.innerHTML = '';
     const date = document.getElementById('schedDate').value;
+    // eventType do modal atual
+    const modal = document.getElementById('scheduleModal');
+    const eventType = modal?.dataset?.eventType || null;
     
     // Valida data antes de renderizar
     if (!isValidScheduleDate(date)){
@@ -1259,13 +1262,15 @@ async function renderScheduleTimes(){
         timesWrap.appendChild(btn);
     });
     // Atualiza com dados reais e mantém em tempo real
-    updateOccupiedAndRefreshButtons(day, date, timesWrap);
+    updateOccupiedAndRefreshButtons(day, date, eventType, timesWrap);
     try{
         const { collection, query, where, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         if (window.__schedUnsub) { try{ window.__schedUnsub(); }catch(_){ } }
+        const baseQ = [ where('date','==', date) ];
+        if (eventType) baseQ.push(where('eventType','==', eventType));
         window.__schedUnsub = onSnapshot(
-            query(collection(window.firebaseDb,'registrations'), where('date','==', date)),
-            ()=> updateOccupiedAndRefreshButtons(day, date, timesWrap)
+            query(collection(window.firebaseDb,'registrations'), ...baseQ),
+            ()=> updateOccupiedAndRefreshButtons(day, date, eventType, timesWrap)
         );
     }catch(_){ }
 }
@@ -1273,13 +1278,15 @@ function highlightSelectedSlot(selectedBtn, container){
     Array.from(container.children).forEach(el=> el.classList.remove('selected'));
     selectedBtn.classList.add('selected');
 }
-async function fetchOccupiedForDate(day, date){
+async function fetchOccupiedForDate(day, date, eventType){
     const map = {};
     try {
         if (!window.firebaseReady) return map;
         const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const regsRef = collection(window.firebaseDb, 'registrations');
-        const q = query(regsRef, where('date','==', date), where('status','in',['paid','confirmed']));
+        const clauses = [ where('date','==', date), where('status','in',['paid','confirmed']) ];
+        if (eventType) clauses.push(where('eventType','==', eventType));
+        const q = query(regsRef, ...clauses);
         const snap = await getDocs(q);
         snap.forEach(doc=>{
             const r = doc.data();
@@ -1290,22 +1297,25 @@ async function fetchOccupiedForDate(day, date){
 }
 
 // Verifica disponibilidade (limite 12 por horário)
-async function checkSlotAvailability(date, schedule){
+async function checkSlotAvailability(date, schedule, eventType){
     try{
         if (!window.firebaseReady) return true;
         const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const regsRef = collection(window.firebaseDb, 'registrations');
-        const q = query(regsRef, where('date','==', date), where('schedule','==', schedule), where('status','in',['paid','confirmed']));
+        const clauses = [ where('date','==', date), where('schedule','==', schedule), where('status','in',['paid','confirmed']) ];
+        if (eventType) clauses.push(where('eventType','==', eventType));
+        const q = query(regsRef, ...clauses);
         const snap = await getDocs(q);
         return snap.size < 12;
     }catch(_){ return true; }
 }
-async function updateOccupiedAndRefreshButtons(day, date, container){
+async function updateOccupiedAndRefreshButtons(day, date, eventType, container){
     // cache por data
-    let occupied = scheduleCache[date];
+    const cacheKey = `${date}__${eventType||'all'}`;
+    let occupied = scheduleCache[cacheKey];
     if (!occupied) {
-        try { occupied = await fetchOccupiedForDate(day, date); } catch(_) { occupied = {}; }
-        scheduleCache[date] = occupied;
+        try { occupied = await fetchOccupiedForDate(day, date, eventType); } catch(_) { occupied = {}; }
+        scheduleCache[cacheKey] = occupied;
     }
     Array.from(container.children).forEach(btn => {
         const schedule = btn.dataset.schedule;
@@ -1345,7 +1355,7 @@ async function submitSchedule(e){
         if (!canSpendTokens(cfg.price)){ alert('Saldo de tokens insuficiente.'); if(submitBtn){submitBtn.disabled=false; submitBtn.textContent=oldText;} return; }
     }
     // checar disponibilidade antes de criar a reserva (evita overbooking)
-    const canBook = await checkSlotAvailability(date, schedule);
+    const canBook = await checkSlotAvailability(date, schedule, eventType);
     if (!canBook){ alert('Este horário não possui vagas. Escolha outro horário.'); if (submitBtn){ submitBtn.disabled=false; submitBtn.textContent=oldText; } return; }
 
     // cria documento pendente no Firestore (se disponível)

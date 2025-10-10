@@ -501,7 +501,7 @@
       snap.forEach(d=>{
         const r = d.data();
         // filtro por tipo (aceita contains, case-insensitive)
-        if (r.eventType && !String(r.eventType).toLowerCase().includes(String(eventType).toLowerCase())) return;
+        if (eventType && r.eventType && !String(r.eventType).toLowerCase().includes(String(eventType).toLowerCase())) return;
         const key = r.schedule || r.hour || '—';
         map[key] = (map[key]||0) + 1;
       });
