@@ -178,7 +178,8 @@ body {
     flex-direction: column;
 }
 .product-media {
-    height: 180px;
+    min-height: 200px;
+    max-height: 250px;
     border-radius: 12px;
     overflow: hidden;
     display: flex;
@@ -187,7 +188,27 @@ body {
     background: #f3f4f6; /* gray-100 */
     margin-bottom: 16px;
 }
-.product-media img { width: 100%; height: 100%; object-fit: cover; }
+.product-media img { 
+    width: 100%; 
+    height: 100%; 
+    object-fit: contain; 
+    object-position: center;
+}
+
+/* Responsividade para imagens dos treinos */
+@media (max-width: 768px) {
+    .product-media {
+        min-height: 180px;
+        max-height: 220px;
+    }
+}
+
+@media (max-width: 480px) {
+    .product-media {
+        min-height: 160px;
+        max-height: 200px;
+    }
+}
 .product-title { font-weight: 700; font-size: 1.125rem; margin-bottom: 8px; color: var(--brand-black); }
 .product-desc { color: #4b5563; margin-bottom: 12px; }
 .product-meta { margin-top: auto; }
