@@ -461,6 +461,76 @@ function loadMyTokens() {
     if (userProfile) {
         document.getElementById('myTokenBalance').textContent = `${userProfile.tokens || 0} Tokens`;
     }
+    
+    // Carregar histórico de uso dos tokens
+    loadTokenUsageHistory();
+}
+
+// Load token usage history
+async function loadTokenUsageHistory() {
+    try {
+        const container = document.getElementById('tokenUsageHistory');
+        if (!container) return;
+        
+        // Buscar registrations onde o usuário usou tokens
+        const registrations = await fetchUserDocs('registrations', 50, true);
+        const tokenUsage = registrations.filter(r => r.data.paidWithTokens === true);
+        
+        if (tokenUsage.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-8 text-gray-500">
+                    <svg class="w-12 h-12 mx-auto mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                    </svg>
+                    <p>Nenhum uso de tokens encontrado</p>
+                    <p class="text-sm mt-1">Seus usos de tokens aparecerão aqui</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const historyHTML = tokenUsage.map(usage => {
+            const date = usage.data.createdAt?.toDate?.() || new Date();
+            const eventType = usage.data.eventType || 'Evento';
+            const tokensUsed = usage.data.tokensUsed || 1;
+            const status = usage.data.status || 'unknown';
+            
+            return `
+                <div class="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                                <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1721 9z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h6 class="font-medium text-gray-900">${eventType}</h6>
+                                <p class="text-sm text-gray-500">${formatDate(date)}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="flex items-center space-x-2">
+                                <span class="text-sm font-medium text-yellow-600">-${tokensUsed} token${tokensUsed > 1 ? 's' : ''}</span>
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status)}">
+                                    ${getStatusText(status)}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        container.innerHTML = historyHTML;
+    } catch (error) {
+        console.error('Error loading token usage history:', error);
+        document.getElementById('tokenUsageHistory').innerHTML = `
+            <div class="text-center py-8 text-gray-500">
+                <p>Erro ao carregar histórico</p>
+            </div>
+        `;
+    }
 }
 
 // Logout
