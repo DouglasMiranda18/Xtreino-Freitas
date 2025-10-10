@@ -7,26 +7,21 @@ service cloud.firestore {
       return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['Ceo','CEO','ceo','Gerente','GERENTE','gerente'];
     }
 
-    // Admin: leitura global (qualquer coleção/documento)
-    match /{path=**} {
-      allow read: if isAdmin();
-    }
-
     // users: cada usuário lê/escreve o próprio documento; Admins podem ler/escrever todos
     match /users/{userId} {
       allow read: if isSelf(userId) || isAdmin();
       allow write: if isSelf(userId) || isAdmin();
     }
 
-    // schedules: leitura para logados; escrita para logados; admins podem listar tudo
+    // schedules: leitura pública para contagem; escrita para logados
     match /schedules/{docId} {
-      allow read: if isSignedIn();
+      allow read: if true; // Permite leitura pública para contagem de vagas
       allow write: if isSignedIn();
     }
 
-    // orders: leitura para admins; usuário pode ler os próprios (se tiver ownerId). Escrita para logados
+    // orders: leitura para admins; usuário pode ler os próprios; escrita para logados
     match /orders/{orderId} {
-      allow read: if isAdmin() || (isSignedIn() && (resource.data.ownerId == request.auth.uid || resource.data.userId == request.auth.uid || resource.data.uid == request.auth.uid));
+      allow read: if isAdmin() || (isSignedIn() && (resource.data.ownerId == request.auth.uid || resource.data.userId == request.auth.uid || resource.data.uid == request.auth.uid || resource.data.customer == request.auth.email || resource.data.buyerEmail == request.auth.email));
       allow write: if isSignedIn();
     }
 
@@ -39,6 +34,23 @@ service cloud.firestore {
     // tokens: admins podem gerenciar, usuário lê o próprio saldo
     match /tokens/{tokenId} {
       allow read, write: if isAdmin();
+    }
+
+    // digital_deliveries: usuário pode ler os próprios; admins leem tudo
+    match /digital_deliveries/{deliveryId} {
+      allow read: if isAdmin() || (isSignedIn() && (resource.data.customerEmail == request.auth.email));
+      allow write: if isAdmin();
+    }
+
+    // config: leitura pública para configurações gerais
+    match /config/{docId} {
+      allow read: if true; // Permite leitura pública para configurações
+      allow write: if isAdmin();
+    }
+
+    // Admin: leitura global (qualquer coleção/documento) - apenas para admins
+    match /{path=**} {
+      allow read: if isAdmin();
     }
   }
 }

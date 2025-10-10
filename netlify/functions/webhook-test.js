@@ -1,5 +1,5 @@
 // Netlify Function: Testar webhook manualmente
-exports.handler = async (event, context) => {
+exports.handler = async (event) => {
     const headers = {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type',
@@ -13,15 +13,12 @@ exports.handler = async (event, context) => {
     try {
         console.log('=== WEBHOOK TEST FUNCTION ===');
         console.log('Method:', event.httpMethod);
-        console.log('Headers:', JSON.stringify(event.headers, null, 2));
         console.log('Body:', event.body);
-        console.log('Query:', event.queryStringParameters);
         
         if (event.httpMethod === 'POST') {
             const body = JSON.parse(event.body || '{}');
             console.log('Parsed body:', JSON.stringify(body, null, 2));
             
-            // Simular processamento de webhook
             if (body.type === 'payment' && body.data && body.data.id) {
                 console.log('Payment notification received:', body.data.id);
                 
@@ -59,8 +56,7 @@ exports.handler = async (event, context) => {
             headers,
             body: JSON.stringify({
                 error: 'Internal server error',
-                message: error.message,
-                stack: error.stack
+                message: error.message
             })
         };
     }
