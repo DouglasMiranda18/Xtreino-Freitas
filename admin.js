@@ -552,14 +552,21 @@
       list.innerHTML = '<div class="text-sm text-gray-500">Carregando...</div>';
       const { collection, query, where, getDocs, doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
       const regs = collection(window.firebaseDb,'registrations');
-      // Busca por data+horário e filtra eventType no cliente (strings podem variar)
-      const snap = await getDocs(query(regs, where('date','==', date), where('schedule','==', hour)));
+      // Busca todas as reservas do dia; filtra por eventType e hora com normaliza e7 e3o (schedule ou hour)
+      const snap = await getDocs(query(regs, where('date','==', date)));
       list.innerHTML = '';
       let any = false;
       const evLower = String(eventType||'').toLowerCase();
+      const hourDigits = (String(hour).match(/\d+/g)||[]).join('');
       snap.forEach(d=>{
         const r = d.data();
         if (evLower && r.eventType && !String(r.eventType).toLowerCase().includes(evLower)) return;
+        const schedStr = String(r.schedule||'');
+        const hourStr = String(r.hour||'');
+        const combined = `${schedStr} ${hourStr}`.toLowerCase();
+        const combinedDigits = (combined.match(/\d+/g)||[]).join('');
+        const matches = combined.includes(String(hour).toLowerCase()) || (!!hourDigits && combinedDigits.includes(hourDigits));
+        if (!matches) return;
         any = true;
         const row = document.createElement('div');
         row.className = 'flex items-center justify-between border-b py-2';
