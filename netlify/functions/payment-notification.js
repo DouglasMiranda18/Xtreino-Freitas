@@ -35,10 +35,14 @@ exports.handler = async (event, context) => {
     try {
         const { type, data } = JSON.parse(event.body);
         
-        console.log('Payment notification received:', { type, data });
+        console.log('=== PAYMENT NOTIFICATION RECEIVED ===');
+        console.log('Type:', type);
+        console.log('Data:', JSON.stringify(data, null, 2));
+        console.log('Full body:', event.body);
 
         if (type === 'payment') {
             const paymentId = data.id;
+            console.log('Processing payment ID:', paymentId);
             
             // Buscar detalhes do pagamento
             const accessToken = process.env.MP_ACCESS_TOKEN;
@@ -70,8 +74,14 @@ exports.handler = async (event, context) => {
                     const externalRef = payment.external_reference;
                     
                     // Primeiro, tentar buscar na coleção 'orders' (para compras de tokens)
+                    console.log('Searching for order with external_reference:', externalRef);
                     const ordersRef = db.collection('orders');
                     const ordersSnapshot = await ordersRef.where('external_reference', '==', externalRef).get();
+                    
+                    console.log('Orders found:', ordersSnapshot.size);
+                    ordersSnapshot.forEach(doc => {
+                        console.log('Order document:', doc.id, doc.data());
+                    });
                     
                     if (!ordersSnapshot.empty) {
                         const orderDoc = ordersSnapshot.docs[0];
@@ -88,12 +98,21 @@ exports.handler = async (event, context) => {
                         console.log('Order updated to paid:', orderDoc.id);
                         
                         // Se for compra de tokens, atualizar saldo do usuário
+                        console.log('Checking if this is a token purchase...');
+                        console.log('Payment description:', payment.description);
+                        console.log('Order data:', orderData);
+                        
                         if (payment.description && payment.description.includes('Token')) {
+                            console.log('This is a token purchase! Processing...');
                             const userId = orderData.userId || orderData.uid;
                             const customerEmail = orderData.customer || orderData.buyerEmail;
                             
+                            console.log('User ID:', userId);
+                            console.log('Customer Email:', customerEmail);
+                            
                             if (userId) {
                                 // Buscar usuário por ID
+                                console.log('Looking up user by ID:', userId);
                                 const userRef = db.collection('users').doc(userId);
                                 const userDoc = await userRef.get();
                                 
@@ -101,27 +120,40 @@ exports.handler = async (event, context) => {
                                     const currentTokens = userDoc.data().tokens || 0;
                                     const tokensToAdd = parseInt(payment.description.match(/\d+/)?.[0] || '1');
                                     
+                                    console.log(`Current tokens: ${currentTokens}, Adding: ${tokensToAdd}`);
+                                    
                                     await userRef.update({
                                         tokens: currentTokens + tokensToAdd
                                     });
                                     
-                                    console.log(`Added ${tokensToAdd} tokens to user ${userId}`);
+                                    console.log(`✅ Added ${tokensToAdd} tokens to user ${userId}. New balance: ${currentTokens + tokensToAdd}`);
+                                } else {
+                                    console.log('❌ User document not found for ID:', userId);
                                 }
                             } else if (customerEmail) {
                                 // Buscar usuário por email
+                                console.log('Looking up user by email:', customerEmail);
                                 const usersSnapshot = await db.collection('users').where('email', '==', customerEmail).get();
+                                
+                                console.log('Users found by email:', usersSnapshot.size);
                                 
                                 if (!usersSnapshot.empty) {
                                     const userDoc = usersSnapshot.docs[0];
                                     const currentTokens = userDoc.data().tokens || 0;
                                     const tokensToAdd = parseInt(payment.description.match(/\d+/)?.[0] || '1');
                                     
+                                    console.log(`Current tokens: ${currentTokens}, Adding: ${tokensToAdd}`);
+                                    
                                     await userDoc.ref.update({
                                         tokens: currentTokens + tokensToAdd
                                     });
                                     
-                                    console.log(`Added ${tokensToAdd} tokens to user ${customerEmail}`);
+                                    console.log(`✅ Added ${tokensToAdd} tokens to user ${customerEmail}. New balance: ${currentTokens + tokensToAdd}`);
+                                } else {
+                                    console.log('❌ No user found with email:', customerEmail);
                                 }
+                            } else {
+                                console.log('❌ No userId or customerEmail found in order data');
                             }
                         }
                     } else {
@@ -142,13 +174,15 @@ exports.handler = async (event, context) => {
                             
                             console.log('Registration updated to paid:', registrationDoc.id);
                         } else {
-                            console.log('No order or registration found for external_reference:', externalRef);
+                            console.log('❌ No order or registration found for external_reference:', externalRef);
                         }
                     }
                 } catch (firebaseError) {
-                    console.error('Firebase update error:', firebaseError);
+                    console.error('❌ Firebase update error:', firebaseError);
                     // Não falhar a notificação por causa de erro no Firebase
                 }
+                
+                console.log('=== PAYMENT PROCESSING COMPLETED ===');
             }
 
             return {
