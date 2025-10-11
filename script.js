@@ -182,6 +182,16 @@ function onAuthLogged(user){
         setTimeout(()=>{ window.location.href = 'client.html?tab=myTokens'; }, 100);
         return;
     }
+    
+    // Sincronizar tokens automaticamente após login
+    setTimeout(async () => {
+        try {
+            await syncUserTokens();
+        } catch (error) {
+            console.error('Erro ao sincronizar tokens:', error);
+        }
+    }, 1000);
+    
     // Não abre automaticamente a área do cliente - só quando clicar em MINHA CONTA
 }
 
@@ -666,6 +676,35 @@ function grantTokens(amountBRL) {
     persistUserProfile(window.currentUserProfile);
 }
 
+// Função para sincronizar tokens do usuário
+async function syncUserTokens() {
+    try {
+        if (!window.firebaseAuth.currentUser) return;
+        
+        const { doc, getDoc, setDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const userRef = doc(collection(window.firebaseDb, 'users'), window.firebaseAuth.currentUser.uid);
+        const userSnap = await getDoc(userRef);
+        
+        if (userSnap.exists()) {
+            const userData = userSnap.data();
+            const currentTokens = userData.tokens || 0;
+            
+            // Se o usuário não tem tokens, dar 1 token inicial
+            if (currentTokens === 0) {
+                await setDoc(userRef, { tokens: 1 }, { merge: true });
+                window.currentUserProfile.tokens = 1;
+                console.log('🎁 Initial token given to user');
+            } else {
+                window.currentUserProfile.tokens = currentTokens;
+            }
+            
+            console.log('✅ Tokens synced:', window.currentUserProfile.tokens);
+        }
+    } catch (error) {
+        console.error('❌ Error syncing tokens:', error);
+    }
+}
+
 // Persistência de perfil: Firestore quando possível; fallback localStorage
 async function ensureUserProfile(user) {
     const baseProfile = {
@@ -720,6 +759,12 @@ async function persistUserProfile(profile){
         
         console.log('🔍 Persisting profile:', { isLocal, isNetlify, firebaseReady: window.firebaseReady, hasUid: !!profile?.uid });
         
+        // Se o usuário não tem tokens, dar 1 token inicial
+        if (!profile.tokens || profile.tokens === 0) {
+            profile.tokens = 1;
+            console.log('🎁 Giving initial token to new user');
+        }
+        
         if (window.firebaseReady && !isLocal && profile?.uid){
             const { doc, setDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
             const ref = doc(collection(window.firebaseDb, 'users'), profile.uid);
@@ -761,7 +806,7 @@ function renderClientArea(){
         const hasTokens = p && p.tokens && p.tokens > 0;
         assocBtn.disabled = !hasTokens;
         assocBtn.classList.toggle('opacity-60', !hasTokens);
-        assocBtn.textContent = hasTokens ? 'USAR 1 TOKEN' : 'SALDO INSUFICIENTE';
+        assocBtn.textContent = hasTokens ? 'USAR 1 TOKEN' : 'COMPRAR TOKENS';
         
         // Adicionar evento de clique se não existir
         if (!assocBtn.hasAttribute('data-listener-added')) {
@@ -769,7 +814,8 @@ function renderClientArea(){
                 if (hasTokens) {
                     openScheduleModal('associado');
                 } else {
-                    alert('Você precisa de tokens para participar. Compre tokens na sua área do cliente.');
+                    // Redirecionar para área do cliente para comprar tokens
+                    window.location.href = 'client.html?tab=myTokens';
                 }
             });
             assocBtn.setAttribute('data-listener-added', 'true');

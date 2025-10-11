@@ -1453,8 +1453,58 @@ async function approveOrder(orderId) {
     }
 }
 
-// Tornar função global
+// Função para dar tokens a um usuário
+async function giveTokensToUser(userEmail, tokenAmount) {
+    try {
+        const { collection, getDocs, query, where, doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        
+        // Buscar usuário por email
+        const usersRef = collection(window.firebaseDb, 'users');
+        const q = query(usersRef, where('email', '==', userEmail));
+        const snapshot = await getDocs(q);
+        
+        if (snapshot.empty) {
+            alert('Usuário não encontrado com este email');
+            return;
+        }
+        
+        const userDoc = snapshot.docs[0];
+        const userData = userDoc.data();
+        const currentTokens = userData.tokens || 0;
+        const newTokens = currentTokens + tokenAmount;
+        
+        // Atualizar tokens do usuário
+        await updateDoc(doc(window.firebaseDb, 'users', userDoc.id), {
+            tokens: newTokens
+        });
+        
+        alert(`✅ ${tokenAmount} token(s) adicionado(s) ao usuário ${userEmail}. Novo saldo: ${newTokens} tokens`);
+        
+    } catch (error) {
+        console.error('Erro ao dar tokens:', error);
+        alert('Erro ao dar tokens ao usuário');
+    }
+}
+
+// Função para mostrar modal de dar tokens
+function showGiveTokensModal() {
+    const email = prompt('Digite o email do usuário:');
+    if (!email) return;
+    
+    const amount = prompt('Quantos tokens dar?');
+    if (!amount || isNaN(amount) || amount <= 0) {
+        alert('Quantidade inválida');
+        return;
+    }
+    
+    if (confirm(`Dar ${amount} token(s) para ${email}?`)) {
+        giveTokensToUser(email, parseInt(amount));
+    }
+}
+
+// Tornar funções globais
 window.approveOrder = approveOrder;
+window.showGiveTokensModal = showGiveTokensModal;
 
 main();
 
