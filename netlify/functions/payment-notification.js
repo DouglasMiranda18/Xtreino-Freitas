@@ -186,8 +186,28 @@ exports.handler = async (event, context) => {
                             console.log('User ID:', userId);
                             console.log('Customer Email:', customerEmail);
                             
-                            if (userId) {
-                                // Buscar usuário por ID
+                            // Primeiro tentar por email (mais confiável)
+                            if (customerEmail) {
+                                console.log('Looking up user by email:', customerEmail);
+                                const usersSnapshot = await db.collection('users').where('email', '==', customerEmail).get();
+                                
+                                if (!usersSnapshot.empty) {
+                                    const userDoc = usersSnapshot.docs[0];
+                                    const currentTokens = userDoc.data().tokens || 0;
+                                    const tokensToAdd = parseInt(payment.description.match(/\d+/)?.[0] || '1');
+                                    
+                                    console.log(`Current tokens: ${currentTokens}, Adding: ${tokensToAdd}`);
+                                    
+                                    await userDoc.ref.update({
+                                        tokens: currentTokens + tokensToAdd
+                                    });
+                                    
+                                    console.log(`✅ Added ${tokensToAdd} tokens to user ${customerEmail}. New balance: ${currentTokens + tokensToAdd}`);
+                                } else {
+                                    console.log('❌ No user found with email:', customerEmail);
+                                }
+                            } else if (userId) {
+                                // Fallback: buscar usuário por ID
                                 console.log('Looking up user by ID:', userId);
                                 const userRef = db.collection('users').doc(userId);
                                 const userDoc = await userRef.get();
@@ -206,30 +226,8 @@ exports.handler = async (event, context) => {
                                 } else {
                                     console.log('❌ User document not found for ID:', userId);
                                 }
-                            } else if (customerEmail) {
-                                // Buscar usuário por email
-                                console.log('Looking up user by email:', customerEmail);
-                                const usersSnapshot = await db.collection('users').where('email', '==', customerEmail).get();
-                                
-                                console.log('Users found by email:', usersSnapshot.size);
-                                
-                                if (!usersSnapshot.empty) {
-                                    const userDoc = usersSnapshot.docs[0];
-                                    const currentTokens = userDoc.data().tokens || 0;
-                                    const tokensToAdd = parseInt(payment.description.match(/\d+/)?.[0] || '1');
-                                    
-                                    console.log(`Current tokens: ${currentTokens}, Adding: ${tokensToAdd}`);
-                                    
-                                    await userDoc.ref.update({
-                                        tokens: currentTokens + tokensToAdd
-                                    });
-                                    
-                                    console.log(`✅ Added ${tokensToAdd} tokens to user ${customerEmail}. New balance: ${currentTokens + tokensToAdd}`);
-                                } else {
-                                    console.log('❌ No user found with email:', customerEmail);
-                                }
                             } else {
-                                console.log('❌ No userId or customerEmail found in order data');
+                                console.log('❌ No user ID or email found in order data');
                             }
                         }
                         
