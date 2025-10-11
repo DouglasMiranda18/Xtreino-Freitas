@@ -167,30 +167,43 @@ async function loadUserProfile() {
         }
         
         console.log('🔍 Loading user profile for:', currentUser.uid);
-        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-        if (userDoc.exists()) {
-            userProfile = userDoc.data();
-            console.log('✅ User profile loaded:', userProfile);
-            const userNameElement = document.getElementById('userName');
-            if (userNameElement) {
-                userNameElement.textContent = userProfile.name || currentUser.email;
-            }
+        
+        // Usar o mesmo perfil do script.js para manter consistência
+        if (window.currentUserProfile && window.currentUserProfile.uid === currentUser.uid) {
+            userProfile = window.currentUserProfile;
+            console.log('✅ User profile loaded from window.currentUserProfile:', userProfile);
         } else {
-            console.log('❌ User document not found, creating default profile');
-            // Create default profile
-            userProfile = {
-                name: currentUser.displayName || '',
-                email: currentUser.email,
-                phone: '',
-                nickname: '',
-                team: '',
-                age: '',
-                tokens: 0,
-                role: 'user',
-                level: 'Associado Treino'
-            };
-            await setDoc(doc(db, 'users', currentUser.uid), userProfile);
-            console.log('✅ Default profile created:', userProfile);
+            // Fallback: carregar do Firestore se não estiver disponível no window
+            const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+            if (userDoc.exists()) {
+                userProfile = userDoc.data();
+                // Sincronizar com window.currentUserProfile
+                window.currentUserProfile = userProfile;
+                console.log('✅ User profile loaded from Firestore and synced:', userProfile);
+            } else {
+                console.log('❌ User document not found, creating default profile');
+                // Create default profile
+                userProfile = {
+                    name: currentUser.displayName || '',
+                    email: currentUser.email,
+                    phone: '',
+                    nickname: '',
+                    team: '',
+                    age: '',
+                    tokens: 0,
+                    role: 'user',
+                    level: 'Associado Treino'
+                };
+                await setDoc(doc(db, 'users', currentUser.uid), userProfile);
+                // Sincronizar com window.currentUserProfile
+                window.currentUserProfile = userProfile;
+                console.log('✅ Default profile created and synced:', userProfile);
+            }
+        }
+        
+        const userNameElement = document.getElementById('userName');
+        if (userNameElement) {
+            userNameElement.textContent = userProfile.name || currentUser.email;
         }
     } catch (error) {
         console.error('Error loading user profile:', error);
