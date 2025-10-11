@@ -207,6 +207,25 @@
                         </table>
                     </div>
                 </div>
+                <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold">Pedidos Confirmados</h3>
+                        <span id="confirmedCount" class="text-sm text-gray-500"></span>
+                    </div>
+                    <div class="overflow-x-auto text-sm">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="text-left text-gray-600 bg-green-50">
+                                    <th class="py-2">Cliente</th>
+                                    <th class="py-2">Item</th>
+                                    <th class="py-2">Valor</th>
+                                    <th class="py-2">Pago em</th>
+                                </tr>
+                            </thead>
+                            <tbody id="confirmedTbody" class="divide-y"></tbody>
+                        </table>
+                    </div>
+                </div>
                 <div class="bg-white border border-gray-200 rounded-xl p-6">
                     <h3 class="font-bold mb-4">Horários mais procurados</h3>
                     <canvas id="popularHoursChart" height="120"></canvas>
