@@ -613,11 +613,26 @@ function getTokenBalance() {
 function canSpendTokens(amountBRL) {
     return getTokenBalance() >= Number(amountBRL || 0);
 }
-function spendTokens(amountBRL) {
+async function spendTokens(amountBRL) {
     const amt = Number(amountBRL || 0);
     if (!canSpendTokens(amt)) return false;
-    window.currentUserProfile.tokens = Number((getTokenBalance() - amt).toFixed(2));
-    persistUserProfile(window.currentUserProfile);
+    
+    const newBalance = Number((getTokenBalance() - amt).toFixed(2));
+    window.currentUserProfile.tokens = newBalance;
+    
+    console.log(`🔍 Spending ${amt} tokens. New balance: ${newBalance}`);
+    
+    // Persistir no Firestore
+    await persistUserProfile(window.currentUserProfile);
+    
+    // Atualizar interface se estiver na área do cliente
+    if (window.location.pathname.includes('client.html')) {
+        // Recarregar dados do cliente
+        if (typeof loadMyTokens === 'function') {
+            await loadMyTokens();
+        }
+    }
+    
     return true;
 }
 function grantTokens(amountBRL) {
@@ -678,14 +693,20 @@ async function persistUserProfile(profile){
     try {
         const isLocal = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
         const isNetlify = /netlify\.app$/i.test(location.hostname);
-        if (window.firebaseReady && !isLocal && !isNetlify && profile?.uid){
+        
+        console.log('🔍 Persisting profile:', { isLocal, isNetlify, firebaseReady: window.firebaseReady, hasUid: !!profile?.uid });
+        
+        if (window.firebaseReady && !isLocal && profile?.uid){
             const { doc, setDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
             const ref = doc(collection(window.firebaseDb, 'users'), profile.uid);
             await setDoc(ref, profile, { merge: true });
+            console.log('✅ Profile saved to Firestore');
         } else {
             localStorage.setItem('assoc_profile', JSON.stringify(profile));
+            console.log('✅ Profile saved to localStorage');
         }
-    } catch(_) {
+    } catch(error) {
+        console.error('❌ Error persisting profile:', error);
         localStorage.setItem('assoc_profile', JSON.stringify(profile));
     }
 }
@@ -2154,7 +2175,7 @@ function closeTokensModal(){
 
 // Compra de tokens removida (somente associados recebem tokens)
 
-function useTokensForEvent(eventType){
+async function useTokensForEvent(eventType){
     const eventCosts = {
         'treino': 1.00,
         'modoLiga': 3.00,
@@ -2163,15 +2184,18 @@ function useTokensForEvent(eventType){
         'campFases': 5.00
     };
     
+    const cost = eventCosts[eventType];
+    if (!cost) {
+        console.error('Event type not found:', eventType);
+        return;
+    }
+    
     // Verificar se tem tokens suficientes
     const profile = window.currentUserProfile || {};
     if (!profile || !profile.tokens || profile.tokens < cost) {
         alert(`Saldo insuficiente. Você precisa de ${cost.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})} em tokens.`);
         return;
     }
-
-    const cost = eventCosts[eventType];
-    if (!cost) return;
     
     if (!canSpendTokens(cost)) {
         alert(`Saldo insuficiente. Você precisa de ${cost.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})} em tokens.`);
@@ -2187,10 +2211,14 @@ function useTokensForEvent(eventType){
     };
     
     if (confirm(`Confirmar uso de ${cost.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})} em tokens para ${eventNames[eventType]}?`)) {
-        spendTokens(cost);
-        closeTokensModal();
-        renderClientArea();
-        alert('Token resgatado! Nossa equipe entrará em contato para agendar.');
+        const success = await spendTokens(cost);
+        if (success) {
+            closeTokensModal();
+            renderClientArea();
+            alert('Token resgatado! Nossa equipe entrará em contato para agendar.');
+        } else {
+            alert('Erro ao processar o resgate de tokens. Tente novamente.');
+        }
     }
 }
 
