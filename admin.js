@@ -392,29 +392,50 @@
 
     console.log('🔍 loadKpis: Calculando vendas...');
 
-    const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    // Usar a mesma lógica da loadKPIs() que está funcionando corretamente
+    const { collection, query, where, getDocsFromServer } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const ordersCol = collection(window.firebaseDb, 'orders');
 
-    const all = await fetchUnifiedOrders();
-    let totalToday = 0, totalMonth = 0, receivable = 0;
-    all.forEach(o => {
-      const ts = o.ts;
-      const amount = Number(o.amount||0);
-      const status = (o.status||'').toLowerCase();
-      
-      // Aceitar paid, approved, confirmed como vendas válidas
-      const isPaid = status === 'paid' || status === 'approved' || status === 'confirmed';
-      
-      if (ts >= startOfDay && isPaid) totalToday += amount;
-      if (ts >= startOfMonth && isPaid) totalMonth += amount;
-      if (status === 'pending') receivable += amount;
+    // Today sales (sum) - apenas pedidos pagos
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const qToday = query(ordersCol, where('createdAt', '>=', today));
+    const todaySnap = await getDocsFromServer(qToday);
+    let sumToday = 0;
+    todaySnap.forEach(d => {
+        const data = d.data();
+        const status = (data.status || '').toLowerCase();
+        if (status === 'paid' || status === 'approved' || status === 'confirmed') {
+            sumToday += Number(data.amount || 0);
+        }
+    });
+
+    // Month sales - apenas pedidos pagos
+    const firstMonth = new Date();
+    firstMonth.setDate(1); firstMonth.setHours(0,0,0,0);
+    const qMonth = query(ordersCol, where('createdAt', '>=', firstMonth));
+    const monthSnap = await getDocsFromServer(qMonth);
+    let sumMonth = 0, receivable = 0;
+    monthSnap.forEach(d => {
+        const data = d.data();
+        const val = Number(data.amount || 0);
+        const status = (data.status || '').toLowerCase();
+        
+        // Apenas pedidos pagos para o total do mês
+        if (status === 'paid' || status === 'approved' || status === 'confirmed') {
+            sumMonth += val;
+        }
+        
+        // Pedidos pendentes para receber
+        if (status === 'pending') {
+            receivable += val;
+        }
     });
     
-    console.log('📊 loadKpis - Vendas hoje:', totalToday, 'Vendas mês:', totalMonth, 'A receber:', receivable);
+    console.log('📊 loadKpis - Vendas hoje:', sumToday, 'Vendas mês:', sumMonth, 'A receber:', receivable);
     
-    kpiTodayEl.textContent = brl(totalToday);
-    kpiMonthEl.textContent = brl(totalMonth);
+    kpiTodayEl.textContent = brl(sumToday);
+    kpiMonthEl.textContent = brl(sumMonth);
     kpiRecEl.textContent = brl(receivable);
 
     if (kpiActiveEl){
@@ -1371,12 +1392,11 @@ async function loadConfirmedOrders() {
     try {
         const { collection, getDocs, query, where, orderBy, limit } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         
-        // Buscar pedidos com status 'paid' ou 'approved'
+        // Buscar pedidos com status 'paid' ou 'approved' - sem orderBy para evitar erro de índice
         const ordersRef = collection(window.firebaseDb, 'orders');
         const q = query(
             ordersRef,
             where('status', 'in', ['paid', 'approved', 'confirmed']),
-            orderBy('createdAt', 'desc'),
             limit(50)
         );
         
@@ -1390,14 +1410,26 @@ async function loadConfirmedOrders() {
             if (snapshot.empty) {
                 confirmedTbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-500">Nenhum pedido confirmado encontrado</td></tr>';
             } else {
+                // Ordenar manualmente por data
+                const orders = [];
                 snapshot.forEach(doc => {
                     const data = doc.data();
+                    orders.push({ id: doc.id, ...data });
+                });
+                
+                orders.sort((a, b) => {
+                    const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+                    const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+                    return dateB - dateA;
+                });
+                
+                orders.forEach(order => {
                     const row = document.createElement('tr');
                     row.innerHTML = `
-                        <td class="py-2">${data.customerName || data.customer || '-'}</td>
-                        <td class="py-2">${data.title || data.item || '-'}</td>
-                        <td class="py-2">R$ ${(data.amount || data.total || 0).toFixed(2)}</td>
-                        <td class="py-2">${data.createdAt ? new Date(data.createdAt.toDate ? data.createdAt.toDate() : data.createdAt).toLocaleDateString('pt-BR') : '-'}</td>
+                        <td class="py-2">${order.customerName || order.customer || '-'}</td>
+                        <td class="py-2">${order.title || order.item || '-'}</td>
+                        <td class="py-2">R$ ${(order.amount || order.total || 0).toFixed(2)}</td>
+                        <td class="py-2">${order.createdAt ? new Date(order.createdAt.toDate ? order.createdAt.toDate() : order.createdAt).toLocaleDateString('pt-BR') : '-'}</td>
                     `;
                     confirmedTbody.appendChild(row);
                 });
@@ -1418,12 +1450,11 @@ async function loadPendingOrders() {
     try {
         const { collection, getDocs, query, where, orderBy, limit } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         
-        // Buscar pedidos com status 'pending'
+        // Buscar pedidos com status 'pending' - sem orderBy para evitar erro de índice
         const ordersRef = collection(window.firebaseDb, 'orders');
         const q = query(
             ordersRef,
             where('status', '==', 'pending'),
-            orderBy('createdAt', 'desc'),
             limit(50)
         );
         
@@ -1437,16 +1468,28 @@ async function loadPendingOrders() {
             if (snapshot.empty) {
                 pendingTbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">Nenhum pedido pendente encontrado</td></tr>';
             } else {
+                // Ordenar manualmente por data
+                const orders = [];
                 snapshot.forEach(doc => {
                     const data = doc.data();
+                    orders.push({ id: doc.id, ...data });
+                });
+                
+                orders.sort((a, b) => {
+                    const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+                    const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+                    return dateB - dateA;
+                });
+                
+                orders.forEach(order => {
                     const row = document.createElement('tr');
                     row.innerHTML = `
-                        <td class="py-2">${data.customerName || data.customer || '-'}</td>
-                        <td class="py-2">${data.title || data.item || '-'}</td>
-                        <td class="py-2">R$ ${(data.amount || data.total || 0).toFixed(2)}</td>
-                        <td class="py-2">${data.createdAt ? new Date(data.createdAt.toDate ? data.createdAt.toDate() : data.createdAt).toLocaleDateString('pt-BR') : '-'}</td>
+                        <td class="py-2">${order.customerName || order.customer || '-'}</td>
+                        <td class="py-2">${order.title || order.item || '-'}</td>
+                        <td class="py-2">R$ ${(order.amount || order.total || 0).toFixed(2)}</td>
+                        <td class="py-2">${order.createdAt ? new Date(order.createdAt.toDate ? order.createdAt.toDate() : order.createdAt).toLocaleDateString('pt-BR') : '-'}</td>
                         <td class="py-2">
-                            <button onclick="approveOrder('${doc.id}')" class="text-green-600 hover:text-green-800 text-sm">Aprovar</button>
+                            <button onclick="approveOrder('${order.id}')" class="text-green-600 hover:text-green-800 text-sm">Aprovar</button>
                         </td>
                     `;
                     pendingTbody.appendChild(row);
