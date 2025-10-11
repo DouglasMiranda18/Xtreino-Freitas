@@ -153,6 +153,12 @@ function switchTab(tabName) {
 // Load user profile
 async function loadUserProfile() {
     try {
+        // Verificar se o usuário está autenticado
+        if (!currentUser || !currentUser.uid) {
+            console.warn('Usuário não autenticado, não é possível carregar perfil');
+            return;
+        }
+        
         const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
         if (userDoc.exists()) {
             userProfile = userDoc.data();
@@ -437,6 +443,12 @@ async function loadStats() {
 
 // Helper to fetch user docs handling different owner field names and rule variations
 async function fetchUserDocs(colName, max = 50, sortDesc = false){
+    // Verificar se o usuário está autenticado
+    if (!currentUser || !currentUser.uid) {
+        console.warn('Usuário não autenticado, não é possível buscar documentos');
+        return [];
+    }
+    
     const colRef = collection(db, colName);
     const candidates = [
         where('userId','==', currentUser.uid),
@@ -482,6 +494,12 @@ async function saveProfile(e) {
     e.preventDefault();
     
     try {
+        // Verificar se o usuário está autenticado
+        if (!currentUser || !currentUser.uid) {
+            alert('Você precisa estar logado para atualizar o perfil');
+            return;
+        }
+        
         const profileData = {
             name: document.getElementById('profileName').value,
             phone: document.getElementById('profilePhone').value,
@@ -543,6 +561,12 @@ async function loadTokensHistory() {
 
 // Load my tokens (balance)
 function loadMyTokens() {
+    // Verificar se o usuário está autenticado
+    if (!currentUser || !currentUser.uid) {
+        console.warn('Usuário não autenticado, não é possível carregar tokens');
+        return;
+    }
+    
     if (userProfile) {
         document.getElementById('myTokenBalance').textContent = `${userProfile.tokens || 0} Tokens`;
     }
@@ -554,6 +578,12 @@ function loadMyTokens() {
 // Load token usage history
 async function loadTokenUsageHistory() {
     try {
+        // Verificar se o usuário está autenticado
+        if (!currentUser || !currentUser.uid) {
+            console.warn('Usuário não autenticado, não é possível carregar histórico de tokens');
+            return;
+        }
+        
         const container = document.getElementById('tokenUsageHistory');
         if (!container) return;
         
