@@ -689,16 +689,24 @@ async function syncUserTokens() {
             const userData = userSnap.data();
             const currentTokens = userData.tokens || 0;
             
+            // Sempre atualizar o perfil local com os dados do Firestore
+            window.currentUserProfile = window.currentUserProfile || {};
+            window.currentUserProfile.tokens = currentTokens;
+            
             // Se o usuário não tem tokens, dar 1 token inicial
             if (currentTokens === 0) {
                 await setDoc(userRef, { tokens: 1 }, { merge: true });
                 window.currentUserProfile.tokens = 1;
                 console.log('🎁 Initial token given to user');
-            } else {
-                window.currentUserProfile.tokens = currentTokens;
             }
             
+            // Atualizar localStorage também
+            localStorage.setItem('assoc_profile', JSON.stringify(window.currentUserProfile));
+            
             console.log('✅ Tokens synced:', window.currentUserProfile.tokens);
+            
+            // Atualizar interface
+            renderClientArea();
         }
     } catch (error) {
         console.error('❌ Error syncing tokens:', error);
@@ -730,8 +738,11 @@ async function ensureUserProfile(user) {
             if (!snap.exists()) {
                 await setDoc(ref, baseProfile);
                 window.currentUserProfile = baseProfile;
+                console.log('✅ Perfil criado no Firestore');
             } else {
-                window.currentUserProfile = { ...baseProfile, ...snap.data() };
+                const data = snap.data();
+                window.currentUserProfile = { ...baseProfile, ...data };
+                console.log('✅ Perfil carregado do Firestore:', { tokens: data.tokens });
             }
         } else {
             // fallback local
@@ -739,10 +750,17 @@ async function ensureUserProfile(user) {
             const stored = JSON.parse(localStorage.getItem(key) || 'null');
             if (stored && stored.uid === (user?.uid || null)) {
                 window.currentUserProfile = stored;
+                console.log('✅ Perfil carregado do localStorage');
             } else {
                 window.currentUserProfile = baseProfile;
                 localStorage.setItem(key, JSON.stringify(baseProfile));
+                console.log('✅ Perfil criado no localStorage');
             }
+        }
+        
+        // Sempre sincronizar tokens após carregar o perfil
+        if (window.firebaseReady && !isLocal && !isNetlify && user?.uid) {
+            await syncUserTokens();
         }
     } catch (err) {
         console.warn('Perfil: usando fallback local.', err);
@@ -2286,6 +2304,10 @@ async function useTokensForEvent(eventType){
         console.error('Event type not found:', eventType);
         return;
     }
+    
+    // Forçar sincronização de tokens antes de verificar
+    console.log('🔄 Forcing token sync before use...');
+    await syncUserTokens();
     
     // Verificar se tem tokens suficientes
     const profile = window.currentUserProfile || {};
