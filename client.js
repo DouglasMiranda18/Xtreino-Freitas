@@ -41,7 +41,8 @@ function initializeFirebase() {
 }
 
 // Inicializar Firebase
-initializeFirebase();
+const firebaseInitialized = initializeFirebase();
+console.log('🔍 Firebase initialization result:', firebaseInitialized);
 
 // Ensure local persistence for auth session
 if (auth && auth.setPersistence) {
@@ -68,18 +69,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Check authentication state
 function checkAuthState() {
+    console.log('🔍 Checking auth state...');
+    console.log('🔍 Auth instance:', auth ? 'Available' : 'NULL');
     if (!auth) {
+        console.log('❌ Auth not available, showing login prompt');
         showLoginPrompt();
         return;
     }
     onAuthStateChanged(auth, (user) => {
+        console.log('🔍 Auth state changed:', user ? `User logged in: ${user.email} (${user.uid})` : 'User logged out');
         if (user) {
             currentUser = user;
+            console.log('✅ User authenticated, loading profile and dashboard');
             loadUserProfile();
             loadDashboard();
             // Hide login prompt if user is logged in
             hideLoginPrompt();
         } else {
+            console.log('❌ User not authenticated, showing login prompt');
             // Show login prompt instead of redirecting
             showLoginPrompt();
         }
