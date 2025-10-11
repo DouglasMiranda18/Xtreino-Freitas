@@ -719,12 +719,12 @@ async function syncUserTokens() {
                 console.log('🔍 Local tokens are more recent, keeping:', localTokens);
             }
             
-            // Lógica de token inicial removida para evitar reset do saldo
-            // if (window.currentUserProfile.tokens === 0) {
-            //     await setDoc(userRef, { tokens: 1 }, { merge: true });
-            //     window.currentUserProfile.tokens = 1;
-            //     console.log('🎁 Initial token given to user');
-            // }
+            // Dar token inicial apenas se o usuário realmente não tem tokens (não é 0, mas undefined/null)
+            if (window.currentUserProfile.tokens === undefined || window.currentUserProfile.tokens === null) {
+                await setDoc(userRef, { tokens: 1 }, { merge: true });
+                window.currentUserProfile.tokens = 1;
+                console.log('🎁 Initial token given to user with undefined tokens');
+            }
             
             // Atualizar localStorage também
             localStorage.setItem('assoc_profile', JSON.stringify(window.currentUserProfile));
@@ -803,11 +803,11 @@ async function persistUserProfile(profile){
         
         console.log('🔍 Persisting profile:', { isLocal, isNetlify, firebaseReady: window.firebaseReady, hasUid: !!profile?.uid });
         
-        // Lógica de token inicial removida para evitar reset do saldo
-        // if (!profile.tokens || profile.tokens === 0) {
-        //     profile.tokens = 1;
-        //     console.log('🎁 Giving initial token to new user');
-        // }
+        // Dar token inicial apenas para novos usuários (sem UID ou com tokens undefined)
+        if (!profile.uid || profile.tokens === undefined) {
+            profile.tokens = 1;
+            console.log('🎁 Giving initial token to new user');
+        }
         
         if (window.firebaseReady && !isLocal && profile?.uid){
             const { doc, setDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
