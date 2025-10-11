@@ -183,17 +183,17 @@ function onAuthLogged(user){
         return;
     }
     
-    // Sincronizar tokens automaticamente após login (apenas se necessário)
-    setTimeout(async () => {
-        try {
-            // Só sincronizar se não há perfil local
-            if (!window.currentUserProfile || !window.currentUserProfile.tokens) {
-                await syncUserTokens();
-            }
-        } catch (error) {
-            console.error('Erro ao sincronizar tokens:', error);
-        }
-    }, 1000);
+    // Sincronização automática removida para evitar reset do saldo
+    // setTimeout(async () => {
+    //     try {
+    //         // Só sincronizar se não há perfil local
+    //         if (!window.currentUserProfile || !window.currentUserProfile.tokens) {
+    //             await syncUserTokens();
+    //         }
+    //     } catch (error) {
+    //         console.error('Erro ao sincronizar tokens:', error);
+    //     }
+    // }, 1000);
     
     // Não abre automaticamente a área do cliente - só quando clicar em MINHA CONTA
 }
@@ -784,10 +784,10 @@ async function ensureUserProfile(user) {
             }
         }
         
-        // Sempre sincronizar tokens após carregar o perfil
-        if (window.firebaseReady && !isLocal && !isNetlify && user?.uid) {
-            await syncUserTokens();
-        }
+        // Sincronização automática removida para evitar reset do saldo
+        // if (window.firebaseReady && !isLocal && !isNetlify && user?.uid) {
+        //     await syncUserTokens();
+        // }
     } catch (err) {
         console.warn('Perfil: usando fallback local.', err);
         const key = 'assoc_profile';
