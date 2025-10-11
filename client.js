@@ -731,8 +731,10 @@ async function checkAndSyncTokens() {
             console.log('🔍 Total tokens purchased:', totalTokensPurchased);
             console.log('🔍 Current tokens in profile:', userProfile?.tokens || 0);
             
-            // Se os tokens comprados são maiores que os tokens no perfil, atualizar
-            if (totalTokensPurchased > (userProfile?.tokens || 0)) {
+            // Só sincronizar se o perfil não tem tokens ou se os tokens comprados são significativamente maiores
+            // (isso evita sobrescrever tokens que foram gastos recentemente)
+            const currentTokens = userProfile?.tokens || 0;
+            if (currentTokens === 0 || totalTokensPurchased > currentTokens + 10) {
                 console.log('🔍 Syncing tokens...');
                 const newTokenBalance = totalTokensPurchased;
                 
@@ -745,6 +747,8 @@ async function checkAndSyncTokens() {
                 userProfile.tokens = newTokenBalance;
                 
                 console.log(`✅ Tokens synced! New balance: ${newTokenBalance}`);
+            } else {
+                console.log('🔍 Tokens already in sync, not updating');
             }
         }
     } catch (error) {

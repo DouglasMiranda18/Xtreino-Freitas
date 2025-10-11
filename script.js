@@ -183,10 +183,13 @@ function onAuthLogged(user){
         return;
     }
     
-    // Sincronizar tokens automaticamente após login
+    // Sincronizar tokens automaticamente após login (apenas se necessário)
     setTimeout(async () => {
         try {
-            await syncUserTokens();
+            // Só sincronizar se não há perfil local
+            if (!window.currentUserProfile || !window.currentUserProfile.tokens) {
+                await syncUserTokens();
+            }
         } catch (error) {
             console.error('Erro ao sincronizar tokens:', error);
         }
@@ -673,10 +676,9 @@ async function spendTokens(amountBRL) {
     // Atualizar interface na página principal
     renderClientArea();
     
-    // Forçar sincronização para garantir que o saldo foi atualizado
+    // Atualizar interface após um tempo para garantir que tudo foi salvo
     setTimeout(async () => {
-        await syncUserTokens();
-        // Atualizar novamente a interface após sincronização
+        // Atualizar novamente a interface
         renderClientArea();
         if (window.location.pathname.includes('client.html') && typeof loadMyTokens === 'function') {
             await loadMyTokens();
@@ -705,12 +707,20 @@ async function syncUserTokens() {
             const userData = userSnap.data();
             const currentTokens = userData.tokens || 0;
             
-            // Sempre atualizar o perfil local com os dados do Firestore
+            // Só atualizar se o perfil local não existe ou se os tokens do Firestore são significativamente maiores
+            // (isso evita sobrescrever tokens que foram gastos recentemente)
             window.currentUserProfile = window.currentUserProfile || {};
-            window.currentUserProfile.tokens = currentTokens;
+            const localTokens = window.currentUserProfile.tokens || 0;
+            
+            if (localTokens === 0 || currentTokens > localTokens + 5) {
+                window.currentUserProfile.tokens = currentTokens;
+                console.log('✅ Tokens synced from Firestore:', currentTokens);
+            } else {
+                console.log('🔍 Local tokens are more recent, keeping:', localTokens);
+            }
             
             // Se o usuário não tem tokens, dar 1 token inicial
-            if (currentTokens === 0) {
+            if (window.currentUserProfile.tokens === 0) {
                 await setDoc(userRef, { tokens: 1 }, { merge: true });
                 window.currentUserProfile.tokens = 1;
                 console.log('🎁 Initial token given to user');
@@ -719,7 +729,7 @@ async function syncUserTokens() {
             // Atualizar localStorage também
             localStorage.setItem('assoc_profile', JSON.stringify(window.currentUserProfile));
             
-            console.log('✅ Tokens synced:', window.currentUserProfile.tokens);
+            console.log('✅ Final token balance:', window.currentUserProfile.tokens);
             
             // Atualizar interface
             renderClientArea();
