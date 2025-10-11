@@ -206,6 +206,13 @@ async function loadDashboard() {
 // Load recent orders
 async function loadRecentOrders() {
     try {
+        // Verificar se o usuário está autenticado
+        if (!currentUser || !currentUser.uid) {
+            console.warn('Usuário não autenticado, mostrando pedidos vazios');
+            displayRecentOrders([]);
+            return;
+        }
+        
         const regs = await fetchUserDocs('registrations', 5, true);
         const orders = regs.map(d => ({
             id: d.id,
@@ -216,7 +223,10 @@ async function loadRecentOrders() {
         displayRecentOrders(orders);
     } catch (error) {
         console.error('Error loading recent orders:', error);
-        document.getElementById('recentOrders').innerHTML = '<p class="text-gray-500 text-center">Erro ao carregar pedidos</p>';
+        const recentOrdersElement = document.getElementById('recentOrders');
+        if (recentOrdersElement) {
+            recentOrdersElement.innerHTML = '<p class="text-gray-500 text-center">Erro ao carregar pedidos</p>';
+        }
     }
 }
 
@@ -435,14 +445,35 @@ function displayAllOrders(orders) {
 // Load stats
 async function loadStats() {
     try {
+        // Verificar se o usuário está autenticado
+        if (!currentUser || !currentUser.uid) {
+            console.warn('Usuário não autenticado, carregando stats padrão');
+            // Mostrar stats padrão se não autenticado
+            const totalOrdersElement = document.getElementById('totalOrders');
+            const totalSpentElement = document.getElementById('totalSpent');
+            const availableTokensElement = document.getElementById('availableTokens');
+            const myTokenBalanceElement = document.getElementById('myTokenBalance');
+            
+            if (totalOrdersElement) totalOrdersElement.textContent = '0';
+            if (totalSpentElement) totalSpentElement.textContent = 'R$ 0,00';
+            if (availableTokensElement) availableTokensElement.textContent = '0';
+            if (myTokenBalanceElement) myTokenBalanceElement.textContent = '0';
+            return;
+        }
+        
         const regs = await fetchUserDocs('registrations', 200, false);
         let totalOrders = regs.length;
         let totalSpent = regs.reduce((sum, r) => sum + (r.data.price || 0), 0);
 
-        document.getElementById('totalOrders').textContent = totalOrders;
-        document.getElementById('totalSpent').textContent = `R$ ${totalSpent.toFixed(2)}`;
-        document.getElementById('availableTokens').textContent = userProfile?.tokens || 0;
-        document.getElementById('myTokenBalance').textContent = userProfile?.tokens || 0;
+        const totalOrdersElement = document.getElementById('totalOrders');
+        const totalSpentElement = document.getElementById('totalSpent');
+        const availableTokensElement = document.getElementById('availableTokens');
+        const myTokenBalanceElement = document.getElementById('myTokenBalance');
+        
+        if (totalOrdersElement) totalOrdersElement.textContent = totalOrders;
+        if (totalSpentElement) totalSpentElement.textContent = `R$ ${totalSpent.toFixed(2)}`;
+        if (availableTokensElement) availableTokensElement.textContent = userProfile?.tokens || 0;
+        if (myTokenBalanceElement) myTokenBalanceElement.textContent = userProfile?.tokens || 0;
     } catch (error) {
         console.error('Error loading stats:', error);
     }
@@ -571,11 +602,19 @@ function loadMyTokens() {
     // Verificar se o usuário está autenticado
     if (!currentUser || !currentUser.uid) {
         console.warn('Usuário não autenticado, não é possível carregar tokens');
+        // Mostrar 0 tokens se não autenticado
+        const balanceElement = document.getElementById('myTokenBalance');
+        if (balanceElement) {
+            balanceElement.textContent = '0 Tokens';
+        }
         return;
     }
     
     if (userProfile) {
-        document.getElementById('myTokenBalance').textContent = `${userProfile.tokens || 0} Tokens`;
+        const balanceElement = document.getElementById('myTokenBalance');
+        if (balanceElement) {
+            balanceElement.textContent = `${userProfile.tokens || 0} Tokens`;
+        }
     }
     
     // Carregar histórico de uso dos tokens
