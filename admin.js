@@ -1332,8 +1332,129 @@ async function main() {
         try { await loadTables(can(role, 'manage_products')); } catch (e) { console.error('Tables error', e); }
         try { await upsertUserProfile(user); } catch {}
         try { await loadUsersAndRoles(role); } catch (e) { console.error('Users error', e); }
+        try { await loadPendingOrders(); } catch (e) { console.error('Pending orders error', e); }
+        try { await loadConfirmedOrders(); } catch (e) { console.error('Confirmed orders error', e); }
     });
 }
+
+// Função para carregar pedidos confirmados
+async function loadConfirmedOrders() {
+    try {
+        const { collection, getDocs, query, where, orderBy, limit } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        
+        // Buscar pedidos com status 'paid' ou 'approved'
+        const ordersRef = collection(window.firebaseDb, 'orders');
+        const q = query(
+            ordersRef,
+            where('status', 'in', ['paid', 'approved', 'confirmed']),
+            orderBy('createdAt', 'desc'),
+            limit(50)
+        );
+        
+        const snapshot = await getDocs(q);
+        const confirmedTbody = document.getElementById('confirmedTbody');
+        const confirmedCount = document.getElementById('confirmedCount');
+        
+        if (confirmedTbody) {
+            confirmedTbody.innerHTML = '';
+            
+            if (snapshot.empty) {
+                confirmedTbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-500">Nenhum pedido confirmado encontrado</td></tr>';
+            } else {
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="py-2">${data.customerName || data.customer || '-'}</td>
+                        <td class="py-2">${data.title || data.item || '-'}</td>
+                        <td class="py-2">R$ ${(data.amount || data.total || 0).toFixed(2)}</td>
+                        <td class="py-2">${data.createdAt ? new Date(data.createdAt.toDate ? data.createdAt.toDate() : data.createdAt).toLocaleDateString('pt-BR') : '-'}</td>
+                    `;
+                    confirmedTbody.appendChild(row);
+                });
+            }
+        }
+        
+        if (confirmedCount) {
+            confirmedCount.textContent = `${snapshot.size} pedidos`;
+        }
+        
+    } catch (error) {
+        console.error('Erro ao carregar pedidos confirmados:', error);
+    }
+}
+
+// Função para carregar pedidos pendentes
+async function loadPendingOrders() {
+    try {
+        const { collection, getDocs, query, where, orderBy, limit } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        
+        // Buscar pedidos com status 'pending'
+        const ordersRef = collection(window.firebaseDb, 'orders');
+        const q = query(
+            ordersRef,
+            where('status', '==', 'pending'),
+            orderBy('createdAt', 'desc'),
+            limit(50)
+        );
+        
+        const snapshot = await getDocs(q);
+        const pendingTbody = document.getElementById('pendingTbody');
+        const pendingCount = document.getElementById('pendingCount');
+        
+        if (pendingTbody) {
+            pendingTbody.innerHTML = '';
+            
+            if (snapshot.empty) {
+                pendingTbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">Nenhum pedido pendente encontrado</td></tr>';
+            } else {
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="py-2">${data.customerName || data.customer || '-'}</td>
+                        <td class="py-2">${data.title || data.item || '-'}</td>
+                        <td class="py-2">R$ ${(data.amount || data.total || 0).toFixed(2)}</td>
+                        <td class="py-2">${data.createdAt ? new Date(data.createdAt.toDate ? data.createdAt.toDate() : data.createdAt).toLocaleDateString('pt-BR') : '-'}</td>
+                        <td class="py-2">
+                            <button onclick="approveOrder('${doc.id}')" class="text-green-600 hover:text-green-800 text-sm">Aprovar</button>
+                        </td>
+                    `;
+                    pendingTbody.appendChild(row);
+                });
+            }
+        }
+        
+        if (pendingCount) {
+            pendingCount.textContent = `${snapshot.size} pedidos`;
+        }
+        
+    } catch (error) {
+        console.error('Erro ao carregar pedidos pendentes:', error);
+    }
+}
+
+// Função para aprovar pedido
+async function approveOrder(orderId) {
+    try {
+        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const orderRef = doc(window.firebaseDb, 'orders', orderId);
+        await updateDoc(orderRef, { status: 'approved' });
+        
+        alert('Pedido aprovado com sucesso!');
+        
+        // Recarregar as listas
+        await loadPendingOrders();
+        await loadConfirmedOrders();
+        
+    } catch (error) {
+        console.error('Erro ao aprovar pedido:', error);
+        alert('Erro ao aprovar pedido');
+    }
+}
+
+// Tornar função global
+window.approveOrder = approveOrder;
 
 main();
 

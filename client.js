@@ -526,15 +526,21 @@ async function fetchUserDocs(colName, max = 50, sortDesc = false){
         ];
     }
     
-    console.log(`🔍 Searching in collection '${colName}' with email: ${currentUser.email}`);
+    console.log(`🔍 Searching in collection '${colName}' with email: ${currentUser.email}, uid: ${currentUser.uid}`);
     const results = [];
     for (const cond of candidates){
         try{
             const base = sortDesc ? query(colRef, cond) : query(colRef, cond);
             const snap = await getDocs(base);
-            snap.forEach(d => results.push({ id: d.id, data: d.data() }));
+            console.log(`🔍 Query result for ${colName}:`, snap.size, 'documents');
+            snap.forEach(d => {
+                const data = d.data();
+                console.log(`🔍 Found document:`, { id: d.id, customer: data.customer, buyerEmail: data.buyerEmail, userId: data.userId, uid: data.uid });
+                results.push({ id: d.id, data });
+            });
             if (results.length > 0) break; // got something
         }catch(e){
+            console.log(`🔍 Query error for ${colName}:`, e);
             // ignore permission errors, try next field
         }
     }
@@ -546,6 +552,7 @@ async function fetchUserDocs(colName, max = 50, sortDesc = false){
             return sortDesc ? bt - at : at - bt;
         })
         .slice(0, max);
+    console.log(`🔍 Final results for ${colName}:`, limited.length, 'documents');
     return limited;
 }
 

@@ -619,10 +619,20 @@ function loadTokenHistory() {
 
 // Helpers de token (saldo simples em perfil.tokens, número decimal em BRL)
 function getTokenBalance() {
-    return Number(window.currentUserProfile?.tokens || 0);
+    const balance = Number(window.currentUserProfile?.tokens || 0);
+    console.log('🔍 Token balance check:', { 
+        profile: window.currentUserProfile, 
+        tokens: window.currentUserProfile?.tokens, 
+        balance 
+    });
+    return balance;
 }
 function canSpendTokens(amountBRL) {
-    return getTokenBalance() >= Number(amountBRL || 0);
+    const balance = getTokenBalance();
+    const amount = Number(amountBRL || 0);
+    const canSpend = balance >= amount;
+    console.log('🔍 Can spend tokens check:', { balance, amount, canSpend });
+    return canSpend;
 }
 async function spendTokens(amountBRL) {
     const amt = Number(amountBRL || 0);
@@ -1086,6 +1096,8 @@ async function handlePurchase(event) {
                 customer: customerEmail,
                 customerName: customerName,
                 buyerEmail: customerEmail,
+                userId: window.firebaseAuth.currentUser?.uid,
+                uid: window.firebaseAuth.currentUser?.uid,
                 productId: currentProduct,
                 productOptions: productOptions,
                 createdAt: new Date(),
@@ -1871,6 +1883,8 @@ async function handleProductPurchase(productId, cfg) {
                 customer: email,
                 customerName: team,
                 buyerEmail: email,
+                userId: window.firebaseAuth.currentUser?.uid,
+                uid: window.firebaseAuth.currentUser?.uid,
                 phone: phone,
                 productId: productId,
                 productOptions: productOptions,
@@ -2229,7 +2243,10 @@ async function useTokensForEvent(eventType){
     
     // Verificar se tem tokens suficientes
     const profile = window.currentUserProfile || {};
+    console.log('🔍 useTokensForEvent - Profile check:', { profile, tokens: profile.tokens, cost });
+    
     if (!profile || !profile.tokens || profile.tokens < cost) {
+        console.log('❌ Insufficient tokens:', { profile, tokens: profile.tokens, cost });
         alert(`Saldo insuficiente. Você precisa de ${cost.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})} em tokens.`);
         return;
     }
