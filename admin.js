@@ -390,6 +390,8 @@
     const kpiActiveEl = document.getElementById('kpiActiveUsers');
     if (!kpiTodayEl || !kpiMonthEl || !kpiRecEl) return;
 
+    console.log('🔍 loadKpis: Calculando vendas...');
+
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -399,10 +401,18 @@
     all.forEach(o => {
       const ts = o.ts;
       const amount = Number(o.amount||0);
-      if (ts >= startOfDay && (o.status||'').toLowerCase()==='paid') totalToday += amount;
-      if (ts >= startOfMonth && (o.status||'').toLowerCase()==='paid') totalMonth += amount;
-      if ((o.status||'').toLowerCase()==='pending') receivable += amount;
+      const status = (o.status||'').toLowerCase();
+      
+      // Aceitar paid, approved, confirmed como vendas válidas
+      const isPaid = status === 'paid' || status === 'approved' || status === 'confirmed';
+      
+      if (ts >= startOfDay && isPaid) totalToday += amount;
+      if (ts >= startOfMonth && isPaid) totalMonth += amount;
+      if (status === 'pending') receivable += amount;
     });
+    
+    console.log('📊 loadKpis - Vendas hoje:', totalToday, 'Vendas mês:', totalMonth, 'A receber:', receivable);
+    
     kpiTodayEl.textContent = brl(totalToday);
     kpiMonthEl.textContent = brl(totalMonth);
     kpiRecEl.textContent = brl(receivable);
