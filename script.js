@@ -656,11 +656,17 @@ async function spendTokens(amountBRL) {
     // Persistir no Firestore
     await persistUserProfile(window.currentUserProfile);
     
+    // Atualizar localStorage imediatamente
+    localStorage.setItem('assoc_profile', JSON.stringify(window.currentUserProfile));
+    
     // Atualizar interface se estiver na área do cliente
     if (window.location.pathname.includes('client.html')) {
         // Recarregar dados do cliente
         if (typeof loadMyTokens === 'function') {
             await loadMyTokens();
+        }
+        if (typeof loadTokenUsageHistory === 'function') {
+            await loadTokenUsageHistory();
         }
     }
     
@@ -670,7 +676,12 @@ async function spendTokens(amountBRL) {
     // Forçar sincronização para garantir que o saldo foi atualizado
     setTimeout(async () => {
         await syncUserTokens();
-    }, 500);
+        // Atualizar novamente a interface após sincronização
+        renderClientArea();
+        if (window.location.pathname.includes('client.html') && typeof loadMyTokens === 'function') {
+            await loadMyTokens();
+        }
+    }, 1000);
     
     return true;
 }
@@ -2380,9 +2391,20 @@ async function createTokenSchedule(eventType, cost) {
             'associado': 'XTreino Associado'
         };
         
+        // Link do grupo do WhatsApp baseado no tipo de evento
+        const whatsappLinks = {
+            'treino': 'https://chat.whatsapp.com/SEU_GRUPO_TREINO',
+            'modoLiga': 'https://chat.whatsapp.com/SEU_GRUPO_MODO_LIGA',
+            'semanal': 'https://chat.whatsapp.com/SEU_GRUPO_SEMANAL',
+            'finalSemanal': 'https://chat.whatsapp.com/SEU_GRUPO_FINAL_SEMANAL',
+            'campFases': 'https://chat.whatsapp.com/SEU_GRUPO_CAMP_FASES',
+            'associado': 'https://chat.whatsapp.com/SEU_GRUPO_ASSOCIADO'
+        };
+        
         const scheduleData = {
             teamName: team,
             contact: email,
+            email: email, // Campo duplicado para compatibilidade
             phone: phone,
             date: date,
             schedule: schedule,
@@ -2390,7 +2412,12 @@ async function createTokenSchedule(eventType, cost) {
             status: 'confirmed',
             paidWithTokens: true,
             tokenCost: cost,
+            tokensUsed: cost, // Campo para histórico
             eventName: eventNames[eventType],
+            title: eventNames[eventType], // Campo para compatibilidade
+            whatsappLink: whatsappLinks[eventType] || 'https://chat.whatsapp.com/SEU_GRUPO_PADRAO',
+            userId: window.firebaseAuth.currentUser?.uid,
+            uid: window.firebaseAuth.currentUser?.uid,
             createdAt: new Date(),
             timestamp: Date.now()
         };
@@ -2398,13 +2425,24 @@ async function createTokenSchedule(eventType, cost) {
         console.log('🔍 Creating token schedule:', scheduleData);
         
         // Salvar no Firestore
-        const { collection, addDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const docRef = await addDoc(collection(window.firebaseDb, 'registrations'), scheduleData);
+        const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const docRef = await addDoc(collection(window.firebaseDb, 'registrations'), {
+            ...scheduleData,
+            createdAt: serverTimestamp() // Usar serverTimestamp para consistência
+        });
         console.log('✅ Token schedule created with ID:', docRef.id);
         
         // Fechar modal
         const modal = document.getElementById('scheduleModal');
         if (modal) modal.classList.add('hidden');
+        
+        // Forçar atualização da área do cliente
+        setTimeout(async () => {
+            if (window.location.pathname.includes('client.html')) {
+                await loadTokenUsageHistory();
+                await loadRecentOrders();
+            }
+        }, 1000);
         
     } catch (error) {
         console.error('❌ Error creating token schedule:', error);
