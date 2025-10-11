@@ -852,6 +852,29 @@ function formatDate(date) {
     }).format(date);
 }
 
+// Função para persistir perfil do usuário
+async function persistUserProfile(profile) {
+    try {
+        const isLocal = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+        const isNetlify = /netlify\.app$/i.test(location.hostname);
+        
+        console.log('🔍 Persisting profile:', { isLocal, isNetlify, firebaseReady: window.firebaseReady, hasUid: !!profile?.uid });
+        
+        if (window.firebaseReady && !isLocal && profile?.uid) {
+            const { doc, setDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            const ref = doc(collection(db, 'users'), profile.uid);
+            await setDoc(ref, profile, { merge: true });
+            console.log('✅ Profile saved to Firestore');
+        } else {
+            localStorage.setItem('assoc_profile', JSON.stringify(profile));
+            console.log('✅ Profile saved to localStorage');
+        }
+    } catch(error) {
+        console.error('❌ Error persisting profile:', error);
+        localStorage.setItem('assoc_profile', JSON.stringify(profile));
+    }
+}
+
 function getStatusColor(status) {
     switch(status) {
         case 'paid':

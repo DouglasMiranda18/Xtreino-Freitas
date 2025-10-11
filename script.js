@@ -285,6 +285,17 @@ function goToTokensFromSchedule(){
     window.location.href = 'client.html?tab=myTokens';
 }
 
+// Função para abrir modal de compra de tokens (compatibilidade)
+function openTokensPurchaseModal() {
+    // Redirecionar para a área do cliente na aba de tokens
+    if (!window.isLoggedIn) {
+        window.postLoginRedirect = 'myTokens';
+        openLoginModal();
+        return;
+    }
+    window.location.href = 'client.html?tab=myTokens';
+}
+
 // [login removed]
 
 // [login removed]
@@ -633,6 +644,9 @@ async function spendTokens(amountBRL) {
         }
     }
     
+    // Atualizar interface na página principal
+    renderClientArea();
+    
     return true;
 }
 function grantTokens(amountBRL) {
@@ -737,7 +751,19 @@ function renderClientArea(){
         const hasTokens = p && p.tokens && p.tokens > 0;
         assocBtn.disabled = !hasTokens;
         assocBtn.classList.toggle('opacity-60', !hasTokens);
-        assocBtn.textContent = hasTokens ? 'USAR TOKENS' : 'SALDO INSUFICIENTE';
+        assocBtn.textContent = hasTokens ? 'USAR 1 TOKEN' : 'SALDO INSUFICIENTE';
+        
+        // Adicionar evento de clique se não existir
+        if (!assocBtn.hasAttribute('data-listener-added')) {
+            assocBtn.addEventListener('click', function() {
+                if (hasTokens) {
+                    openScheduleModal('associado');
+                } else {
+                    alert('Você precisa de tokens para participar. Compre tokens na sua área do cliente.');
+                }
+            });
+            assocBtn.setAttribute('data-listener-added', 'true');
+        }
     }
 }
 
@@ -1481,6 +1507,16 @@ function openScheduleModal(eventType){
     document.getElementById('schedPrice').textContent = cfg.price.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
     document.getElementById('schedEventType').textContent = cfg.label;
     
+    // Se for evento que usa tokens, mostrar opção de usar tokens
+    if (cfg.payWithToken) {
+        const buyTokensBtn = document.getElementById('buyTokensBtn');
+        if (buyTokensBtn) {
+            buyTokensBtn.classList.remove('hidden');
+            buyTokensBtn.textContent = 'USAR TOKENS';
+            buyTokensBtn.onclick = () => useTokensForEvent(eventType);
+        }
+    }
+    
     // Se for produto da loja, esconder seleção de data/hora e adicionar opções específicas
     if (cfg.isProduct) {
         // Esconder TODAS as seções de data e horários para produtos
@@ -2181,7 +2217,8 @@ async function useTokensForEvent(eventType){
         'modoLiga': 3.00,
         'semanal': 3.50,
         'finalSemanal': 7.00,
-        'campFases': 5.00
+        'campFases': 5.00,
+        'associado': 1.00
     };
     
     const cost = eventCosts[eventType];
@@ -2207,7 +2244,8 @@ async function useTokensForEvent(eventType){
         'modoLiga': 'Modo Liga',
         'semanal': 'Semanal',
         'finalSemanal': 'Final Semanal',
-        'campFases': 'Camp de Fases'
+        'campFases': 'Camp de Fases',
+        'associado': 'XTreino Associado'
     };
     
     if (confirm(`Confirmar uso de ${cost.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})} em tokens para ${eventNames[eventType]}?`)) {
