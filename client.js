@@ -226,11 +226,13 @@ async function loadRecentOrders() {
             return;
         }
         
-        const regs = await fetchUserDocs('registrations', 5, true);
-        const orders = regs.map(d => ({
+        const ordersData = await fetchUserDocs('orders', 5, true);
+        const orders = ordersData.map(d => ({
             id: d.id,
             ...d.data,
-            date: d.data.createdAt?.toDate?.() || new Date()
+            date: d.data.createdAt?.toDate?.() || new Date(),
+            title: d.data.title || d.data.item || 'Pedido',
+            status: d.data.status || 'pending'
         }));
 
         displayRecentOrders(orders);
@@ -273,11 +275,13 @@ function displayRecentOrders(orders) {
 // Load all orders
 async function loadOrders() {
     try {
-        const regs = await fetchUserDocs('registrations', 50, true);
-        const orders = regs.map(d => ({
+        const ordersData = await fetchUserDocs('orders', 50, true);
+        const orders = ordersData.map(d => ({
             id: d.id,
             ...d.data,
-            date: d.data.createdAt?.toDate?.() || new Date()
+            date: d.data.createdAt?.toDate?.() || new Date(),
+            title: d.data.title || d.data.item || 'Pedido',
+            status: d.data.status || 'pending'
         }));
 
         displayAllOrders(orders);
@@ -474,9 +478,9 @@ async function loadStats() {
             return;
         }
         
-        const regs = await fetchUserDocs('registrations', 200, false);
-        let totalOrders = regs.length;
-        let totalSpent = regs.reduce((sum, r) => sum + (r.data.price || 0), 0);
+        const orders = await fetchUserDocs('orders', 200, false);
+        let totalOrders = orders.length;
+        let totalSpent = orders.reduce((sum, r) => sum + (r.data.total || r.data.amount || 0), 0);
 
         console.log('🔍 Stats data:', { totalOrders, totalSpent, userProfile });
 
@@ -503,11 +507,26 @@ async function fetchUserDocs(colName, max = 50, sortDesc = false){
     }
     
     const colRef = collection(db, colName);
-    const candidates = [
-        where('userId','==', currentUser.uid),
-        where('uid','==', currentUser.uid),
-        where('ownerId','==', currentUser.uid)
-    ];
+    
+    // Para coleção 'orders', usar campos customer e buyerEmail
+    let candidates;
+    if (colName === 'orders') {
+        candidates = [
+            where('customer','==', currentUser.email),
+            where('buyerEmail','==', currentUser.email),
+            where('userId','==', currentUser.uid),
+            where('uid','==', currentUser.uid)
+        ];
+    } else {
+        // Para outras coleções, usar campos originais
+        candidates = [
+            where('userId','==', currentUser.uid),
+            where('uid','==', currentUser.uid),
+            where('ownerId','==', currentUser.uid)
+        ];
+    }
+    
+    console.log(`🔍 Searching in collection '${colName}' with email: ${currentUser.email}`);
     const results = [];
     for (const cond of candidates){
         try{
@@ -581,9 +600,14 @@ async function loadTokensHistory() {
         const container = document.getElementById('tokensHistory');
         if (!container) return;
         
-        // Buscar compras de tokens (orders com tipo 'tokens')
+        // Buscar compras de tokens (orders com tipo 'tokens' ou descrição contendo 'token')
         const orders = await fetchUserDocs('orders', 50, true);
-        const tokenOrders = orders.filter(o => o.data.itemName?.toLowerCase().includes('token') || o.data.type === 'tokens');
+        const tokenOrders = orders.filter(o => 
+            o.data.itemName?.toLowerCase().includes('token') || 
+            o.data.type === 'tokens' ||
+            o.data.description?.toLowerCase().includes('token') ||
+            o.data.item?.toLowerCase().includes('token')
+        );
         
         if (tokenOrders.length === 0) {
             container.innerHTML = '<p class="text-gray-500 text-center">Nenhuma compra de tokens encontrada</p>';
@@ -657,9 +681,9 @@ async function loadTokenUsageHistory() {
         const container = document.getElementById('tokenUsageHistory');
         if (!container) return;
         
-        // Buscar registrations onde o usuário usou tokens
-        const registrations = await fetchUserDocs('registrations', 50, true);
-        const tokenUsage = registrations.filter(r => r.data.paidWithTokens === true);
+        // Buscar orders onde o usuário usou tokens
+        const orders = await fetchUserDocs('orders', 50, true);
+        const tokenUsage = orders.filter(r => r.data.paidWithTokens === true);
         
         if (tokenUsage.length === 0) {
             container.innerHTML = `
