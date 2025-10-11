@@ -509,11 +509,18 @@ async function fetchUserDocs(colName, max = 50, sortDesc = false){
     const colRef = collection(db, colName);
     
     // Para coleção 'orders', usar campos customer e buyerEmail
+    // Para coleção 'registrations', usar campos contact e teamName
     let candidates;
     if (colName === 'orders') {
         candidates = [
             where('customer','==', currentUser.email),
             where('buyerEmail','==', currentUser.email),
+            where('userId','==', currentUser.uid),
+            where('uid','==', currentUser.uid)
+        ];
+    } else if (colName === 'registrations') {
+        candidates = [
+            where('contact','==', currentUser.email),
             where('userId','==', currentUser.uid),
             where('uid','==', currentUser.uid)
         ];
@@ -742,9 +749,9 @@ async function loadTokenUsageHistory() {
         const container = document.getElementById('tokenUsageHistory');
         if (!container) return;
         
-        // Buscar orders onde o usuário usou tokens
-        const orders = await fetchUserDocs('orders', 50, true);
-        const tokenUsage = orders.filter(r => r.data.paidWithTokens === true);
+        // Buscar registrations onde o usuário usou tokens
+        const registrations = await fetchUserDocs('registrations', 50, true);
+        const tokenUsage = registrations.filter(r => r.data.paidWithTokens === true);
         
         if (tokenUsage.length === 0) {
             container.innerHTML = `

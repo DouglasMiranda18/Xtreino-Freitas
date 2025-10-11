@@ -667,6 +667,11 @@ async function spendTokens(amountBRL) {
     // Atualizar interface na página principal
     renderClientArea();
     
+    // Forçar sincronização para garantir que o saldo foi atualizado
+    setTimeout(async () => {
+        await syncUserTokens();
+    }, 500);
+    
     return true;
 }
 function grantTokens(amountBRL) {
@@ -1588,8 +1593,11 @@ function openScheduleModal(eventType){
         const buyTokensBtn = document.getElementById('buyTokensBtn');
         if (buyTokensBtn) {
             buyTokensBtn.classList.remove('hidden');
-            buyTokensBtn.textContent = 'USAR TOKENS';
-            buyTokensBtn.onclick = () => useTokensForEvent(eventType);
+            buyTokensBtn.textContent = 'COMPRAR TOKENS';
+            buyTokensBtn.onclick = () => {
+                // Redirecionar para área do cliente para comprar tokens
+                window.location.href = 'client.html?tab=myTokens';
+            };
         }
     }
     
@@ -2013,6 +2021,13 @@ async function submitSchedule(e){
         return;
     }
     
+    // Se for evento que usa tokens, usar tokens diretamente
+    if (cfg.payWithToken) {
+        await useTokensForEvent(eventType);
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+        return;
+    }
+    
     // Lógica para eventos (agendamento)
     const schedule = document.getElementById('schedSelectedTime').value;
     const date = document.getElementById('schedDate').value;
@@ -2336,12 +2351,64 @@ async function useTokensForEvent(eventType){
     if (confirm(`Confirmar uso de ${cost.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})} em tokens para ${eventNames[eventType]}?`)) {
         const success = await spendTokens(cost);
         if (success) {
+            // Criar agendamento direto
+            await createTokenSchedule(eventType, cost);
             closeTokensModal();
             renderClientArea();
-            alert('Token resgatado! Nossa equipe entrará em contato para agendar.');
+            alert('✅ Token usado com sucesso! Agendamento criado. Verifique na sua área do cliente.');
         } else {
             alert('Erro ao processar o resgate de tokens. Tente novamente.');
         }
+    }
+}
+
+// Função para criar agendamento quando usar tokens
+async function createTokenSchedule(eventType, cost) {
+    try {
+        const team = document.getElementById('schedTeam')?.value?.trim() || 'Time';
+        const email = document.getElementById('schedEmail')?.value?.trim() || window.firebaseAuth.currentUser?.email;
+        const phone = document.getElementById('schedPhone')?.value?.trim() || '';
+        const date = document.getElementById('schedDate')?.value || new Date().toISOString().split('T')[0];
+        const schedule = document.getElementById('schedSelectedTime')?.value || '19h';
+        
+        const eventNames = {
+            'treino': 'Treino Normal',
+            'modoLiga': 'Modo Liga',
+            'semanal': 'Semanal',
+            'finalSemanal': 'Final Semanal',
+            'campFases': 'Camp de Fases',
+            'associado': 'XTreino Associado'
+        };
+        
+        const scheduleData = {
+            teamName: team,
+            contact: email,
+            phone: phone,
+            date: date,
+            schedule: schedule,
+            eventType: eventType,
+            status: 'confirmed',
+            paidWithTokens: true,
+            tokenCost: cost,
+            eventName: eventNames[eventType],
+            createdAt: new Date(),
+            timestamp: Date.now()
+        };
+        
+        console.log('🔍 Creating token schedule:', scheduleData);
+        
+        // Salvar no Firestore
+        const { collection, addDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const docRef = await addDoc(collection(window.firebaseDb, 'registrations'), scheduleData);
+        console.log('✅ Token schedule created with ID:', docRef.id);
+        
+        // Fechar modal
+        const modal = document.getElementById('scheduleModal');
+        if (modal) modal.classList.add('hidden');
+        
+    } catch (error) {
+        console.error('❌ Error creating token schedule:', error);
+        alert('Erro ao criar agendamento. Tente novamente.');
     }
 }
 
