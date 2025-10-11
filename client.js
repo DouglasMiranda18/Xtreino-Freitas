@@ -54,21 +54,21 @@ let currentUser = null;
 let userProfile = null;
 
 // Initialize client area
-document.addEventListener('DOMContentLoaded', function() {
-    checkAuthState();
+document.addEventListener('DOMContentLoaded', async function() {
+    await checkAuthState();
     setupEventListeners();
     // Se vier com ?tab=myTokens, abrir direto essa aba
     try{
         const sp = new URLSearchParams(location.search);
         const tab = sp.get('tab');
         if (tab === 'myTokens') {
-            switchTab('myTokens');
+            await switchTab('myTokens');
         }
     }catch(_){ }
 });
 
 // Check authentication state
-function checkAuthState() {
+async function checkAuthState() {
     console.log('🔍 Checking auth state...');
     console.log('🔍 Auth instance:', auth ? 'Available' : 'NULL');
     if (!auth) {
@@ -76,13 +76,13 @@ function checkAuthState() {
         showLoginPrompt();
         return;
     }
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
         console.log('🔍 Auth state changed:', user ? `User logged in: ${user.email} (${user.uid})` : 'User logged out');
         if (user) {
             currentUser = user;
             console.log('✅ User authenticated, loading profile and dashboard');
-            loadUserProfile();
-            loadDashboard();
+            await loadUserProfile();
+            await loadDashboard();
             // Hide login prompt if user is logged in
             hideLoginPrompt();
         } else {
@@ -101,11 +101,11 @@ function setupEventListeners() {
     const profileTab = document.getElementById('profileTab');
     const tokensTab = document.getElementById('tokensTab');
     const myTokensTab = document.getElementById('myTokensTab');
-    if (dashTab) dashTab.addEventListener('click', () => switchTab('dashboard'));
-    if (ordersTab) ordersTab.addEventListener('click', () => switchTab('orders'));
-    if (profileTab) profileTab.addEventListener('click', () => switchTab('profile'));
-    if (tokensTab) tokensTab.addEventListener('click', () => switchTab('tokens'));
-    if (myTokensTab) myTokensTab.addEventListener('click', () => switchTab('myTokens'));
+    if (dashTab) dashTab.addEventListener('click', async () => await switchTab('dashboard'));
+    if (ordersTab) ordersTab.addEventListener('click', async () => await switchTab('orders'));
+    if (profileTab) profileTab.addEventListener('click', async () => await switchTab('profile'));
+    if (tokensTab) tokensTab.addEventListener('click', async () => await switchTab('tokens'));
+    if (myTokensTab) myTokensTab.addEventListener('click', async () => await switchTab('myTokens'));
 
     // Logout button
     const logoutBtn = document.getElementById('logoutBtn');
@@ -117,7 +117,7 @@ function setupEventListeners() {
 }
 
 // Switch between tabs
-function switchTab(tabName) {
+async function switchTab(tabName) {
     // Hide all tab contents
     document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.add('hidden');
@@ -152,7 +152,7 @@ function switchTab(tabName) {
             loadTokensHistory();
             break;
         case 'myTokens':
-            loadMyTokens();
+            await loadMyTokens();
             break;
     }
 }
@@ -166,11 +166,17 @@ async function loadUserProfile() {
             return;
         }
         
+        console.log('🔍 Loading user profile for:', currentUser.uid);
         const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
         if (userDoc.exists()) {
             userProfile = userDoc.data();
-            document.getElementById('userName').textContent = userProfile.name || currentUser.email;
+            console.log('✅ User profile loaded:', userProfile);
+            const userNameElement = document.getElementById('userName');
+            if (userNameElement) {
+                userNameElement.textContent = userProfile.name || currentUser.email;
+            }
         } else {
+            console.log('❌ User document not found, creating default profile');
             // Create default profile
             userProfile = {
                 name: currentUser.displayName || '',
@@ -184,6 +190,7 @@ async function loadUserProfile() {
                 level: 'Associado Treino'
             };
             await setDoc(doc(db, 'users', currentUser.uid), userProfile);
+            console.log('✅ Default profile created:', userProfile);
         }
     } catch (error) {
         console.error('Error loading user profile:', error);
@@ -193,6 +200,12 @@ async function loadUserProfile() {
 // Load dashboard
 async function loadDashboard() {
     try {
+        // Garantir que o userProfile seja carregado primeiro
+        if (!userProfile && currentUser) {
+            console.log('🔍 UserProfile not loaded, loading it first...');
+            await loadUserProfile();
+        }
+        
         // Load recent orders
         await loadRecentOrders();
         
@@ -465,6 +478,8 @@ async function loadStats() {
         let totalOrders = regs.length;
         let totalSpent = regs.reduce((sum, r) => sum + (r.data.price || 0), 0);
 
+        console.log('🔍 Stats data:', { totalOrders, totalSpent, userProfile });
+
         const totalOrdersElement = document.getElementById('totalOrders');
         const totalSpentElement = document.getElementById('totalSpent');
         const availableTokensElement = document.getElementById('availableTokens');
@@ -598,7 +613,7 @@ async function loadTokensHistory() {
 }
 
 // Load my tokens (balance)
-function loadMyTokens() {
+async function loadMyTokens() {
     // Verificar se o usuário está autenticado
     if (!currentUser || !currentUser.uid) {
         console.warn('Usuário não autenticado, não é possível carregar tokens');
@@ -610,11 +625,20 @@ function loadMyTokens() {
         return;
     }
     
+    // Garantir que o userProfile seja carregado
+    if (!userProfile) {
+        console.log('🔍 UserProfile not loaded, loading it first...');
+        await loadUserProfile();
+    }
+    
     if (userProfile) {
         const balanceElement = document.getElementById('myTokenBalance');
         if (balanceElement) {
             balanceElement.textContent = `${userProfile.tokens || 0} Tokens`;
         }
+        console.log('🔍 My tokens loaded:', userProfile.tokens);
+    } else {
+        console.log('❌ userProfile not available in loadMyTokens');
     }
     
     // Carregar histórico de uso dos tokens
