@@ -655,6 +655,9 @@ async function loadMyTokens() {
         await loadUserProfile();
     }
     
+    // Verificar se há tokens não sincronizados
+    await checkAndSyncTokens();
+    
     if (userProfile) {
         const balanceElement = document.getElementById('myTokenBalance');
         if (balanceElement) {
@@ -667,6 +670,57 @@ async function loadMyTokens() {
     
     // Carregar histórico de uso dos tokens
     loadTokenUsageHistory();
+}
+
+// Verificar e sincronizar tokens com base nas compras
+async function checkAndSyncTokens() {
+    try {
+        console.log('🔍 Checking for unsynced tokens...');
+        
+        // Buscar todas as compras de tokens
+        const orders = await fetchUserDocs('orders', 100, false);
+        const tokenOrders = orders.filter(o => 
+            o.data.itemName?.toLowerCase().includes('token') || 
+            o.data.type === 'tokens' ||
+            o.data.description?.toLowerCase().includes('token') ||
+            o.data.item?.toLowerCase().includes('token')
+        );
+        
+        console.log('🔍 Token orders found:', tokenOrders.length);
+        
+        if (tokenOrders.length > 0) {
+            // Calcular total de tokens comprados
+            let totalTokensPurchased = 0;
+            tokenOrders.forEach(order => {
+                const tokensInOrder = parseInt(order.data.itemName?.match(/\d+/)?.[0] || 
+                                            order.data.description?.match(/\d+/)?.[0] || 
+                                            order.data.item?.match(/\d+/)?.[0] || '0');
+                totalTokensPurchased += tokensInOrder;
+                console.log(`🔍 Order ${order.id}: ${tokensInOrder} tokens`);
+            });
+            
+            console.log('🔍 Total tokens purchased:', totalTokensPurchased);
+            console.log('🔍 Current tokens in profile:', userProfile?.tokens || 0);
+            
+            // Se os tokens comprados são maiores que os tokens no perfil, atualizar
+            if (totalTokensPurchased > (userProfile?.tokens || 0)) {
+                console.log('🔍 Syncing tokens...');
+                const newTokenBalance = totalTokensPurchased;
+                
+                // Atualizar no Firestore
+                await setDoc(doc(db, 'users', currentUser.uid), {
+                    tokens: newTokenBalance
+                }, { merge: true });
+                
+                // Atualizar userProfile local
+                userProfile.tokens = newTokenBalance;
+                
+                console.log(`✅ Tokens synced! New balance: ${newTokenBalance}`);
+            }
+        }
+    } catch (error) {
+        console.error('Error checking and syncing tokens:', error);
+    }
 }
 
 // Load token usage history
