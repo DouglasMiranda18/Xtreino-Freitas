@@ -1109,16 +1109,25 @@ async function loadKPIs() {
     const { collection, query, where, orderBy, limit, getDocsFromServer } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     const ordersCol = collection(window.firebaseDb, 'orders');
 
-    // Today sales (sum)
+    console.log('🔍 loadKPIs: Calculando vendas...');
+
+    // Today sales (sum) - apenas pedidos pagos
     const today = new Date();
     today.setHours(0,0,0,0);
     const qToday = query(ordersCol, where('createdAt', '>=', today));
     const todaySnap = await getDocsFromServer(qToday);
     let sumToday = 0;
-    todaySnap.forEach(d => sumToday += Number(d.data().amount || 0));
+    todaySnap.forEach(d => {
+        const data = d.data();
+        const status = (data.status || '').toLowerCase();
+        if (status === 'paid' || status === 'approved' || status === 'confirmed') {
+            sumToday += Number(data.amount || 0);
+        }
+    });
     document.getElementById('kpiToday').textContent = currencyBRL(sumToday);
+    console.log('📊 Vendas hoje:', sumToday);
 
-    // Month sales
+    // Month sales - apenas pedidos pagos
     const firstMonth = new Date();
     firstMonth.setDate(1); firstMonth.setHours(0,0,0,0);
     const qMonth = query(ordersCol, where('createdAt', '>=', firstMonth));
@@ -1127,11 +1136,21 @@ async function loadKPIs() {
     monthSnap.forEach(d => {
         const data = d.data();
         const val = Number(data.amount || 0);
-        sumMonth += val;
-        if (data.status === 'pending') receivable += val;
+        const status = (data.status || '').toLowerCase();
+        
+        // Apenas pedidos pagos para o total do mês
+        if (status === 'paid' || status === 'approved' || status === 'confirmed') {
+            sumMonth += val;
+        }
+        
+        // Pedidos pendentes para receber
+        if (status === 'pending') {
+            receivable += val;
+        }
     });
     document.getElementById('kpiMonth').textContent = currencyBRL(sumMonth);
     document.getElementById('kpiReceivable').textContent = currencyBRL(receivable);
+    console.log('📊 Vendas mês:', sumMonth, 'A receber:', receivable);
 }
 
 async function loadCharts() {
