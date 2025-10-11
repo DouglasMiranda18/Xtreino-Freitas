@@ -2426,11 +2426,41 @@ async function createTokenSchedule(eventType, cost) {
         
         // Salvar no Firestore
         const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const docRef = await addDoc(collection(window.firebaseDb, 'registrations'), {
+        
+        // 1. Salvar na coleção 'registrations' (para histórico de tokens)
+        const regDocRef = await addDoc(collection(window.firebaseDb, 'registrations'), {
             ...scheduleData,
             createdAt: serverTimestamp() // Usar serverTimestamp para consistência
         });
-        console.log('✅ Token schedule created with ID:', docRef.id);
+        console.log('✅ Token schedule created with ID:', regDocRef.id);
+        
+        // 2. Criar também um pedido na coleção 'orders' para aparecer em "Meus Pedidos"
+        const orderData = {
+            itemName: eventNames[eventType],
+            item: eventNames[eventType],
+            amount: cost,
+            total: cost,
+            customerName: email,
+            customer: email,
+            buyerEmail: email,
+            status: 'paid', // Já pago com tokens
+            paidWithTokens: true,
+            tokenCost: cost,
+            eventType: eventType,
+            date: date,
+            schedule: schedule,
+            teamName: team,
+            phone: phone,
+            whatsappLink: whatsappLinks[eventType] || 'https://chat.whatsapp.com/SEU_GRUPO_PADRAO',
+            userId: window.firebaseAuth.currentUser?.uid,
+            uid: window.firebaseAuth.currentUser?.uid,
+            registrationId: regDocRef.id, // Link para o registro original
+            createdAt: serverTimestamp(),
+            timestamp: Date.now()
+        };
+        
+        const orderDocRef = await addDoc(collection(window.firebaseDb, 'orders'), orderData);
+        console.log('✅ Order created with ID:', orderDocRef.id);
         
         // Fechar modal
         const modal = document.getElementById('scheduleModal');
