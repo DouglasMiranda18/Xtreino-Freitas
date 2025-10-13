@@ -394,17 +394,17 @@ async function loadWhatsAppLinks(orders) {
         const item = (order.item || '').toLowerCase();
         const eventType = (order.eventType || '').toLowerCase();
         
-        // Excluir produtos da loja virtual e tokens
+        // Excluir produtos da loja virtual e tokens (mas manter XTreino Associado)
         if (title.includes('planilhas') || 
             title.includes('sensibilidades') || 
             title.includes('imagens aéreas') || 
             title.includes('camisa') ||
-            title.includes('tokens') ||
+            (title.includes('tokens') && !title.includes('xtreino associado')) ||
             item.includes('planilhas') || 
             item.includes('sensibilidades') || 
             item.includes('imagens aéreas') || 
             item.includes('camisa') ||
-            item.includes('tokens') ||
+            (item.includes('tokens') && !item.includes('xtreino associado')) ||
             eventType === 'xtreino-tokens') {
             return false;
         }
@@ -546,8 +546,10 @@ function displayAllOrdersPaginated() {
         const item = (order.item || '').toLowerCase();
         const eventType = (order.eventType || '').toLowerCase();
         
-        // Exclude tokens
-        if (title.includes('tokens') || item.includes('tokens') || eventType === 'xtreino-tokens') {
+        // Exclude tokens (but be more specific to avoid filtering XTreino events)
+        if (eventType === 'xtreino-tokens' || 
+            (title.includes('tokens') && !title.includes('xtreino associado')) ||
+            (item.includes('tokens') && !item.includes('xtreino associado'))) {
             return false;
         }
         
@@ -593,7 +595,6 @@ function displayAllOrdersPaginated() {
                     <span class="font-medium">ID:</span> ${order.id.substring(0, 8)}...
                 </div>
             </div>
-            ${getOrderActionButton(order)}
         </div>
     `).join('');
 
