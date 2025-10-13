@@ -670,11 +670,6 @@ function displayAllProductsPaginated(productsData) {
     container.innerHTML = productsHTML + paginationHTML;
 }
 
-// Change page function
-function changePage(page) {
-    currentPage = page;
-    displayAllOrdersPaginated();
-}
 
 // Generate pagination HTML for products
 function generateProductsPaginationHTML(currentPage, totalPages) {
@@ -766,17 +761,6 @@ function generateWhatsAppPaginationHTML(currentPage, totalPages) {
     return paginationHTML;
 }
 
-// Change page function for WhatsApp links
-function changeWhatsAppPage(page) {
-    currentWhatsAppPage = page;
-    loadWhatsAppLinks(allOrdersData);
-}
-
-// Change page function for products
-function changeProductsPage(page) {
-    currentProductsPage = page;
-    loadProducts();
-}
 
 // Get appropriate action button for order (events only)
 function getOrderActionButton(order) {
@@ -1401,6 +1385,22 @@ window.purchaseTokens = async function(quantity) {
         alert('Erro ao processar compra de tokens');
     }
 }
+
+// Funções de paginação expostas globalmente
+window.changePage = function(page) {
+    currentPage = page;
+    displayAllOrdersPaginated();
+};
+
+window.changeProductsPage = function(page) {
+    currentProductsPage = page;
+    loadProducts();
+};
+
+window.changeWhatsAppPage = function(page) {
+    currentWhatsAppPage = page;
+    loadWhatsAppLinks(allOrdersData);
+};
 
 // Compra rápida de tokens (botões diretos) - exposta globalmente
 window.purchaseTokensQuick = async function(quantity) {
