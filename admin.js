@@ -46,23 +46,28 @@
         const u = d.data();
         const tr = document.createElement('tr');
         tr.innerHTML = `<td class="py-2">${u.email||''}</td>
-          <td class="py-2">${d.id}</td>
-          <td class="py-2">${u.role||'Vendedor'}</td>
           <td class="py-2">${isManager?`<select data-uid="${d.id}" class="roleSelect border rounded px-2 py-1 text-sm">
                <option ${ (u.role||'').toLowerCase()==='vendedor'?'selected':''}>Vendedor</option>
                <option ${ (u.role||'').toLowerCase()==='gerente'?'selected':''}>Gerente</option>
                ${isCeo?`<option ${ (u.role||'').toLowerCase()==='ceo'?'selected':''}>Ceo</option>`:''}
-             </select>`:''}</td>`;
+             </select>`:`${u.role||'Vendedor'}`}</td>
+          <td class="py-2">-</td>`;
         usersBody.appendChild(tr);
       });
       if (isManager){
-        usersBody.querySelectorAll('.roleSelect').forEach(sel => {
-          sel.addEventListener('change', async (e) => {
-            const uid = sel.getAttribute('data-uid');
-            const newRole = sel.value;
-            await updateDoc(doc(collection(window.firebaseDb,'users'), uid), { role: newRole });
-            alert('Permissão atualizada');
-          });
+        // Use event delegation to ensure event listeners work
+        usersBody.addEventListener('change', async (e) => {
+          if (e.target.classList.contains('roleSelect')) {
+            const uid = e.target.getAttribute('data-uid');
+            const newRole = e.target.value;
+            try {
+              await updateDoc(doc(window.firebaseDb, 'users', uid), { role: newRole });
+              alert('Permissão atualizada com sucesso!');
+            } catch (error) {
+              console.error('Erro ao atualizar permissão:', error);
+              alert('Erro ao atualizar permissão. Tente novamente.');
+            }
+          }
         });
       }
     }catch(e){ console.error('Erro ao carregar usuários', e); }
