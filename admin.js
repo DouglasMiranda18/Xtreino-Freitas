@@ -106,152 +106,55 @@
     }
   }
 
-  async function loadUsersTable(isManager, isCeo){
+  // Função simples para carregar tabela de usuários
+  async function loadUsersTable(isManager, isCeo) {
     const usersBody = document.getElementById('usersTbody');
     if (!usersBody) {
       console.error('Elemento usersTbody não encontrado!');
       return;
     }
     
-    console.log('Iniciando loadUsersTable:', { isManager, isCeo, firebaseDb: !!window.firebaseDb });
-    
-    // Show loading state
-    usersBody.innerHTML = '<tr><td colspan="2" class="py-2 text-center text-gray-500">Carregando usuários...</td></tr>';
-    
-    let retryCount = 0;
-    const maxRetries = 3;
-    
-    while (retryCount < maxRetries) {
-      try {
-        console.log(`Tentativa ${retryCount + 1} de carregar usuários...`);
+    try {
+      // Mostrar estado de carregamento
+      usersBody.innerHTML = '<tr><td colspan="2" class="py-2 text-center text-gray-500">Carregando usuários...</td></tr>';
+      
+      // Buscar usuários no Firestore
+      const usersCollection = collection(window.firebaseDb, 'users');
+      const snap = await getDocs(usersCollection);
+      
+      // Limpar tabela
+      usersBody.innerHTML = '';
+      
+      // Adicionar cada usuário
+      snap.forEach(doc => {
+        const userData = doc.data();
+        const uid = doc.id;
+        const email = userData.email || 'Email não informado';
+        const role = userData.role || 'Vendedor';
         
-        if (!window.firebaseDb) {
-          throw new Error('Firebase não inicializado');
-        }
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="py-2">${email}</td>
+          <td class="py-2">
+            <select data-uid="${uid}" class="roleSelect border rounded px-2 py-1 text-sm">
+              <option value="Vendedor" ${role === 'Vendedor' ? 'selected' : ''}>Vendedor</option>
+              <option value="Gerente" ${role === 'Gerente' ? 'selected' : ''}>Gerente</option>
+              <option value="Ceo" ${role === 'Ceo' ? 'selected' : ''}>Ceo</option>
+            </select>
+          </td>
+        `;
         
-        const usersCollection = collection(window.firebaseDb, 'users');
-        console.log('Collection users criada:', usersCollection);
-        
-        const snap = await getDocs(usersCollection);
-        console.log('Snapshot recebido:', snap.size, 'documentos');
-        
-        usersBody.innerHTML = '';
-        let hasUsers = false;
-        
-        snap.forEach(d => {
-          hasUsers = true;
-          const u = d.data();
-          const currentRole = u.role || 'Vendedor';
-          console.log(`Usuário encontrado:`, {
-            id: d.id,
-            email: u.email,
-            role: u.role,
-            currentRole: currentRole,
-            allData: u
-          });
-          
-          const tr = document.createElement('tr');
-          const selectHTML = isManager ? `<select data-uid="${d.id}" data-original-value="${currentRole}" class="roleSelect border rounded px-2 py-1 text-sm">
-                 <option value="Vendedor" ${currentRole.toLowerCase()==='vendedor'?'selected':''}>Vendedor</option>
-                 <option value="Gerente" ${currentRole.toLowerCase()==='gerente'?'selected':''}>Gerente</option>
-                 ${isCeo?`<option value="Ceo" ${currentRole.toLowerCase()==='ceo'?'selected':''}>Ceo</option>`:''}
-               </select>` : `${currentRole}`;
-          
-          tr.innerHTML = `<td class="py-2">${u.email||''}</td>
-            <td class="py-2">${selectHTML}</td>`;
-          
-          usersBody.appendChild(tr);
-          console.log('Linha adicionada ao DOM:', tr.innerHTML);
-        });
-        
-        if (!hasUsers) {
-          usersBody.innerHTML = '<tr><td colspan="2" class="py-2 text-center text-gray-500">Nenhum usuário encontrado</td></tr>';
-        }
-        
-        // Clear any existing event listeners and add new one
-        usersBody.removeEventListener('change', handleRoleChange);
-        if (isManager) {
-          usersBody.addEventListener('change', handleRoleChange);
-          console.log('Event listener adicionado para mudanças de role');
-          
-          // Test immediately after DOM update
-          const selects = usersBody.querySelectorAll('.roleSelect');
-          console.log('Selects encontrados imediatamente:', selects.length);
-          selects.forEach((select, index) => {
-            console.log(`Select ${index}:`, {
-              uid: select.getAttribute('data-uid'),
-              value: select.value,
-              originalValue: select.getAttribute('data-original-value'),
-              className: select.className,
-              parentElement: select.parentElement
-            });
-          });
-          
-          // Add mutation observer to detect DOM changes
-          const observer = new MutationObserver((mutations) => {
-            console.warn('⚠️ DOM da tabela de usuários foi modificado!');
-            console.log('Mutações:', mutations);
-            
-            // Log detailed mutation info
-            mutations.forEach((mutation, index) => {
-              console.log(`Mutação ${index + 1}:`, {
-                type: mutation.type,
-                target: mutation.target,
-                addedNodes: Array.from(mutation.addedNodes),
-                removedNodes: Array.from(mutation.removedNodes),
-                attributeName: mutation.attributeName,
-                oldValue: mutation.oldValue
-              });
-            });
-            
-            // Try to capture the actual stack trace by overriding innerHTML
-            const originalInnerHTML = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
-            Object.defineProperty(usersBody, 'innerHTML', {
-              get: originalInnerHTML.get,
-              set: function(value) {
-                console.error('🚨 INNERHTML SETTER CHAMADO!');
-                console.error('Valor sendo definido:', value);
-                console.error('Stack trace do setter:', new Error().stack);
-                return originalInnerHTML.set.call(this, value);
-              }
-            });
-            
-            observer.disconnect();
-          });
-          
-          observer.observe(usersBody, {
-            childList: true,
-            subtree: true,
-            attributes: true,
-            characterData: true
-          });
-          
-          // Test again after a short delay
-          setTimeout(() => {
-            const selectsDelayed = usersBody.querySelectorAll('.roleSelect');
-            console.log('Selects encontrados após delay:', selectsDelayed.length);
-            if (selectsDelayed.length === 0) {
-              console.error('PROBLEMA: Selects desapareceram do DOM!');
-              console.log('Conteúdo do usersBody:', usersBody.innerHTML);
-            }
-            observer.disconnect();
-          }, 2000);
-        }
-        
-        console.log('Usuários carregados com sucesso');
-        break; // Success, exit retry loop
-        
-      } catch (e) { 
-        retryCount++;
-        console.error(`Erro ao carregar usuários (tentativa ${retryCount}):`, e);
-        
-        if (retryCount >= maxRetries) {
-          usersBody.innerHTML = '<tr><td colspan="2" class="py-2 text-center text-red-500">Erro de conexão com o banco de dados. Tente recarregar a página.</td></tr>';
-        } else {
-          // Wait before retry
-          await new Promise(resolve => setTimeout(resolve, 2000 * retryCount));
-        }
-      }
+        usersBody.appendChild(tr);
+      });
+      
+      // Adicionar event listener para mudanças de role
+      usersBody.addEventListener('change', handleRoleChange);
+      
+      console.log('Tabela de usuários carregada com sucesso');
+      
+    } catch (error) {
+      console.error('Erro ao carregar usuários:', error);
+      usersBody.innerHTML = '<tr><td colspan="2" class="py-2 text-center text-red-500">Erro ao carregar usuários</td></tr>';
     }
   }
 
