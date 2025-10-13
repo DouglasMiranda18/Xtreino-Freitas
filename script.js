@@ -848,11 +848,20 @@ function showClientTab(tabName) {
     // Add active class to clicked button
     event.target.classList.add('active', 'border-blue-matte', 'text-blue-matte');
     event.target.classList.remove('border-transparent', 'text-gray-400');
+    
     // atualizar dados dinâmicos ao trocar de aba
     if (tabName === 'overview' || tabName === 'tokens') {
         try { renderClientArea(); } catch(_) {}
     } else if (tabName === 'profile') {
         try { loadProfileData(); } catch(_) {}
+    } else if (tabName === 'orders') {
+        try { 
+            if (typeof loadOrders === 'function') loadOrders(); 
+        } catch(_) {}
+    } else if (tabName === 'products') {
+        try { 
+            if (typeof loadProducts === 'function') loadProducts(); 
+        } catch(_) {}
     }
 }
 

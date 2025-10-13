@@ -721,6 +721,9 @@
                 <button onclick="showClientTab('orders')" class="client-tab px-6 py-3 font-semibold border-b-2 border-transparent text-gray-400 hover:text-white">
                     Pedidos
                 </button>
+                <button onclick="showClientTab('products')" class="client-tab px-6 py-3 font-semibold border-b-2 border-transparent text-gray-400 hover:text-white">
+                    Meus Produtos
+                </button>
                 <button onclick="showClientTab('downloads')" class="client-tab px-6 py-3 font-semibold border-b-2 border-transparent text-gray-400 hover:text-white">
                     Downloads
                 </button>
@@ -766,43 +769,30 @@
             </div>
             
             
-            <!-- Orders Tab -->
+            <!-- Orders Tab (Events Only) -->
             <div id="ordersTab" class="client-tab-content hidden">
-                <div class="space-y-4">
-                    <div class="bg-white bg-opacity-5 rounded-xl p-6 flex justify-between items-center">
-                        <div>
-                            <h3 class="font-bold">Pedido #001234</h3>
-                            <p class="text-gray-300">Planilhas de Análise + Sensibilidades</p>
-                            <p class="text-sm text-gray-400">15/11/2024</p>
-                        </div>
-                        <div class="text-right">
-                            <p class="text-lg font-bold text-blue-matte">R$ 44,80</p>
-                            <span class="bg-green-500 text-white px-3 py-1 rounded-full text-sm">Concluído</span>
-                        </div>
+                <div class="bg-white bg-opacity-5 rounded-xl p-6">
+                    <h3 class="text-xl font-bold mb-4">Meus Pedidos - Eventos</h3>
+                    <div id="allOrders" class="space-y-4">
+                        <p class="text-gray-500 text-center">Carregando pedidos...</p>
                     </div>
-                    
-                    <div class="bg-white bg-opacity-5 rounded-xl p-6 flex justify-between items-center">
-                        <div>
-                            <h3 class="font-bold">Pedido #001233</h3>
-                            <p class="text-gray-300">XTreino - Aim Training</p>
-                            <p class="text-sm text-gray-400">12/11/2024</p>
-                        </div>
-                        <div class="text-right">
-                            <p class="text-lg font-bold text-blue-matte">R$ 49,90</p>
-                            <span class="bg-green-500 text-white px-3 py-1 rounded-full text-sm">Concluído</span>
-                        </div>
+                </div>
+                
+                <!-- WhatsApp Links para pedidos confirmados -->
+                <div id="whatsappLinks" class="bg-white bg-opacity-5 rounded-xl p-6 mt-6 hidden">
+                    <h3 class="text-xl font-bold mb-4">Links dos Grupos</h3>
+                    <div id="whatsappList">
+                        <!-- Links do WhatsApp serão carregados aqui -->
                     </div>
-                    
-                    <div class="bg-white bg-opacity-5 rounded-xl p-6 flex justify-between items-center">
-                        <div>
-                            <h3 class="font-bold">Pedido #001232</h3>
-                            <p class="text-gray-300">Camisa Oficial - Tamanho M</p>
-                            <p class="text-sm text-gray-400">10/11/2024</p>
-                        </div>
-                        <div class="text-right">
-                            <p class="text-lg font-bold text-blue-matte">R$ 89,90</p>
-                            <span class="bg-yellow-500 text-white px-3 py-1 rounded-full text-sm">Enviado</span>
-                        </div>
+                </div>
+            </div>
+            
+            <!-- Products Tab -->
+            <div id="productsTab" class="client-tab-content hidden">
+                <div class="bg-white bg-opacity-5 rounded-xl p-6">
+                    <h3 class="text-xl font-bold mb-4">Meus Produtos</h3>
+                    <div id="allProducts" class="space-y-4">
+                        <p class="text-gray-500 text-center">Carregando produtos...</p>
                     </div>
                 </div>
             </div>

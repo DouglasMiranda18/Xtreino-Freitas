@@ -302,11 +302,54 @@ async function loadOrders() {
             status: d.data.status || 'pending'
         }));
 
-        displayAllOrdersPaginated();
-        await loadWhatsAppLinks(allOrdersData);
+        // Filter orders for events only (XTreinos and Camps)
+        const eventOrders = allOrdersData.filter(order => {
+            const title = (order.title || '').toLowerCase();
+            const item = (order.item || '').toLowerCase();
+            const eventType = (order.eventType || '').toLowerCase();
+            
+            return title.includes('xtreino') || title.includes('camp') || 
+                   item.includes('xtreino') || item.includes('camp') ||
+                   eventType.includes('xtreino') || eventType.includes('camp') ||
+                   title.includes('semanal') || title.includes('modo liga');
+        });
+
+        displayAllOrdersPaginated(eventOrders);
+        await loadWhatsAppLinks(eventOrders);
     } catch (error) {
         console.error('Error loading orders:', error);
         document.getElementById('allOrders').innerHTML = '<p class="text-gray-500 text-center">Erro ao carregar pedidos</p>';
+    }
+}
+
+// Load products (non-events)
+async function loadProducts() {
+    try {
+        const ordersData = await fetchUserDocs('orders', 200, true);
+        const allOrders = ordersData.map(d => ({
+            id: d.id,
+            ...d.data,
+            date: d.data.createdAt?.toDate?.() || new Date(),
+            title: d.data.title || d.data.item || 'Pedido',
+            status: d.data.status || 'pending'
+        }));
+
+        // Filter products (exclude events)
+        const productOrders = allOrders.filter(order => {
+            const title = (order.title || '').toLowerCase();
+            const item = (order.item || '').toLowerCase();
+            const eventType = (order.eventType || '').toLowerCase();
+            
+            return !(title.includes('xtreino') || title.includes('camp') || 
+                    item.includes('xtreino') || item.includes('camp') ||
+                    eventType.includes('xtreino') || eventType.includes('camp') ||
+                    title.includes('semanal') || title.includes('modo liga'));
+        });
+
+        displayProductsPaginated(productOrders);
+    } catch (error) {
+        console.error('Error loading products:', error);
+        document.getElementById('allProducts').innerHTML = '<p class="text-gray-500 text-center">Erro ao carregar produtos</p>';
     }
 }
 
@@ -449,19 +492,19 @@ async function loadWhatsAppLinks(orders) {
 }
 
 // Display all orders with pagination
-function displayAllOrdersPaginated() {
+function displayAllOrdersPaginated(ordersData = allOrdersData) {
     const container = document.getElementById('allOrders');
     
-    if (allOrdersData.length === 0) {
+    if (ordersData.length === 0) {
         container.innerHTML = '<p class="text-gray-500 text-center">Nenhum pedido encontrado</p>';
         return;
     }
 
     // Calculate pagination
-    const totalPages = Math.ceil(allOrdersData.length / ordersPerPage);
+    const totalPages = Math.ceil(ordersData.length / ordersPerPage);
     const startIndex = (currentPage - 1) * ordersPerPage;
     const endIndex = startIndex + ordersPerPage;
-    const currentOrders = allOrdersData.slice(startIndex, endIndex);
+    const currentOrders = ordersData.slice(startIndex, endIndex);
 
     // Generate orders HTML
     const ordersHTML = currentOrders.map(order => `
@@ -542,6 +585,51 @@ function generatePaginationHTML(currentPage, totalPages) {
 function changePage(page) {
     currentPage = page;
     displayAllOrdersPaginated();
+}
+
+// Display products with pagination
+function displayProductsPaginated(productsData) {
+    const container = document.getElementById('allProducts');
+    
+    if (productsData.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-center">Nenhum produto encontrado</p>';
+        return;
+    }
+
+    // Calculate pagination
+    const totalPages = Math.ceil(productsData.length / ordersPerPage);
+    const startIndex = (currentPage - 1) * ordersPerPage;
+    const endIndex = startIndex + ordersPerPage;
+    const currentProducts = productsData.slice(startIndex, endIndex);
+
+    // Generate products HTML
+    const productsHTML = currentProducts.map(product => `
+        <div class="bg-gray-50 rounded-lg p-4 mb-4">
+            <div class="flex items-center justify-between mb-2">
+                <h4 class="font-medium text-gray-900">${product.title || 'Produto'}</h4>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(product.status)}">
+                    ${getStatusText(product.status)}
+                </span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                <div>
+                    <span class="font-medium">Data:</span> ${formatDate(product.date)}
+                </div>
+                <div>
+                    <span class="font-medium">Valor:</span> R$ ${product.price?.toFixed(2) || '0,00'}
+                </div>
+                <div>
+                    <span class="font-medium">ID:</span> ${product.id.substring(0, 8)}...
+                </div>
+            </div>
+            ${getOrderActionButton(product)}
+        </div>
+    `).join('');
+
+    // Generate pagination HTML
+    const paginationHTML = generatePaginationHTML(currentPage, totalPages);
+
+    container.innerHTML = productsHTML + paginationHTML;
 }
 
 // Get appropriate action button for order
