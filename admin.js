@@ -151,13 +151,17 @@
           });
           
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td class="py-2">${u.email||''}</td>
-            <td class="py-2">${isManager?`<select data-uid="${d.id}" data-original-value="${currentRole}" class="roleSelect border rounded px-2 py-1 text-sm">
+          const selectHTML = isManager ? `<select data-uid="${d.id}" data-original-value="${currentRole}" class="roleSelect border rounded px-2 py-1 text-sm">
                  <option value="Vendedor" ${currentRole.toLowerCase()==='vendedor'?'selected':''}>Vendedor</option>
                  <option value="Gerente" ${currentRole.toLowerCase()==='gerente'?'selected':''}>Gerente</option>
                  ${isCeo?`<option value="Ceo" ${currentRole.toLowerCase()==='ceo'?'selected':''}>Ceo</option>`:''}
-               </select>`:`${currentRole}`}</td>`;
+               </select>` : `${currentRole}`;
+          
+          tr.innerHTML = `<td class="py-2">${u.email||''}</td>
+            <td class="py-2">${selectHTML}</td>`;
+          
           usersBody.appendChild(tr);
+          console.log('Linha adicionada ao DOM:', tr.innerHTML);
         });
         
         if (!hasUsers) {
@@ -170,18 +174,27 @@
           usersBody.addEventListener('change', handleRoleChange);
           console.log('Event listener adicionado para mudanças de role');
           
-          // Test if event listener is working
-          setTimeout(() => {
-            const selects = usersBody.querySelectorAll('.roleSelect');
-            console.log('Selects encontrados:', selects.length);
-            selects.forEach((select, index) => {
-              console.log(`Select ${index}:`, {
-                uid: select.getAttribute('data-uid'),
-                value: select.value,
-                originalValue: select.getAttribute('data-original-value'),
-                hasEventListener: select.onchange !== null
-              });
+          // Test immediately after DOM update
+          const selects = usersBody.querySelectorAll('.roleSelect');
+          console.log('Selects encontrados imediatamente:', selects.length);
+          selects.forEach((select, index) => {
+            console.log(`Select ${index}:`, {
+              uid: select.getAttribute('data-uid'),
+              value: select.value,
+              originalValue: select.getAttribute('data-original-value'),
+              className: select.className,
+              parentElement: select.parentElement
             });
+          });
+          
+          // Test again after a short delay
+          setTimeout(() => {
+            const selectsDelayed = usersBody.querySelectorAll('.roleSelect');
+            console.log('Selects encontrados após delay:', selectsDelayed.length);
+            if (selectsDelayed.length === 0) {
+              console.error('PROBLEMA: Selects desapareceram do DOM!');
+              console.log('Conteúdo do usersBody:', usersBody.innerHTML);
+            }
           }, 1000);
         }
         
