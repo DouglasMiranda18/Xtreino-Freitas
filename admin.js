@@ -36,6 +36,11 @@
     }
   }
 
+  // Variáveis de paginação
+  let usuariosData = [];
+  let usuariosPage = 1;
+  const usuariosPerPage = 5;
+
   // Função para carregar usuários do Firestore
   async function carregarUsuarios() {
     const tbody = document.getElementById('usersTableBody');
@@ -46,35 +51,104 @@
       const usersRef = collection(window.firebaseDb, 'users');
       const snapshot = await getDocs(usersRef);
       
-      // Limpar tabela
-      tbody.innerHTML = '';
-      
-      // Adicionar cada usuário
+      // Armazenar todos os dados
+      usuariosData = [];
       snapshot.forEach(doc => {
-        const user = doc.data();
-        const row = document.createElement('tr');
-        row.className = 'border-b border-gray-100 hover:bg-gray-50';
-        
-        row.innerHTML = `
-          <td class="py-3 px-2">${user.email || 'Email não informado'}</td>
-          <td class="py-3 px-2">
-            <select class="role-select border border-gray-300 rounded px-2 py-1 text-sm" data-uid="${doc.id}">
-              <option value="Vendedor" ${user.role === 'Vendedor' ? 'selected' : ''}>Vendedor</option>
-              <option value="Gerente" ${user.role === 'Gerente' ? 'selected' : ''}>Gerente</option>
-              <option value="Ceo" ${user.role === 'Ceo' ? 'selected' : ''}>Ceo</option>
-            </select>
-          </td>
-        `;
-        
-        tbody.appendChild(row);
+        usuariosData.push({
+          id: doc.id,
+          ...doc.data()
+        });
       });
       
-      // Adicionar event listener para mudanças de role
-      tbody.addEventListener('change', alterarRole);
+      // Atualizar contador
+      document.getElementById('usersCount').textContent = `${usuariosData.length} usuários`;
+      
+      // Mostrar primeira página
+      mostrarUsuariosPagina(1);
       
     } catch (error) {
       console.error('Erro ao carregar usuários:', error);
-      tbody.innerHTML = '<tr><td colspan="2" class="py-8 text-center text-red-500">Erro ao carregar usuários</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="2" class="py-6 text-center text-red-500">Erro ao carregar usuários</td></tr>';
+    }
+  }
+
+  // Função para mostrar usuários da página específica
+  function mostrarUsuariosPagina(pagina) {
+    const tbody = document.getElementById('usersTableBody');
+    const startIndex = (pagina - 1) * usuariosPerPage;
+    const endIndex = startIndex + usuariosPerPage;
+    const usuariosPagina = usuariosData.slice(startIndex, endIndex);
+    
+    // Limpar tabela
+    tbody.innerHTML = '';
+    
+    // Adicionar usuários da página
+    usuariosPagina.forEach(user => {
+      const row = document.createElement('tr');
+      row.className = 'border-b border-gray-100 hover:bg-gray-50';
+      
+      row.innerHTML = `
+        <td class="py-2 px-2">${user.email || 'Email não informado'}</td>
+        <td class="py-2 px-2">
+          <select class="role-select border border-gray-300 rounded px-2 py-1 text-xs" data-uid="${user.id}">
+            <option value="Vendedor" ${user.role === 'Vendedor' ? 'selected' : ''}>Vendedor</option>
+            <option value="Gerente" ${user.role === 'Gerente' ? 'selected' : ''}>Gerente</option>
+            <option value="Ceo" ${user.role === 'Ceo' ? 'selected' : ''}>Ceo</option>
+          </select>
+        </td>
+      `;
+      
+      tbody.appendChild(row);
+    });
+    
+    // Atualizar informações de paginação
+    const totalPages = Math.ceil(usuariosData.length / usuariosPerPage);
+    document.getElementById('usersPageInfo').textContent = `Página ${pagina} de ${totalPages}`;
+    
+    // Gerar botões de paginação
+    gerarBotoesPaginacao('usersPagination', pagina, totalPages, (p) => mostrarUsuariosPagina(p));
+    
+    // Adicionar event listener para mudanças de role
+    tbody.addEventListener('change', alterarRole);
+  }
+
+  // Função para gerar botões de paginação
+  function gerarBotoesPaginacao(containerId, paginaAtual, totalPaginas, callback) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (totalPaginas <= 1) return;
+    
+    // Botão anterior
+    if (paginaAtual > 1) {
+      const prevBtn = document.createElement('button');
+      prevBtn.textContent = '«';
+      prevBtn.className = 'px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded';
+      prevBtn.onclick = () => callback(paginaAtual - 1);
+      container.appendChild(prevBtn);
+    }
+    
+    // Números das páginas
+    const startPage = Math.max(1, paginaAtual - 2);
+    const endPage = Math.min(totalPaginas, paginaAtual + 2);
+    
+    for (let i = startPage; i <= endPage; i++) {
+      const pageBtn = document.createElement('button');
+      pageBtn.textContent = i;
+      pageBtn.className = `px-2 py-1 text-xs rounded ${i === paginaAtual ? 'bg-blue-500 text-white' : 'bg-gray-200 hover:bg-gray-300'}`;
+      pageBtn.onclick = () => callback(i);
+      container.appendChild(pageBtn);
+    }
+    
+    // Botão próximo
+    if (paginaAtual < totalPaginas) {
+      const nextBtn = document.createElement('button');
+      nextBtn.textContent = '»';
+      nextBtn.className = 'px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded';
+      nextBtn.onclick = () => callback(paginaAtual + 1);
+      container.appendChild(nextBtn);
     }
   }
 

@@ -99,13 +99,13 @@
             </div>
 
             <div class="grid lg:grid-cols-3 gap-6 mb-8">
-                <div class="bg-white border border-gray-200 rounded-xl p-6 lg:col-span-2">
-                    <h3 class="font-bold mb-4">Vendas - Últimos 30 dias</h3>
-                    <canvas id="salesChart" height="120"></canvas>
+                <div class="bg-white border border-gray-200 rounded-xl p-4 lg:col-span-2">
+                    <h3 class="font-bold mb-3 text-sm">Vendas - Últimos 30 dias</h3>
+                    <canvas id="salesChart" height="80"></canvas>
                 </div>
-                <div class="bg-white border border-gray-200 rounded-xl p-6">
-                    <h3 class="font-bold mb-4">Top Produtos</h3>
-                    <canvas id="topProductsChart" height="120"></canvas>
+                <div class="bg-white border border-gray-200 rounded-xl p-4">
+                    <h3 class="font-bold mb-3 text-sm">Top Produtos</h3>
+                    <canvas id="topProductsChart" height="80"></canvas>
                 </div>
             </div>
 
@@ -188,12 +188,15 @@
                         </div>
                     </div>
                 </div>
-                <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="font-bold">Pedidos Pendentes</h3>
-                        <span id="pendingCount" class="text-sm text-gray-500"></span>
+                <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-bold text-sm">Pedidos Pendentes</h3>
+                        <div class="flex items-center gap-2 text-xs text-gray-500">
+                            <span id="pendingCount">0 pedidos</span>
+                            <span id="pendingPageInfo">Página 1 de 1</span>
+                        </div>
                     </div>
-                    <div class="overflow-x-auto text-sm">
+                    <div class="overflow-x-auto text-xs">
                         <table class="w-full">
                             <thead>
                                 <tr class="text-left text-gray-600 bg-yellow-50">
@@ -207,13 +210,19 @@
                             <tbody id="pendingTbody" class="divide-y"></tbody>
                         </table>
                     </div>
-                </div>
-                <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="font-bold">Pedidos Confirmados</h3>
-                        <span id="confirmedCount" class="text-sm text-gray-500"></span>
+                    <div id="pendingPagination" class="flex justify-center mt-3 gap-1">
+                        <!-- Pagination buttons will be added here -->
                     </div>
-                    <div class="overflow-x-auto text-sm">
+                </div>
+                <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-bold text-sm">Pedidos Confirmados</h3>
+                        <div class="flex items-center gap-2 text-xs text-gray-500">
+                            <span id="confirmedCount">0 pedidos</span>
+                            <span id="confirmedPageInfo">Página 1 de 1</span>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto text-xs">
                         <table class="w-full">
                             <thead>
                                 <tr class="text-left text-gray-600 bg-green-50">
@@ -226,27 +235,39 @@
                             <tbody id="confirmedTbody" class="divide-y"></tbody>
                         </table>
                     </div>
+                    <div id="confirmedPagination" class="flex justify-center mt-3 gap-1">
+                        <!-- Pagination buttons will be added here -->
+                    </div>
                 </div>
-                <div class="bg-white border border-gray-200 rounded-xl p-6">
-                    <h3 class="font-bold mb-4">Horários mais procurados</h3>
-                    <canvas id="popularHoursChart" height="120"></canvas>
+                <div class="bg-white border border-gray-200 rounded-xl p-4">
+                    <h3 class="font-bold mb-3 text-sm">Horários mais procurados</h3>
+                    <canvas id="popularHoursChart" height="80"></canvas>
                 </div>
-                <div class="bg-white border border-gray-200 rounded-xl p-6">
-                    <h3 class="font-bold mb-4">Usuários & Permissões</h3>
+                <div class="bg-white border border-gray-200 rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-bold text-sm">Usuários & Permissões</h3>
+                        <div class="flex items-center gap-2 text-xs text-gray-500">
+                            <span id="usersCount">0 usuários</span>
+                            <span id="usersPageInfo">Página 1 de 1</span>
+                        </div>
+                    </div>
                     <div class="overflow-x-auto">
-                        <table class="w-full text-sm">
+                        <table class="w-full text-xs">
                             <thead>
                                 <tr class="border-b border-gray-200">
-                                    <th class="text-left py-3 px-2 font-medium text-gray-600">Email</th>
-                                    <th class="text-left py-3 px-2 font-medium text-gray-600">Função</th>
+                                    <th class="text-left py-2 px-2 font-medium text-gray-600">Email</th>
+                                    <th class="text-left py-2 px-2 font-medium text-gray-600">Função</th>
                                 </tr>
                             </thead>
                             <tbody id="usersTableBody">
                                 <tr>
-                                    <td colspan="2" class="py-8 text-center text-gray-500">Carregando usuários...</td>
+                                    <td colspan="2" class="py-6 text-center text-gray-500">Carregando usuários...</td>
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+                    <div id="usersPagination" class="flex justify-center mt-3 gap-1">
+                        <!-- Pagination buttons will be added here -->
                     </div>
                 </div>
             </div>
