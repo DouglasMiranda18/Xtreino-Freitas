@@ -724,9 +724,7 @@
                 <button onclick="showClientTab('downloads')" class="client-tab px-6 py-3 font-semibold border-b-2 border-transparent text-gray-400 hover:text-white">
                     Downloads
                 </button>
-                <button onclick="showClientTab('tokens')" class="client-tab px-6 py-3 font-semibold border-b-2 border-transparent text-gray-400 hover:text-white">
-                    Tokens XTreino
-                </button>
+                
                 <button onclick="showClientTab('profile')" class="client-tab px-6 py-3 font-semibold border-b-2 border-transparent text-gray-400 hover:text-white">
                     Meu Perfil
                 </button>
@@ -866,57 +864,7 @@
                 </div>
             </div>
             
-            <!-- Tokens Tab -->
-            <div id="tokensTab" class="client-tab-content hidden">
-                <div class="mb-6">
-                    <h3 class="text-xl font-bold mb-4">Seus Tokens XTreino</h3>
-                    <p class="text-gray-300 mb-6">Use seus tokens para agendar sessões de treinamento específicas</p>
-                </div>
-                
-                <div class="grid md:grid-cols-3 gap-6 mb-8">
-                    <div class="bg-blue-matte bg-opacity-20 rounded-xl p-6 text-center">
-                        <i class="fas fa-coins text-3xl text-blue-matte mb-3"></i>
-                        <h3 class="text-2xl font-bold mb-2">3</h3>
-                        <p class="text-gray-300">Tokens Disponíveis</p>
-                    </div>
-                    <div class="bg-white bg-opacity-5 rounded-xl p-6 text-center">
-                        <i class="fas fa-history text-3xl text-gray-400 mb-3"></i>
-                        <h3 class="text-2xl font-bold mb-2">7</h3>
-                        <p class="text-gray-300">Tokens Utilizados</p>
-                    </div>
-                    <div class="bg-white bg-opacity-5 rounded-xl p-6 text-center">
-                        <i class="fas fa-calendar text-3xl text-gray-400 mb-3"></i>
-                        <h3 class="text-2xl font-bold mb-2">2</h3>
-                        <p class="text-gray-300">Agendamentos Ativos</p>
-                    </div>
-                </div>
-                
-                <div class="space-y-4">
-                    <div class="flex justify-between items-center">
-                        <h4 class="text-lg font-bold">Agendar Novo XTreino</h4>
-                        <button onclick="openTokensModal()" class="bg-blue-matte hover-blue-matte text-white px-4 py-2 rounded-lg font-semibold text-sm">
-                            Gerenciar Tokens
-                        </button>
-                    </div>
-                    <div class="grid md:grid-cols-3 gap-4">
-                        <button onclick="scheduleTraining('aim')" class="bg-white bg-opacity-5 hover:bg-opacity-10 rounded-xl p-4 text-left transition-colors">
-                            <i class="fas fa-target text-blue-matte mb-2"></i>
-                            <h5 class="font-bold">Aim Training</h5>
-                            <p class="text-sm text-gray-400">1 Token</p>
-                        </button>
-                        <button onclick="scheduleTraining('strategy')" class="bg-white bg-opacity-5 hover:bg-opacity-10 rounded-xl p-4 text-left transition-colors">
-                            <i class="fas fa-chess text-blue-matte mb-2"></i>
-                            <h5 class="font-bold">Estratégia</h5>
-                            <p class="text-sm text-gray-400">2 Tokens</p>
-                        </button>
-                        <button onclick="scheduleTraining('mental')" class="bg-white bg-opacity-5 hover:bg-opacity-10 rounded-xl p-4 text-left transition-colors">
-                            <i class="fas fa-brain text-blue-matte mb-2"></i>
-                            <h5 class="font-bold">Mentalidade</h5>
-                            <p class="text-sm text-gray-400">1 Token</p>
-                        </button>
-                    </div>
-                </div>
-            </div>
+            
             
             <!-- Profile Tab removed (duplicate fields) -->
         </div>
