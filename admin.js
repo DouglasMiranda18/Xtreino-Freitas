@@ -191,7 +191,31 @@
           const observer = new MutationObserver((mutations) => {
             console.warn('⚠️ DOM da tabela de usuários foi modificado!');
             console.log('Mutações:', mutations);
-            console.log('Stack trace:', new Error().stack);
+            
+            // Log detailed mutation info
+            mutations.forEach((mutation, index) => {
+              console.log(`Mutação ${index + 1}:`, {
+                type: mutation.type,
+                target: mutation.target,
+                addedNodes: Array.from(mutation.addedNodes),
+                removedNodes: Array.from(mutation.removedNodes),
+                attributeName: mutation.attributeName,
+                oldValue: mutation.oldValue
+              });
+            });
+            
+            // Try to capture the actual stack trace by overriding innerHTML
+            const originalInnerHTML = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
+            Object.defineProperty(usersBody, 'innerHTML', {
+              get: originalInnerHTML.get,
+              set: function(value) {
+                console.error('🚨 INNERHTML SETTER CHAMADO!');
+                console.error('Valor sendo definido:', value);
+                console.error('Stack trace do setter:', new Error().stack);
+                return originalInnerHTML.set.call(this, value);
+              }
+            });
+            
             observer.disconnect();
           });
           
