@@ -302,51 +302,43 @@ async function loadOrders() {
             status: d.data.status || 'pending'
         }));
 
-        // Filter orders for events only (XTreinos and Camps)
-        const eventOrders = allOrdersData.filter(order => {
-            const title = (order.title || '').toLowerCase();
-            const item = (order.item || '').toLowerCase();
-            const eventType = (order.eventType || '').toLowerCase();
-            
-            return title.includes('xtreino') || title.includes('camp') || 
-                   item.includes('xtreino') || item.includes('camp') ||
-                   eventType.includes('xtreino') || eventType.includes('camp') ||
-                   title.includes('semanal') || title.includes('modo liga');
-        });
-
-        displayAllOrdersPaginated(eventOrders);
-        await loadWhatsAppLinks(eventOrders);
+        displayAllOrdersPaginated();
+        await loadWhatsAppLinks(allOrdersData);
     } catch (error) {
         console.error('Error loading orders:', error);
         document.getElementById('allOrders').innerHTML = '<p class="text-gray-500 text-center">Erro ao carregar pedidos</p>';
     }
 }
 
-// Load products (non-events)
+// Load products (loja virtual items)
 async function loadProducts() {
     try {
         const ordersData = await fetchUserDocs('orders', 200, true);
-        const allOrders = ordersData.map(d => ({
+        const productsData = ordersData.map(d => ({
             id: d.id,
             ...d.data,
             date: d.data.createdAt?.toDate?.() || new Date(),
-            title: d.data.title || d.data.item || 'Pedido',
+            title: d.data.title || d.data.item || 'Produto',
             status: d.data.status || 'pending'
         }));
 
-        // Filter products (exclude events)
-        const productOrders = allOrders.filter(order => {
+        // Filter only products (not events)
+        const productsOnly = productsData.filter(order => {
             const title = (order.title || '').toLowerCase();
             const item = (order.item || '').toLowerCase();
-            const eventType = (order.eventType || '').toLowerCase();
             
-            return !(title.includes('xtreino') || title.includes('camp') || 
-                    item.includes('xtreino') || item.includes('camp') ||
-                    eventType.includes('xtreino') || eventType.includes('camp') ||
-                    title.includes('semanal') || title.includes('modo liga'));
+            // Exclude events and include only products
+            return !title.includes('xtreino') && 
+                   !title.includes('camp') && 
+                   !title.includes('semanal') && 
+                   !title.includes('modo liga') &&
+                   !item.includes('xtreino') && 
+                   !item.includes('camp') && 
+                   !item.includes('semanal') && 
+                   !item.includes('modo liga');
         });
 
-        displayProductsPaginated(productOrders);
+        displayAllProductsPaginated(productsOnly);
     } catch (error) {
         console.error('Error loading products:', error);
         document.getElementById('allProducts').innerHTML = '<p class="text-gray-500 text-center">Erro ao carregar produtos</p>';
@@ -487,24 +479,40 @@ async function loadWhatsAppLinks(orders) {
     
     // Atualizar automaticamente a cada minuto para verificar expiração
     setTimeout(() => {
-        loadWhatsAppLinks(orders);
+        loadWhatsAppLinks(allOrdersData);
     }, 60000); // 60 segundos
 }
 
-// Display all orders with pagination
-function displayAllOrdersPaginated(ordersData = allOrdersData) {
+// Display all orders with pagination (filtered for events only)
+function displayAllOrdersPaginated() {
     const container = document.getElementById('allOrders');
     
-    if (ordersData.length === 0) {
-        container.innerHTML = '<p class="text-gray-500 text-center">Nenhum pedido encontrado</p>';
+    // Filter only events (XTreinos and Camps)
+    const eventsOnly = allOrdersData.filter(order => {
+        const title = (order.title || '').toLowerCase();
+        const item = (order.item || '').toLowerCase();
+        
+        // Include only events
+        return title.includes('xtreino') || 
+               title.includes('camp') || 
+               title.includes('semanal') || 
+               title.includes('modo liga') ||
+               item.includes('xtreino') || 
+               item.includes('camp') || 
+               item.includes('semanal') || 
+               item.includes('modo liga');
+    });
+    
+    if (eventsOnly.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-center">Nenhum evento encontrado</p>';
         return;
     }
 
     // Calculate pagination
-    const totalPages = Math.ceil(ordersData.length / ordersPerPage);
+    const totalPages = Math.ceil(eventsOnly.length / ordersPerPage);
     const startIndex = (currentPage - 1) * ordersPerPage;
     const endIndex = startIndex + ordersPerPage;
-    const currentOrders = ordersData.slice(startIndex, endIndex);
+    const currentOrders = eventsOnly.slice(startIndex, endIndex);
 
     // Generate orders HTML
     const ordersHTML = currentOrders.map(order => `
@@ -581,14 +589,8 @@ function generatePaginationHTML(currentPage, totalPages) {
     return paginationHTML;
 }
 
-// Change page function
-function changePage(page) {
-    currentPage = page;
-    displayAllOrdersPaginated();
-}
-
-// Display products with pagination
-function displayProductsPaginated(productsData) {
+// Display all products with pagination
+function displayAllProductsPaginated(productsData) {
     const container = document.getElementById('allProducts');
     
     if (productsData.length === 0) {
@@ -626,10 +628,67 @@ function displayProductsPaginated(productsData) {
         </div>
     `).join('');
 
-    // Generate pagination HTML
-    const paginationHTML = generatePaginationHTML(currentPage, totalPages);
+    // Generate pagination HTML for products
+    const paginationHTML = generateProductsPaginationHTML(currentPage, totalPages);
 
     container.innerHTML = productsHTML + paginationHTML;
+}
+
+// Change page function
+function changePage(page) {
+    currentPage = page;
+    displayAllOrdersPaginated();
+}
+
+// Generate pagination HTML for products
+function generateProductsPaginationHTML(currentPage, totalPages) {
+    if (totalPages <= 1) return '';
+
+    let paginationHTML = '<div class="flex justify-center items-center mt-6 space-x-2">';
+    
+    // Previous button
+    if (currentPage > 1) {
+        paginationHTML += `<button onclick="changeProductsPage(${currentPage - 1})" class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+            Anterior
+        </button>`;
+    }
+
+    // Page numbers
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    
+    if (endPage - startPage + 1 < maxVisiblePages) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+        if (i === currentPage) {
+            paginationHTML += `<button class="px-3 py-2 text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-md">
+                ${i}
+            </button>`;
+        } else {
+            paginationHTML += `<button onclick="changeProductsPage(${i})" class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                ${i}
+            </button>`;
+        }
+    }
+
+    // Next button
+    if (currentPage < totalPages) {
+        paginationHTML += `<button onclick="changeProductsPage(${currentPage + 1})" class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+            Próximo
+        </button>`;
+    }
+
+    paginationHTML += '</div>';
+    return paginationHTML;
+}
+
+// Change page function for products
+function changeProductsPage(page) {
+    currentPage = page;
+    loadProducts();
 }
 
 // Get appropriate action button for order

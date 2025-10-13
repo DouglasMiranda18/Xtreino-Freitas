@@ -719,7 +719,7 @@
                     Visão Geral
                 </button>
                 <button onclick="showClientTab('orders')" class="client-tab px-6 py-3 font-semibold border-b-2 border-transparent text-gray-400 hover:text-white">
-                    Pedidos
+                    Meus Pedidos
                 </button>
                 <button onclick="showClientTab('products')" class="client-tab px-6 py-3 font-semibold border-b-2 border-transparent text-gray-400 hover:text-white">
                     Meus Produtos
@@ -769,29 +769,35 @@
             </div>
             
             
-            <!-- Orders Tab (Events Only) -->
+            <!-- Orders Tab (XTreinos e Camps) -->
             <div id="ordersTab" class="client-tab-content hidden">
-                <div class="bg-white bg-opacity-5 rounded-xl p-6">
-                    <h3 class="text-xl font-bold mb-4">Meus Pedidos - Eventos</h3>
-                    <div id="allOrders" class="space-y-4">
+                <div class="bg-white rounded-lg shadow-sm">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-medium text-gray-900">Meus Pedidos - Eventos</h3>
+                    </div>
+                    <div id="allOrders" class="p-6">
                         <p class="text-gray-500 text-center">Carregando pedidos...</p>
                     </div>
                 </div>
                 
                 <!-- WhatsApp Links para pedidos confirmados -->
-                <div id="whatsappLinks" class="bg-white bg-opacity-5 rounded-xl p-6 mt-6 hidden">
-                    <h3 class="text-xl font-bold mb-4">Links dos Grupos</h3>
-                    <div id="whatsappList">
+                <div id="whatsappLinks" class="bg-white rounded-lg shadow-sm mt-6 hidden">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-medium text-gray-900">Links dos Grupos</h3>
+                    </div>
+                    <div id="whatsappList" class="p-6">
                         <!-- Links do WhatsApp serão carregados aqui -->
                     </div>
                 </div>
             </div>
             
-            <!-- Products Tab -->
+            <!-- Products Tab (Produtos da Loja) -->
             <div id="productsTab" class="client-tab-content hidden">
-                <div class="bg-white bg-opacity-5 rounded-xl p-6">
-                    <h3 class="text-xl font-bold mb-4">Meus Produtos</h3>
-                    <div id="allProducts" class="space-y-4">
+                <div class="bg-white rounded-lg shadow-sm">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-medium text-gray-900">Meus Produtos</h3>
+                    </div>
+                    <div id="allProducts" class="p-6">
                         <p class="text-gray-500 text-center">Carregando produtos...</p>
                     </div>
                 </div>
