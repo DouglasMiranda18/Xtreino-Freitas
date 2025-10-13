@@ -40,6 +40,14 @@
   let usuariosData = [];
   let usuariosPage = 1;
   const usuariosPerPage = 5;
+  
+  let tokensData = [];
+  let tokensPage = 1;
+  const tokensPerPage = 3;
+  
+  let tokenUsageData = [];
+  let tokenUsagePage = 1;
+  const tokenUsagePerPage = 3;
 
   // Função para carregar usuários do Firestore
   async function carregarUsuarios() {
@@ -186,6 +194,144 @@
     }
   }
 
+  // Função para carregar dados de tokens
+  async function carregarDadosTokens() {
+    try {
+      // Buscar pedidos de tokens
+      const ordersRef = collection(window.firebaseDb, 'orders');
+      const ordersSnapshot = await getDocs(ordersRef);
+      
+      tokensData = [];
+      ordersSnapshot.forEach(doc => {
+        const order = doc.data();
+        if (order.item && order.item.includes('tokens')) {
+          tokensData.push({
+            id: doc.id,
+            cliente: order.customer || order.buyerEmail || 'Cliente não informado',
+            pacote: order.item || 'Pacote de Tokens',
+            tokens: order.tokens || 'N/A',
+            valor: order.amount || order.total || 'R$ 0,00',
+            data: order.createdAt ? new Date(order.createdAt.seconds * 1000).toLocaleDateString('pt-BR') : 'Data não informada'
+          });
+        }
+      });
+      
+      // Ordenar por data (mais recentes primeiro)
+      tokensData.sort((a, b) => new Date(b.data) - new Date(a.data));
+      
+      // Atualizar contador
+      document.getElementById('tokensCount').textContent = `${tokensData.length} compras`;
+      document.getElementById('totalTokensPurchased').textContent = tokensData.length;
+      
+      // Mostrar primeira página
+      mostrarTokensPagina(1);
+      
+    } catch (error) {
+      console.error('Erro ao carregar dados de tokens:', error);
+    }
+  }
+
+  // Função para mostrar tokens da página específica
+  function mostrarTokensPagina(pagina) {
+    const tbody = document.getElementById('tokensTbody');
+    const startIndex = (pagina - 1) * tokensPerPage;
+    const endIndex = startIndex + tokensPerPage;
+    const tokensPagina = tokensData.slice(startIndex, endIndex);
+    
+    // Limpar tabela
+    tbody.innerHTML = '';
+    
+    // Adicionar tokens da página
+    tokensPagina.forEach(token => {
+      const row = document.createElement('tr');
+      row.className = 'border-b border-gray-100 hover:bg-gray-50';
+      
+      row.innerHTML = `
+        <td class="py-1 px-1 text-xs">${token.cliente}</td>
+        <td class="py-1 px-1 text-xs">${token.pacote}</td>
+        <td class="py-1 px-1 text-xs">${token.tokens}</td>
+        <td class="py-1 px-1 text-xs">${token.valor}</td>
+        <td class="py-1 px-1 text-xs">${token.data}</td>
+      `;
+      
+      tbody.appendChild(row);
+    });
+    
+    // Atualizar informações de paginação
+    const totalPages = Math.ceil(tokensData.length / tokensPerPage);
+    document.getElementById('tokensPageInfo').textContent = `Página ${pagina} de ${totalPages}`;
+    
+    // Gerar botões de paginação
+    gerarBotoesPaginacao('tokensPagination', pagina, totalPages, (p) => mostrarTokensPagina(p));
+  }
+
+  // Função para carregar dados de uso de tokens
+  async function carregarDadosUsoTokens() {
+    try {
+      // Buscar registros de uso de tokens
+      const registrationsRef = collection(window.firebaseDb, 'registrations');
+      const registrationsSnapshot = await getDocs(registrationsRef);
+      
+      tokenUsageData = [];
+      registrationsSnapshot.forEach(doc => {
+        const reg = doc.data();
+        if (reg.paidWithTokens) {
+          tokenUsageData.push({
+            id: doc.id,
+            cliente: reg.email || 'Cliente não informado',
+            evento: reg.eventType || reg.title || 'Evento',
+            tokens: reg.tokensUsed || '1',
+            data: reg.createdAt ? new Date(reg.createdAt.seconds * 1000).toLocaleString('pt-BR') : 'Data não informada'
+          });
+        }
+      });
+      
+      // Ordenar por data (mais recentes primeiro)
+      tokenUsageData.sort((a, b) => new Date(b.data) - new Date(a.data));
+      
+      // Atualizar contador
+      document.getElementById('totalTokensUsed').textContent = tokenUsageData.length;
+      
+      // Mostrar primeira página
+      mostrarUsoTokensPagina(1);
+      
+    } catch (error) {
+      console.error('Erro ao carregar dados de uso de tokens:', error);
+    }
+  }
+
+  // Função para mostrar uso de tokens da página específica
+  function mostrarUsoTokensPagina(pagina) {
+    const tbody = document.getElementById('tokenUsageTbody');
+    const startIndex = (pagina - 1) * tokenUsagePerPage;
+    const endIndex = startIndex + tokenUsagePerPage;
+    const tokenUsagePagina = tokenUsageData.slice(startIndex, endIndex);
+    
+    // Limpar tabela
+    tbody.innerHTML = '';
+    
+    // Adicionar uso de tokens da página
+    tokenUsagePagina.forEach(usage => {
+      const row = document.createElement('tr');
+      row.className = 'border-b border-gray-100 hover:bg-gray-50';
+      
+      row.innerHTML = `
+        <td class="py-1 px-1 text-xs">${usage.cliente}</td>
+        <td class="py-1 px-1 text-xs">${usage.evento}</td>
+        <td class="py-1 px-1 text-xs">${usage.tokens}</td>
+        <td class="py-1 px-1 text-xs">${usage.data}</td>
+      `;
+      
+      tbody.appendChild(row);
+    });
+    
+    // Atualizar informações de paginação
+    const totalPages = Math.ceil(tokenUsageData.length / tokenUsagePerPage);
+    
+    // Gerar botões de paginação
+    gerarBotoesPaginacao('tokenUsagePagination', pagina, totalPages, (p) => mostrarUsoTokensPagina(p));
+  }
+
   // Submissão manual de equipe/cadastro rápido (confirma vaga sem pagamento)
   async function submitAddTeam(e){
     try{
@@ -272,7 +418,11 @@
     const isManager = ['ceo','gerente'].includes(roleLower);
     const isCeo = roleLower==='ceo';
     window.adminRoleLower = roleLower;
-    try { await carregarUsuarios(); } catch(_){}
+    try { 
+      await carregarUsuarios(); 
+      await carregarDadosTokens();
+      await carregarDadosUsoTokens();
+    } catch(_){}
     // bind filtros e export
     const btnApply = document.getElementById('btnApplyFilter');
     if (btnApply) btnApply.onclick = applyFilter;
