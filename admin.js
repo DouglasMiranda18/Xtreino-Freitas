@@ -36,7 +36,81 @@
     }
   }
 
+  // Função para carregar usuários do Firestore
+  async function carregarUsuarios() {
+    const tbody = document.getElementById('usersTableBody');
+    if (!tbody) return;
 
+    try {
+      // Buscar usuários no Firestore
+      const usersRef = collection(window.firebaseDb, 'users');
+      const snapshot = await getDocs(usersRef);
+      
+      // Limpar tabela
+      tbody.innerHTML = '';
+      
+      // Adicionar cada usuário
+      snapshot.forEach(doc => {
+        const user = doc.data();
+        const row = document.createElement('tr');
+        row.className = 'border-b border-gray-100 hover:bg-gray-50';
+        
+        row.innerHTML = `
+          <td class="py-3 px-2">${user.email || 'Email não informado'}</td>
+          <td class="py-3 px-2">
+            <select class="role-select border border-gray-300 rounded px-2 py-1 text-sm" data-uid="${doc.id}">
+              <option value="Vendedor" ${user.role === 'Vendedor' ? 'selected' : ''}>Vendedor</option>
+              <option value="Gerente" ${user.role === 'Gerente' ? 'selected' : ''}>Gerente</option>
+              <option value="Ceo" ${user.role === 'Ceo' ? 'selected' : ''}>Ceo</option>
+            </select>
+          </td>
+        `;
+        
+        tbody.appendChild(row);
+      });
+      
+      // Adicionar event listener para mudanças de role
+      tbody.addEventListener('change', alterarRole);
+      
+    } catch (error) {
+      console.error('Erro ao carregar usuários:', error);
+      tbody.innerHTML = '<tr><td colspan="2" class="py-8 text-center text-red-500">Erro ao carregar usuários</td></tr>';
+    }
+  }
+
+  // Função para alterar role do usuário
+  async function alterarRole(event) {
+    if (!event.target.classList.contains('role-select')) return;
+    
+    const select = event.target;
+    const uid = select.getAttribute('data-uid');
+    const novoRole = select.value;
+    const email = select.closest('tr').querySelector('td:first-child').textContent;
+    
+    // Desabilitar select durante a operação
+    select.disabled = true;
+    select.style.opacity = '0.6';
+    
+    try {
+      // Atualizar no Firestore
+      const userRef = doc(window.firebaseDb, 'users', uid);
+      await updateDoc(userRef, { role: novoRole });
+      
+      // Mostrar sucesso
+      alert(`Role de ${email} alterado para ${novoRole} com sucesso!`);
+      
+    } catch (error) {
+      console.error('Erro ao alterar role:', error);
+      alert('Erro ao alterar role. Tente novamente.');
+      
+      // Reverter select para valor anterior
+      select.value = select.getAttribute('data-original-value') || 'Vendedor';
+    } finally {
+      // Reabilitar select
+      select.disabled = false;
+      select.style.opacity = '1';
+    }
+  }
 
   // Submissão manual de equipe/cadastro rápido (confirma vaga sem pagamento)
   async function submitAddTeam(e){
@@ -124,7 +198,7 @@
     const isManager = ['ceo','gerente'].includes(roleLower);
     const isCeo = roleLower==='ceo';
     window.adminRoleLower = roleLower;
-    try { await loadUsersTable(isManager, isCeo); } catch(_){}
+    try { await carregarUsuarios(); } catch(_){}
     // bind filtros e export
     const btnApply = document.getElementById('btnApplyFilter');
     if (btnApply) btnApply.onclick = applyFilter;
