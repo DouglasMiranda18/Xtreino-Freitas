@@ -187,6 +187,21 @@
             });
           });
           
+          // Add mutation observer to detect DOM changes
+          const observer = new MutationObserver((mutations) => {
+            console.warn('⚠️ DOM da tabela de usuários foi modificado!');
+            console.log('Mutações:', mutations);
+            console.log('Stack trace:', new Error().stack);
+            observer.disconnect();
+          });
+          
+          observer.observe(usersBody, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            characterData: true
+          });
+          
           // Test again after a short delay
           setTimeout(() => {
             const selectsDelayed = usersBody.querySelectorAll('.roleSelect');
@@ -195,7 +210,8 @@
               console.error('PROBLEMA: Selects desapareceram do DOM!');
               console.log('Conteúdo do usersBody:', usersBody.innerHTML);
             }
-          }, 1000);
+            observer.disconnect();
+          }, 2000);
         }
         
         console.log('Usuários carregados com sucesso');
