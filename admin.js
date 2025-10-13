@@ -42,49 +42,108 @@
       const uid = e.target.getAttribute('data-uid');
       const newRole = e.target.value;
       const email = e.target.closest('tr').querySelector('td:first-child').textContent;
+      const originalValue = e.target.getAttribute('data-original-value') || 'Vendedor';
       
-      console.log('Alterando role:', { uid, newRole, email });
+      console.log('Alterando role:', { uid, newRole, email, originalValue });
       
-      try {
-        await updateDoc(doc(window.firebaseDb, 'users', uid), { role: newRole });
-        alert(`Permissão de ${email} atualizada para ${newRole}!`);
-        console.log('Role atualizada com sucesso');
-      } catch (error) {
-        console.error('Erro ao atualizar permissão:', error);
-        alert('Erro ao atualizar permissão. Tente novamente.');
-        // Reverter o select para o valor anterior
-        e.target.value = e.target.getAttribute('data-original-value') || 'Vendedor';
+      // Disable the select while processing
+      e.target.disabled = true;
+      e.target.style.opacity = '0.5';
+      
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (retryCount < maxRetries) {
+        try {
+          console.log(`Tentativa ${retryCount + 1} de atualizar role...`);
+          await updateDoc(doc(window.firebaseDb, 'users', uid), { role: newRole });
+          
+          // Update the original value for future reference
+          e.target.setAttribute('data-original-value', newRole);
+          
+          alert(`Permissão de ${email} atualizada para ${newRole}!`);
+          console.log('Role atualizada com sucesso');
+          break; // Success, exit retry loop
+          
+        } catch (error) {
+          retryCount++;
+          console.error(`Erro ao atualizar permissão (tentativa ${retryCount}):`, error);
+          
+          if (retryCount >= maxRetries) {
+            alert('Erro de conexão com o banco de dados. A alteração não foi salva. Tente novamente mais tarde.');
+            // Reverter o select para o valor anterior
+            e.target.value = originalValue;
+          } else {
+            // Wait before retry
+            await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+          }
+        }
       }
+      
+      // Re-enable the select
+      e.target.disabled = false;
+      e.target.style.opacity = '1';
     }
   }
 
   async function loadUsersTable(isManager, isCeo){
     const usersBody = document.getElementById('usersTbody');
     if (!usersBody) return;
-    usersBody.innerHTML = '';
-    try{
-      const snap = await getDocs(collection(window.firebaseDb,'users'));
-      snap.forEach(d => {
-        const u = d.data();
-        const currentRole = u.role || 'Vendedor';
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td class="py-2">${u.email||''}</td>
-          <td class="py-2">${isManager?`<select data-uid="${d.id}" data-original-value="${currentRole}" class="roleSelect border rounded px-2 py-1 text-sm">
-               <option value="Vendedor" ${currentRole.toLowerCase()==='vendedor'?'selected':''}>Vendedor</option>
-               <option value="Gerente" ${currentRole.toLowerCase()==='gerente'?'selected':''}>Gerente</option>
-               ${isCeo?`<option value="Ceo" ${currentRole.toLowerCase()==='ceo'?'selected':''}>Ceo</option>`:''}
-             </select>`:`${currentRole}`}</td>`;
-        usersBody.appendChild(tr);
-      });
-      
-      // Clear any existing event listeners and add new one
-      usersBody.removeEventListener('change', handleRoleChange);
-      if (isManager) {
-        usersBody.addEventListener('change', handleRoleChange);
+    
+    // Show loading state
+    usersBody.innerHTML = '<tr><td colspan="2" class="py-2 text-center text-gray-500">Carregando usuários...</td></tr>';
+    
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    while (retryCount < maxRetries) {
+      try {
+        console.log(`Tentativa ${retryCount + 1} de carregar usuários...`);
+        const snap = await getDocs(collection(window.firebaseDb,'users'));
+        
+        usersBody.innerHTML = '';
+        let hasUsers = false;
+        
+        snap.forEach(d => {
+          hasUsers = true;
+          const u = d.data();
+          const currentRole = u.role || 'Vendedor';
+          console.log(`Usuário: ${u.email}, Role: ${currentRole}`);
+          
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td class="py-2">${u.email||''}</td>
+            <td class="py-2">${isManager?`<select data-uid="${d.id}" data-original-value="${currentRole}" class="roleSelect border rounded px-2 py-1 text-sm">
+                 <option value="Vendedor" ${currentRole.toLowerCase()==='vendedor'?'selected':''}>Vendedor</option>
+                 <option value="Gerente" ${currentRole.toLowerCase()==='gerente'?'selected':''}>Gerente</option>
+                 ${isCeo?`<option value="Ceo" ${currentRole.toLowerCase()==='ceo'?'selected':''}>Ceo</option>`:''}
+               </select>`:`${currentRole}`}</td>`;
+          usersBody.appendChild(tr);
+        });
+        
+        if (!hasUsers) {
+          usersBody.innerHTML = '<tr><td colspan="2" class="py-2 text-center text-gray-500">Nenhum usuário encontrado</td></tr>';
+        }
+        
+        // Clear any existing event listeners and add new one
+        usersBody.removeEventListener('change', handleRoleChange);
+        if (isManager) {
+          usersBody.addEventListener('change', handleRoleChange);
+        }
+        
+        console.log('Usuários carregados com sucesso');
+        break; // Success, exit retry loop
+        
+      } catch (e) { 
+        retryCount++;
+        console.error(`Erro ao carregar usuários (tentativa ${retryCount}):`, e);
+        
+        if (retryCount >= maxRetries) {
+          usersBody.innerHTML = '<tr><td colspan="2" class="py-2 text-center text-red-500">Erro de conexão com o banco de dados. Tente recarregar a página.</td></tr>';
+        } else {
+          // Wait before retry
+          await new Promise(resolve => setTimeout(resolve, 2000 * retryCount));
+        }
       }
-    }catch(e){ 
-      console.error('Erro ao carregar usuários', e); 
-      usersBody.innerHTML = '<tr><td colspan="2" class="py-2 text-center text-red-500">Erro ao carregar usuários</td></tr>';
     }
   }
 
