@@ -50,14 +50,11 @@
                     <button id="ordersTab" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
                         Meus Pedidos
                     </button>
+                    <button id="productsTab" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                        Meus Produtos
+                    </button>
                     <button id="profileTab" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
                         Meu Perfil
-                    </button>
-                    <button id="tokensTab" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                        Tokens Comprados
-                    </button>
-                    <button id="myTokensTab" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                        Meus Tokens
                     </button>
                 </nav>
             </div>
@@ -121,11 +118,11 @@
             </div>
         </div>
 
-        <!-- Orders Tab -->
+        <!-- Orders Tab (Events Only) -->
         <div id="ordersContent" class="tab-content hidden">
             <div class="bg-white rounded-lg shadow-sm">
                 <div class="px-6 py-4 border-b border-gray-200">
-                    <h3 class="text-lg font-medium text-gray-900">Meus Pedidos</h3>
+                    <h3 class="text-lg font-medium text-gray-900">Meus Pedidos - Eventos</h3>
                 </div>
                 <div id="allOrders" class="p-6">
                     <p class="text-gray-500 text-center">Carregando pedidos...</p>
@@ -139,6 +136,18 @@
                 </div>
                 <div id="whatsappList" class="p-6">
                     <!-- Links do WhatsApp serão carregados aqui -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Products Tab -->
+        <div id="productsContent" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow-sm">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-medium text-gray-900">Meus Produtos</h3>
+                </div>
+                <div id="allProducts" class="p-6">
+                    <p class="text-gray-500 text-center">Carregando produtos...</p>
                 </div>
             </div>
         </div>
@@ -187,78 +196,7 @@
             </div>
         </div>
 
-        <!-- Tokens Comprados Tab -->
-        <div id="tokensContent" class="tab-content hidden">
-            <div class="bg-white rounded-lg shadow-sm">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h3 class="text-lg font-medium text-gray-900">Tokens Comprados</h3>
-                </div>
-                <div class="p-6">
-                    <div id="tokensHistory" class="space-y-4">
-                        <p class="text-gray-500 text-center">Carregando histórico de tokens...</p>
-                    </div>
-                </div>
-            </div>
-        </div>
 
-        <!-- Meus Tokens Tab -->
-        <div id="myTokensContent" class="tab-content hidden">
-            <div class="bg-white rounded-lg shadow-sm">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h3 class="text-lg font-medium text-gray-900">Meus Tokens</h3>
-                </div>
-                <div class="p-6">
-                    <div class="text-center mb-6">
-                        <div class="inline-flex items-center justify-center w-20 h-20 bg-yellow-100 rounded-full mb-4">
-                            <svg class="w-10 h-10 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
-                            </svg>
-                        </div>
-                        <h4 class="text-2xl font-bold text-gray-900" id="myTokenBalance">0 Tokens</h4>
-                        <p class="text-gray-600 mt-2">Use seus tokens para acessar eventos especiais</p>
-                    </div>
-
-                    <div class="bg-gray-50 rounded-lg p-4 mb-6">
-                        <h5 class="font-medium text-gray-900 mb-2">Como usar tokens:</h5>
-                        <ul class="text-sm text-gray-600 space-y-1">
-                            <li>• 1 token = 1 vaga em eventos especiais</li>
-                            <li>• Compre tokens em pacotes de 1, 5, 25, 50 ou 100</li>
-                            <li>• Tokens não expiram e podem ser usados a qualquer momento</li>
-                        </ul>
-                    </div>
-
-                    <!-- Card de Compra de Tokens -->
-                    <div class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg p-6 text-white mb-6">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <h5 class="text-lg font-semibold mb-2">💎 Comprar Tokens</h5>
-                                <p class="text-blue-100 text-sm mb-3">Adicione mais tokens à sua conta</p>
-                                <div class="flex items-center space-x-2">
-                                    <span class="text-xs bg-white bg-opacity-20 px-2 py-1 rounded">R$ 1,00</span>
-                                    <span class="text-xs">por token</span>
-                                </div>
-                            </div>
-                            <button onclick="openTokensPurchaseModal()" class="bg-white text-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
-                                Comprar
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Histórico de Uso dos Tokens -->
-                    <div class="mb-6">
-                        <h5 class="font-semibold text-gray-900 mb-3">📊 Histórico de Uso dos Tokens</h5>
-                        <div id="tokenUsageHistory" class="space-y-3">
-                            <div class="text-center py-8 text-gray-500">
-                                <svg class="w-12 h-12 mx-auto mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-                                </svg>
-                                <p>Carregando histórico de uso...</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Scripts -->

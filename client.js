@@ -98,14 +98,12 @@ function setupEventListeners() {
     // Tab navigation
     const dashTab = document.getElementById('dashboardTab');
     const ordersTab = document.getElementById('ordersTab');
+    const productsTab = document.getElementById('productsTab');
     const profileTab = document.getElementById('profileTab');
-    const tokensTab = document.getElementById('tokensTab');
-    const myTokensTab = document.getElementById('myTokensTab');
     if (dashTab) dashTab.addEventListener('click', async () => await switchTab('dashboard'));
     if (ordersTab) ordersTab.addEventListener('click', async () => await switchTab('orders'));
+    if (productsTab) productsTab.addEventListener('click', async () => await switchTab('products'));
     if (profileTab) profileTab.addEventListener('click', async () => await switchTab('profile'));
-    if (tokensTab) tokensTab.addEventListener('click', async () => await switchTab('tokens'));
-    if (myTokensTab) myTokensTab.addEventListener('click', async () => await switchTab('myTokens'));
 
     // Logout button
     const logoutBtn = document.getElementById('logoutBtn');
@@ -145,14 +143,11 @@ async function switchTab(tabName) {
         case 'orders':
             loadOrders();
             break;
+        case 'products':
+            loadProducts();
+            break;
         case 'profile':
             loadProfile();
-            break;
-        case 'tokens':
-            loadTokensHistory();
-            break;
-        case 'myTokens':
-            await loadMyTokens();
             break;
     }
 }
@@ -418,7 +413,14 @@ async function loadWhatsAppLinks(orders) {
         'associado': 'https://chat.whatsapp.com/SEU_GRUPO_ASSOCIADO'
     };
 
-    whatsappList.innerHTML = confirmedOrders.map(order => {
+    // Paginate WhatsApp links (show only 5 per page)
+    const whatsappPerPage = 5;
+    const whatsappTotalPages = Math.ceil(confirmedOrders.length / whatsappPerPage);
+    const whatsappStartIndex = (currentPage - 1) * whatsappPerPage;
+    const whatsappEndIndex = whatsappStartIndex + whatsappPerPage;
+    const currentWhatsappOrders = confirmedOrders.slice(whatsappStartIndex, whatsappEndIndex);
+
+    whatsappList.innerHTML = currentWhatsappOrders.map(order => {
         const eventType = order.eventType || '';
         const title = order.title || '';
         const date = order.date || new Date();
@@ -476,6 +478,12 @@ async function loadWhatsAppLinks(orders) {
             </div>
         `;
     }).join('');
+
+    // Add pagination for WhatsApp links if needed
+    if (whatsappTotalPages > 1) {
+        const whatsappPaginationHTML = generateWhatsAppPaginationHTML(currentPage, whatsappTotalPages);
+        whatsappList.innerHTML += whatsappPaginationHTML;
+    }
     
     // Atualizar automaticamente a cada minuto para verificar expiração
     setTimeout(() => {
@@ -624,7 +632,7 @@ function displayAllProductsPaginated(productsData) {
                     <span class="font-medium">ID:</span> ${product.id.substring(0, 8)}...
                 </div>
             </div>
-            ${getOrderActionButton(product)}
+            ${getProductActionButton(product)}
         </div>
     `).join('');
 
@@ -685,31 +693,65 @@ function generateProductsPaginationHTML(currentPage, totalPages) {
     return paginationHTML;
 }
 
+// Generate pagination HTML for WhatsApp links
+function generateWhatsAppPaginationHTML(currentPage, totalPages) {
+    if (totalPages <= 1) return '';
+
+    let paginationHTML = '<div class="flex justify-center items-center mt-6 space-x-2">';
+    
+    // Previous button
+    if (currentPage > 1) {
+        paginationHTML += `<button onclick="changeWhatsAppPage(${currentPage - 1})" class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+            Anterior
+        </button>`;
+    }
+
+    // Page numbers
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    
+    if (endPage - startPage + 1 < maxVisiblePages) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+        if (i === currentPage) {
+            paginationHTML += `<button class="px-3 py-2 text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-md">
+                ${i}
+            </button>`;
+        } else {
+            paginationHTML += `<button onclick="changeWhatsAppPage(${i})" class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                ${i}
+            </button>`;
+        }
+    }
+
+    // Next button
+    if (currentPage < totalPages) {
+        paginationHTML += `<button onclick="changeWhatsAppPage(${currentPage + 1})" class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+            Próximo
+        </button>`;
+    }
+
+    paginationHTML += '</div>';
+    return paginationHTML;
+}
+
+// Change page function for WhatsApp links
+function changeWhatsAppPage(page) {
+    currentPage = page;
+    loadWhatsAppLinks(allOrdersData);
+}
+
 // Change page function for products
 function changeProductsPage(page) {
     currentPage = page;
     loadProducts();
 }
 
-// Get appropriate action button for order
+// Get appropriate action button for order (events only)
 function getOrderActionButton(order) {
-    const title = (order.title || '').toLowerCase();
-    const item = (order.item || '').toLowerCase();
-    
-    // Check if it's Imagens Aéreas
-    if (title.includes('imagens') || title.includes('aéreas') || item.includes('imagens') || item.includes('aéreas')) {
-        return `
-            <div class="mt-3">
-                <button onclick="downloadImagensAereas('${order.id}')" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                    </svg>
-                    Download
-                </button>
-            </div>
-        `;
-    }
-    
     // Default WhatsApp link for events
     if (order.whatsappLink) {
         return `
@@ -720,6 +762,28 @@ function getOrderActionButton(order) {
                     </svg>
                     Entrar no Grupo
                 </a>
+            </div>
+        `;
+    }
+    
+    return '';
+}
+
+// Get appropriate action button for product
+function getProductActionButton(product) {
+    const title = (product.title || '').toLowerCase();
+    const item = (product.item || '').toLowerCase();
+    
+    // Check if it's Imagens Aéreas
+    if (title.includes('imagens') || title.includes('aéreas') || item.includes('imagens') || item.includes('aéreas')) {
+        return `
+            <div class="mt-3">
+                <button onclick="downloadImagensAereas('${product.id}')" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    Download
+                </button>
             </div>
         `;
     }
