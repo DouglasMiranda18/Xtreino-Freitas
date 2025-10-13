@@ -38,13 +38,22 @@
 
   // Handle role change function
   async function handleRoleChange(e) {
+    console.log('handleRoleChange chamado:', e.target);
+    
     if (e.target.classList.contains('roleSelect')) {
       const uid = e.target.getAttribute('data-uid');
       const newRole = e.target.value;
       const email = e.target.closest('tr').querySelector('td:first-child').textContent;
       const originalValue = e.target.getAttribute('data-original-value') || 'Vendedor';
       
-      console.log('Alterando role:', { uid, newRole, email, originalValue });
+      console.log('Alterando role:', { 
+        uid, 
+        newRole, 
+        email, 
+        originalValue,
+        firebaseDb: !!window.firebaseDb,
+        target: e.target
+      });
       
       // Disable the select while processing
       e.target.disabled = true;
@@ -56,7 +65,16 @@
       while (retryCount < maxRetries) {
         try {
           console.log(`Tentativa ${retryCount + 1} de atualizar role...`);
-          await updateDoc(doc(window.firebaseDb, 'users', uid), { role: newRole });
+          
+          if (!window.firebaseDb) {
+            throw new Error('Firebase não inicializado');
+          }
+          
+          const userDoc = doc(window.firebaseDb, 'users', uid);
+          console.log('Documento criado:', userDoc);
+          
+          await updateDoc(userDoc, { role: newRole });
+          console.log('updateDoc executado com sucesso');
           
           // Update the original value for future reference
           e.target.setAttribute('data-original-value', newRole);
@@ -83,12 +101,19 @@
       // Re-enable the select
       e.target.disabled = false;
       e.target.style.opacity = '1';
+    } else {
+      console.log('Evento não é de roleSelect:', e.target.className);
     }
   }
 
   async function loadUsersTable(isManager, isCeo){
     const usersBody = document.getElementById('usersTbody');
-    if (!usersBody) return;
+    if (!usersBody) {
+      console.error('Elemento usersTbody não encontrado!');
+      return;
+    }
+    
+    console.log('Iniciando loadUsersTable:', { isManager, isCeo, firebaseDb: !!window.firebaseDb });
     
     // Show loading state
     usersBody.innerHTML = '<tr><td colspan="2" class="py-2 text-center text-gray-500">Carregando usuários...</td></tr>';
@@ -99,7 +124,16 @@
     while (retryCount < maxRetries) {
       try {
         console.log(`Tentativa ${retryCount + 1} de carregar usuários...`);
-        const snap = await getDocs(collection(window.firebaseDb,'users'));
+        
+        if (!window.firebaseDb) {
+          throw new Error('Firebase não inicializado');
+        }
+        
+        const usersCollection = collection(window.firebaseDb, 'users');
+        console.log('Collection users criada:', usersCollection);
+        
+        const snap = await getDocs(usersCollection);
+        console.log('Snapshot recebido:', snap.size, 'documentos');
         
         usersBody.innerHTML = '';
         let hasUsers = false;
@@ -108,7 +142,13 @@
           hasUsers = true;
           const u = d.data();
           const currentRole = u.role || 'Vendedor';
-          console.log(`Usuário: ${u.email}, Role: ${currentRole}`);
+          console.log(`Usuário encontrado:`, {
+            id: d.id,
+            email: u.email,
+            role: u.role,
+            currentRole: currentRole,
+            allData: u
+          });
           
           const tr = document.createElement('tr');
           tr.innerHTML = `<td class="py-2">${u.email||''}</td>
@@ -128,6 +168,21 @@
         usersBody.removeEventListener('change', handleRoleChange);
         if (isManager) {
           usersBody.addEventListener('change', handleRoleChange);
+          console.log('Event listener adicionado para mudanças de role');
+          
+          // Test if event listener is working
+          setTimeout(() => {
+            const selects = usersBody.querySelectorAll('.roleSelect');
+            console.log('Selects encontrados:', selects.length);
+            selects.forEach((select, index) => {
+              console.log(`Select ${index}:`, {
+                uid: select.getAttribute('data-uid'),
+                value: select.value,
+                originalValue: select.getAttribute('data-original-value'),
+                hasEventListener: select.onchange !== null
+              });
+            });
+          }, 1000);
         }
         
         console.log('Usuários carregados com sucesso');
