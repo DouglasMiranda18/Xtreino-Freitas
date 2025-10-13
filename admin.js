@@ -36,6 +36,21 @@
     }
   }
 
+  // Handle role change function
+  async function handleRoleChange(e) {
+    if (e.target.classList.contains('roleSelect')) {
+      const uid = e.target.getAttribute('data-uid');
+      const newRole = e.target.value;
+      try {
+        await updateDoc(doc(window.firebaseDb, 'users', uid), { role: newRole });
+        alert('Permissão atualizada com sucesso!');
+      } catch (error) {
+        console.error('Erro ao atualizar permissão:', error);
+        alert('Erro ao atualizar permissão. Tente novamente.');
+      }
+    }
+  }
+
   async function loadUsersTable(isManager, isCeo){
     const usersBody = document.getElementById('usersTbody');
     if (!usersBody) return;
@@ -50,25 +65,14 @@
                <option ${ (u.role||'').toLowerCase()==='vendedor'?'selected':''}>Vendedor</option>
                <option ${ (u.role||'').toLowerCase()==='gerente'?'selected':''}>Gerente</option>
                ${isCeo?`<option ${ (u.role||'').toLowerCase()==='ceo'?'selected':''}>Ceo</option>`:''}
-             </select>`:`${u.role||'Vendedor'}`}</td>
-          <td class="py-2">-</td>`;
+             </select>`:`${u.role||'Vendedor'}`}</td>`;
         usersBody.appendChild(tr);
       });
       if (isManager){
-        // Use event delegation to ensure event listeners work
-        usersBody.addEventListener('change', async (e) => {
-          if (e.target.classList.contains('roleSelect')) {
-            const uid = e.target.getAttribute('data-uid');
-            const newRole = e.target.value;
-            try {
-              await updateDoc(doc(window.firebaseDb, 'users', uid), { role: newRole });
-              alert('Permissão atualizada com sucesso!');
-            } catch (error) {
-              console.error('Erro ao atualizar permissão:', error);
-              alert('Erro ao atualizar permissão. Tente novamente.');
-            }
-          }
-        });
+        // Remove any existing event listeners
+        usersBody.removeEventListener('change', handleRoleChange);
+        // Add new event listener
+        usersBody.addEventListener('change', handleRoleChange);
       }
     }catch(e){ console.error('Erro ao carregar usuários', e); }
   }
