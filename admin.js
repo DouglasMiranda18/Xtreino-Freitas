@@ -41,12 +41,19 @@
     if (e.target.classList.contains('roleSelect')) {
       const uid = e.target.getAttribute('data-uid');
       const newRole = e.target.value;
+      const email = e.target.closest('tr').querySelector('td:first-child').textContent;
+      
+      console.log('Alterando role:', { uid, newRole, email });
+      
       try {
         await updateDoc(doc(window.firebaseDb, 'users', uid), { role: newRole });
-        alert('Permissão atualizada com sucesso!');
+        alert(`Permissão de ${email} atualizada para ${newRole}!`);
+        console.log('Role atualizada com sucesso');
       } catch (error) {
         console.error('Erro ao atualizar permissão:', error);
         alert('Erro ao atualizar permissão. Tente novamente.');
+        // Reverter o select para o valor anterior
+        e.target.value = e.target.getAttribute('data-original-value') || 'Vendedor';
       }
     }
   }
@@ -59,22 +66,26 @@
       const snap = await getDocs(collection(window.firebaseDb,'users'));
       snap.forEach(d => {
         const u = d.data();
+        const currentRole = u.role || 'Vendedor';
         const tr = document.createElement('tr');
         tr.innerHTML = `<td class="py-2">${u.email||''}</td>
-          <td class="py-2">${isManager?`<select data-uid="${d.id}" class="roleSelect border rounded px-2 py-1 text-sm">
-               <option ${ (u.role||'').toLowerCase()==='vendedor'?'selected':''}>Vendedor</option>
-               <option ${ (u.role||'').toLowerCase()==='gerente'?'selected':''}>Gerente</option>
-               ${isCeo?`<option ${ (u.role||'').toLowerCase()==='ceo'?'selected':''}>Ceo</option>`:''}
-             </select>`:`${u.role||'Vendedor'}`}</td>`;
+          <td class="py-2">${isManager?`<select data-uid="${d.id}" data-original-value="${currentRole}" class="roleSelect border rounded px-2 py-1 text-sm">
+               <option value="Vendedor" ${currentRole.toLowerCase()==='vendedor'?'selected':''}>Vendedor</option>
+               <option value="Gerente" ${currentRole.toLowerCase()==='gerente'?'selected':''}>Gerente</option>
+               ${isCeo?`<option value="Ceo" ${currentRole.toLowerCase()==='ceo'?'selected':''}>Ceo</option>`:''}
+             </select>`:`${currentRole}`}</td>`;
         usersBody.appendChild(tr);
       });
-      if (isManager){
-        // Remove any existing event listeners
-        usersBody.removeEventListener('change', handleRoleChange);
-        // Add new event listener
+      
+      // Clear any existing event listeners and add new one
+      usersBody.removeEventListener('change', handleRoleChange);
+      if (isManager) {
         usersBody.addEventListener('change', handleRoleChange);
       }
-    }catch(e){ console.error('Erro ao carregar usuários', e); }
+    }catch(e){ 
+      console.error('Erro ao carregar usuários', e); 
+      usersBody.innerHTML = '<tr><td colspan="2" class="py-2 text-center text-red-500">Erro ao carregar usuários</td></tr>';
+    }
   }
 
   // Submissão manual de equipe/cadastro rápido (confirma vaga sem pagamento)
