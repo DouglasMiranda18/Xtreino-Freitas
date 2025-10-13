@@ -48,6 +48,10 @@
   let tokenUsageData = [];
   let tokenUsagePage = 1;
   const tokenUsagePerPage = 3;
+  
+  let confirmedOrdersData = [];
+  let confirmedOrdersPage = 1;
+  const confirmedOrdersPerPage = 5;
 
   // Função para carregar usuários do Firestore
   async function carregarUsuarios() {
@@ -205,19 +209,25 @@
       ordersSnapshot.forEach(doc => {
         const order = doc.data();
         if (order.item && order.item.includes('tokens')) {
+          const originalDate = order.createdAt ? (order.createdAt.seconds ? new Date(order.createdAt.seconds * 1000) : new Date(order.createdAt)) : new Date(0);
           tokensData.push({
             id: doc.id,
             cliente: order.customer || order.buyerEmail || 'Cliente não informado',
             pacote: order.item || 'Pacote de Tokens',
             tokens: order.tokens || 'N/A',
             valor: order.amount || order.total || 'R$ 0,00',
-            data: order.createdAt ? new Date(order.createdAt.seconds * 1000).toLocaleDateString('pt-BR') : 'Data não informada'
+            data: originalDate.toLocaleDateString('pt-BR'),
+            originalDate: originalDate
           });
         }
       });
       
-      // Ordenar por data (mais recentes primeiro)
-      tokensData.sort((a, b) => new Date(b.data) - new Date(a.data));
+      // Ordenar por data (mais recentes primeiro) - usar timestamp original
+      tokensData.sort((a, b) => {
+        const dateA = a.originalDate || new Date(0);
+        const dateB = b.originalDate || new Date(0);
+        return dateB - dateA;
+      });
       
       // Atualizar contador
       document.getElementById('tokensCount').textContent = `${tokensData.length} compras`;
@@ -276,18 +286,24 @@
       registrationsSnapshot.forEach(doc => {
         const reg = doc.data();
         if (reg.paidWithTokens) {
+          const originalDate = reg.createdAt ? (reg.createdAt.seconds ? new Date(reg.createdAt.seconds * 1000) : new Date(reg.createdAt)) : new Date(0);
           tokenUsageData.push({
             id: doc.id,
             cliente: reg.email || 'Cliente não informado',
             evento: reg.eventType || reg.title || 'Evento',
             tokens: reg.tokensUsed || '1',
-            data: reg.createdAt ? new Date(reg.createdAt.seconds * 1000).toLocaleString('pt-BR') : 'Data não informada'
+            data: originalDate.toLocaleString('pt-BR'),
+            originalDate: originalDate
           });
         }
       });
       
-      // Ordenar por data (mais recentes primeiro)
-      tokenUsageData.sort((a, b) => new Date(b.data) - new Date(a.data));
+      // Ordenar por data (mais recentes primeiro) - usar timestamp original
+      tokenUsageData.sort((a, b) => {
+        const dateA = a.originalDate || new Date(0);
+        const dateB = b.originalDate || new Date(0);
+        return dateB - dateA;
+      });
       
       // Atualizar contador
       document.getElementById('totalTokensUsed').textContent = tokenUsageData.length;
@@ -330,6 +346,80 @@
     
     // Gerar botões de paginação
     gerarBotoesPaginacao('tokenUsagePagination', pagina, totalPages, (p) => mostrarUsoTokensPagina(p));
+  }
+
+  // Função para carregar pedidos confirmados
+  async function carregarPedidosConfirmados() {
+    try {
+      // Buscar pedidos confirmados
+      const ordersRef = collection(window.firebaseDb, 'orders');
+      const ordersSnapshot = await getDocs(ordersRef);
+      
+      confirmedOrdersData = [];
+      ordersSnapshot.forEach(doc => {
+        const order = doc.data();
+        if (order.status === 'confirmed' || order.status === 'approved') {
+          const originalDate = order.createdAt ? (order.createdAt.seconds ? new Date(order.createdAt.seconds * 1000) : new Date(order.createdAt)) : new Date(0);
+          confirmedOrdersData.push({
+            id: doc.id,
+            cliente: order.customer || order.buyerEmail || 'Cliente não informado',
+            item: order.item || order.productName || 'Item não informado',
+            valor: order.amount || order.total || 'R$ 0,00',
+            data: originalDate.toLocaleDateString('pt-BR'),
+            originalDate: originalDate
+          });
+        }
+      });
+      
+      // Ordenar por data (mais recentes primeiro)
+      confirmedOrdersData.sort((a, b) => {
+        const dateA = a.originalDate || new Date(0);
+        const dateB = b.originalDate || new Date(0);
+        return dateB - dateA;
+      });
+      
+      // Atualizar contador
+      document.getElementById('confirmedCount').textContent = `${confirmedOrdersData.length} pedidos`;
+      
+      // Mostrar primeira página
+      mostrarPedidosConfirmadosPagina(1);
+      
+    } catch (error) {
+      console.error('Erro ao carregar pedidos confirmados:', error);
+    }
+  }
+
+  // Função para mostrar pedidos confirmados da página específica
+  function mostrarPedidosConfirmadosPagina(pagina) {
+    const tbody = document.getElementById('confirmedTbody');
+    const startIndex = (pagina - 1) * confirmedOrdersPerPage;
+    const endIndex = startIndex + confirmedOrdersPerPage;
+    const pedidosPagina = confirmedOrdersData.slice(startIndex, endIndex);
+    
+    // Limpar tabela
+    tbody.innerHTML = '';
+    
+    // Adicionar pedidos da página
+    pedidosPagina.forEach(pedido => {
+      const row = document.createElement('tr');
+      row.className = 'border-b border-gray-100 hover:bg-gray-50';
+      
+      row.innerHTML = `
+        <td class="py-1 px-1 text-xs">${pedido.cliente}</td>
+        <td class="py-1 px-1 text-xs">${pedido.item}</td>
+        <td class="py-1 px-1 text-xs">${pedido.valor}</td>
+        <td class="py-1 px-1 text-xs">${pedido.data}</td>
+      `;
+      
+      tbody.appendChild(row);
+    });
+    
+    // Atualizar informações de paginação
+    const totalPages = Math.ceil(confirmedOrdersData.length / confirmedOrdersPerPage);
+    document.getElementById('confirmedPageInfo').textContent = `Página ${pagina} de ${totalPages}`;
+    
+    // Gerar botões de paginação
+    gerarBotoesPaginacao('confirmedPagination', pagina, totalPages, (p) => mostrarPedidosConfirmadosPagina(p));
   }
 
   // Submissão manual de equipe/cadastro rápido (confirma vaga sem pagamento)
@@ -422,6 +512,7 @@
       await carregarUsuarios(); 
       await carregarDadosTokens();
       await carregarDadosUsoTokens();
+      await carregarPedidosConfirmados();
     } catch(_){}
     // bind filtros e export
     const btnApply = document.getElementById('btnApplyFilter');
