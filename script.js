@@ -332,7 +332,7 @@ function openRegisterModal(){ /* removed */ }
 async function submitRegister(){ /* removed */ }
 
 // Inicializa header conforme sessão prévia
-window.addEventListener('load', () => {});
+window.addEventListener('load', () => { try{ initShopCartHook(); }catch(_){ } });
 
 // ---------------- Área de Associados: cargos, níveis, permissões e tokens ----------------
 // Configuração centralizada acessível via window.AssocConfig
@@ -343,10 +343,7 @@ window.AssocConfig = {
         STAFF: 'Staff',
         VENDEDOR: 'Vendedor'
     },
-    levels: {
-        ASSOCIADO_TREINO: 'Associado Treino',
-        ASSOCIADO_MODO_LIGA: 'Associado Modo Liga'
-    },
+    levels: {},
     // Permissões por cargo
     permissionsByRole: {
         Gerente: {
@@ -519,24 +516,14 @@ async function checkAuthState() {
 
 async function loadUserProfile(uid) {
     try {
-        // Primeiro tenta carregar do localStorage
-        const localProfile = localStorage.getItem(`userProfile_${uid}`);
-        if (localProfile) {
-            window.currentUserProfile = JSON.parse(localProfile);
-            console.log('Perfil carregado do localStorage');
-            return;
-        }
-
-        // Se não tem perfil local, tenta do Firestore
+        // Sempre priorizar Firestore (desabilitado uso de localStorage)
         if (window.firebaseReady) {
             const { doc, getDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
             const ref = doc(collection(window.firebaseDb, 'users'), uid);
             const snap = await getDoc(ref);
             if (snap.exists()) {
                 window.currentUserProfile = snap.data();
-                // Salva no localStorage para uso offline
-                localStorage.setItem(`userProfile_${uid}`, JSON.stringify(window.currentUserProfile));
-                console.log('Perfil carregado do Firestore e salvo localmente');
+                console.log('Perfil carregado do Firestore');
             } else {
                 // Cria perfil básico se não existir
                 window.currentUserProfile = {
@@ -547,12 +534,10 @@ async function loadUserProfile(uid) {
                     role: 'Vendedor',
                     level: 'Associado Treino'
                 };
-                // Salva no localStorage
-                localStorage.setItem(`userProfile_${uid}`, JSON.stringify(window.currentUserProfile));
-                console.log('Perfil básico criado e salvo localmente');
+                console.log('Perfil básico criado (Firebase pronto, sem doc)');
             }
         } else {
-            // Fallback: cria perfil básico se Firebase não estiver pronto
+            // Fallback: cria perfil básico se Firebase não estiver pronto (sem localStorage)
             window.currentUserProfile = {
                 uid: uid,
                 email: window.firebaseAuth.currentUser.email,
@@ -561,8 +546,7 @@ async function loadUserProfile(uid) {
                 role: 'Usuario',
                 level: 'Associado Treino'
             };
-            localStorage.setItem(`userProfile_${uid}`, JSON.stringify(window.currentUserProfile));
-            console.log('Perfil básico criado (Firebase offline)');
+            console.log('Perfil básico criado (Firebase offline, em memória)');
         }
     } catch (e) {
         console.error('Erro ao carregar perfil:', e);
@@ -575,7 +559,6 @@ async function loadUserProfile(uid) {
             role: 'Usuario',
             level: 'Associado Treino'
         };
-        localStorage.setItem(`userProfile_${uid}`, JSON.stringify(window.currentUserProfile));
     }
 }
 
@@ -656,11 +639,8 @@ async function spendTokens(amountBRL) {
     
     console.log(`🔍 Spending ${amt} tokens. New balance: ${newBalance}`);
     
-    // Persistir no Firestore
+    // Persistir no Firestore (sem localStorage)
     await persistUserProfile(window.currentUserProfile);
-    
-    // Atualizar localStorage imediatamente
-    localStorage.setItem('assoc_profile', JSON.stringify(window.currentUserProfile));
     
     // Atualizar interface se estiver na área do cliente
     if (window.location.pathname.includes('client.html')) {
@@ -676,14 +656,8 @@ async function spendTokens(amountBRL) {
     // Atualizar interface na página principal
     renderClientArea();
     
-    // Atualizar interface após um tempo para garantir que tudo foi salvo
-    setTimeout(async () => {
-        // Atualizar novamente a interface
-        renderClientArea();
-        if (window.location.pathname.includes('client.html') && typeof loadMyTokens === 'function') {
-            await loadMyTokens();
-        }
-    }, 1000);
+    // Re-sync do Firestore para refletir saldo final
+    await syncUserTokens();
     
     return true;
 }
@@ -697,7 +671,7 @@ function grantTokens(amountBRL) {
 // Função para sincronizar tokens do usuário
 async function syncUserTokens() {
     try {
-        if (!window.firebaseAuth.currentUser) return;
+        if (!window.firebaseAuth || !window.firebaseAuth.currentUser) return;
         
         const { doc, getDoc, setDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const userRef = doc(collection(window.firebaseDb, 'users'), window.firebaseAuth.currentUser.uid);
@@ -751,13 +725,14 @@ async function ensureUserProfile(user) {
         orgName: '',
         age: '',
         role: window.AssocConfig.roles.VENDEDOR, // padrão mínimo
-        level: window.AssocConfig.levels.ASSOCIADO_TREINO,
+        level: undefined,
         tokens: 0
     };
     try {
         const isLocal = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
         const isNetlify = /netlify\.app$/i.test(location.hostname);
-        if (window.firebaseReady && !isLocal && !isNetlify && user?.uid){
+        // Sempre tentar Firestore quando disponível e com usuário logado
+        if (window.firebaseReady && user?.uid){
             const { doc, getDoc, setDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
             const ref = doc(collection(window.firebaseDb, 'users'), user.uid);
             const snap = await getDoc(ref);
@@ -771,17 +746,9 @@ async function ensureUserProfile(user) {
                 console.log('✅ Perfil carregado do Firestore:', { tokens: data.tokens });
             }
         } else {
-            // fallback local
-            const key = 'assoc_profile';
-            const stored = JSON.parse(localStorage.getItem(key) || 'null');
-            if (stored && stored.uid === (user?.uid || null)) {
-                window.currentUserProfile = stored;
-                console.log('✅ Perfil carregado do localStorage');
-            } else {
-                window.currentUserProfile = baseProfile;
-                localStorage.setItem(key, JSON.stringify(baseProfile));
-                console.log('✅ Perfil criado no localStorage');
-            }
+            // Sem Firebase: usa somente base em memória (não persiste em localStorage)
+            window.currentUserProfile = baseProfile;
+            console.log('⚠️ Firebase indisponível — usando perfil em memória.');
         }
         
         // Sincronização automática removida para evitar reset do saldo
@@ -789,38 +756,34 @@ async function ensureUserProfile(user) {
         //     await syncUserTokens();
         // }
     } catch (err) {
-        console.warn('Perfil: usando fallback local.', err);
-        const key = 'assoc_profile';
+        console.warn('Perfil: erro ao carregar, usando perfil em memória.', err);
         window.currentUserProfile = baseProfile;
-        localStorage.setItem(key, JSON.stringify(baseProfile));
     }
 }
 
 async function persistUserProfile(profile){
     try {
-        const isLocal = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
-        const isNetlify = /netlify\.app$/i.test(location.hostname);
-        
-        console.log('🔍 Persisting profile:', { isLocal, isNetlify, firebaseReady: window.firebaseReady, hasUid: !!profile?.uid });
-        
-        // Dar token inicial apenas para novos usuários (sem UID ou com tokens undefined)
-        if (!profile.uid || profile.tokens === undefined) {
-            profile.tokens = 1;
-            console.log('🎁 Giving initial token to new user');
+        console.log('🔍 Persisting profile:', { firebaseReady: window.firebaseReady, hasUid: !!profile?.uid });
+
+        // Garantir UID presente
+        if (!profile.uid && window.firebaseAuth && window.firebaseAuth.currentUser) {
+            profile.uid = window.firebaseAuth.currentUser.uid;
         }
-        
-        if (window.firebaseReady && !isLocal && profile?.uid){
+        // Normalizar tokens
+        if (profile.tokens === undefined || profile.tokens === null) {
+            profile.tokens = 0;
+        }
+
+        if (window.firebaseReady && profile?.uid){
             const { doc, setDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
             const ref = doc(collection(window.firebaseDb, 'users'), profile.uid);
             await setDoc(ref, profile, { merge: true });
             console.log('✅ Profile saved to Firestore');
         } else {
-            localStorage.setItem('assoc_profile', JSON.stringify(profile));
-            console.log('✅ Profile saved to localStorage');
+            console.warn('⚠️ Firebase unavailable when persisting profile; keeping in memory only');
         }
     } catch(error) {
         console.error('❌ Error persisting profile:', error);
-        localStorage.setItem('assoc_profile', JSON.stringify(profile));
     }
 }
 
@@ -978,7 +941,7 @@ const products = {
     'imagens': { name: 'Imagens Aéreas', price: 'R$ 19,90', description: 'Download digital imediato' },
     'sensibilidades': { name: 'Sensibilidades', price: 'R$ 8,00', description: 'Download digital imediato' },
     // Eventos e Reservas (cupom ADMFALL = 5% off)
-    'evt-xtreino-gratuito': { name: 'XTreino Gratuito e Associado', price: 'R$ 0,00', description: 'Evento gratuito/associados — horários 14h–23h' },
+    'evt-xtreino-gratuito': { name: 'XTreino Gratuito', price: 'R$ 0,00', description: 'Evento gratuito — horários 14h–23h' },
     'evt-modo-liga': { name: 'XTreino Modo Liga', price: 'R$ 3,00', description: 'Tabela + premiações, narração e transmissão — 14h–23h' },
     'evt-camp-freitas': { name: 'Camp Freitas', price: 'R$ 5,00', description: 'Inscrição — premiação total R$ 2000,00 + troféu' },
     'evt-semanal-freitas': { name: 'Semanal Freitas', price: 'R$ 3,50', description: '2 quedas, premiação R$ 65,00, fases 19h–22h' }
@@ -1347,16 +1310,27 @@ function addToCartByProductId(productId){
     toggleCart(true);
 }
 
-// Hook existing purchase buttons to cart add
-document.querySelectorAll('[onclick^="openPurchaseModal("]').forEach(btn=>{
-    const match = btn.getAttribute('onclick').match(/openPurchaseModal\('([^']+)'\)/);
-    if (!match) return;
-    const id = match[1];
-    btn.addEventListener('click', (e)=>{
-        e.preventDefault();
-        showProductModal(id);
+// Hook da loja → adicionar ao carrinho (executa após scheduleConfig existir)
+function initShopCartHook(){
+    document.querySelectorAll('#loja .product-card button').forEach(btn=>{
+        const onClick = btn.getAttribute('onclick') || '';
+        const m = onClick.match(/openScheduleModal\('([^']+)'\)/);
+        if (!m) return;
+        const pid = m[1];
+        btn.addEventListener('click', (e)=>{
+            try{
+                if (!window.scheduleConfig || !window.scheduleConfig[pid] || !window.scheduleConfig[pid].isProduct) return; // deixa eventos intactos
+                e.preventDefault();
+                const sc = window.scheduleConfig[pid];
+                const p = { name: sc.label, price: Number(sc.price) };
+                const exists = cart.find(c=>c.name===p.name);
+                if (exists) exists.qty += 1; else cart.push({ ...p, qty: 1 });
+                renderCart();
+                toggleCart(true);
+            }catch(_){ }
+        });
     });
-});
+}
 
 function checkoutCart(){
     const total = cart.reduce((s,i)=> s + i.price*i.qty, 0);
@@ -1380,7 +1354,7 @@ const scheduleConfig = {
     'modo-liga': { label: 'XTreino Modo Liga', price: 3.00 },
     'camp-freitas': { label: 'Camp Freitas', price: 5.00 },
     'semanal-freitas': { label: 'Semanal Freitas', price: 3.50 },
-    'associado': { label: 'XTreino Freitas Associado', price: 1.00, payWithToken: true },
+    'xtreino-tokens': { label: 'XTreino Tokens', price: 1.00, payWithToken: true },
     // Produtos da loja virtual
     'sensibilidades': { label: 'Sensis Freitas – PC / Android / iOS', price: 8.00, isProduct: true },
     'imagens': { label: 'Imagens Aéreas', price: 2.00, isProduct: true },
@@ -1609,25 +1583,25 @@ function openScheduleModal(eventType){
     document.getElementById('schedPrice').textContent = cfg.price.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
     document.getElementById('schedEventType').textContent = cfg.label;
     
-    // Se for evento que usa tokens, mostrar opção de usar tokens
-    if (cfg.payWithToken) {
-        const buyTokensBtn = document.getElementById('buyTokensBtn');
-        if (buyTokensBtn) {
-            buyTokensBtn.classList.remove('hidden');
-            buyTokensBtn.textContent = 'COMPRAR TOKENS';
-            buyTokensBtn.onclick = () => {
-                // Redirecionar para área do cliente para comprar tokens
-                window.location.href = 'client.html?tab=myTokens';
-            };
-        }
-    }
+    // Sincronizar tokens do usuário antes de qualquer checagem
+    try { if (typeof syncUserTokens === 'function') { syncUserTokens(); } } catch(_) {}
+
+    // Ocultar botão de tokens (não usamos associados)
+    const hideBuyTokens = document.getElementById('buyTokensBtn');
+    if (hideBuyTokens) hideBuyTokens.classList.add('hidden');
     
     // Se for produto da loja, esconder seleção de data/hora e adicionar opções específicas
     if (cfg.isProduct) {
         // Esconder TODAS as seções de data e horários para produtos
+        const grid = document.querySelector('#scheduleModal .lg\\:grid-cols-2');
         const leftColumn = document.querySelector('#scheduleModal .lg\\:grid-cols-2 > div:first-child');
         if (leftColumn) {
             leftColumn.style.display = 'none';
+        }
+        // Expandir coluna direita para 100% quando produto (ex.: Sensibilidades)
+        if (grid) {
+            grid.classList.remove('lg:grid-cols-2');
+            grid.classList.add('grid-cols-1');
         }
         console.log('Modal de produto aberto - coluna esquerda escondida');
         
@@ -1648,16 +1622,21 @@ function openScheduleModal(eventType){
     if (leftColumn) {
         leftColumn.style.display = 'block';
     }
-    
-    // Mostrar botão "Comprar tokens" apenas para XTreino Associado
-    const buyTokensBtn = document.getElementById('buyTokensBtn');
-    if (buyTokensBtn) {
-        if (eventType === 'associado') {
-            buyTokensBtn.classList.remove('hidden');
-        } else {
-            buyTokensBtn.classList.add('hidden');
-        }
+    // Se havia opções de produto (ex.: seleção de mapas), remover ao abrir um evento
+    const prodOpts = document.getElementById('productOptions');
+    if (prodOpts && prodOpts.parentNode) {
+        prodOpts.parentNode.removeChild(prodOpts);
     }
+    // Garantir grid em 2 colunas para eventos
+    const gridEv = document.querySelector('#scheduleModal .grid');
+    if (gridEv) {
+        gridEv.classList.remove('grid-cols-1');
+        if (!gridEv.classList.contains('lg:grid-cols-2')) gridEv.classList.add('lg:grid-cols-2');
+    }
+    
+    // Garantir que o botão de tokens permaneça oculto
+    const buyTokensBtn = document.getElementById('buyTokensBtn');
+    if (buyTokensBtn) buyTokensBtn.classList.add('hidden');
     
     initScheduleDate();
     // re-render quando a data mudar
@@ -1698,7 +1677,7 @@ function openScheduleModal(eventType){
     }
     
     const hint = document.getElementById('schedHint');
-    if (hint) hint.textContent = cfg.payWithToken ? `${cfg.label} • Pagamento com 1 token` : cfg.label;
+    if (hint) hint.textContent = cfg.label;
 }
 function closeScheduleModal(){
     const modal = document.getElementById('scheduleModal');
@@ -1711,6 +1690,12 @@ function closeScheduleModal(){
             modalContent.style.maxHeight = '';
             modalContent.style.overflowY = '';
             modalContent.style.webkitOverflowScrolling = '';
+        }
+        // Restaurar grid padrão (2 colunas) quando fechar o modal de produto
+        const grid = document.querySelector('#scheduleModal .grid');
+        if (grid) {
+            grid.classList.remove('grid-cols-1');
+            if (!grid.classList.contains('lg:grid-cols-2')) grid.classList.add('lg:grid-cols-2');
         }
     }
     if (window.innerWidth <= 767) maybeClearMobileModalState();
@@ -2332,7 +2317,7 @@ async function useTokensForEvent(eventType){
         'semanal': 3.50,
         'finalSemanal': 7.00,
         'campFases': 5.00,
-        'associado': 1.00
+        'xtreino-tokens': 1.00
     };
     
     const cost = eventCosts[eventType];
@@ -2349,7 +2334,7 @@ async function useTokensForEvent(eventType){
     const profile = window.currentUserProfile || {};
     console.log('🔍 useTokensForEvent - Profile check:', { profile, tokens: profile.tokens, cost });
     
-    if (!profile || !profile.tokens || profile.tokens < cost) {
+    if (!profile || profile.tokens === undefined || profile.tokens === null || Number(profile.tokens) < Number(cost)) {
         console.log('❌ Insufficient tokens:', { profile, tokens: profile.tokens, cost });
         alert(`Saldo insuficiente. Você precisa de ${cost.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})} em tokens.`);
         return;
@@ -2366,7 +2351,7 @@ async function useTokensForEvent(eventType){
         'semanal': 'Semanal',
         'finalSemanal': 'Final Semanal',
         'campFases': 'Camp de Fases',
-        'associado': 'XTreino Associado'
+        'xtreino-tokens': 'XTreino Tokens'
     };
     
     if (confirm(`Confirmar uso de ${cost.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})} em tokens para ${eventNames[eventType]}?`)) {
@@ -2398,7 +2383,7 @@ async function createTokenSchedule(eventType, cost) {
             'semanal': 'Semanal',
             'finalSemanal': 'Final Semanal',
             'campFases': 'Camp de Fases',
-            'associado': 'XTreino Associado'
+            'xtreino-tokens': 'XTreino Tokens'
         };
         
         // Link do grupo do WhatsApp baseado no tipo de evento
@@ -2408,7 +2393,7 @@ async function createTokenSchedule(eventType, cost) {
             'semanal': 'https://chat.whatsapp.com/SEU_GRUPO_SEMANAL',
             'finalSemanal': 'https://chat.whatsapp.com/SEU_GRUPO_FINAL_SEMANAL',
             'campFases': 'https://chat.whatsapp.com/SEU_GRUPO_CAMP_FASES',
-            'associado': 'https://chat.whatsapp.com/SEU_GRUPO_ASSOCIADO'
+            'xtreino-tokens': 'https://chat.whatsapp.com/SEU_GRUPO_TOKENS'
         };
         
         const scheduleData = {

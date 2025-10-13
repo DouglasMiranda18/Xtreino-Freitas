@@ -1,3 +1,24 @@
+/* Rolagem suave global */
+html {
+	scroll-behavior: smooth;
+}
+
+/* Ajustes mobile para não sobrepor o header fixo */
+:root { --header-h: 96px; }
+/* Aplicar scroll padding para âncoras considerando safe-area */
+html, body { scroll-padding-top: calc(var(--header-h) + env(safe-area-inset-top, 0px)); }
+@media (max-width: 767px){
+	#home { padding-top: calc(var(--header-h) + 8px + env(safe-area-inset-top, 0px)) !important; min-height: calc(100dvh - var(--header-h)); }
+	#home .container { padding-left: clamp(16px, 5vw, 24px); padding-right: clamp(16px, 5vw, 24px); }
+	#home h1 { font-size: clamp(2.1rem, 6.2vw, 3.2rem); line-height: 1.1; letter-spacing: -0.01em; }
+	#home p { font-size: clamp(0.95rem, 2.8vw, 1.125rem); line-height: 1.6; }
+	#home .btn-primary { width: 100%; }
+}
+
+/* Compact mode when viewport height < 800px */
+.vh-compact #home h1 { font-size: clamp(1.9rem, 5.6vw, 2.8rem); }
+.vh-compact #home p { font-size: clamp(0.9rem, 2.4vw, 1.05rem); }
+.vh-compact #home .container { padding-left: clamp(12px, 4vw, 20px); padding-right: clamp(12px, 4vw, 20px); }
 /* Branding: cores e fontes */
 :root {
     --brand-yellow: #ecd414;
