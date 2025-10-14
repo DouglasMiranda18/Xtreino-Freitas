@@ -436,18 +436,18 @@ async function loadWhatsAppLinks(orders) {
         const item = (order.item || '').toLowerCase();
         const eventType = (order.eventType || '').toLowerCase();
         
-        // Excluir produtos da loja virtual e tokens (mas manter XTreino Associado)
+        // Excluir produtos da loja virtual
         if (title.includes('planilhas') || 
             title.includes('sensibilidades') || 
             title.includes('imagens aéreas') || 
             title.includes('camisa') ||
-            (title.includes('tokens') && !title.includes('xtreino associado')) ||
+            // compras de tokens (mas manter eventos xtreino-tokens)
+            (title.includes('token') && eventType !== 'xtreino-tokens') ||
             item.includes('planilhas') || 
             item.includes('sensibilidades') || 
             item.includes('imagens aéreas') || 
             item.includes('camisa') ||
-            (item.includes('tokens') && !item.includes('xtreino associado')) ||
-            eventType === 'xtreino-tokens') {
+            (item.includes('token') && eventType !== 'xtreino-tokens')) {
             return false;
         }
         
@@ -483,7 +483,8 @@ async function loadWhatsAppLinks(orders) {
         'semanal': 'https://chat.whatsapp.com/SEU_GRUPO_SEMANAL',
         'finalSemanal': 'https://chat.whatsapp.com/SEU_GRUPO_FINAL_SEMANAL',
         'campFases': 'https://chat.whatsapp.com/SEU_GRUPO_CAMP_FASES',
-        'associado': 'https://chat.whatsapp.com/SEU_GRUPO_ASSOCIADO'
+        'associado': 'https://chat.whatsapp.com/SEU_GRUPO_ASSOCIADO',
+        'xtreino-tokens': 'https://chat.whatsapp.com/SEU_GRUPO_ASSOCIADO'
     };
 
     // Paginate WhatsApp links (show only 5 per page)
