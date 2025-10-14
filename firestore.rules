@@ -66,6 +66,20 @@ service cloud.firestore {
       allow delete: if isAdmin(); // Apenas admins podem deletar notícias
     }
 
+    // products: leitura pública para produtos; escrita apenas para admins
+    match /products/{productId} {
+      allow read: if true; // Permite leitura pública para produtos
+      allow create: if isAdmin(); // Apenas admins podem criar produtos
+      allow update: if isAdmin(); // Apenas admins podem atualizar produtos
+      allow delete: if isAdmin(); // Apenas admins podem deletar produtos
+    }
+
+    // product_downloads: usuário pode ler os próprios; admins leem tudo
+    match /product_downloads/{downloadId} {
+      allow read: if isAdmin() || (isSignedIn() && (resource.data.customerEmail == request.auth.email));
+      allow write: if isAdmin();
+    }
+
     // Admin: leitura global (qualquer coleção/documento) - apenas para admins
     match /{path=**} {
       allow read: if isAdmin();

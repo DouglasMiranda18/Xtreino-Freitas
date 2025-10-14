@@ -2543,6 +2543,394 @@ window.addEventListener('load', () => {
     }, 2000);
 });
 
+// ==================== SISTEMA DE PRODUTOS ====================
+
+let productsData = {};
+let productCounter = 0;
+
+// Carregar produtos do Firestore
+async function loadProducts() {
+    try {
+        const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const productsSnapshot = await collection(window.firebaseDb, 'products').get();
+        
+        if (productsSnapshot.empty) {
+            // Criar produtos padrão se não existirem
+            await createDefaultProducts();
+            return;
+        }
+        
+        productsData = {};
+        productsSnapshot.forEach(doc => {
+            productsData[doc.id] = doc.data();
+        });
+        
+        updateProductsPreview();
+        console.log('Produtos carregados:', Object.keys(productsData).length);
+    } catch (error) {
+        console.error('Erro ao carregar produtos:', error);
+    }
+}
+
+// Criar produtos padrão
+async function createDefaultProducts() {
+    const { setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    
+    const defaultProducts = {
+        'imagens': {
+            id: 'imagens',
+            name: 'Imagens Aéreas',
+            description: 'Pacote de imagens aéreas dos mapas do Free Fire',
+            category: 'digital',
+            price: 2.00,
+            type: 'download',
+            downloadType: 'maps',
+            maps: ['Bermuda', 'Purgatório', 'Kalahari', 'Alpina', 'Bermuda Remastered'],
+            baseUrl: 'https://freitasteste.netlify.app/downloads/',
+            active: true,
+            createdAt: new Date()
+        },
+        'planilhas': {
+            id: 'planilhas',
+            name: 'Planilhas de Análises',
+            description: 'Planilhas com análises detalhadas de jogos e estratégias',
+            category: 'digital',
+            price: 5.00,
+            type: 'download',
+            downloadType: 'file',
+            downloadUrl: 'https://drive.google.com/drive/folders/1ABC123',
+            active: true,
+            createdAt: new Date()
+        },
+        'camisa': {
+            id: 'camisa',
+            name: 'Camisa X-Treino Freitas',
+            description: 'Camisa oficial da X-Treino Freitas',
+            category: 'physical',
+            price: 25.00,
+            type: 'delivery',
+            sizes: ['P', 'M', 'G', 'GG'],
+            active: true,
+            createdAt: new Date()
+        },
+        'passe-booyah': {
+            id: 'passe-booyah',
+            name: 'Passe Booyah',
+            description: 'Passe Booyah do Free Fire',
+            category: 'digital',
+            price: 15.00,
+            type: 'gift',
+            active: true,
+            createdAt: new Date()
+        }
+    };
+    
+    for (const [productId, productData] of Object.entries(defaultProducts)) {
+        await setDoc(doc(window.firebaseDb, 'products', productId), productData);
+    }
+    
+    productsData = defaultProducts;
+    updateProductsPreview();
+    console.log('Produtos padrão criados');
+}
+
+// Atualizar preview dos produtos
+function updateProductsPreview() {
+    const preview = document.getElementById('productsPreview');
+    if (!preview) return;
+    
+    const products = Object.values(productsData);
+    if (products.length === 0) {
+        preview.innerHTML = '<div class="text-center text-gray-500 text-sm">Nenhum produto encontrado</div>';
+        return;
+    }
+    
+    preview.innerHTML = products.map(product => `
+        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-${getProductIcon(product.category)} text-blue-600 text-sm"></i>
+                </div>
+                <div>
+                    <div class="font-medium text-sm">${product.name}</div>
+                    <div class="text-xs text-gray-500">${product.category} • R$ ${product.price.toFixed(2)}</div>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <span class="px-2 py-1 text-xs rounded-full ${product.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                    ${product.active ? 'Ativo' : 'Inativo'}
+                </span>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Obter ícone do produto
+function getProductIcon(category) {
+    switch (category) {
+        case 'digital': return 'download';
+        case 'physical': return 'shipping-fast';
+        case 'gift': return 'gift';
+        default: return 'box';
+    }
+}
+
+// Abrir modal de produtos
+function openProductsModal() {
+    const modal = document.getElementById('modalProducts');
+    if (modal) {
+        modal.classList.remove('hidden');
+        renderProductsForm();
+    }
+}
+
+// Renderizar formulário de produtos
+function renderProductsForm() {
+    const container = document.getElementById('productsContainer');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    Object.entries(productsData).forEach(([key, product], index) => {
+        container.appendChild(createProductForm(key, product, index));
+    });
+}
+
+// Criar formulário de produto
+function createProductForm(key, product, index) {
+    const div = document.createElement('div');
+    div.className = 'border border-gray-200 rounded-lg p-6';
+    div.innerHTML = `
+        <div class="flex items-center justify-between mb-4">
+            <h4 class="font-bold text-lg">${product.name || 'Novo Produto'}</h4>
+            <button onclick="removeProduct('${key}')" class="text-red-500 hover:text-red-700">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">ID do Produto</label>
+                <input type="text" id="product_${key}_id" value="${product.id || ''}" 
+                       class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" 
+                       placeholder="Ex: imagens, planilhas">
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Nome</label>
+                <input type="text" id="product_${key}_name" value="${product.name || ''}" 
+                       class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" 
+                       placeholder="Nome do produto">
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                <textarea id="product_${key}_description" 
+                          class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" 
+                          rows="2" placeholder="Descrição do produto">${product.description || ''}</textarea>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                <select id="product_${key}_category" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
+                    <option value="digital" ${product.category === 'digital' ? 'selected' : ''}>Digital</option>
+                    <option value="physical" ${product.category === 'physical' ? 'selected' : ''}>Físico</option>
+                    <option value="gift" ${product.category === 'gift' ? 'selected' : ''}>Presente</option>
+                </select>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Preço (R$)</label>
+                <input type="number" id="product_${key}_price" value="${product.price || 0}" 
+                       step="0.01" min="0" 
+                       class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" 
+                       placeholder="0.00">
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+                <select id="product_${key}_type" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
+                    <option value="download" ${product.type === 'download' ? 'selected' : ''}>Download</option>
+                    <option value="delivery" ${product.type === 'delivery' ? 'selected' : ''}>Entrega</option>
+                    <option value="gift" ${product.type === 'gift' ? 'selected' : ''}>Presente</option>
+                </select>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select id="product_${key}_active" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
+                    <option value="true" ${product.active === true ? 'selected' : ''}>Ativo</option>
+                    <option value="false" ${product.active === false ? 'selected' : ''}>Inativo</option>
+                </select>
+            </div>
+        </div>
+        
+        <!-- Configurações específicas para downloads -->
+        <div id="downloadConfig_${key}" class="mt-4 ${product.type === 'download' ? '' : 'hidden'}">
+            <h5 class="font-medium text-gray-700 mb-2">Configurações de Download</h5>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Download</label>
+                    <select id="product_${key}_downloadType" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
+                        <option value="file" ${product.downloadType === 'file' ? 'selected' : ''}>Arquivo Único</option>
+                        <option value="maps" ${product.downloadType === 'maps' ? 'selected' : ''}>Múltiplos Mapas</option>
+                    </select>
+                </div>
+                
+                <div id="downloadUrl_${key}" class="${product.downloadType === 'file' ? '' : 'hidden'}">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">URL de Download</label>
+                    <input type="url" id="product_${key}_downloadUrl" value="${product.downloadUrl || ''}" 
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" 
+                           placeholder="https://drive.google.com/...">
+                </div>
+                
+                <div id="mapsConfig_${key}" class="${product.downloadType === 'maps' ? '' : 'hidden'}">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Mapas Disponíveis</label>
+                    <input type="text" id="product_${key}_maps" value="${(product.maps || []).join(', ')}" 
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" 
+                           placeholder="Bermuda, Purgatório, Kalahari">
+                </div>
+                
+                <div id="baseUrl_${key}" class="${product.downloadType === 'maps' ? '' : 'hidden'}">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">URL Base</label>
+                    <input type="url" id="product_${key}_baseUrl" value="${product.baseUrl || ''}" 
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" 
+                           placeholder="https://freitasteste.netlify.app/downloads/">
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Adicionar event listeners para mostrar/ocultar configurações
+    const typeSelect = div.querySelector(`#product_${key}_type`);
+    const downloadConfig = div.querySelector(`#downloadConfig_${key}`);
+    
+    typeSelect.addEventListener('change', function() {
+        if (this.value === 'download') {
+            downloadConfig.classList.remove('hidden');
+        } else {
+            downloadConfig.classList.add('hidden');
+        }
+    });
+    
+    const downloadTypeSelect = div.querySelector(`#product_${key}_downloadType`);
+    const downloadUrlDiv = div.querySelector(`#downloadUrl_${key}`);
+    const mapsConfigDiv = div.querySelector(`#mapsConfig_${key}`);
+    const baseUrlDiv = div.querySelector(`#baseUrl_${key}`);
+    
+    downloadTypeSelect.addEventListener('change', function() {
+        if (this.value === 'file') {
+            downloadUrlDiv.classList.remove('hidden');
+            mapsConfigDiv.classList.add('hidden');
+            baseUrlDiv.classList.add('hidden');
+        } else {
+            downloadUrlDiv.classList.add('hidden');
+            mapsConfigDiv.classList.remove('hidden');
+            baseUrlDiv.classList.remove('hidden');
+        }
+    });
+    
+    return div;
+}
+
+// Fechar modal de produtos
+function closeProductsModal() {
+    const modal = document.getElementById('modalProducts');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+// Adicionar novo produto
+function addProduct() {
+    const newKey = `product_${Date.now()}`;
+    const newProduct = {
+        id: '',
+        name: '',
+        description: '',
+        category: 'digital',
+        price: 0,
+        type: 'download',
+        active: true,
+        createdAt: new Date()
+    };
+    
+    productsData[newKey] = newProduct;
+    renderProductsForm();
+}
+
+// Remover produto
+function removeProduct(key) {
+    if (Object.keys(productsData).length <= 1) {
+        alert('Você deve manter pelo menos um produto.');
+        return;
+    }
+    
+    if (confirm('Tem certeza que deseja remover este produto?')) {
+        delete productsData[key];
+        renderProductsForm();
+    }
+}
+
+// Salvar produtos
+async function saveProducts() {
+    try {
+        const { collection, getDocs, deleteDoc, setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        
+        // Limpar coleção existente
+        const productsSnapshot = await collection(window.firebaseDb, 'products').get();
+        for (const docSnapshot of productsSnapshot.docs) {
+            await deleteDoc(docSnapshot.ref);
+        }
+        
+        // Salvar novos produtos
+        for (const [key, productData] of Object.entries(productsData)) {
+            const productId = document.getElementById(`product_${key}_id`)?.value || key;
+            const product = {
+                id: productId,
+                name: document.getElementById(`product_${key}_name`)?.value || '',
+                description: document.getElementById(`product_${key}_description`)?.value || '',
+                category: document.getElementById(`product_${key}_category`)?.value || 'digital',
+                price: parseFloat(document.getElementById(`product_${key}_price`)?.value || 0),
+                type: document.getElementById(`product_${key}_type`)?.value || 'download',
+                active: document.getElementById(`product_${key}_active`)?.value === 'true',
+                downloadType: document.getElementById(`product_${key}_downloadType`)?.value || 'file',
+                downloadUrl: document.getElementById(`product_${key}_downloadUrl`)?.value || '',
+                maps: document.getElementById(`product_${key}_maps`)?.value?.split(',').map(s => s.trim()).filter(Boolean) || [],
+                baseUrl: document.getElementById(`product_${key}_baseUrl`)?.value || '',
+                updatedAt: new Date()
+            };
+            
+            await setDoc(doc(window.firebaseDb, 'products', productId), product);
+        }
+        
+        // Recarregar dados
+        await loadProducts();
+        closeProductsModal();
+        
+        alert('Produtos salvos com sucesso!');
+    } catch (error) {
+        console.error('Erro ao salvar produtos:', error);
+        alert('Erro ao salvar produtos: ' + error.message);
+    }
+}
+
+// Expor funções globalmente
+window.openProductsModal = openProductsModal;
+window.closeProductsModal = closeProductsModal;
+window.addProduct = addProduct;
+window.removeProduct = removeProduct;
+window.saveProducts = saveProducts;
+
+// Carregar produtos na inicialização
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        if (window.firebaseDb && document.getElementById('productsPreview')) {
+            loadProducts();
+        }
+    }, 2000);
+});
+
 main();
 
 

@@ -2,7 +2,53 @@
 const admin = require('firebase-admin');
 
 // Função para gerar links de download baseado no produto
-function generateDownloadLinks(productId, productOptions = {}) {
+async function generateDownloadLinks(productId, productOptions = {}) {
+    try {
+        // Tentar buscar informações do produto no Firestore
+        const productDoc = await admin.firestore().collection('products').doc(productId).get();
+        
+        if (productDoc.exists) {
+            const product = productDoc.data();
+            
+            switch (product.type) {
+                case 'download':
+                    if (product.downloadType === 'file' && product.downloadUrl) {
+                        return [{
+                            name: product.name,
+                            url: product.downloadUrl,
+                            description: product.description
+                        }];
+                    } else if (product.downloadType === 'maps') {
+                        const maps = productOptions.maps || product.maps || [];
+                        const baseUrl = product.baseUrl || 'https://freitasteste.netlify.app/downloads/';
+                        return maps.map(map => ({
+                            name: `${product.name} - ${map}`,
+                            url: `${baseUrl}imagens-${map.toLowerCase().replace(' ', '-')}.zip`,
+                            description: `~20 imagens com principais calls do mapa ${map}`
+                        }));
+                    }
+                    break;
+                    
+                case 'delivery':
+                    return [{
+                        name: product.name,
+                        url: `https://wa.me/5511949830454?text=Olá! Comprei ${product.name}. Tamanho: ${productOptions.size || 'M'}`,
+                        description: 'Entre em contato para confirmar o tamanho e endereço de entrega'
+                    }];
+                    
+                case 'gift':
+                    return [{
+                        name: product.name,
+                        url: 'https://wa.me/5511949830454?text=Olá! Comprei ' + product.name,
+                        description: 'Entre em contato para receber seu produto'
+                    }];
+            }
+        }
+    } catch (error) {
+        console.error('Erro ao buscar produto no Firestore:', error);
+    }
+    
+    // Fallback para comportamento padrão
     const baseUrl = 'https://freitasteste.netlify.app/downloads/';
     
     switch (productId) {
@@ -215,7 +261,7 @@ exports.handler = async (event, context) => {
                                     productOptions: orderData.productOptions || {},
                                     status: 'delivered',
                                     deliveredAt: admin.firestore.FieldValue.serverTimestamp(),
-                                    downloadLinks: generateDownloadLinks(orderData.productId, orderData.productOptions),
+                                    downloadLinks: await generateDownloadLinks(orderData.productId, orderData.productOptions),
                                     paymentId: payment.id
                                 };
                                 
@@ -318,7 +364,7 @@ exports.handler = async (event, context) => {
                                 productOptions: orderData.productOptions || {},
                                 status: 'delivered',
                                 deliveredAt: admin.firestore.FieldValue.serverTimestamp(),
-                                downloadLinks: generateDownloadLinks(orderData.productId, orderData.productOptions),
+                                downloadLinks: await generateDownloadLinks(orderData.productId, orderData.productOptions),
                                 paymentId: payment.id
                             };
                             
