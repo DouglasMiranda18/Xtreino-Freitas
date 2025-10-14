@@ -45,19 +45,25 @@ service cloud.firestore {
     // config: leitura pública para configurações gerais
     match /config/{docId} {
       allow read: if true; // Permite leitura pública para configurações
-      allow write: if isAdmin();
+      allow create: if isAdmin(); // Apenas admins podem criar configurações
+      allow update: if isAdmin(); // Apenas admins podem atualizar configurações
+      allow delete: if isAdmin(); // Apenas admins podem deletar configurações
     }
 
     // highlights: leitura pública para destaques; escrita apenas para admins
     match /highlights/{highlightId} {
       allow read: if true; // Permite leitura pública para destaques
-      allow write: if isAdmin();
+      allow create: if isAdmin(); // Apenas admins podem criar destaques
+      allow update: if isAdmin(); // Apenas admins podem atualizar destaques
+      allow delete: if isAdmin(); // Apenas admins podem deletar destaques
     }
 
     // news: leitura pública para notícias; escrita apenas para admins
     match /news/{newsId} {
       allow read: if true; // Permite leitura pública para notícias
-      allow write: if isAdmin();
+      allow create: if isAdmin(); // Apenas admins podem criar notícias
+      allow update: if isAdmin(); // Apenas admins podem atualizar notícias
+      allow delete: if isAdmin(); // Apenas admins podem deletar notícias
     }
 
     // Admin: leitura global (qualquer coleção/documento) - apenas para admins
