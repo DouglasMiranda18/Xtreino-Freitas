@@ -201,9 +201,11 @@
   // Função para carregar dados de tokens
   async function carregarDadosTokens() {
     try {
+      console.log('🔍 Carregando dados de tokens...');
       // Buscar pedidos de tokens
       const ordersRef = collection(window.firebaseDb, 'orders');
       const ordersSnapshot = await getDocs(ordersRef);
+      console.log('📊 Total de pedidos encontrados:', ordersSnapshot.size);
       
       tokensData = [];
       ordersSnapshot.forEach(doc => {
@@ -232,6 +234,7 @@
       // Atualizar contador
       document.getElementById('tokensCount').textContent = `${tokensData.length} compras`;
       document.getElementById('totalTokensPurchased').textContent = tokensData.length;
+      console.log('✅ Tokens carregados:', tokensData.length);
       
       // Mostrar primeira página
       mostrarTokensPagina(1);
@@ -351,9 +354,11 @@
   // Função para carregar pedidos confirmados
   async function carregarPedidosConfirmados() {
     try {
+      console.log('🔍 Carregando pedidos confirmados...');
       // Buscar pedidos confirmados
       const ordersRef = collection(window.firebaseDb, 'orders');
       const ordersSnapshot = await getDocs(ordersRef);
+      console.log('📊 Total de pedidos encontrados:', ordersSnapshot.size);
       
       confirmedOrdersData = [];
       ordersSnapshot.forEach(doc => {
@@ -380,6 +385,7 @@
       
       // Atualizar contador
       document.getElementById('confirmedCount').textContent = `${confirmedOrdersData.length} pedidos`;
+      console.log('✅ Pedidos confirmados carregados:', confirmedOrdersData.length);
       
       // Mostrar primeira página
       mostrarPedidosConfirmadosPagina(1);
@@ -509,11 +515,18 @@
     const isCeo = roleLower==='ceo';
     window.adminRoleLower = roleLower;
     try { 
+      console.log('🔍 Carregando dados...');
       await carregarUsuarios(); 
+      console.log('✅ Usuários carregados');
       await carregarDadosTokens();
+      console.log('✅ Tokens carregados');
       await carregarDadosUsoTokens();
+      console.log('✅ Uso de tokens carregado');
       await carregarPedidosConfirmados();
-    } catch(_){}
+      console.log('✅ Pedidos confirmados carregados');
+    } catch(e){
+      console.error('❌ Erro ao carregar dados:', e);
+    }
     // bind filtros e export
     const btnApply = document.getElementById('btnApplyFilter');
     if (btnApply) btnApply.onclick = applyFilter;
