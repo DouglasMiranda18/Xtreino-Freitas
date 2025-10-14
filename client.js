@@ -246,7 +246,8 @@ async function loadRecentOrders() {
             ...d.data,
             date: d.data.createdAt?.toDate?.() || new Date(),
             title: d.data.title || d.data.item || 'Pedido',
-            status: d.data.status || 'pending'
+            status: d.data.status || 'pending',
+            price: d.data.amount ?? d.data.total ?? 0
         }));
 
         // Registrations pagas com tokens (e.g., XTreino Associado)
@@ -261,7 +262,9 @@ async function loadRecentOrders() {
             // marcar como pago para aparecer como concluído
             status: d.data.status || 'paid',
             // preço 0 pois foi pago com tokens
-            price: 0
+            price: 0,
+            paidWithTokens: true,
+            tokensUsed: d.data.tokensUsed || d.data.tokenCost || 1
           }));
 
         const merged = [...orders, ...tokenRegs]
@@ -321,7 +324,8 @@ async function loadOrders() {
             ...d.data,
             date: d.data.createdAt?.toDate?.() || new Date(),
             title: d.data.title || d.data.item || 'Pedido',
-            status: d.data.status || 'pending'
+            status: d.data.status || 'pending',
+            price: d.data.amount ?? d.data.total ?? 0
         }));
 
         // incluir eventos pagos com tokens das registrations
@@ -334,7 +338,9 @@ async function loadOrders() {
             date: d.data.createdAt?.toDate?.() || new Date(),
             title: d.data.title || d.data.eventType || 'Reserva',
             status: d.data.status || 'paid',
-            price: 0
+            price: 0,
+            paidWithTokens: true,
+            tokensUsed: d.data.tokensUsed || d.data.tokenCost || 1
           }));
 
         allOrdersData = [...mappedOrders, ...mappedRegs]
@@ -625,7 +631,7 @@ function displayAllOrdersPaginated() {
                     <span class="font-medium">Data:</span> ${formatDate(order.date)}
                 </div>
                 <div>
-                    <span class="font-medium">Valor:</span> R$ ${order.price?.toFixed(2) || '0,00'}
+                    <span class="font-medium">${order.paidWithTokens ? 'Consumo:' : 'Valor:'}</span> ${order.paidWithTokens ? `-${order.tokensUsed||1} token${(order.tokensUsed||1)>1?'s':''}` : `R$ ${Number(order.price||0).toFixed(2)}`}
                 </div>
                 <div>
                     <span class="font-medium">ID:</span> ${order.id.substring(0, 8)}...
@@ -932,7 +938,9 @@ async function loadStats() {
         }
         
         const orders = await fetchUserDocs('orders', 200, false);
-        let totalOrders = orders.length;
+        const regs = await fetchUserDocs('registrations', 200, false);
+        const regsPaidWithTokens = regs.filter(r => r.data.paidWithTokens === true);
+        let totalOrders = orders.length + regsPaidWithTokens.length;
         let totalSpent = orders.reduce((sum, r) => sum + (r.data.total || r.data.amount || 0), 0);
 
         console.log('🔍 Stats data:', { totalOrders, totalSpent, userProfile });
