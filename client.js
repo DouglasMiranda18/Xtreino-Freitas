@@ -558,14 +558,18 @@ async function loadWhatsAppLinks(orders) {
         if ((rawSchedule && rawDate) || (order.eventDate && (order.schedule || order.hour))) {
             const dateStr = rawDate || order.eventDate;
             const scheduleStr = rawSchedule || order.schedule || order.hour || '';
-            const eventDateTime = getEventDateTime(dateStr, scheduleStr);
-            const thirtyMinutesAfterEvent = new Date(eventDateTime.getTime() + (30 * 60 * 1000));
-            const now = new Date();
-            // Só expira após 30 minutos do horário; antes disso fica disponível
-            if (now > thirtyMinutesAfterEvent) {
+            const startDt = getEventDateTime(dateStr, scheduleStr);
+            if (!isNaN(startDt.getTime())){
+                const endDt = new Date(startDt.getTime() + (30 * 60 * 1000));
+                const now = new Date();
+                // Disponível SOMENTE entre o horário e +30min
+                showWhatsAppButton = now >= startDt && now <= endDt;
+            } else {
                 showWhatsAppButton = false;
             }
-        } 
+        } else {
+            showWhatsAppButton = false;
+        }
 
         return `
             <div class="border border-gray-200 rounded-lg p-4 mb-4">
