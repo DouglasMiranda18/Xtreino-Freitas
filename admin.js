@@ -210,6 +210,13 @@
       tokensData = [];
       ordersSnapshot.forEach(doc => {
         const order = doc.data();
+        console.log('🔍 Analisando pedido:', {
+          id: doc.id,
+          item: order.item,
+          title: order.title,
+          status: order.status,
+          customer: order.customer
+        });
         if (order.item && order.item.includes('tokens')) {
           const originalDate = order.createdAt ? (order.createdAt.seconds ? new Date(order.createdAt.seconds * 1000) : new Date(order.createdAt)) : new Date(0);
           tokensData.push({
@@ -363,6 +370,13 @@
       confirmedOrdersData = [];
       ordersSnapshot.forEach(doc => {
         const order = doc.data();
+        console.log('🔍 Analisando pedido confirmado:', {
+          id: doc.id,
+          status: order.status,
+          item: order.item,
+          title: order.title,
+          customer: order.customer
+        });
         if (order.status === 'confirmed' || order.status === 'approved') {
           const originalDate = order.createdAt ? (order.createdAt.seconds ? new Date(order.createdAt.seconds * 1000) : new Date(order.createdAt)) : new Date(0);
           confirmedOrdersData.push({
