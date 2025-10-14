@@ -436,11 +436,30 @@ function getWeekdayPtBr(dateStr){
 }
 
 function formatTitleWithSchedule(title, dateStr, schedule){
-    if (dateStr && schedule){
-        const wd = getWeekdayPtBr(dateStr);
-        return `${title} • ${wd} - ${schedule}`;
-    }
+    const { weekday, hour } = parseSchedule(schedule);
+    const wd = weekday || (dateStr ? getWeekdayPtBr(dateStr) : '');
+    if (wd && hour) return `${title} • ${wd} - ${hour}`;
+    if (wd) return `${title} • ${wd}`;
+    if (hour) return `${title} • ${hour}`;
     return title;
+}
+
+function parseSchedule(scheduleStr){
+    const out = { weekday: '', hour: (scheduleStr||'').trim() };
+    if (!scheduleStr) return out;
+    if (scheduleStr.includes('-')){
+        const parts = scheduleStr.split('-');
+        out.weekday = (parts[0]||'').trim();
+        out.hour = (parts[1]||'').trim();
+    }
+    return out;
+}
+
+function formatShortDatePtBr(dateStr){
+    try{
+        const d = new Date(`${dateStr}T00:00:00`);
+        return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    }catch(_){ return dateStr||''; }
 }
 
 // Carrega links do WhatsApp para pedidos confirmados
@@ -542,7 +561,7 @@ async function loadWhatsAppLinks(orders) {
             }
         }
         
-        // Calcular quando o link expira (15 minutos após o evento)
+        // Calcular janela de disponibilidade do link (entre horário e +30min)
         let showWhatsAppButton = true;
         
         if ((rawSchedule && rawDate) || (order.eventDate && (order.schedule || order.hour))) {
@@ -551,12 +570,8 @@ async function loadWhatsAppLinks(orders) {
             const eventDateTime = getEventDateTime(dateStr, scheduleStr);
             const thirtyMinutesAfterEvent = new Date(eventDateTime.getTime() + (30 * 60 * 1000));
             const now = new Date();
-            const timeLeft = thirtyMinutesAfterEvent.getTime() - now.getTime();
-            
-            if (timeLeft <= 0) {
-                // Link expirou - não mostrar botão do WhatsApp
-                showWhatsAppButton = false;
-            }
+            // Disponível somente a partir do horário do evento até 30min após
+            showWhatsAppButton = now >= eventDateTime && now <= thirtyMinutesAfterEvent;
         }
 
         return `
@@ -649,7 +664,7 @@ function displayAllOrdersPaginated() {
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
                 <div>
-                    <span class="font-medium">Data:</span> ${order.eventDate ? `${order.eventDate} ${order.schedule? 'às '+order.schedule : ''}` : formatDate(order.date)}
+                    <span class="font-medium">Data:</span> ${order.eventDate ? `${formatShortDatePtBr(order.eventDate)} ${parseSchedule(order.schedule).hour? 'às '+parseSchedule(order.schedule).hour : ''}` : formatDate(order.date)}
                 </div>
                 <div>
                     <span class="font-medium">${order.paidWithTokens ? 'Consumo:' : 'Valor:'}</span> ${order.paidWithTokens ? `-${order.tokensUsed||1} token${(order.tokensUsed||1)>1?'s':''}` : `R$ ${Number(order.price||0).toFixed(2)}`}
