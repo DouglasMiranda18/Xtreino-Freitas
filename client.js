@@ -582,30 +582,29 @@ async function loadWhatsAppLinks(orders) {
 function displayAllOrdersPaginated() {
     const container = document.getElementById('allOrders');
     
-    // Filter only events (XTreinos and Camps) - exclude tokens
+    // Filter only events (XTreinos, Camps, Semanal, Modo Liga) -
+    // incluir xtreino-tokens (consumo via tokens) e excluir compras de tokens
     const eventsOnly = allOrdersData.filter(order => {
         const title = (order.title || '').toLowerCase();
         const item = (order.item || '').toLowerCase();
         const eventType = (order.eventType || '').toLowerCase();
         
-        // Exclude tokens (but be more specific to avoid filtering XTreino events)
-        if (eventType === 'xtreino-tokens' || 
-            (title.includes('tokens') && !title.includes('xtreino associado')) ||
-            (item.includes('tokens') && !item.includes('xtreino associado'))) {
+        // Excluir compras de tokens (orders com descrição/item contendo token)
+        // mas manter registros de consumo (eventType === 'xtreino-tokens')
+        if ((title.includes('token') || item.includes('token')) && eventType !== 'xtreino-tokens') {
             return false;
         }
         
-        // Include only events (inclui XTreino Associado)
-        return title.includes('xtreino') || 
+        // Incluir somente eventos + xtreino-tokens
+        return eventType === 'xtreino-tokens' ||
+               title.includes('xtreino') || 
                title.includes('camp') || 
                title.includes('semanal') || 
                title.includes('modo liga') ||
-               title.includes('associado') ||
                item.includes('xtreino') || 
                item.includes('camp') || 
                item.includes('semanal') || 
-               item.includes('modo liga') ||
-               item.includes('associado');
+               item.includes('modo liga');
     });
     
     if (eventsOnly.length === 0) {
