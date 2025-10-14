@@ -210,24 +210,36 @@
       tokensData = [];
       ordersSnapshot.forEach(doc => {
         const order = doc.data();
+        const status = String(order.status || '').toLowerCase();
+        const descriptorRaw = order.description || order.item || order.itemName || order.title || '';
+        const descriptor = String(descriptorRaw).toLowerCase();
         console.log('🔍 Analisando pedido:', {
           id: doc.id,
           item: order.item,
+          itemName: order.itemName,
           title: order.title,
-          status: order.status,
-          customer: order.customer
+          description: order.description,
+          status,
+          customer: order.customer || order.customerName || order.buyerEmail
         });
-        if (order.item && order.item.includes('tokens')) {
-          const originalDate = order.createdAt ? (order.createdAt.seconds ? new Date(order.createdAt.seconds * 1000) : new Date(order.createdAt)) : new Date(0);
-          tokensData.push({
-            id: doc.id,
-            cliente: order.customer || order.buyerEmail || 'Cliente não informado',
-            pacote: order.item || 'Pacote de Tokens',
-            tokens: order.tokens || 'N/A',
-            valor: order.amount || order.total || 'R$ 0,00',
-            data: originalDate.toLocaleDateString('pt-BR'),
-            originalDate: originalDate
-          });
+        // Considera tokens se houver menção a "token" em qualquer campo descritivo
+        if (descriptor.includes('token')) {
+          // Apenas pedidos pagos/confirmados entram nas compras
+          if (['paid','approved','confirmed'].includes(status)) {
+            const originalDate = order.createdAt ? (order.createdAt.seconds ? new Date(order.createdAt.seconds * 1000) : new Date(order.createdAt)) : new Date(order.timestamp || 0);
+            // Tenta extrair quantidade de tokens do texto
+            const m = String(descriptorRaw).match(/(\d+)\s*token/i);
+            const tokenQty = m ? parseInt(m[1]) : (order.tokens || 1);
+            tokensData.push({
+              id: doc.id,
+              cliente: order.customer || order.customerName || order.buyerEmail || 'Cliente não informado',
+              pacote: order.item || order.itemName || order.title || 'Pacote de Tokens',
+              tokens: tokenQty,
+              valor: order.amount || order.total || 0,
+              data: originalDate.toLocaleDateString('pt-BR'),
+              originalDate: originalDate
+            });
+          }
         }
       });
       
@@ -377,13 +389,13 @@
           title: order.title,
           customer: order.customer
         });
-        if (order.status === 'confirmed' || order.status === 'approved') {
+        if (['paid','approved','confirmed'].includes(String(order.status||'').toLowerCase())) {
           const originalDate = order.createdAt ? (order.createdAt.seconds ? new Date(order.createdAt.seconds * 1000) : new Date(order.createdAt)) : new Date(0);
           confirmedOrdersData.push({
             id: doc.id,
-            cliente: order.customer || order.buyerEmail || 'Cliente não informado',
-            item: order.item || order.productName || 'Item não informado',
-            valor: order.amount || order.total || 'R$ 0,00',
+            cliente: order.customer || order.customerName || order.buyerEmail || 'Cliente não informado',
+            item: order.title || order.item || order.productName || 'Item não informado',
+            valor: order.amount || order.total || 0,
             data: originalDate.toLocaleDateString('pt-BR'),
             originalDate: originalDate
           });
