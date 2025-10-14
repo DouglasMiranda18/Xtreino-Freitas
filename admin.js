@@ -1974,54 +1974,63 @@ function showGiveTokensModal() {
 
 // ===== GERENCIAMENTO DE DESTAQUES =====
 
+let highlightsData = {};
+let highlightCounter = 1;
+
 // Carregar destaques do Firestore
 async function loadHighlights() {
     try {
         const highlightsRef = collection(window.firebaseDb, 'highlights');
         const snapshot = await getDocs(highlightsRef);
         
-        let highlights = {};
+        highlightsData = {};
         snapshot.forEach(doc => {
-            highlights[doc.id] = doc.data();
+            highlightsData[doc.id] = doc.data();
         });
         
         // Se não existem destaques, criar os padrão
-        if (Object.keys(highlights).length === 0) {
-            highlights = {
+        if (Object.keys(highlightsData).length === 0) {
+            highlightsData = {
                 highlight1: {
                     title: 'Modo Liga - Estratégia',
                     subtitle: 'Treinos competitivos',
                     description: 'Treinos competitivos com pontuação e ranking.',
                     image: '',
-                    action: "openPurchaseModal('estrategia')"
+                    action: "openPurchaseModal('estrategia')",
+                    hasRedirect: false,
+                    redirectUrl: ''
                 },
                 highlight2: {
                     title: 'Campeonato Semanal',
                     subtitle: 'Etapas semanais',
                     description: 'Etapas semanais com premiações.',
                     image: '',
-                    action: "openPurchaseModal('planilhas')"
+                    action: "openPurchaseModal('planilhas')",
+                    hasRedirect: false,
+                    redirectUrl: ''
                 },
                 highlight3: {
                     title: 'Camp de Fases',
                     subtitle: 'Eliminatórias',
                     description: 'Eliminatórias com melhores confrontos.',
                     image: '',
-                    action: "openPurchaseModal('camp-fases')"
+                    action: "openPurchaseModal('camp-fases')",
+                    hasRedirect: false,
+                    redirectUrl: ''
                 }
             };
             
             // Salvar destaques padrão
             const { setDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-            for (const [id, data] of Object.entries(highlights)) {
+            for (const [id, data] of Object.entries(highlightsData)) {
                 await setDoc(doc(window.firebaseDb, 'highlights', id), data);
             }
         }
         
         // Atualizar preview
-        updateHighlightsPreview(highlights);
+        updateHighlightsPreview(highlightsData);
         
-        return highlights;
+        return highlightsData;
     } catch (error) {
         console.error('Erro ao carregar destaques:', error);
         return {};
@@ -2035,22 +2044,23 @@ function updateHighlightsPreview(highlights) {
     
     preview.innerHTML = '';
     
-    for (let i = 1; i <= 3; i++) {
-        const highlight = highlights[`highlight${i}`];
+    Object.keys(highlights).forEach((key, index) => {
+        const highlight = highlights[key];
         if (highlight) {
             const div = document.createElement('div');
             div.className = 'border border-gray-200 rounded-lg p-3';
             div.innerHTML = `
                 <div class="flex items-center justify-between mb-2">
-                    <h4 class="font-semibold text-sm">Destaque ${i}</h4>
+                    <h4 class="font-semibold text-sm">Destaque ${index + 1}</h4>
                     <span class="text-xs text-gray-500">${highlight.title}</span>
                 </div>
                 <p class="text-xs text-gray-600 mb-1">${highlight.subtitle}</p>
                 <p class="text-xs text-gray-500">${highlight.description}</p>
+                ${highlight.hasRedirect ? `<p class="text-xs text-blue-600 mt-1"><i class="fas fa-link mr-1"></i>Redireciona para: ${highlight.redirectUrl}</p>` : ''}
             `;
             preview.appendChild(div);
         }
-    }
+    });
 }
 
 // Abrir modal de edição
@@ -2060,19 +2070,80 @@ function openHighlightsModal() {
     
     modal.classList.remove('hidden');
     
-    // Carregar dados atuais nos campos
-    loadHighlights().then(highlights => {
-        for (let i = 1; i <= 3; i++) {
-            const highlight = highlights[`highlight${i}`];
-            if (highlight) {
-                document.getElementById(`highlight${i}Title`).value = highlight.title || '';
-                document.getElementById(`highlight${i}Subtitle`).value = highlight.subtitle || '';
-                document.getElementById(`highlight${i}Description`).value = highlight.description || '';
-                document.getElementById(`highlight${i}Image`).value = highlight.image || '';
-                document.getElementById(`highlight${i}Action`).value = highlight.action || '';
-            }
-        }
+    // Carregar dados atuais e renderizar formulários
+    loadHighlights().then(() => {
+        renderHighlightsForm();
     });
+}
+
+// Renderizar formulário de destaques
+function renderHighlightsForm() {
+    const container = document.getElementById('highlightsContainer');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    Object.keys(highlightsData).forEach((key, index) => {
+        const highlight = highlightsData[key];
+        const highlightDiv = createHighlightForm(key, highlight, index + 1);
+        container.appendChild(highlightDiv);
+    });
+}
+
+// Criar formulário para um destaque
+function createHighlightForm(key, highlight, index) {
+    const div = document.createElement('div');
+    div.className = 'border border-gray-200 rounded-lg p-4';
+    div.innerHTML = `
+        <div class="flex items-center justify-between mb-4">
+            <h4 class="font-semibold text-lg">Destaque ${index}</h4>
+            <button onclick="removeHighlight('${key}')" class="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700">
+                <i class="fas fa-trash mr-1"></i>Remover
+            </button>
+        </div>
+        <div class="grid md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium mb-2">Título</label>
+                <input id="${key}Title" type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Ex: Modo Liga - Estratégia" value="${highlight.title || ''}">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-2">Subtítulo</label>
+                <input id="${key}Subtitle" type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Ex: Treinos competitivos" value="${highlight.subtitle || ''}">
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-sm font-medium mb-2">Descrição</label>
+                <textarea id="${key}Description" class="w-full border border-gray-300 rounded-lg px-3 py-2" rows="2" placeholder="Ex: Treinos competitivos com pontuação e ranking.">${highlight.description || ''}</textarea>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-2">URL da Imagem</label>
+                <input id="${key}Image" type="url" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="https://exemplo.com/imagem.jpg" value="${highlight.image || ''}">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-2">Ação do Botão</label>
+                <select id="${key}Action" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                    <option value="openPurchaseModal('estrategia')" ${highlight.action === "openPurchaseModal('estrategia')" ? 'selected' : ''}>Abrir Modal de Compra</option>
+                    <option value="scrollToSection('xtreinos')" ${highlight.action === "scrollToSection('xtreinos')" ? 'selected' : ''}>Ir para XTreinos</option>
+                    <option value="scrollToSection('loja')" ${highlight.action === "scrollToSection('loja')" ? 'selected' : ''}>Ir para Loja</option>
+                    <option value="openScheduleModal('modo-liga')" ${highlight.action === "openScheduleModal('modo-liga')" ? 'selected' : ''}>Abrir Agendamento</option>
+                    <option value="openScheduleModal('semanal-freitas')" ${highlight.action === "openScheduleModal('semanal-freitas')" ? 'selected' : ''}>Abrir Agendamento Semanal</option>
+                    <option value="openScheduleModal('camp-freitas')" ${highlight.action === "openScheduleModal('camp-freitas')" ? 'selected' : ''}>Abrir Agendamento Camp</option>
+                </select>
+            </div>
+            <div class="md:col-span-2">
+                <div class="flex items-center gap-3">
+                    <label class="flex items-center">
+                        <input id="${key}HasRedirect" type="checkbox" class="mr-2" ${highlight.hasRedirect ? 'checked' : ''} onchange="toggleRedirectField('${key}')">
+                        <span class="text-sm font-medium">Imagem com link de redirecionamento</span>
+                    </label>
+                </div>
+                <div id="${key}RedirectField" class="mt-3 ${highlight.hasRedirect ? '' : 'hidden'}">
+                    <label class="block text-sm font-medium mb-2">URL de Redirecionamento</label>
+                    <input id="${key}RedirectUrl" type="url" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="https://exemplo.com" value="${highlight.redirectUrl || ''}">
+                </div>
+            </div>
+        </div>
+    `;
+    return div;
 }
 
 // Fechar modal
@@ -2081,28 +2152,93 @@ function closeHighlightsModal() {
     if (modal) modal.classList.add('hidden');
 }
 
+// Adicionar novo destaque
+function addHighlight() {
+    const newKey = `highlight${Date.now()}`;
+    const newHighlight = {
+        title: '',
+        subtitle: '',
+        description: '',
+        image: '',
+        action: "openPurchaseModal('estrategia')",
+        hasRedirect: false,
+        redirectUrl: ''
+    };
+    
+    highlightsData[newKey] = newHighlight;
+    renderHighlightsForm();
+}
+
+// Remover destaque
+function removeHighlight(key) {
+    if (Object.keys(highlightsData).length <= 1) {
+        alert('❌ Deve haver pelo menos um destaque!');
+        return;
+    }
+    
+    if (confirm('Tem certeza que deseja remover este destaque?')) {
+        delete highlightsData[key];
+        renderHighlightsForm();
+    }
+}
+
+// Toggle campo de redirecionamento
+function toggleRedirectField(key) {
+    const checkbox = document.getElementById(`${key}HasRedirect`);
+    const field = document.getElementById(`${key}RedirectField`);
+    
+    if (checkbox.checked) {
+        field.classList.remove('hidden');
+    } else {
+        field.classList.add('hidden');
+    }
+}
+
 // Salvar destaques
 async function saveHighlights() {
     try {
-        const { setDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const { setDoc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         
+        // Coletar dados dos formulários
         const highlights = {};
         
-        for (let i = 1; i <= 3; i++) {
-            highlights[`highlight${i}`] = {
-                title: document.getElementById(`highlight${i}Title`).value.trim(),
-                subtitle: document.getElementById(`highlight${i}Subtitle`).value.trim(),
-                description: document.getElementById(`highlight${i}Description`).value.trim(),
-                image: document.getElementById(`highlight${i}Image`).value.trim(),
-                action: document.getElementById(`highlight${i}Action`).value,
-                updatedAt: new Date().toISOString()
-            };
-        }
+        Object.keys(highlightsData).forEach(key => {
+            const title = document.getElementById(`${key}Title`)?.value.trim();
+            const subtitle = document.getElementById(`${key}Subtitle`)?.value.trim();
+            const description = document.getElementById(`${key}Description`)?.value.trim();
+            const image = document.getElementById(`${key}Image`)?.value.trim();
+            const action = document.getElementById(`${key}Action`)?.value;
+            const hasRedirect = document.getElementById(`${key}HasRedirect`)?.checked || false;
+            const redirectUrl = document.getElementById(`${key}RedirectUrl`)?.value.trim() || '';
+            
+            if (title) { // Só salvar se tiver título
+                highlights[key] = {
+                    title,
+                    subtitle,
+                    description,
+                    image,
+                    action,
+                    hasRedirect,
+                    redirectUrl,
+                    updatedAt: new Date().toISOString()
+                };
+            }
+        });
         
-        // Salvar no Firestore
+        // Limpar coleção atual
+        const highlightsRef = collection(window.firebaseDb, 'highlights');
+        const snapshot = await getDocs(highlightsRef);
+        snapshot.forEach(doc => {
+            deleteDoc(doc.ref);
+        });
+        
+        // Salvar novos destaques
         for (const [id, data] of Object.entries(highlights)) {
             await setDoc(doc(window.firebaseDb, 'highlights', id), data);
         }
+        
+        // Atualizar dados locais
+        highlightsData = highlights;
         
         // Atualizar preview
         updateHighlightsPreview(highlights);
@@ -2124,6 +2260,9 @@ window.showGiveTokensModal = showGiveTokensModal;
 window.openHighlightsModal = openHighlightsModal;
 window.closeHighlightsModal = closeHighlightsModal;
 window.saveHighlights = saveHighlights;
+window.addHighlight = addHighlight;
+window.removeHighlight = removeHighlight;
+window.toggleRedirectField = toggleRedirectField;
 
 // Carregar destaques quando o admin estiver pronto
 window.addEventListener('load', () => {

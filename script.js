@@ -1262,21 +1262,27 @@ async function loadHighlightsFromFirestore() {
                 subtitle: 'Treinos competitivos',
                 description: 'Treinos competitivos com pontuação e ranking.',
                 image: '',
-                action: "openPurchaseModal('estrategia')"
+                action: "openPurchaseModal('estrategia')",
+                hasRedirect: false,
+                redirectUrl: ''
             };
             highlights.highlight2 = {
                 title: 'Campeonato Semanal',
                 subtitle: 'Etapas semanais',
                 description: 'Etapas semanais com premiações.',
                 image: '',
-                action: "openPurchaseModal('planilhas')"
+                action: "openPurchaseModal('planilhas')",
+                hasRedirect: false,
+                redirectUrl: ''
             };
             highlights.highlight3 = {
                 title: 'Camp de Fases',
                 subtitle: 'Eliminatórias',
                 description: 'Eliminatórias com melhores confrontos.',
                 image: '',
-                action: "openPurchaseModal('camp-fases')"
+                action: "openPurchaseModal('camp-fases')",
+                hasRedirect: false,
+                redirectUrl: ''
             };
         }
         
@@ -1286,11 +1292,26 @@ async function loadHighlightsFromFirestore() {
         
         track.innerHTML = '';
         
-        for (let i = 1; i <= 3; i++) {
-            const highlight = highlights[`highlight${i}`];
-            if (highlight) {
+        Object.keys(highlights).forEach(key => {
+            const highlight = highlights[key];
+            if (highlight && highlight.title) {
                 const slide = document.createElement('div');
                 slide.className = 'min-w-full p-8 bg-white';
+                
+                // Criar imagem com ou sem link
+                let imageHtml = '';
+                if (highlight.image) {
+                    if (highlight.hasRedirect && highlight.redirectUrl) {
+                        imageHtml = `<a href="${highlight.redirectUrl}" target="_blank" rel="noopener noreferrer" class="block w-full h-full">
+                            <img src="${highlight.image}" alt="${highlight.title}" class="w-full h-full object-cover hover:opacity-90 transition-opacity">
+                        </a>`;
+                    } else {
+                        imageHtml = `<img src="${highlight.image}" alt="${highlight.title}" class="w-full h-full object-cover">`;
+                    }
+                } else {
+                    imageHtml = '';
+                }
+                
                 slide.innerHTML = `
                     <div class="grid md:grid-cols-2 gap-6 items-center">
                         <div>
@@ -1300,13 +1321,13 @@ async function loadHighlightsFromFirestore() {
                             <button onclick="${highlight.action}" class="bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold">Ver Mais</button>
                         </div>
                         <div class="rounded-xl ${highlight.image ? '' : 'bg-blue-matte bg-opacity-20'} h-48 overflow-hidden flex items-center justify-center">
-                            ${highlight.image ? `<img src="${highlight.image}" alt="${highlight.title}" class="w-full h-full object-cover">` : ''}
+                            ${imageHtml}
                         </div>
                     </div>
                 `;
                 track.appendChild(slide);
             }
-        }
+        });
         
         // Inicializar carousel
         initCarousel();
