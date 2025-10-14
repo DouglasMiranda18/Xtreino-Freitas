@@ -494,7 +494,15 @@ async function loadWhatsAppLinks(orders) {
                 return false;
         }
         
-        // Não filtra por janela aqui; exibimos todos os eventos e decidimos no botão se está disponível
+        // Filtrar pela janela do horário do evento até +30min
+        const dateStr = order.eventDate || order.date;
+        const scheduleStr = order.schedule || order.hour || '';
+        if (!dateStr || !scheduleStr) return false;
+        const startDt = getEventDateTime(dateStr, scheduleStr);
+        if (isNaN(startDt.getTime())) return false;
+        const endDt = new Date(startDt.getTime() + (30 * 60 * 1000));
+        const now = new Date();
+        return now >= startDt && now <= endDt;
         
         return true;
     });
