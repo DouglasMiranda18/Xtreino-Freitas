@@ -526,7 +526,7 @@
     const formAddTeam = document.getElementById('formAddTeam');
     if (formAddTeam) formAddTeam.onsubmit = submitAddTeam;
     if (isManager){
-      await loadReports();
+      await loadReports(); // Reabilitado - loadTokensData foi desabilitado dentro
       await loadRecentSchedules();
       await loadPending(true);
     } else {
@@ -569,7 +569,7 @@
   async function loadReports(){
     try{
       await loadKpis().catch(()=>{});
-      await loadTokensData().catch(()=>{});
+      // await loadTokensData().catch(()=>{}); // Desabilitado - usando novas funções de paginação
       await renderSalesChart().catch(()=>{});
       await renderTopProducts().catch(()=>{});
       await renderPopularHours().catch(()=>{});
