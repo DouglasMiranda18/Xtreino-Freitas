@@ -427,6 +427,22 @@ function getEventDateTime(dateStr, scheduleStr) {
     }
 }
 
+function getWeekdayPtBr(dateStr){
+    try{
+        const d = new Date(`${dateStr}T00:00:00`);
+        const wd = d.toLocaleDateString('pt-BR', { weekday: 'long' });
+        return wd.charAt(0).toUpperCase() + wd.slice(1);
+    }catch(_){ return ''; }
+}
+
+function formatTitleWithSchedule(title, dateStr, schedule){
+    if (dateStr && schedule){
+        const wd = getWeekdayPtBr(dateStr);
+        return `${title} • ${wd} - ${schedule}`;
+    }
+    return title;
+}
+
 // Carrega links do WhatsApp para pedidos confirmados
 async function loadWhatsAppLinks(orders) {
     const whatsappContainer = document.getElementById('whatsappLinks');
@@ -527,9 +543,7 @@ async function loadWhatsAppLinks(orders) {
         }
         
         // Calcular quando o link expira (15 minutos após o evento)
-        let expiresInfo = '';
         let showWhatsAppButton = true;
-        let eventDateLabel = '';
         
         if ((rawSchedule && rawDate) || (order.eventDate && (order.schedule || order.hour))) {
             const dateStr = rawDate || order.eventDate;
@@ -539,30 +553,17 @@ async function loadWhatsAppLinks(orders) {
             const now = new Date();
             const timeLeft = fifteenMinutesAfterEvent.getTime() - now.getTime();
             
-            if (timeLeft > 0) {
-                const minutesLeft = Math.floor(timeLeft / (1000 * 60));
-                expiresInfo = `<p class="text-xs text-orange-600 mt-1">⏰ Link expira em ${minutesLeft}min</p>`;
-                eventDateLabel = `${dateStr} • ${scheduleStr}`;
-            } else {
+            if (timeLeft <= 0) {
                 // Link expirou - não mostrar botão do WhatsApp
                 showWhatsAppButton = false;
-                expiresInfo = `<p class="text-xs text-red-600 mt-1">⏰ Link expirado</p>`;
-                eventDateLabel = `${dateStr} • ${scheduleStr}`;
             }
-        } else {
-            // Sem data/horário explícitos: mostrar apenas data de criação se existir no pedido
-            const createdAt = order.createdAt?.toDate?.() || new Date();
-            eventDateLabel = createdAt.toLocaleDateString('pt-BR');
         }
 
         return `
             <div class="border border-gray-200 rounded-lg p-4 mb-4">
                 <div class="flex justify-between items-center">
                     <div>
-                        <h4 class="font-medium text-gray-900">${rawTitle}${(order.schedule||order.hour) ? ` • ${(order.schedule||order.hour)}` : (rawSchedule ? ` • ${rawSchedule}` : '')}</h4>
-                        ${eventDateLabel ? `<p class="text-sm text-gray-500">${eventDateLabel}</p>` : ''}
-                        <p class="text-sm text-green-600 font-medium">Confirmado</p>
-                        ${expiresInfo}
+                        <h4 class="font-medium text-gray-900">${formatTitleWithSchedule(rawTitle, (order.eventDate||rawDate), (order.schedule||order.hour||rawSchedule))}</h4>
                     </div>
                     ${showWhatsAppButton ? `
                     <a href="${whatsappLink}" target="_blank" 
@@ -641,14 +642,14 @@ function displayAllOrdersPaginated() {
     const ordersHTML = currentOrders.map(order => `
         <div class="bg-gray-50 rounded-lg p-4 mb-4">
             <div class="flex items-center justify-between mb-2">
-                <h4 class="font-medium text-gray-900">${order.title || 'Reserva'}</h4>
+                <h4 class="font-medium text-gray-900">${formatTitleWithSchedule((order.title||'Reserva'), (order.eventDate||''), (order.schedule||''))}</h4>
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status)}">
                     ${getStatusText(order.status)}
                 </span>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
                 <div>
-                    <span class="font-medium">Data:</span> ${formatDate(order.date)}
+                    <span class="font-medium">Data:</span> ${order.eventDate ? `${order.eventDate} ${order.schedule? 'às '+order.schedule : ''}` : formatDate(order.date)}
                 </div>
                 <div>
                     <span class="font-medium">${order.paidWithTokens ? 'Consumo:' : 'Valor:'}</span> ${order.paidWithTokens ? `-${order.tokensUsed||1} token${(order.tokensUsed||1)>1?'s':''}` : `R$ ${Number(order.price||0).toFixed(2)}`}
