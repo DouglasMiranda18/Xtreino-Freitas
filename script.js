@@ -1348,17 +1348,62 @@ async function loadHighlightsFromFirestore() {
     }
 }
 
-// Simple carousel
+// Simple carousel with auto-advance
 function initCarousel() {
     const track = document.getElementById('carouselTrack');
     const prev = document.getElementById('carouselPrev');
     const next = document.getElementById('carouselNext');
     if (!track || !prev || !next) return;
+    
     let index = 0;
     const slides = track.children.length;
-    function update(){ track.style.transform = `translateX(-${index*100}%)`; }
-    prev.addEventListener('click', ()=>{ index = (index - 1 + slides) % slides; update(); });
-    next.addEventListener('click', ()=>{ index = (index + 1) % slides; update(); });
+    let autoAdvanceInterval;
+    
+    function update() { 
+        track.style.transform = `translateX(-${index*100}%)`; 
+    }
+    
+    function nextSlide() {
+        index = (index + 1) % slides;
+        update();
+    }
+    
+    function prevSlide() {
+        index = (index - 1 + slides) % slides;
+        update();
+    }
+    
+    function startAutoAdvance() {
+        autoAdvanceInterval = setInterval(nextSlide, 10000); // 10 segundos
+    }
+    
+    function stopAutoAdvance() {
+        if (autoAdvanceInterval) {
+            clearInterval(autoAdvanceInterval);
+        }
+    }
+    
+    // Event listeners para botões manuais
+    prev.addEventListener('click', () => {
+        stopAutoAdvance();
+        prevSlide();
+        startAutoAdvance();
+    });
+    
+    next.addEventListener('click', () => {
+        stopAutoAdvance();
+        nextSlide();
+        startAutoAdvance();
+    });
+    
+    // Pausar auto-advance quando hover
+    track.addEventListener('mouseenter', stopAutoAdvance);
+    track.addEventListener('mouseleave', startAutoAdvance);
+    
+    // Iniciar auto-advance
+    if (slides > 1) {
+        startAutoAdvance();
+    }
 }
 
 // Carregar destaques quando o Firebase estiver pronto

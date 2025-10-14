@@ -103,6 +103,27 @@
         </div>
     </section>
 
+    <!-- Destaques (Carrossel) -->
+    <section class="py-16 bg-white">
+        <div class="container mx-auto px-6">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold">Destaques</h2>
+                <div class="space-x-2">
+                    <button id="carouselPrev" class="px-3 py-1 border rounded">◀</button>
+                    <button id="carouselNext" class="px-3 py-1 border rounded">▶</button>
+                </div>
+            </div>
+            <div class="overflow-hidden rounded-2xl border border-gray-200">
+                <div id="carouselTrack" class="flex transition-transform duration-500">
+                    <!-- Os destaques serão carregados dinamicamente aqui -->
+                    <div class="min-w-full p-8 bg-white flex items-center justify-center">
+                        <p class="text-gray-500">Carregando destaques...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- Eventos e Reservas -->
     <section id="eventos" class="py-20 bg-white">
         <div class="container mx-auto px-6">
@@ -166,27 +187,6 @@
     </section>
 
     
-
-    <!-- Destaques (Carrossel) -->
-    <section class="py-16 bg-white">
-        <div class="container mx-auto px-6">
-            <div class="flex items-center justify-between mb-6">
-                <h2 class="text-2xl font-bold">Destaques</h2>
-                <div class="space-x-2">
-                    <button id="carouselPrev" class="px-3 py-1 border rounded">◀</button>
-                    <button id="carouselNext" class="px-3 py-1 border rounded">▶</button>
-                </div>
-            </div>
-            <div class="overflow-hidden rounded-2xl border border-gray-200">
-                <div id="carouselTrack" class="flex transition-transform duration-500">
-                    <!-- Os destaques serão carregados dinamicamente aqui -->
-                    <div class="min-w-full p-8 bg-white flex items-center justify-center">
-                        <p class="text-gray-500">Carregando destaques...</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
 
     <!-- Loja Section -->
     <section id="loja" class="py-20 bg-white">
