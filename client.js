@@ -496,8 +496,9 @@ async function loadWhatsAppLinks(orders) {
 
     whatsappList.innerHTML = currentWhatsappOrders.map(order => {
         const eventType = order.eventType || '';
-        const title = order.title || '';
-        const date = order.date || new Date();
+        const rawTitle = order.title || '';
+        const rawDate = order.date || null;
+        const rawSchedule = order.schedule || '';
         
         // Usar o link salvo no pedido ou determinar baseado no tipo de evento
         let whatsappLink = order.whatsappLink || whatsappLinks[eventType] || whatsappLinks['modo-liga'];
@@ -520,9 +521,10 @@ async function loadWhatsAppLinks(orders) {
         // Calcular quando o link expira (15 minutos após o evento)
         let expiresInfo = '';
         let showWhatsAppButton = true;
+        let eventDateLabel = '';
         
-        if (order.schedule && order.date) {
-            const eventDateTime = getEventDateTime(order.date, order.schedule);
+        if (rawSchedule && rawDate) {
+            const eventDateTime = getEventDateTime(rawDate, rawSchedule);
             const fifteenMinutesAfterEvent = new Date(eventDateTime.getTime() + (15 * 60 * 1000));
             const now = new Date();
             const timeLeft = fifteenMinutesAfterEvent.getTime() - now.getTime();
@@ -530,19 +532,25 @@ async function loadWhatsAppLinks(orders) {
             if (timeLeft > 0) {
                 const minutesLeft = Math.floor(timeLeft / (1000 * 60));
                 expiresInfo = `<p class="text-xs text-orange-600 mt-1">⏰ Link expira em ${minutesLeft}min</p>`;
+                eventDateLabel = `${rawDate} • ${rawSchedule}`;
             } else {
                 // Link expirou - não mostrar botão do WhatsApp
                 showWhatsAppButton = false;
                 expiresInfo = `<p class="text-xs text-red-600 mt-1">⏰ Link expirado</p>`;
+                eventDateLabel = `${rawDate} • ${rawSchedule}`;
             }
+        } else {
+            // Sem data/horário explícitos: mostrar apenas data de criação se existir no pedido
+            const createdAt = order.createdAt?.toDate?.() || new Date();
+            eventDateLabel = createdAt.toLocaleDateString('pt-BR');
         }
 
         return `
             <div class="border border-gray-200 rounded-lg p-4 mb-4">
                 <div class="flex justify-between items-center">
                     <div>
-                        <h4 class="font-medium text-gray-900">${title}</h4>
-                        <p class="text-sm text-gray-500">${date.toLocaleDateString('pt-BR')}</p>
+                        <h4 class="font-medium text-gray-900">${rawTitle}${rawSchedule ? ` • ${rawSchedule}` : ''}</h4>
+                        ${eventDateLabel ? `<p class="text-sm text-gray-500">${eventDateLabel}</p>` : ''}
                         <p class="text-sm text-green-600 font-medium">Confirmado</p>
                         ${expiresInfo}
                     </div>
