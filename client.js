@@ -239,6 +239,7 @@ async function loadRecentOrders() {
             return;
         }
         
+        // Orders pagos/confirmados (Mercado Pago)
         const ordersData = await fetchUserDocs('orders', 5, true);
         const orders = ordersData.map(d => ({
             id: d.id,
@@ -248,7 +249,26 @@ async function loadRecentOrders() {
             status: d.data.status || 'pending'
         }));
 
-        displayRecentOrders(orders);
+        // Registrations pagas com tokens (e.g., XTreino Associado)
+        const regsData = await fetchUserDocs('registrations', 10, true);
+        const tokenRegs = regsData
+          .filter(d => d.data.paidWithTokens === true)
+          .map(d => ({
+            id: d.id,
+            ...d.data,
+            date: d.data.createdAt?.toDate?.() || new Date(),
+            title: d.data.title || d.data.eventType || 'Reserva',
+            // marcar como pago para aparecer como concluído
+            status: d.data.status || 'paid',
+            // preço 0 pois foi pago com tokens
+            price: 0
+          }));
+
+        const merged = [...orders, ...tokenRegs]
+          .sort((a,b)=> (b.date?.getTime?.()||0) - (a.date?.getTime?.()||0))
+          .slice(0, 5);
+
+        displayRecentOrders(merged);
     } catch (error) {
         console.error('Error loading recent orders:', error);
         const recentOrdersElement = document.getElementById('recentOrders');
@@ -296,13 +316,29 @@ let allOrdersData = [];
 async function loadOrders() {
     try {
         const ordersData = await fetchUserDocs('orders', 200, true);
-        allOrdersData = ordersData.map(d => ({
+        const mappedOrders = ordersData.map(d => ({
             id: d.id,
             ...d.data,
             date: d.data.createdAt?.toDate?.() || new Date(),
             title: d.data.title || d.data.item || 'Pedido',
             status: d.data.status || 'pending'
         }));
+
+        // incluir eventos pagos com tokens das registrations
+        const regsData = await fetchUserDocs('registrations', 200, true);
+        const mappedRegs = regsData
+          .filter(d => d.data.paidWithTokens === true)
+          .map(d => ({
+            id: d.id,
+            ...d.data,
+            date: d.data.createdAt?.toDate?.() || new Date(),
+            title: d.data.title || d.data.eventType || 'Reserva',
+            status: d.data.status || 'paid',
+            price: 0
+          }));
+
+        allOrdersData = [...mappedOrders, ...mappedRegs]
+          .sort((a,b)=> (b.date?.getTime?.()||0) - (a.date?.getTime?.()||0));
 
         displayAllOrdersPaginated();
         await loadWhatsAppLinks(allOrdersData);
