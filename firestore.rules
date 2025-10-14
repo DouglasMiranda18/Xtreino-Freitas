@@ -66,17 +66,131 @@ service cloud.firestore {
       allow delete: if isAdmin(); // Apenas admins podem deletar notícias
     }
 
-    // products: leitura pública para produtos; escrita apenas para admins
+    // products: leitura pública para produtos ativos; escrita apenas para admins
     match /products/{productId} {
       allow read: if true; // Permite leitura pública para produtos
-      allow create: if isAdmin(); // Apenas admins podem criar produtos
-      allow update: if isAdmin(); // Apenas admins podem atualizar produtos
-      allow delete: if isAdmin(); // Apenas admins podem deletar produtos
+      allow create: if isAdmin() && 
+        // Validações básicas para criação de produtos
+        request.resource.data.keys().hasAll(['id', 'name', 'description', 'category', 'price', 'type', 'active']) &&
+        request.resource.data.id is string &&
+        request.resource.data.name is string &&
+        request.resource.data.description is string &&
+        request.resource.data.category in ['digital', 'physical', 'gift'] &&
+        request.resource.data.price is number &&
+        request.resource.data.price >= 0 &&
+        request.resource.data.type in ['download', 'delivery', 'gift'] &&
+        request.resource.data.active is bool &&
+        // Validações específicas por tipo de produto
+        (request.resource.data.type == 'download' ? 
+          (request.resource.data.downloadType in ['file', 'maps'] &&
+           (request.resource.data.downloadType == 'file' ? 
+             request.resource.data.downloadUrl is string :
+             (request.resource.data.maps is list && request.resource.data.baseUrl is string))) :
+          true) &&
+        // Validações específicas por categoria
+        (request.resource.data.category == 'digital' ? 
+          request.resource.data.type in ['download', 'gift'] :
+          true);
+      allow update: if isAdmin() && 
+        // Validações básicas para atualização de produtos
+        request.resource.data.keys().hasAll(['id', 'name', 'description', 'category', 'price', 'type', 'active']) &&
+        request.resource.data.id is string &&
+        request.resource.data.name is string &&
+        request.resource.data.description is string &&
+        request.resource.data.category in ['digital', 'physical', 'gift'] &&
+        request.resource.data.price is number &&
+        request.resource.data.price >= 0 &&
+        request.resource.data.type in ['download', 'delivery', 'gift'] &&
+        request.resource.data.active is bool &&
+        // Validações específicas por tipo de produto
+        (request.resource.data.type == 'download' ? 
+          (request.resource.data.downloadType in ['file', 'maps'] &&
+           (request.resource.data.downloadType == 'file' ? 
+             request.resource.data.downloadUrl is string :
+             (request.resource.data.maps is list && request.resource.data.baseUrl is string))) :
+          true) &&
+        // Validações específicas por categoria
+        (request.resource.data.category == 'digital' ? 
+          request.resource.data.type in ['download', 'gift'] :
+          true);
+      allow delete: if isAdmin();
     }
 
-    // product_downloads: usuário pode ler os próprios; admins leem tudo
+    // product_downloads: usuário pode ler os próprios; admins leem tudo; criação automática
     match /product_downloads/{downloadId} {
       allow read: if isAdmin() || (isSignedIn() && (resource.data.customerEmail == request.auth.email));
+      allow create: if isSignedIn() && 
+        // Validações para criação de downloads
+        request.resource.data.keys().hasAll(['orderId', 'customerEmail', 'productId', 'status']) &&
+        request.resource.data.customerEmail == request.auth.email &&
+        request.resource.data.status == 'delivered';
+      allow update: if isAdmin() || (isSignedIn() && resource.data.customerEmail == request.auth.email);
+      allow delete: if isAdmin();
+    }
+
+    // product_categories: leitura pública para categorias; escrita apenas para admins
+    match /product_categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // product_inventory: apenas admins podem gerenciar estoque
+    match /product_inventory/{inventoryId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // product_reviews: usuários podem criar e ler reviews; admins podem moderar
+    match /product_reviews/{reviewId} {
+      allow read: if true; // Leitura pública para reviews
+      allow create: if isSignedIn() && 
+        // Validações para criação de reviews
+        request.resource.data.keys().hasAll(['productId', 'customerEmail', 'rating', 'comment']) &&
+        request.resource.data.customerEmail == request.auth.email &&
+        request.resource.data.rating is number &&
+        request.resource.data.rating >= 1 &&
+        request.resource.data.rating <= 5 &&
+        request.resource.data.comment is string &&
+        request.resource.data.comment.size() <= 500;
+      allow update: if isAdmin() || (isSignedIn() && resource.data.customerEmail == request.auth.email);
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.customerEmail == request.auth.email);
+    }
+
+    // product_analytics: apenas admins podem acessar analytics
+    match /product_analytics/{analyticsId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // product_discounts: apenas admins podem gerenciar descontos
+    match /product_discounts/{discountId} {
+      allow read: if true; // Leitura pública para descontos ativos
+      allow create: if isAdmin() && 
+        // Validações para criação de descontos
+        request.resource.data.keys().hasAll(['code', 'discountType', 'value', 'active', 'expiresAt']) &&
+        request.resource.data.discountType in ['percentage', 'fixed'] &&
+        request.resource.data.value is number &&
+        request.resource.data.value > 0 &&
+        request.resource.data.active is bool;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // product_audit_logs: apenas admins podem acessar logs de auditoria
+    match /product_audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // product_usage_stats: apenas admins podem acessar estatísticas de uso
+    match /product_usage_stats/{statsId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // product_backups: apenas admins podem gerenciar backups
+    match /product_backups/{backupId} {
+      allow read: if isAdmin();
       allow write: if isAdmin();
     }
 
