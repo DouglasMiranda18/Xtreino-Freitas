@@ -1407,8 +1407,8 @@ async function loadNewsFromFirestore() {
         }
         
         news.forEach(newsItem => {
-            const newsCard = document.createElement('div');
-            newsCard.className = 'bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300';
+            const newsCard = document.createElement('article');
+            newsCard.className = 'glass-effect rounded-2xl overflow-hidden card-hover';
             
             const date = new Date(newsItem.date);
             const formattedDate = date.toLocaleDateString('pt-BR', {
@@ -1417,19 +1417,34 @@ async function loadNewsFromFirestore() {
                 year: 'numeric'
             });
             
+            // Determinar ícone baseado no tipo de notícia
+            let iconClass = 'fas fa-newspaper';
+            let category = 'Notícia';
+            
+            if (newsItem.title.toLowerCase().includes('evento') || newsItem.title.toLowerCase().includes('treino')) {
+                iconClass = 'fas fa-calendar-alt';
+                category = 'Evento';
+            } else if (newsItem.title.toLowerCase().includes('aviso') || newsItem.title.toLowerCase().includes('pausa')) {
+                iconClass = 'fas fa-bell';
+                category = 'Aviso';
+            } else if (newsItem.title.toLowerCase().includes('confirmado') || newsItem.title.toLowerCase().includes('verificado')) {
+                iconClass = 'fas fa-check-circle';
+                category = 'Confirmado';
+            }
+            
             newsCard.innerHTML = `
+                <div class="bg-blue-matte h-48 flex items-center justify-center">
+                    <i class="${iconClass} text-4xl text-white"></i>
+                </div>
                 <div class="p-6">
-                    ${newsItem.image ? `
-                        <div class="mb-4">
-                            <img src="${newsItem.image}" alt="${newsItem.title}" class="w-full h-48 object-cover rounded-lg">
-                        </div>
-                    ` : ''}
-                    <h3 class="text-xl font-bold mb-3 text-gray-800">${newsItem.title}</h3>
-                    <p class="text-gray-600 mb-4 leading-relaxed">${newsItem.content}</p>
-                    <div class="flex items-center justify-between text-sm text-gray-500">
+                    <div class="text-sm text-blue-matte mb-2">${category}</div>
+                    <h3 class="text-xl font-bold mb-3">${newsItem.title}</h3>
+                    <p class="text-gray-300 mb-4">${newsItem.content}</p>
+                    <div class="flex items-center justify-between text-sm text-gray-400 mb-3">
                         <span>Por: ${newsItem.author}</span>
                         <span>${formattedDate}</span>
                     </div>
+                    <button class="text-blue-matte hover:underline font-semibold">Ver mais</button>
                 </div>
             `;
             

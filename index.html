@@ -188,27 +188,6 @@
         </div>
     </section>
 
-    <!-- Notícias Section -->
-    <section id="noticias" class="py-20 bg-white">
-        <div class="container mx-auto px-6">
-            <div class="text-center mb-16">
-                <h2 class="text-4xl md:text-5xl font-bold mb-6 text-blue-matte">NOTÍCIAS</h2>
-                <p class="text-xl text-gray-600 max-w-3xl mx-auto">
-                    Fique por dentro das últimas novidades e atualizações
-                </p>
-            </div>
-            
-            <div class="max-w-6xl mx-auto">
-                <div id="newsContainer" class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    <!-- As notícias serão carregadas dinamicamente aqui -->
-                    <div class="col-span-full flex items-center justify-center py-12">
-                        <p class="text-gray-500">Carregando notícias...</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
     <!-- Loja Section -->
     <section id="loja" class="py-20 bg-white">
         <div class="container mx-auto px-6">
@@ -520,42 +499,11 @@
                 </p>
             </div>
             
-            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <article class="glass-effect rounded-2xl overflow-hidden card-hover">
-                    <div class="bg-blue-matte h-48 flex items-center justify-center">
-                        <i class="fas fa-calendar-alt text-4xl text-white"></i>
-                    </div>
-                    <div class="p-6">
-                        <div class="text-sm text-blue-matte mb-2">Próximo Sábado</div>
-                        <h3 class="text-xl font-bold mb-3">Evento: Treinos Modo Liga Especial</h3>
-                        <p class="text-gray-300 mb-4">Vagas limitadas às 19h e 21h. Garanta sua inscrição.</p>
-                        <button onclick="scrollToSection('xtreinos')" class="text-blue-matte hover:underline font-semibold">Reservar</button>
-                    </div>
-                </article>
-                
-                <article class="glass-effect rounded-2xl overflow-hidden card-hover">
-                    <div class="bg-blue-matte h-48 flex items-center justify-center">
-                        <i class="fas fa-bell text-4xl text-white"></i>
-                    </div>
-                    <div class="p-6">
-                        <div class="text-sm text-blue-matte mb-2">Aviso</div>
-                        <h3 class="text-xl font-bold mb-3">Pausa em feriado</h3>
-                        <p class="text-gray-300 mb-4">Sem atividades nos dias 24 e 25. Retorno do semanal na semana seguinte.</p>
-                        <button class="text-blue-matte hover:underline font-semibold">Ver calendário</button>
-                    </div>
-                </article>
-                
-                <article class="glass-effect rounded-2xl overflow-hidden card-hover">
-                    <div class="bg-blue-matte h-48 flex items-center justify-center">
-                        <i class="fas fa-check-circle text-4xl text-white"></i>
-                    </div>
-                    <div class="p-6">
-                        <div class="text-sm text-blue-matte mb-2">Confirmado</div>
-                        <h3 class="text-xl font-bold mb-3">Convidado verificado no próximo camp</h3>
-                        <p class="text-gray-300 mb-4">Participação especial em nosso campeonato de fases.</p>
-                        <button class="text-blue-matte hover:underline font-semibold">Detalhes</button>
-                    </div>
-                </article>
+            <div id="newsContainer" class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- As notícias serão carregadas dinamicamente aqui -->
+                <div class="col-span-full flex items-center justify-center py-12">
+                    <p class="text-gray-300">Carregando notícias...</p>
+                </div>
             </div>
         </div>
     </section>

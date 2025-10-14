@@ -2307,22 +2307,22 @@ async function loadNews() {
         if (Object.keys(newsData).length === 0) {
             newsData = {
                 news1: {
-                    title: 'Novo Sistema de Tokens',
-                    content: 'Agora você pode comprar tokens e usar para participar dos XTreinos!',
+                    title: 'Evento: Treinos Modo Liga Especial',
+                    content: 'Vagas limitadas às 19h e 21h. Garanta sua inscrição.',
                     image: '',
                     date: new Date().toISOString(),
                     author: 'Equipe XTreino'
                 },
                 news2: {
-                    title: 'Campeonato Semanal',
-                    content: 'Participe do nosso campeonato semanal e concorra a prêmios incríveis!',
+                    title: 'Pausa em feriado',
+                    content: 'Sem atividades nos dias 24 e 25. Retorno do semanal na semana seguinte.',
                     image: '',
                     date: new Date().toISOString(),
                     author: 'Equipe XTreino'
                 },
                 news3: {
-                    title: 'Modo Liga Ativo',
-                    content: 'O Modo Liga está funcionando com treinos competitivos e ranking!',
+                    title: 'Convidado verificado no próximo camp',
+                    content: 'Participação especial em nosso campeonato de fases.',
                     image: '',
                     date: new Date().toISOString(),
                     author: 'Equipe XTreino'
