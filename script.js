@@ -819,7 +819,7 @@ function renderClientArea(){
         if (!assocBtn.hasAttribute('data-listener-added')) {
             assocBtn.addEventListener('click', function() {
                 if (hasTokens) {
-                    openScheduleModal('associado');
+                    openScheduleModal('xtreino-tokens');
                 } else {
                     // Redirecionar para área do cliente para comprar tokens
                     window.location.href = 'client.html?tab=myTokens';
@@ -1845,7 +1845,7 @@ function openScheduleModal(eventType){
     // Sincronizar tokens do usuário antes de qualquer checagem
     try { if (typeof syncUserTokens === 'function') { syncUserTokens(); } } catch(_) {}
 
-    // Ocultar botão de tokens (não usamos associados)
+    // Ocultar botão de tokens (não usamos compra de tokens)
     const hideBuyTokens = document.getElementById('buyTokensBtn');
     if (hideBuyTokens) hideBuyTokens.classList.add('hidden');
     
@@ -2567,7 +2567,7 @@ function closeTokensModal(){
     if (window.innerWidth <= 767) maybeClearMobileModalState();
 }
 
-// Compra de tokens removida (somente associados recebem tokens)
+// Compra de tokens removida (somente usuários recebem tokens)
 
 async function useTokensForEvent(eventType){
     const eventCosts = {
