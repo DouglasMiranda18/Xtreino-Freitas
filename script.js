@@ -1264,7 +1264,8 @@ async function loadHighlightsFromFirestore() {
                 image: '',
                 action: "openPurchaseModal('estrategia')",
                 hasRedirect: false,
-                redirectUrl: ''
+                redirectUrl: '',
+                customLinkUrl: ''
             };
             highlights.highlight2 = {
                 title: 'Campeonato Semanal',
@@ -1273,7 +1274,8 @@ async function loadHighlightsFromFirestore() {
                 image: '',
                 action: "openPurchaseModal('planilhas')",
                 hasRedirect: false,
-                redirectUrl: ''
+                redirectUrl: '',
+                customLinkUrl: ''
             };
             highlights.highlight3 = {
                 title: 'Camp de Fases',
@@ -1282,7 +1284,8 @@ async function loadHighlightsFromFirestore() {
                 image: '',
                 action: "openPurchaseModal('camp-fases')",
                 hasRedirect: false,
-                redirectUrl: ''
+                redirectUrl: '',
+                customLinkUrl: ''
             };
         }
         
@@ -1312,13 +1315,21 @@ async function loadHighlightsFromFirestore() {
                     imageHtml = '';
                 }
                 
+                // Criar botão com ou sem link personalizado
+                let buttonHtml = '';
+                if (highlight.action === 'custom_link' && highlight.customLinkUrl) {
+                    buttonHtml = `<a href="${highlight.customLinkUrl}" target="_blank" rel="noopener noreferrer" class="bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold inline-block">Ver Mais</a>`;
+                } else {
+                    buttonHtml = `<button onclick="${highlight.action}" class="bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold">Ver Mais</button>`;
+                }
+                
                 slide.innerHTML = `
                     <div class="grid md:grid-cols-2 gap-6 items-center">
                         <div>
                             <h3 class="text-xl font-bold mb-2">${highlight.title}</h3>
                             ${highlight.subtitle ? `<p class="text-gray-500 mb-2">${highlight.subtitle}</p>` : ''}
                             <p class="text-gray-600 mb-4">${highlight.description}</p>
-                            <button onclick="${highlight.action}" class="bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold">Ver Mais</button>
+                            ${buttonHtml}
                         </div>
                         <div class="rounded-xl ${highlight.image ? '' : 'bg-blue-matte bg-opacity-20'} h-48 overflow-hidden flex items-center justify-center">
                             ${imageHtml}

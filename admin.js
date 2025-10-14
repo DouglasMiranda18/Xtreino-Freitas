@@ -1980,6 +1980,7 @@ let highlightCounter = 1;
 // Carregar destaques do Firestore
 async function loadHighlights() {
     try {
+        const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const highlightsRef = collection(window.firebaseDb, 'highlights');
         const snapshot = await getDocs(highlightsRef);
         
@@ -2021,7 +2022,7 @@ async function loadHighlights() {
             };
             
             // Salvar destaques padrão
-            const { setDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            const { setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
             for (const [id, data] of Object.entries(highlightsData)) {
                 await setDoc(doc(window.firebaseDb, 'highlights', id), data);
             }
@@ -2120,14 +2121,19 @@ function createHighlightForm(key, highlight, index) {
             </div>
             <div>
                 <label class="block text-sm font-medium mb-2">Ação do Botão</label>
-                <select id="${key}Action" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                <select id="${key}Action" class="w-full border border-gray-300 rounded-lg px-3 py-2" onchange="toggleCustomLinkField('${key}')">
                     <option value="openPurchaseModal('estrategia')" ${highlight.action === "openPurchaseModal('estrategia')" ? 'selected' : ''}>Abrir Modal de Compra</option>
                     <option value="scrollToSection('xtreinos')" ${highlight.action === "scrollToSection('xtreinos')" ? 'selected' : ''}>Ir para XTreinos</option>
                     <option value="scrollToSection('loja')" ${highlight.action === "scrollToSection('loja')" ? 'selected' : ''}>Ir para Loja</option>
                     <option value="openScheduleModal('modo-liga')" ${highlight.action === "openScheduleModal('modo-liga')" ? 'selected' : ''}>Abrir Agendamento</option>
                     <option value="openScheduleModal('semanal-freitas')" ${highlight.action === "openScheduleModal('semanal-freitas')" ? 'selected' : ''}>Abrir Agendamento Semanal</option>
                     <option value="openScheduleModal('camp-freitas')" ${highlight.action === "openScheduleModal('camp-freitas')" ? 'selected' : ''}>Abrir Agendamento Camp</option>
+                    <option value="custom_link" ${highlight.action === "custom_link" ? 'selected' : ''}>Ir para Link</option>
                 </select>
+            </div>
+            <div id="${key}CustomLinkField" class="mt-3 ${highlight.action === 'custom_link' ? '' : 'hidden'}">
+                <label class="block text-sm font-medium mb-2">URL do Link</label>
+                <input id="${key}CustomLinkUrl" type="url" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="https://exemplo.com" value="${highlight.customLinkUrl || ''}">
             </div>
             <div class="md:col-span-2">
                 <div class="flex items-center gap-3">
@@ -2194,6 +2200,18 @@ function toggleRedirectField(key) {
     }
 }
 
+// Toggle campo de link personalizado
+function toggleCustomLinkField(key) {
+    const select = document.getElementById(`${key}Action`);
+    const field = document.getElementById(`${key}CustomLinkField`);
+    
+    if (select.value === 'custom_link') {
+        field.classList.remove('hidden');
+    } else {
+        field.classList.add('hidden');
+    }
+}
+
 // Salvar destaques
 async function saveHighlights() {
     try {
@@ -2210,6 +2228,7 @@ async function saveHighlights() {
             const action = document.getElementById(`${key}Action`)?.value;
             const hasRedirect = document.getElementById(`${key}HasRedirect`)?.checked || false;
             const redirectUrl = document.getElementById(`${key}RedirectUrl`)?.value.trim() || '';
+            const customLinkUrl = document.getElementById(`${key}CustomLinkUrl`)?.value.trim() || '';
             
             if (title) { // Só salvar se tiver título
                 highlights[key] = {
@@ -2220,12 +2239,14 @@ async function saveHighlights() {
                     action,
                     hasRedirect,
                     redirectUrl,
+                    customLinkUrl,
                     updatedAt: new Date().toISOString()
                 };
             }
         });
         
         // Limpar coleção atual
+        const { collection, getDocs, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const highlightsRef = collection(window.firebaseDb, 'highlights');
         const snapshot = await getDocs(highlightsRef);
         snapshot.forEach(doc => {
@@ -2233,6 +2254,7 @@ async function saveHighlights() {
         });
         
         // Salvar novos destaques
+        const { setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         for (const [id, data] of Object.entries(highlights)) {
             await setDoc(doc(window.firebaseDb, 'highlights', id), data);
         }
@@ -2263,6 +2285,7 @@ window.saveHighlights = saveHighlights;
 window.addHighlight = addHighlight;
 window.removeHighlight = removeHighlight;
 window.toggleRedirectField = toggleRedirectField;
+window.toggleCustomLinkField = toggleCustomLinkField;
 
 // Carregar destaques quando o admin estiver pronto
 window.addEventListener('load', () => {
