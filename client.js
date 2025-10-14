@@ -595,15 +595,17 @@ function displayAllOrdersPaginated() {
             return false;
         }
         
-        // Include only events
+        // Include only events (inclui XTreino Associado)
         return title.includes('xtreino') || 
                title.includes('camp') || 
                title.includes('semanal') || 
                title.includes('modo liga') ||
+               title.includes('associado') ||
                item.includes('xtreino') || 
                item.includes('camp') || 
                item.includes('semanal') || 
-               item.includes('modo liga');
+               item.includes('modo liga') ||
+               item.includes('associado');
     });
     
     if (eventsOnly.length === 0) {
