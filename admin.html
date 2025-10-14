@@ -283,6 +283,18 @@
                 </div>
             </div>
 
+            <!-- Gerenciar Destaques -->
+            <div class="bg-white border border-gray-200 rounded-xl p-6 mt-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-sm">Gerenciar Destaques</h3>
+                    <button onclick="openHighlightsModal()" class="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
+                        <i class="fas fa-edit mr-1"></i>Editar
+                    </button>
+                </div>
+                <div id="highlightsPreview" class="space-y-3">
+                    <div class="text-center text-gray-500 text-sm">Carregando destaques...</div>
+                </div>
+            </div>
 
             <!-- Controle de Horários -->
             <div class="bg-white border border-gray-200 rounded-xl p-6 mt-6">
@@ -378,6 +390,125 @@
                 <button onclick="document.getElementById('modalManageHour').classList.add('hidden')">✕</button>
             </div>
             <div id="manageHourList" class="space-y-2"></div>
+        </div>
+    </div>
+
+    <!-- Modal Gerenciar Destaques -->
+    <div id="modalHighlights" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="font-bold text-xl">Gerenciar Destaques</h3>
+                <button onclick="closeHighlightsModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-6">
+                <!-- Destaque 1 -->
+                <div class="border border-gray-200 rounded-lg p-4">
+                    <h4 class="font-semibold mb-4 text-lg">Destaque 1</h4>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Título</label>
+                            <input id="highlight1Title" type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Ex: Modo Liga - Estratégia">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Subtítulo</label>
+                            <input id="highlight1Subtitle" type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Ex: Treinos competitivos">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium mb-2">Descrição</label>
+                            <textarea id="highlight1Description" class="w-full border border-gray-300 rounded-lg px-3 py-2" rows="2" placeholder="Ex: Treinos competitivos com pontuação e ranking."></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">URL da Imagem</label>
+                            <input id="highlight1Image" type="url" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="https://exemplo.com/imagem.jpg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Ação do Botão</label>
+                            <select id="highlight1Action" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                                <option value="openPurchaseModal('estrategia')">Abrir Modal de Compra</option>
+                                <option value="scrollToSection('xtreinos')">Ir para XTreinos</option>
+                                <option value="scrollToSection('loja')">Ir para Loja</option>
+                                <option value="openScheduleModal('modo-liga')">Abrir Agendamento</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Destaque 2 -->
+                <div class="border border-gray-200 rounded-lg p-4">
+                    <h4 class="font-semibold mb-4 text-lg">Destaque 2</h4>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Título</label>
+                            <input id="highlight2Title" type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Ex: Campeonato Semanal">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Subtítulo</label>
+                            <input id="highlight2Subtitle" type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Ex: Etapas semanais">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium mb-2">Descrição</label>
+                            <textarea id="highlight2Description" class="w-full border border-gray-300 rounded-lg px-3 py-2" rows="2" placeholder="Ex: Etapas semanais com premiações."></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">URL da Imagem</label>
+                            <input id="highlight2Image" type="url" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="https://exemplo.com/imagem.jpg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Ação do Botão</label>
+                            <select id="highlight2Action" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                                <option value="openPurchaseModal('planilhas')">Abrir Modal de Compra</option>
+                                <option value="scrollToSection('xtreinos')">Ir para XTreinos</option>
+                                <option value="scrollToSection('loja')">Ir para Loja</option>
+                                <option value="openScheduleModal('semanal-freitas')">Abrir Agendamento</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Destaque 3 -->
+                <div class="border border-gray-200 rounded-lg p-4">
+                    <h4 class="font-semibold mb-4 text-lg">Destaque 3</h4>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Título</label>
+                            <input id="highlight3Title" type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Ex: Camp de Fases">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Subtítulo</label>
+                            <input id="highlight3Subtitle" type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Ex: Eliminatórias">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium mb-2">Descrição</label>
+                            <textarea id="highlight3Description" class="w-full border border-gray-300 rounded-lg px-3 py-2" rows="2" placeholder="Ex: Eliminatórias com melhores confrontos."></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">URL da Imagem</label>
+                            <input id="highlight3Image" type="url" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="https://exemplo.com/imagem.jpg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Ação do Botão</label>
+                            <select id="highlight3Action" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                                <option value="openPurchaseModal('camp-fases')">Abrir Modal de Compra</option>
+                                <option value="scrollToSection('xtreinos')">Ir para XTreinos</option>
+                                <option value="scrollToSection('loja')">Ir para Loja</option>
+                                <option value="openScheduleModal('camp-freitas')">Abrir Agendamento</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-6 pt-4 border-t">
+                <button onclick="closeHighlightsModal()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                    Cancelar
+                </button>
+                <button onclick="saveHighlights()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    <i class="fas fa-save mr-2"></i>Salvar Destaques
+                </button>
+            </div>
         </div>
     </div>
 </body>

@@ -1241,8 +1241,83 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
     });
 });
 
+// Carregar destaques do Firestore
+async function loadHighlightsFromFirestore() {
+    try {
+        if (!window.firebaseDb) return;
+        
+        const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const highlightsRef = collection(window.firebaseDb, 'highlights');
+        const snapshot = await getDocs(highlightsRef);
+        
+        const highlights = {};
+        snapshot.forEach(doc => {
+            highlights[doc.id] = doc.data();
+        });
+        
+        // Se não há destaques, usar os padrão
+        if (Object.keys(highlights).length === 0) {
+            highlights.highlight1 = {
+                title: 'Modo Liga - Estratégia',
+                subtitle: 'Treinos competitivos',
+                description: 'Treinos competitivos com pontuação e ranking.',
+                image: '',
+                action: "openPurchaseModal('estrategia')"
+            };
+            highlights.highlight2 = {
+                title: 'Campeonato Semanal',
+                subtitle: 'Etapas semanais',
+                description: 'Etapas semanais com premiações.',
+                image: '',
+                action: "openPurchaseModal('planilhas')"
+            };
+            highlights.highlight3 = {
+                title: 'Camp de Fases',
+                subtitle: 'Eliminatórias',
+                description: 'Eliminatórias com melhores confrontos.',
+                image: '',
+                action: "openPurchaseModal('camp-fases')"
+            };
+        }
+        
+        // Renderizar destaques
+        const track = document.getElementById('carouselTrack');
+        if (!track) return;
+        
+        track.innerHTML = '';
+        
+        for (let i = 1; i <= 3; i++) {
+            const highlight = highlights[`highlight${i}`];
+            if (highlight) {
+                const slide = document.createElement('div');
+                slide.className = 'min-w-full p-8 bg-white';
+                slide.innerHTML = `
+                    <div class="grid md:grid-cols-2 gap-6 items-center">
+                        <div>
+                            <h3 class="text-xl font-bold mb-2">${highlight.title}</h3>
+                            ${highlight.subtitle ? `<p class="text-gray-500 mb-2">${highlight.subtitle}</p>` : ''}
+                            <p class="text-gray-600 mb-4">${highlight.description}</p>
+                            <button onclick="${highlight.action}" class="bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold">Ver Mais</button>
+                        </div>
+                        <div class="rounded-xl ${highlight.image ? '' : 'bg-blue-matte bg-opacity-20'} h-48 overflow-hidden flex items-center justify-center">
+                            ${highlight.image ? `<img src="${highlight.image}" alt="${highlight.title}" class="w-full h-full object-cover">` : ''}
+                        </div>
+                    </div>
+                `;
+                track.appendChild(slide);
+            }
+        }
+        
+        // Inicializar carousel
+        initCarousel();
+        
+    } catch (error) {
+        console.error('Erro ao carregar destaques:', error);
+    }
+}
+
 // Simple carousel
-(function(){
+function initCarousel() {
     const track = document.getElementById('carouselTrack');
     const prev = document.getElementById('carouselPrev');
     const next = document.getElementById('carouselNext');
@@ -1252,7 +1327,16 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
     function update(){ track.style.transform = `translateX(-${index*100}%)`; }
     prev.addEventListener('click', ()=>{ index = (index - 1 + slides) % slides; update(); });
     next.addEventListener('click', ()=>{ index = (index + 1) % slides; update(); });
-})();
+}
+
+// Carregar destaques quando o Firebase estiver pronto
+if (window.firebaseReady) {
+    loadHighlightsFromFirestore();
+} else {
+    window.addEventListener('load', () => {
+        setTimeout(loadHighlightsFromFirestore, 1000);
+    });
+}
 
 // Cart
 const cart = [];

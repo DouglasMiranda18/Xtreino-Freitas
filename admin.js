@@ -1972,9 +1972,167 @@ function showGiveTokensModal() {
     }
 }
 
+// ===== GERENCIAMENTO DE DESTAQUES =====
+
+// Carregar destaques do Firestore
+async function loadHighlights() {
+    try {
+        const highlightsRef = collection(window.firebaseDb, 'highlights');
+        const snapshot = await getDocs(highlightsRef);
+        
+        let highlights = {};
+        snapshot.forEach(doc => {
+            highlights[doc.id] = doc.data();
+        });
+        
+        // Se não existem destaques, criar os padrão
+        if (Object.keys(highlights).length === 0) {
+            highlights = {
+                highlight1: {
+                    title: 'Modo Liga - Estratégia',
+                    subtitle: 'Treinos competitivos',
+                    description: 'Treinos competitivos com pontuação e ranking.',
+                    image: '',
+                    action: "openPurchaseModal('estrategia')"
+                },
+                highlight2: {
+                    title: 'Campeonato Semanal',
+                    subtitle: 'Etapas semanais',
+                    description: 'Etapas semanais com premiações.',
+                    image: '',
+                    action: "openPurchaseModal('planilhas')"
+                },
+                highlight3: {
+                    title: 'Camp de Fases',
+                    subtitle: 'Eliminatórias',
+                    description: 'Eliminatórias com melhores confrontos.',
+                    image: '',
+                    action: "openPurchaseModal('camp-fases')"
+                }
+            };
+            
+            // Salvar destaques padrão
+            const { setDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            for (const [id, data] of Object.entries(highlights)) {
+                await setDoc(doc(window.firebaseDb, 'highlights', id), data);
+            }
+        }
+        
+        // Atualizar preview
+        updateHighlightsPreview(highlights);
+        
+        return highlights;
+    } catch (error) {
+        console.error('Erro ao carregar destaques:', error);
+        return {};
+    }
+}
+
+// Atualizar preview dos destaques
+function updateHighlightsPreview(highlights) {
+    const preview = document.getElementById('highlightsPreview');
+    if (!preview) return;
+    
+    preview.innerHTML = '';
+    
+    for (let i = 1; i <= 3; i++) {
+        const highlight = highlights[`highlight${i}`];
+        if (highlight) {
+            const div = document.createElement('div');
+            div.className = 'border border-gray-200 rounded-lg p-3';
+            div.innerHTML = `
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="font-semibold text-sm">Destaque ${i}</h4>
+                    <span class="text-xs text-gray-500">${highlight.title}</span>
+                </div>
+                <p class="text-xs text-gray-600 mb-1">${highlight.subtitle}</p>
+                <p class="text-xs text-gray-500">${highlight.description}</p>
+            `;
+            preview.appendChild(div);
+        }
+    }
+}
+
+// Abrir modal de edição
+function openHighlightsModal() {
+    const modal = document.getElementById('modalHighlights');
+    if (!modal) return;
+    
+    modal.classList.remove('hidden');
+    
+    // Carregar dados atuais nos campos
+    loadHighlights().then(highlights => {
+        for (let i = 1; i <= 3; i++) {
+            const highlight = highlights[`highlight${i}`];
+            if (highlight) {
+                document.getElementById(`highlight${i}Title`).value = highlight.title || '';
+                document.getElementById(`highlight${i}Subtitle`).value = highlight.subtitle || '';
+                document.getElementById(`highlight${i}Description`).value = highlight.description || '';
+                document.getElementById(`highlight${i}Image`).value = highlight.image || '';
+                document.getElementById(`highlight${i}Action`).value = highlight.action || '';
+            }
+        }
+    });
+}
+
+// Fechar modal
+function closeHighlightsModal() {
+    const modal = document.getElementById('modalHighlights');
+    if (modal) modal.classList.add('hidden');
+}
+
+// Salvar destaques
+async function saveHighlights() {
+    try {
+        const { setDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        
+        const highlights = {};
+        
+        for (let i = 1; i <= 3; i++) {
+            highlights[`highlight${i}`] = {
+                title: document.getElementById(`highlight${i}Title`).value.trim(),
+                subtitle: document.getElementById(`highlight${i}Subtitle`).value.trim(),
+                description: document.getElementById(`highlight${i}Description`).value.trim(),
+                image: document.getElementById(`highlight${i}Image`).value.trim(),
+                action: document.getElementById(`highlight${i}Action`).value,
+                updatedAt: new Date().toISOString()
+            };
+        }
+        
+        // Salvar no Firestore
+        for (const [id, data] of Object.entries(highlights)) {
+            await setDoc(doc(window.firebaseDb, 'highlights', id), data);
+        }
+        
+        // Atualizar preview
+        updateHighlightsPreview(highlights);
+        
+        // Fechar modal
+        closeHighlightsModal();
+        
+        alert('✅ Destaques salvos com sucesso!');
+        
+    } catch (error) {
+        console.error('Erro ao salvar destaques:', error);
+        alert('❌ Erro ao salvar destaques');
+    }
+}
+
 // Tornar funções globais
 window.approveOrder = approveOrder;
 window.showGiveTokensModal = showGiveTokensModal;
+window.openHighlightsModal = openHighlightsModal;
+window.closeHighlightsModal = closeHighlightsModal;
+window.saveHighlights = saveHighlights;
+
+// Carregar destaques quando o admin estiver pronto
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        if (window.firebaseDb && document.getElementById('highlightsPreview')) {
+            loadHighlights();
+        }
+    }, 2000);
+});
 
 main();
 
