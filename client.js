@@ -494,15 +494,7 @@ async function loadWhatsAppLinks(orders) {
                 return false;
         }
         
-        // Mostrar apenas links dentro da janela do horário do evento até +30min
-        const dateStrFilter = order.date || order.eventDate;
-        const scheduleStrFilter = order.schedule || order.hour || '';
-        if (!dateStrFilter || !scheduleStrFilter) return false;
-        const startDt = getEventDateTime(dateStrFilter, scheduleStrFilter);
-        if (isNaN(startDt.getTime())) return false;
-        const endDt = new Date(startDt.getTime() + (30 * 60 * 1000));
-        const now = new Date();
-        if (now < startDt || now > endDt) return false;
+        // Não filtra por janela aqui; exibimos todos os eventos e decidimos no botão se está disponível
         
         return true;
     });
@@ -572,6 +564,9 @@ async function loadWhatsAppLinks(orders) {
             if (now > thirtyMinutesAfterEvent) {
                 showWhatsAppButton = false;
             }
+        } else {
+            // se não há data/horário, por segurança não mostrar botão
+            showWhatsAppButton = false;
         }
 
         return `
