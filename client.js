@@ -494,15 +494,8 @@ async function loadWhatsAppLinks(orders) {
                 return false;
         }
         
-        // Filtrar pela janela do horário do evento até +30min
-        const dateStr = order.eventDate || order.date;
-        const scheduleStr = order.schedule || order.hour || '';
-        if (!dateStr || !scheduleStr) return false;
-        const startDt = getEventDateTime(dateStr, scheduleStr);
-        if (isNaN(startDt.getTime())) return false;
-        const endDt = new Date(startDt.getTime() + (30 * 60 * 1000));
-        const now = new Date();
-        return now >= startDt && now <= endDt;
+        // Não filtrar por janela aqui; mostramos todos e controlamos a disponibilidade do botão
+        return true;
         
         return true;
     });
@@ -572,10 +565,7 @@ async function loadWhatsAppLinks(orders) {
             if (now > thirtyMinutesAfterEvent) {
                 showWhatsAppButton = false;
             }
-        } else {
-            // se não há data/horário, por segurança não mostrar botão
-            showWhatsAppButton = false;
-        }
+        } 
 
         return `
             <div class="border border-gray-200 rounded-lg p-4 mb-4">
