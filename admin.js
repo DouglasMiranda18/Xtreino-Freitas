@@ -1742,7 +1742,7 @@ async function main() {
         try { await upsertUserProfile(user); } catch {}
         try { await loadUsersAndRoles(role); } catch (e) { console.error('Users error', e); }
         try { await loadPendingOrders(); } catch (e) { console.error('Pending orders error', e); }
-        try { await loadConfirmedOrders(); } catch (e) { console.error('Confirmed orders error', e); }
+        // try { await loadConfirmedOrders(); } catch (e) { console.error('Confirmed orders error', e); } // Desabilitado - usando nova função com paginação
     });
 }
 
