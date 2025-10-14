@@ -54,6 +54,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // news: leitura pública para notícias; escrita apenas para admins
+    match /news/{newsId} {
+      allow read: if true; // Permite leitura pública para notícias
+      allow write: if isAdmin();
+    }
+
     // Admin: leitura global (qualquer coleção/documento) - apenas para admins
     match /{path=**} {
       allow read: if isAdmin();

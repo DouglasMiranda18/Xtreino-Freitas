@@ -1364,10 +1364,89 @@ function initCarousel() {
 // Carregar destaques quando o Firebase estiver pronto
 if (window.firebaseReady) {
     loadHighlightsFromFirestore();
+    loadNewsFromFirestore();
 } else {
     window.addEventListener('load', () => {
-        setTimeout(loadHighlightsFromFirestore, 1000);
+        setTimeout(() => {
+            loadHighlightsFromFirestore();
+            loadNewsFromFirestore();
+        }, 1000);
     });
+}
+
+// Carregar notícias do Firestore
+async function loadNewsFromFirestore() {
+    try {
+        if (!window.firebaseDb) return;
+        
+        const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const newsRef = collection(window.firebaseDb, 'news');
+        const snapshot = await getDocs(newsRef);
+        
+        const news = [];
+        snapshot.forEach(doc => {
+            news.push(doc.data());
+        });
+        
+        // Ordenar por data (mais recente primeiro)
+        news.sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        // Renderizar notícias
+        const container = document.getElementById('newsContainer');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        
+        if (news.length === 0) {
+            container.innerHTML = `
+                <div class="col-span-full flex items-center justify-center py-12">
+                    <p class="text-gray-500">Nenhuma notícia disponível no momento.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        news.forEach(newsItem => {
+            const newsCard = document.createElement('div');
+            newsCard.className = 'bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300';
+            
+            const date = new Date(newsItem.date);
+            const formattedDate = date.toLocaleDateString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+            
+            newsCard.innerHTML = `
+                <div class="p-6">
+                    ${newsItem.image ? `
+                        <div class="mb-4">
+                            <img src="${newsItem.image}" alt="${newsItem.title}" class="w-full h-48 object-cover rounded-lg">
+                        </div>
+                    ` : ''}
+                    <h3 class="text-xl font-bold mb-3 text-gray-800">${newsItem.title}</h3>
+                    <p class="text-gray-600 mb-4 leading-relaxed">${newsItem.content}</p>
+                    <div class="flex items-center justify-between text-sm text-gray-500">
+                        <span>Por: ${newsItem.author}</span>
+                        <span>${formattedDate}</span>
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(newsCard);
+        });
+        
+    } catch (error) {
+        console.error('Erro ao carregar notícias:', error);
+        const container = document.getElementById('newsContainer');
+        if (container) {
+            container.innerHTML = `
+                <div class="col-span-full flex items-center justify-center py-12">
+                    <p class="text-red-500">Erro ao carregar notícias.</p>
+                </div>
+            `;
+        }
+    }
 }
 
 // Cart

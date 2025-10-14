@@ -296,6 +296,19 @@
                 </div>
             </div>
 
+            <!-- Gerenciar Notícias -->
+            <div class="bg-white border border-gray-200 rounded-xl p-6 mt-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-sm">Gerenciar Notícias</h3>
+                    <button onclick="openNewsModal()" class="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700">
+                        <i class="fas fa-newspaper mr-1"></i>Editar
+                    </button>
+                </div>
+                <div id="newsPreview" class="space-y-3">
+                    <div class="text-center text-gray-500 text-sm">Carregando notícias...</div>
+                </div>
+            </div>
+
             <!-- Controle de Horários -->
             <div class="bg-white border border-gray-200 rounded-xl p-6 mt-6">
                 <div class="flex flex-wrap gap-3 items-end mb-4">
@@ -418,6 +431,36 @@
                 </button>
                 <button onclick="saveHighlights()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                     <i class="fas fa-save mr-2"></i>Salvar Destaques
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Gerenciar Notícias -->
+    <div id="modalNews" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="font-bold text-xl">Gerenciar Notícias</h3>
+                <div class="flex items-center gap-3">
+                    <button onclick="addNews()" class="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700">
+                        <i class="fas fa-plus mr-1"></i>Adicionar
+                    </button>
+                    <button onclick="closeNewsModal()" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div id="newsContainer" class="space-y-6">
+                <!-- As notícias serão carregadas dinamicamente aqui -->
+            </div>
+
+            <div class="flex justify-end gap-3 mt-6 pt-4 border-t">
+                <button onclick="closeNewsModal()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                    Cancelar
+                </button>
+                <button onclick="saveNews()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                    <i class="fas fa-save mr-2"></i>Salvar Notícias
                 </button>
             </div>
         </div>

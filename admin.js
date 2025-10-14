@@ -1977,6 +1977,11 @@ function showGiveTokensModal() {
 let highlightsData = {};
 let highlightCounter = 1;
 
+// ===== GERENCIAMENTO DE NOTÍCIAS =====
+
+let newsData = {};
+let newsCounter = 1;
+
 // Carregar destaques do Firestore
 async function loadHighlights() {
     try {
@@ -2284,11 +2289,256 @@ window.removeHighlight = removeHighlight;
 window.toggleRedirectField = toggleRedirectField;
 window.toggleCustomLinkField = toggleCustomLinkField;
 
+// ===== FUNÇÕES DE NOTÍCIAS =====
+
+// Carregar notícias do Firestore
+async function loadNews() {
+    try {
+        const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const newsRef = collection(window.firebaseDb, 'news');
+        const snapshot = await getDocs(newsRef);
+        
+        newsData = {};
+        snapshot.forEach(doc => {
+            newsData[doc.id] = doc.data();
+        });
+        
+        // Se não existem notícias, criar as padrão
+        if (Object.keys(newsData).length === 0) {
+            newsData = {
+                news1: {
+                    title: 'Novo Sistema de Tokens',
+                    content: 'Agora você pode comprar tokens e usar para participar dos XTreinos!',
+                    image: '',
+                    date: new Date().toISOString(),
+                    author: 'Equipe XTreino'
+                },
+                news2: {
+                    title: 'Campeonato Semanal',
+                    content: 'Participe do nosso campeonato semanal e concorra a prêmios incríveis!',
+                    image: '',
+                    date: new Date().toISOString(),
+                    author: 'Equipe XTreino'
+                },
+                news3: {
+                    title: 'Modo Liga Ativo',
+                    content: 'O Modo Liga está funcionando com treinos competitivos e ranking!',
+                    image: '',
+                    date: new Date().toISOString(),
+                    author: 'Equipe XTreino'
+                }
+            };
+            
+            // Salvar notícias padrão
+            const { setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            for (const [id, data] of Object.entries(newsData)) {
+                await setDoc(doc(window.firebaseDb, 'news', id), data);
+            }
+        }
+        
+        // Atualizar preview
+        updateNewsPreview(newsData);
+        
+        return newsData;
+    } catch (error) {
+        console.error('Erro ao carregar notícias:', error);
+        return {};
+    }
+}
+
+// Atualizar preview das notícias
+function updateNewsPreview(news) {
+    const preview = document.getElementById('newsPreview');
+    if (!preview) return;
+    
+    preview.innerHTML = '';
+    
+    Object.keys(news).forEach((key, index) => {
+        const newsItem = news[key];
+        if (newsItem) {
+            const div = document.createElement('div');
+            div.className = 'border border-gray-200 rounded-lg p-3';
+            div.innerHTML = `
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="font-semibold text-sm">Notícia ${index + 1}</h4>
+                    <span class="text-xs text-gray-500">${newsItem.title}</span>
+                </div>
+                <p class="text-xs text-gray-600 mb-1">${newsItem.content}</p>
+                <p class="text-xs text-gray-500">Por: ${newsItem.author}</p>
+            `;
+            preview.appendChild(div);
+        }
+    });
+}
+
+// Abrir modal de edição de notícias
+function openNewsModal() {
+    const modal = document.getElementById('modalNews');
+    if (!modal) return;
+    
+    modal.classList.remove('hidden');
+    
+    // Carregar dados atuais e renderizar formulários
+    loadNews().then(() => {
+        renderNewsForm();
+    });
+}
+
+// Renderizar formulário de notícias
+function renderNewsForm() {
+    const container = document.getElementById('newsContainer');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    Object.keys(newsData).forEach((key, index) => {
+        const newsItem = newsData[key];
+        const newsDiv = createNewsForm(key, newsItem, index + 1);
+        container.appendChild(newsDiv);
+    });
+}
+
+// Criar formulário para uma notícia
+function createNewsForm(key, newsItem, index) {
+    const div = document.createElement('div');
+    div.className = 'border border-gray-200 rounded-lg p-4';
+    div.innerHTML = `
+        <div class="flex items-center justify-between mb-4">
+            <h4 class="font-semibold text-lg">Notícia ${index}</h4>
+            <button onclick="removeNews('${key}')" class="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700">
+                <i class="fas fa-trash mr-1"></i>Remover
+            </button>
+        </div>
+        <div class="grid md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium mb-2">Título</label>
+                <input id="${key}Title" type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Ex: Novo Sistema de Tokens" value="${newsItem.title || ''}">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-2">Autor</label>
+                <input id="${key}Author" type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Ex: Equipe XTreino" value="${newsItem.author || ''}">
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-sm font-medium mb-2">Conteúdo</label>
+                <textarea id="${key}Content" class="w-full border border-gray-300 rounded-lg px-3 py-2" rows="3" placeholder="Ex: Agora você pode comprar tokens e usar para participar dos XTreinos!">${newsItem.content || ''}</textarea>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-2">URL da Imagem</label>
+                <input id="${key}Image" type="url" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="https://exemplo.com/imagem.jpg" value="${newsItem.image || ''}">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-2">Data</label>
+                <input id="${key}Date" type="datetime-local" class="w-full border border-gray-300 rounded-lg px-3 py-2" value="${newsItem.date ? new Date(newsItem.date).toISOString().slice(0, 16) : ''}">
+            </div>
+        </div>
+    `;
+    return div;
+}
+
+// Fechar modal de notícias
+function closeNewsModal() {
+    const modal = document.getElementById('modalNews');
+    if (modal) modal.classList.add('hidden');
+}
+
+// Adicionar nova notícia
+function addNews() {
+    const newKey = `news${Date.now()}`;
+    const newNews = {
+        title: '',
+        content: '',
+        image: '',
+        date: new Date().toISOString(),
+        author: 'Equipe XTreino'
+    };
+    
+    newsData[newKey] = newNews;
+    renderNewsForm();
+}
+
+// Remover notícia
+function removeNews(key) {
+    if (Object.keys(newsData).length <= 1) {
+        alert('❌ Deve haver pelo menos uma notícia!');
+        return;
+    }
+    
+    if (confirm('Tem certeza que deseja remover esta notícia?')) {
+        delete newsData[key];
+        renderNewsForm();
+    }
+}
+
+// Salvar notícias
+async function saveNews() {
+    try {
+        // Coletar dados dos formulários
+        const news = {};
+        
+        Object.keys(newsData).forEach(key => {
+            const title = document.getElementById(`${key}Title`)?.value.trim();
+            const content = document.getElementById(`${key}Content`)?.value.trim();
+            const image = document.getElementById(`${key}Image`)?.value.trim();
+            const author = document.getElementById(`${key}Author`)?.value.trim();
+            const date = document.getElementById(`${key}Date`)?.value;
+            
+            if (title && content) { // Só salvar se tiver título e conteúdo
+                news[key] = {
+                    title,
+                    content,
+                    image,
+                    author: author || 'Equipe XTreino',
+                    date: date ? new Date(date).toISOString() : new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                };
+            }
+        });
+        
+        // Limpar coleção atual
+        const { collection, getDocs, deleteDoc, setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const newsRef = collection(window.firebaseDb, 'news');
+        const snapshot = await getDocs(newsRef);
+        snapshot.forEach(doc => {
+            deleteDoc(doc.ref);
+        });
+        
+        // Salvar novas notícias
+        for (const [id, data] of Object.entries(news)) {
+            await setDoc(doc(window.firebaseDb, 'news', id), data);
+        }
+        
+        // Atualizar dados locais
+        newsData = news;
+        
+        // Atualizar preview
+        updateNewsPreview(news);
+        
+        // Fechar modal
+        closeNewsModal();
+        
+        alert('✅ Notícias salvas com sucesso!');
+        
+    } catch (error) {
+        console.error('Erro ao salvar notícias:', error);
+        alert('❌ Erro ao salvar notícias');
+    }
+}
+
+// Tornar funções globais
+window.openNewsModal = openNewsModal;
+window.closeNewsModal = closeNewsModal;
+window.saveNews = saveNews;
+window.addNews = addNews;
+window.removeNews = removeNews;
+
 // Carregar destaques quando o admin estiver pronto
 window.addEventListener('load', () => {
     setTimeout(() => {
         if (window.firebaseDb && document.getElementById('highlightsPreview')) {
             loadHighlights();
+        }
+        if (window.firebaseDb && document.getElementById('newsPreview')) {
+            loadNews();
         }
     }, 2000);
 });
