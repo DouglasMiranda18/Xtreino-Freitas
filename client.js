@@ -494,17 +494,14 @@ async function loadWhatsAppLinks(orders) {
             return false;
         }
         
-        // Verificar se o link do WhatsApp ainda deve ser exibido (não passou de 15min do evento)
-        if (order.schedule && order.date) {
-            const eventDateTime = getEventDateTime(order.date, order.schedule);
-            const fifteenMinutesAfterEvent = new Date(eventDateTime.getTime() + (15 * 60 * 1000)); // +15 minutos
-            const now = new Date();
-            
-            // Se passou mais de 15 minutos do evento, não mostrar o link
-            if (now > fifteenMinutesAfterEvent) {
-                return false;
-            }
-        }
+        // Mostrar apenas links dentro da janela do horário do evento até +30min
+        const dateStrFilter = order.date || order.eventDate;
+        const scheduleStrFilter = order.schedule || order.hour || '';
+        if (!dateStrFilter || !scheduleStrFilter) return false;
+        const startDt = getEventDateTime(dateStrFilter, scheduleStrFilter);
+        const endDt = new Date(startDt.getTime() + (30 * 60 * 1000));
+        const now = new Date();
+        if (now < startDt || now > endDt) return false;
         
         return true;
     });
