@@ -247,7 +247,9 @@ async function loadRecentOrders() {
             date: d.data.createdAt?.toDate?.() || new Date(),
             title: d.data.title || d.data.item || 'Pedido',
             status: d.data.status || 'pending',
-            price: d.data.amount ?? d.data.total ?? 0
+            price: d.data.amount ?? d.data.total ?? 0,
+            eventDate: d.data.date || null,
+            schedule: d.data.schedule || d.data.hour || d.data.time || ''
         }));
 
         // Registrations pagas com tokens (e.g., XTreino Associado)
@@ -264,7 +266,9 @@ async function loadRecentOrders() {
             // preço 0 pois foi pago com tokens
             price: 0,
             paidWithTokens: true,
-            tokensUsed: d.data.tokensUsed || d.data.tokenCost || 1
+            tokensUsed: d.data.tokensUsed || d.data.tokenCost || 1,
+            eventDate: d.data.date || null,
+            schedule: d.data.schedule || d.data.hour || d.data.time || ''
           }));
 
         const merged = [...orders, ...tokenRegs]
@@ -325,7 +329,9 @@ async function loadOrders() {
             date: d.data.createdAt?.toDate?.() || new Date(),
             title: d.data.title || d.data.item || 'Pedido',
             status: d.data.status || 'pending',
-            price: d.data.amount ?? d.data.total ?? 0
+            price: d.data.amount ?? d.data.total ?? 0,
+            eventDate: d.data.date || null,
+            schedule: d.data.schedule || d.data.hour || d.data.time || ''
         }));
 
         // incluir eventos pagos com tokens das registrations
@@ -340,7 +346,9 @@ async function loadOrders() {
             status: d.data.status || 'paid',
             price: 0,
             paidWithTokens: true,
-            tokensUsed: d.data.tokensUsed || d.data.tokenCost || 1
+            tokensUsed: d.data.tokensUsed || d.data.tokenCost || 1,
+            eventDate: d.data.date || null,
+            schedule: d.data.schedule || d.data.hour || d.data.time || ''
           }));
 
         allOrdersData = [...mappedOrders, ...mappedRegs]
@@ -523,8 +531,10 @@ async function loadWhatsAppLinks(orders) {
         let showWhatsAppButton = true;
         let eventDateLabel = '';
         
-        if (rawSchedule && rawDate) {
-            const eventDateTime = getEventDateTime(rawDate, rawSchedule);
+        if ((rawSchedule && rawDate) || (order.eventDate && (order.schedule || order.hour))) {
+            const dateStr = rawDate || order.eventDate;
+            const scheduleStr = rawSchedule || order.schedule || order.hour || '';
+            const eventDateTime = getEventDateTime(dateStr, scheduleStr);
             const fifteenMinutesAfterEvent = new Date(eventDateTime.getTime() + (15 * 60 * 1000));
             const now = new Date();
             const timeLeft = fifteenMinutesAfterEvent.getTime() - now.getTime();
@@ -532,12 +542,12 @@ async function loadWhatsAppLinks(orders) {
             if (timeLeft > 0) {
                 const minutesLeft = Math.floor(timeLeft / (1000 * 60));
                 expiresInfo = `<p class="text-xs text-orange-600 mt-1">⏰ Link expira em ${minutesLeft}min</p>`;
-                eventDateLabel = `${rawDate} • ${rawSchedule}`;
+                eventDateLabel = `${dateStr} • ${scheduleStr}`;
             } else {
                 // Link expirou - não mostrar botão do WhatsApp
                 showWhatsAppButton = false;
                 expiresInfo = `<p class="text-xs text-red-600 mt-1">⏰ Link expirado</p>`;
-                eventDateLabel = `${rawDate} • ${rawSchedule}`;
+                eventDateLabel = `${dateStr} • ${scheduleStr}`;
             }
         } else {
             // Sem data/horário explícitos: mostrar apenas data de criação se existir no pedido
@@ -549,7 +559,7 @@ async function loadWhatsAppLinks(orders) {
             <div class="border border-gray-200 rounded-lg p-4 mb-4">
                 <div class="flex justify-between items-center">
                     <div>
-                        <h4 class="font-medium text-gray-900">${rawTitle}${rawSchedule ? ` • ${rawSchedule}` : ''}</h4>
+                        <h4 class="font-medium text-gray-900">${rawTitle}${(order.schedule||order.hour) ? ` • ${(order.schedule||order.hour)}` : (rawSchedule ? ` • ${rawSchedule}` : '')}</h4>
                         ${eventDateLabel ? `<p class="text-sm text-gray-500">${eventDateLabel}</p>` : ''}
                         <p class="text-sm text-green-600 font-medium">Confirmado</p>
                         ${expiresInfo}
