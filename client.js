@@ -549,9 +549,9 @@ async function loadWhatsAppLinks(orders) {
             const dateStr = rawDate || order.eventDate;
             const scheduleStr = rawSchedule || order.schedule || order.hour || '';
             const eventDateTime = getEventDateTime(dateStr, scheduleStr);
-            const fifteenMinutesAfterEvent = new Date(eventDateTime.getTime() + (15 * 60 * 1000));
+            const thirtyMinutesAfterEvent = new Date(eventDateTime.getTime() + (30 * 60 * 1000));
             const now = new Date();
-            const timeLeft = fifteenMinutesAfterEvent.getTime() - now.getTime();
+            const timeLeft = thirtyMinutesAfterEvent.getTime() - now.getTime();
             
             if (timeLeft <= 0) {
                 // Link expirou - não mostrar botão do WhatsApp
