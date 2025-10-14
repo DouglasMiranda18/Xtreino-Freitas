@@ -2215,8 +2215,6 @@ function toggleCustomLinkField(key) {
 // Salvar destaques
 async function saveHighlights() {
     try {
-        const { setDoc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        
         // Coletar dados dos formulários
         const highlights = {};
         
@@ -2246,7 +2244,7 @@ async function saveHighlights() {
         });
         
         // Limpar coleção atual
-        const { collection, getDocs, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const { collection, getDocs, deleteDoc, setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const highlightsRef = collection(window.firebaseDb, 'highlights');
         const snapshot = await getDocs(highlightsRef);
         snapshot.forEach(doc => {
@@ -2254,7 +2252,6 @@ async function saveHighlights() {
         });
         
         // Salvar novos destaques
-        const { setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         for (const [id, data] of Object.entries(highlights)) {
             await setDoc(doc(window.firebaseDb, 'highlights', id), data);
         }
