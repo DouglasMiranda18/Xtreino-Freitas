@@ -48,6 +48,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // highlights: leitura pública para destaques; escrita apenas para admins
+    match /highlights/{highlightId} {
+      allow read: if true; // Permite leitura pública para destaques
+      allow write: if isAdmin();
+    }
+
     // Admin: leitura global (qualquer coleção/documento) - apenas para admins
     match /{path=**} {
       allow read: if isAdmin();
