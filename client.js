@@ -423,7 +423,7 @@ function getEventDateTime(dateStr, scheduleStr) {
         return date;
     } catch (error) {
         console.error('Erro ao converter data/hora do evento:', error);
-        return new Date(); // Retorna data atual em caso de erro
+        return new Date(NaN); // inválido para não liberar link indevidamente
     }
 }
 
@@ -491,7 +491,7 @@ async function loadWhatsAppLinks(orders) {
             item.includes('imagens aéreas') || 
             item.includes('camisa') ||
             (item.includes('token') && eventType !== 'xtreino-tokens')) {
-            return false;
+                return false;
         }
         
         // Mostrar apenas links dentro da janela do horário do evento até +30min
@@ -499,6 +499,7 @@ async function loadWhatsAppLinks(orders) {
         const scheduleStrFilter = order.schedule || order.hour || '';
         if (!dateStrFilter || !scheduleStrFilter) return false;
         const startDt = getEventDateTime(dateStrFilter, scheduleStrFilter);
+        if (isNaN(startDt.getTime())) return false;
         const endDt = new Date(startDt.getTime() + (30 * 60 * 1000));
         const now = new Date();
         if (now < startDt || now > endDt) return false;
