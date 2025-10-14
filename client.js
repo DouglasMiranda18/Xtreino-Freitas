@@ -570,8 +570,8 @@ async function loadWhatsAppLinks(orders) {
             const eventDateTime = getEventDateTime(dateStr, scheduleStr);
             const thirtyMinutesAfterEvent = new Date(eventDateTime.getTime() + (30 * 60 * 1000));
             const now = new Date();
-            // Disponível somente a partir do horário do evento até 30min após
-            showWhatsAppButton = now >= eventDateTime && now <= thirtyMinutesAfterEvent;
+            // Disponível sempre até 30min após o horário do evento
+            showWhatsAppButton = now <= thirtyMinutesAfterEvent;
         }
 
         return `
