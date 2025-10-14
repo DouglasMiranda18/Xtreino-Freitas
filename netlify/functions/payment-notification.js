@@ -148,7 +148,7 @@ exports.handler = async (event, context) => {
                     const db = admin.firestore();
                     const externalRef = payment.external_reference;
                     
-                    // Primeiro, tentar buscar na coleção 'orders' (para compras de tokens)
+                    // Primeiro, tentar buscar na coleção 'orders' (para compras de tokens e produtos)
                     console.log('Searching for order with external_reference:', externalRef);
                     const ordersRef = db.collection('orders');
                     const ordersSnapshot = await ordersRef.where('external_reference', '==', externalRef).get();
@@ -157,6 +157,79 @@ exports.handler = async (event, context) => {
                     ordersSnapshot.forEach(doc => {
                         console.log('Order document:', doc.id, doc.data());
                     });
+                    
+                    // Se não encontrou, tentar buscar por ID do documento (caso o external_reference seja digital_<docId>)
+                    if (ordersSnapshot.empty && externalRef.startsWith('digital_')) {
+                        const docId = externalRef.replace('digital_', '');
+                        console.log('Trying to find order by document ID:', docId);
+                        const orderDoc = await ordersRef.doc(docId).get();
+                        if (orderDoc.exists) {
+                            console.log('Found order by document ID:', docId);
+                            // Atualizar o external_reference no documento
+                            await orderDoc.ref.update({ external_reference: externalRef });
+                            // Usar o documento encontrado
+                            const orderData = orderDoc.data();
+                            const orderDocRef = orderDoc.ref;
+                            
+                            // Atualizar status para 'paid'
+                            await orderDocRef.update({
+                                status: 'paid',
+                                paymentId: payment.id,
+                                paymentStatus: 'approved',
+                                paidAt: admin.firestore.FieldValue.serverTimestamp()
+                            });
+                            
+                            console.log('Order updated to paid:', orderDoc.id);
+                            
+                            // Processar o tipo de compra
+                            if (payment.description && payment.description.includes('Token')) {
+                                console.log('This is a token purchase! Processing...');
+                                const userId = orderData.userId || orderData.uid;
+                                const customerEmail = orderData.customer || orderData.buyerEmail;
+                                
+                                if (customerEmail) {
+                                    console.log('Looking up user by email:', customerEmail);
+                                    const usersSnapshot = await db.collection('users').where('email', '==', customerEmail).get();
+                                    
+                                    if (!usersSnapshot.empty) {
+                                        const userDoc = usersSnapshot.docs[0];
+                                        const currentTokens = userDoc.data().tokens || 0;
+                                        const tokensToAdd = parseInt(payment.description.match(/\d+/)?.[0] || '1');
+                                        
+                                        await userDoc.ref.update({
+                                            tokens: currentTokens + tokensToAdd
+                                        });
+                                        
+                                        console.log(`✅ Added ${tokensToAdd} tokens to user ${customerEmail}. New balance: ${currentTokens + tokensToAdd}`);
+                                    }
+                                }
+                            } else if (orderData.type === 'digital_product') {
+                                console.log('This is a digital product purchase! Processing delivery...');
+                                
+                                const deliveryData = {
+                                    orderId: orderDoc.id,
+                                    customerEmail: orderData.customer || orderData.buyerEmail,
+                                    customerName: orderData.customerName,
+                                    productId: orderData.productId,
+                                    productName: orderData.title,
+                                    productOptions: orderData.productOptions || {},
+                                    status: 'delivered',
+                                    deliveredAt: admin.firestore.FieldValue.serverTimestamp(),
+                                    downloadLinks: generateDownloadLinks(orderData.productId, orderData.productOptions),
+                                    paymentId: payment.id
+                                };
+                                
+                                await db.collection('digital_deliveries').add(deliveryData);
+                                console.log('✅ Digital delivery created for product:', orderData.productId);
+                            }
+                            
+                            return {
+                                statusCode: 200,
+                                headers,
+                                body: JSON.stringify({ received: true, status: payment.status })
+                            };
+                        }
+                    }
                     
                     if (!ordersSnapshot.empty) {
                         const orderDoc = ordersSnapshot.docs[0];

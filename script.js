@@ -1181,7 +1181,7 @@ async function handlePurchase(event) {
                 currency_id: 'BRL',
                 quantity: 1,
                 back_url: window.location.origin + window.location.pathname,
-                external_reference: `digital_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+                external_reference: externalRef
             })
         });
 
@@ -1994,7 +1994,7 @@ async function handleProductPurchase(productId, cfg) {
                 currency_id: 'BRL',
                 quantity: 1,
                 back_url: window.location.origin + window.location.pathname,
-                external_reference: `digital_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+                external_reference: externalRef
             })
         });
 

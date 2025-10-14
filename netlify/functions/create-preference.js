@@ -35,8 +35,8 @@ exports.handler = async function(event) {
     const failureUrl = (back_url ? `${back_url}?mp_status=failure` : process.env.MP_BACK_URL_FAILURE || (baseUrl ? `${baseUrl}/?mp_status=failure` : 'https://example.com/falha'));
     const pendingUrl = (back_url ? `${back_url}?mp_status=pending` : process.env.MP_BACK_URL_PENDING || (baseUrl ? `${baseUrl}/?mp_status=pending` : 'https://example.com/pendente'));
 
-    // Gerar external_reference único
-    const externalRef = `xtreino_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Usar external_reference do body se fornecido, senão gerar um único
+    const externalRef = body.external_reference || `xtreino_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     const preferencePayload = {
       items: [
