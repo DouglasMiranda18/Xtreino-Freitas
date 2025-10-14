@@ -517,7 +517,6 @@ async function loadWhatsAppLinks(orders) {
         'semanal': 'https://chat.whatsapp.com/SEU_GRUPO_SEMANAL',
         'finalSemanal': 'https://chat.whatsapp.com/SEU_GRUPO_FINAL_SEMANAL',
         'campFases': 'https://chat.whatsapp.com/SEU_GRUPO_CAMP_FASES',
-        'associado': 'https://chat.whatsapp.com/SEU_GRUPO_ASSOCIADO',
         'xtreino-tokens': 'https://chat.whatsapp.com/SEU_GRUPO_ASSOCIADO'
     };
 
