@@ -146,6 +146,7 @@ function onAuthLogged(user){
     window.isLoggedIn = true;
     toggleAccountButtons(true);
     closeLoginModal();
+    updateAdminLinkVisibility();
     // registra lastLogin
     try{
         if (window.firebaseReady && window.firebaseAuth?.currentUser){
@@ -221,6 +222,49 @@ document.addEventListener('DOMContentLoaded', () => {
     }catch(_){ /* noop */ }
 });
 
+// Verificar se usuário é admin autorizado
+async function checkAdminAccess() {
+    if (!window.isLoggedIn || !window.firebaseAuth?.currentUser) {
+        return false;
+    }
+    
+    const user = window.firebaseAuth.currentUser;
+    const authorizedEmails = ['cleitondouglass@gmail.com', 'cleitondouglass123@hotmail.com'];
+    
+    // Verificar email na whitelist
+    if (!authorizedEmails.includes(user.email.toLowerCase())) {
+        return false;
+    }
+    
+    // Verificar role no Firestore
+    try {
+        const uid = user.uid;
+        const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const snap = await getDoc(doc(collection(window.firebaseDb,'users'), uid));
+        if (snap.exists()) {
+            const role = (snap.data().role || '').toLowerCase();
+            return ['admin', 'ceo', 'gerente', 'vendedor'].includes(role);
+        }
+    } catch (error) {
+        console.error('Erro ao verificar acesso admin:', error);
+    }
+    
+    return false;
+}
+
+// Mostrar/esconder link ADMIN baseado no acesso
+async function updateAdminLinkVisibility() {
+    const adminLink = document.getElementById('adminLink');
+    if (!adminLink) return;
+    
+    const hasAccess = await checkAdminAccess();
+    if (hasAccess) {
+        adminLink.classList.remove('hidden');
+    } else {
+        adminLink.classList.add('hidden');
+    }
+}
+
 function requestAdminAccess(){
     // Se já estiver logado, valida papel; senão, abre modal de login e marca redirecionamento
     if (!window.isLoggedIn) {
@@ -229,23 +273,11 @@ function requestAdminAccess(){
         return;
     }
     (async () => {
-        let role = (window.currentUserProfile?.role || '').toLowerCase();
-        if (!role) {
-            try{
-                const uid = window.firebaseAuth?.currentUser?.uid;
-                const { doc, getDoc, collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-                let snap = await getDoc(doc(collection(window.firebaseDb,'users'), uid));
-                if (snap.exists()) role = (snap.data().role||'').toLowerCase();
-                if (!role){
-                    const q = query(collection(window.firebaseDb,'users'), where('uid','==', uid));
-                    const res = await getDocs(q); res.forEach(d=>{ if (!role) role=(d.data().role||'').toLowerCase(); });
-                }
-            }catch(_){ }
-        }
-        if (['ceo','gerente','vendedor'].includes(role)) {
+        const hasAccess = await checkAdminAccess();
+        if (hasAccess) {
             window.location.href = 'admin.html';
         } else {
-            alert('Acesso ao painel restrito (CEO, Gerente ou Vendedor).');
+            alert('Acesso ao painel restrito. Apenas administradores autorizados.');
         }
     })();
 }
@@ -332,7 +364,12 @@ function openRegisterModal(){ /* removed */ }
 async function submitRegister(){ /* removed */ }
 
 // Inicializa header conforme sessão prévia
-window.addEventListener('load', () => { try{ initShopCartHook(); }catch(_){ } });
+window.addEventListener('load', () => { 
+    try{ 
+        initShopCartHook(); 
+        updateAdminLinkVisibility();
+    }catch(_){ } 
+});
 
 // ---------------- Área de Associados: cargos, níveis, permissões e tokens ----------------
 // Configuração centralizada acessível via window.AssocConfig
@@ -501,11 +538,13 @@ async function checkAuthState() {
                     toggleAccountButtons(true);
                     // Carrega perfil do usuário
                     loadUserProfile(user.uid);
+                    updateAdminLinkVisibility();
                 } else {
                     // Usuário não está logado
                     window.isLoggedIn = false;
                     window.currentUserProfile = null;
                     toggleAccountButtons(false);
+                    updateAdminLinkVisibility();
                 }
             });
         }

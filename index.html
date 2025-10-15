@@ -30,7 +30,7 @@
                     <a href="#loja" class="text-black hover:text-blue-matte transition-colors">LOJA</a>
                     <a href="#sobre" class="text-black hover:text-blue-matte transition-colors">SOBRE NÓS</a>
                     <a href="#contato" class="text-black hover:text-blue-matte transition-colors">CONTATO</a>
-                    <a href="#" onclick="requestAdminAccess()" class="text-black hover:text-blue-matte transition-colors">ADMIN</a>
+                    <a href="#" onclick="requestAdminAccess()" id="adminLink" class="text-black hover:text-blue-matte transition-colors hidden">ADMIN</a>
                     <button onclick="toggleCart(true)" class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[var(--brand-yellow)] text-[var(--brand-black)] shadow hover:opacity-90" aria-label="Abrir carrinho">
                         <i class="fas fa-shopping-cart"></i>
                     </button>
@@ -109,14 +109,14 @@
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-2xl font-bold">Destaques</h2>
                 <div class="flex space-x-3">
-                    <button id="carouselPrev" class="w-10 h-10 bg-blue-matte hover:bg-blue-600 text-white rounded-full flex items-center justify-center transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7"></path>
+                    <button id="carouselPrev" class="w-12 h-12 bg-blue-matte hover:bg-blue-600 text-white rounded-full flex items-center justify-center transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 border-2 border-white">
+                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M15 19l-7-7 7-7"></path>
                         </svg>
                     </button>
-                    <button id="carouselNext" class="w-10 h-10 bg-blue-matte hover:bg-blue-600 text-white rounded-full flex items-center justify-center transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7"></path>
+                    <button id="carouselNext" class="w-12 h-12 bg-blue-matte hover:bg-blue-600 text-white rounded-full flex items-center justify-center transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 border-2 border-white">
+                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M9 5l7 7-7 7"></path>
                         </svg>
                     </button>
                 </div>
