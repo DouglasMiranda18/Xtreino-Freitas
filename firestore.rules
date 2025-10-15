@@ -28,189 +28,113 @@ service cloud.firestore {
     }
 
     // schedules: leitura pública para contagem; escrita para logados
-    match /schedules/{docId} {
-      allow read: if true; // Permite leitura pública para contagem de vagas
+    match /schedules/{scheduleId} {
+      allow read: if true;
       allow write: if isSignedIn();
     }
 
-    // orders: leitura para admins; usuário pode ler os próprios; escrita para logados
+    // orders: leitura para o próprio usuário; escrita para logados
     match /orders/{orderId} {
-      allow read: if isAdmin() || (isSignedIn() && (resource.data.ownerId == request.auth.uid || resource.data.userId == request.auth.uid || resource.data.uid == request.auth.uid || resource.data.customer == request.auth.email || resource.data.buyerEmail == request.auth.email));
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       allow write: if isSignedIn();
     }
 
-    // registrations: leitura pública para contagem de vagas; usuário pode ler os próprios; admins leem tudo
-    match /registrations/{regId} {
-      allow read: if true; // Permite leitura pública para contagem de vagas
+    // registrations: leitura para o próprio usuário; escrita para logados
+    match /registrations/{registrationId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       allow write: if isSignedIn();
     }
 
-    // tokens: admins podem gerenciar, usuário lê o próprio saldo
-    match /tokens/{tokenId} {
-      allow read, write: if isAdmin();
-    }
-
-    // digital_deliveries: usuário pode ler os próprios; admins leem tudo
+    // digital_deliveries: leitura para o próprio usuário; escrita para logados
     match /digital_deliveries/{deliveryId} {
-      allow read: if isAdmin() || (isSignedIn() && (resource.data.customerEmail == request.auth.email));
-      allow write: if isAdmin();
+      allow read: if isSignedIn() && (resource.data.customerEmail == request.auth.token.email || isAdmin());
+      allow write: if isSignedIn();
     }
 
-    // config: leitura pública para configurações gerais
-    match /config/{docId} {
-      allow read: if true; // Permite leitura pública para configurações
-      allow create: if isAdmin(); // Apenas admins podem criar configurações
-      allow update: if isAdmin(); // Apenas admins podem atualizar configurações
-      allow delete: if isAdmin(); // Apenas admins podem deletar configurações
-    }
-
-    // highlights: leitura pública para destaques; escrita apenas para admins autorizados
+    // highlights: leitura pública; escrita apenas para admins autorizados
     match /highlights/{highlightId} {
-      allow read: if true; // Permite leitura pública para destaques
-      allow create: if isAuthorizedAdmin(); // Apenas admins autorizados podem criar destaques
-      allow update: if isAuthorizedAdmin(); // Apenas admins autorizados podem atualizar destaques
-      allow delete: if isAuthorizedAdmin(); // Apenas admins autorizados podem deletar destaques
+      allow read: if true;
+      allow create, update, delete: if isAuthorizedAdmin();
     }
 
-    // news: leitura pública para notícias; escrita apenas para admins autorizados
+    // news: leitura pública; escrita apenas para admins autorizados
     match /news/{newsId} {
-      allow read: if true; // Permite leitura pública para notícias
-      allow create: if isAuthorizedAdmin(); // Apenas admins autorizados podem criar notícias
-      allow update: if isAuthorizedAdmin(); // Apenas admins autorizados podem atualizar notícias
-      allow delete: if isAuthorizedAdmin(); // Apenas admins autorizados podem deletar notícias
+      allow read: if true;
+      allow create, update, delete: if isAuthorizedAdmin();
     }
 
-    // products: leitura pública para produtos ativos; escrita apenas para admins
+    // config: leitura pública; escrita apenas para admins autorizados
+    match /config/{configId} {
+      allow read: if true;
+      allow create, update, delete: if isAuthorizedAdmin();
+    }
+
+    // products: leitura pública; escrita apenas para admins autorizados
     match /products/{productId} {
-      allow read: if true; // Permite leitura pública para produtos
-      allow create: if isAdmin() && 
-        // Validações básicas para criação de produtos
-        request.resource.data.keys().hasAll(['id', 'name', 'description', 'category', 'price', 'type', 'active']) &&
-        request.resource.data.id is string &&
-        request.resource.data.name is string &&
-        request.resource.data.description is string &&
-        request.resource.data.category in ['digital', 'physical', 'gift'] &&
-        request.resource.data.price is number &&
-        request.resource.data.price >= 0 &&
-        request.resource.data.type in ['download', 'delivery', 'gift'] &&
-        request.resource.data.active is bool &&
-        // Validações específicas por tipo de produto
-        (request.resource.data.type == 'download' ? 
-          (request.resource.data.downloadType in ['file', 'maps'] &&
-           (request.resource.data.downloadType == 'file' ? 
-             request.resource.data.downloadUrl is string :
-             (request.resource.data.maps is list && request.resource.data.baseUrl is string))) :
-          true) &&
-        // Validações específicas por categoria
-        (request.resource.data.category == 'digital' ? 
-          request.resource.data.type in ['download', 'gift'] :
-          true);
-      allow update: if isAdmin() && 
-        // Validações básicas para atualização de produtos
-        request.resource.data.keys().hasAll(['id', 'name', 'description', 'category', 'price', 'type', 'active']) &&
-        request.resource.data.id is string &&
-        request.resource.data.name is string &&
-        request.resource.data.description is string &&
-        request.resource.data.category in ['digital', 'physical', 'gift'] &&
-        request.resource.data.price is number &&
-        request.resource.data.price >= 0 &&
-        request.resource.data.type in ['download', 'delivery', 'gift'] &&
-        request.resource.data.active is bool &&
-        // Validações específicas por tipo de produto
-        (request.resource.data.type == 'download' ? 
-          (request.resource.data.downloadType in ['file', 'maps'] &&
-           (request.resource.data.downloadType == 'file' ? 
-             request.resource.data.downloadUrl is string :
-             (request.resource.data.maps is list && request.resource.data.baseUrl is string))) :
-          true) &&
-        // Validações específicas por categoria
-        (request.resource.data.category == 'digital' ? 
-          request.resource.data.type in ['download', 'gift'] :
-          true);
-      allow delete: if isAdmin();
+      allow read: if true;
+      allow create, update, delete: if isAuthorizedAdmin();
     }
 
-    // product_downloads: usuário pode ler os próprios; admins leem tudo; criação automática
+    // product_downloads: leitura para o próprio usuário; escrita para logados
     match /product_downloads/{downloadId} {
-      allow read: if isAdmin() || (isSignedIn() && (resource.data.customerEmail == request.auth.email));
-      allow create: if isSignedIn() && 
-        // Validações para criação de downloads
-        request.resource.data.keys().hasAll(['orderId', 'customerEmail', 'productId', 'status']) &&
-        request.resource.data.customerEmail == request.auth.email &&
-        request.resource.data.status == 'delivered';
-      allow update: if isAdmin() || (isSignedIn() && resource.data.customerEmail == request.auth.email);
-      allow delete: if isAdmin();
+      allow read: if isSignedIn() && (resource.data.customerEmail == request.auth.token.email || isAdmin());
+      allow create: if isSignedIn() && resource.data.customerEmail == request.auth.token.email && resource.data.status == 'delivered';
     }
 
-    // product_categories: leitura pública para categorias; escrita apenas para admins
+    // product_categories: leitura pública; escrita apenas para admins autorizados
     match /product_categories/{categoryId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, update, delete: if isAuthorizedAdmin();
     }
 
-    // product_inventory: apenas admins podem gerenciar estoque
+    // product_inventory: leitura para admins; escrita apenas para admins autorizados
     match /product_inventory/{inventoryId} {
       allow read: if isAdmin();
-      allow write: if isAdmin();
+      allow create, update, delete: if isAuthorizedAdmin();
     }
 
-    // product_reviews: usuários podem criar e ler reviews; admins podem moderar
+    // product_reviews: leitura pública; escrita para usuários logados
     match /product_reviews/{reviewId} {
-      allow read: if true; // Leitura pública para reviews
+      allow read: if true;
       allow create: if isSignedIn() && 
-        // Validações para criação de reviews
-        request.resource.data.keys().hasAll(['productId', 'customerEmail', 'rating', 'comment']) &&
-        request.resource.data.customerEmail == request.auth.email &&
-        request.resource.data.rating is number &&
-        request.resource.data.rating >= 1 &&
-        request.resource.data.rating <= 5 &&
-        request.resource.data.comment is string &&
-        request.resource.data.comment.size() <= 500;
-      allow update: if isAdmin() || (isSignedIn() && resource.data.customerEmail == request.auth.email);
-      allow delete: if isAdmin() || (isSignedIn() && resource.data.customerEmail == request.auth.email);
+        resource.data.productId is string &&
+        resource.data.customerEmail == request.auth.token.email &&
+        resource.data.rating >= 1 && resource.data.rating <= 5 &&
+        resource.data.comment.size() <= 500;
     }
 
-    // product_analytics: apenas admins podem acessar analytics
+    // product_analytics: leitura para admins; escrita apenas para admins autorizados
     match /product_analytics/{analyticsId} {
       allow read: if isAdmin();
-      allow write: if isAdmin();
+      allow create, update, delete: if isAuthorizedAdmin();
     }
 
-    // product_discounts: apenas admins podem gerenciar descontos
+    // product_discounts: leitura pública; escrita apenas para admins autorizados
     match /product_discounts/{discountId} {
-      allow read: if true; // Leitura pública para descontos ativos
-      allow create: if isAdmin() && 
-        // Validações para criação de descontos
-        request.resource.data.keys().hasAll(['code', 'discountType', 'value', 'active', 'expiresAt']) &&
-        request.resource.data.discountType in ['percentage', 'fixed'] &&
-        request.resource.data.value is number &&
-        request.resource.data.value > 0 &&
-        request.resource.data.active is bool;
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow read: if true;
+      allow create: if isAuthorizedAdmin() &&
+        resource.data.code is string &&
+        resource.data.discountType in ['percentage', 'fixed'] &&
+        resource.data.value > 0 &&
+        resource.data.active is bool;
     }
 
-    // product_audit_logs: apenas admins podem acessar logs de auditoria
+    // product_audit_logs: leitura para admins; escrita apenas para admins autorizados
     match /product_audit_logs/{logId} {
       allow read: if isAdmin();
-      allow write: if isAdmin();
+      allow create, update, delete: if isAuthorizedAdmin();
     }
 
-    // product_usage_stats: apenas admins podem acessar estatísticas de uso
+    // product_usage_stats: leitura para admins; escrita apenas para admins autorizados
     match /product_usage_stats/{statsId} {
       allow read: if isAdmin();
-      allow write: if isAdmin();
+      allow create, update, delete: if isAuthorizedAdmin();
     }
 
-    // product_backups: apenas admins podem gerenciar backups
+    // product_backups: leitura para admins; escrita apenas para admins autorizados
     match /product_backups/{backupId} {
       allow read: if isAdmin();
-      allow write: if isAdmin();
-    }
-
-    // Admin: leitura global (qualquer coleção/documento) - apenas para admins
-    match /{path=**} {
-      allow read: if isAdmin();
+      allow create, update, delete: if isAuthorizedAdmin();
     }
   }
 }
