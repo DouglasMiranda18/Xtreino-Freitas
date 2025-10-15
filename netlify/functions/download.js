@@ -100,6 +100,32 @@ exports.handler = async (event) => {
     } else {
       const delivery = snapshot.docs[0].data();
       links = Array.isArray(delivery.downloadLinks) ? delivery.downloadLinks : [];
+      // Verificar se há mapas faltando comparando com o pedido original
+      try {
+        const orderDoc = await db.collection('orders').doc(orderId).get();
+        const order = orderDoc.exists ? orderDoc.data() : {};
+        const productId = order.productId || order.item || order.title || '';
+        if ((productId || '').toString().includes('imagem') || productId === 'imagens') {
+          const maps = (order.productOptions?.maps || []).map(m => (m||'').toString().toLowerCase());
+          const have = new Set((links || []).map(l => (l.name||'').toString().toLowerCase()));
+          const siteBase = process.env.URL || process.env.DEPLOY_PRIME_URL || '';
+          const mapToFilename = (m) => {
+            const slug = (m || '').toString().toLowerCase().replace(/\s+/g,'-');
+            if (slug.includes('bermuda')) return 'BERMUDA.zip';
+            if (slug.includes('kalahari')) return 'KALAHARI.zip';
+            if (slug.includes('alp') || slug.includes('alpina') || slug.includes('alpine')) return 'ALPINE.zip';
+            if (slug.includes('purg')) return 'PURGATORIO.zip';
+            if (slug.includes('nova')) return 'NOVATERRA.zip';
+            return `imagens-${slug}.zip`;
+          };
+          maps.forEach(m => {
+            const display = `imagens aéreas - ${m}`.toLowerCase();
+            if (!have.has(display)) {
+              links.push({ name: `Imagens Aéreas - ${m}`, url: `${siteBase}/${mapToFilename(m)}` });
+            }
+          });
+        }
+      } catch(_) {}
     }
 
     if (listOnly) {
