@@ -2552,7 +2552,7 @@ let productCounter = 0;
 async function loadProducts() {
     try {
         const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const productsSnapshot = await collection(window.firebaseDb, 'products').get();
+        const productsSnapshot = await getDocs(collection(window.firebaseDb, 'products'));
         
         if (productsSnapshot.empty) {
             // Criar produtos padrão se não existirem
@@ -2878,7 +2878,7 @@ async function saveProducts() {
         const { collection, getDocs, deleteDoc, setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         
         // Limpar coleção existente
-        const productsSnapshot = await collection(window.firebaseDb, 'products').get();
+        const productsSnapshot = await getDocs(collection(window.firebaseDb, 'products'));
         for (const docSnapshot of productsSnapshot.docs) {
             await deleteDoc(docSnapshot.ref);
         }
