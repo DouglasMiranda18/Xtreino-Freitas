@@ -18,7 +18,7 @@ service cloud.firestore {
     function isAuthorizedAdmin() {
       return isSignedIn() && 
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin','Admin','ADMIN','Ceo','CEO','ceo'] &&
-        request.auth.token.email in ['cleitondouglass@gmail.com','cleitondouglass123@hotmail.com','gilmariofreitas378@gmail.com'];
+        request.auth.token.email in ['cleitondouglass@gmail.com','cleitondouglass123@hotmail.com','gilmariofreitas378@gmail.com','gilmariofreitas387@gmail.com'];
     }
 
     // users: cada usuário lê/escreve o próprio documento; Admins podem ler/escrever todos
