@@ -601,4 +601,72 @@ body {
 .product-desc { color: #4b5563; margin-bottom: 12px; }
 .product-meta { margin-top: auto; }
 
+/* ==================== CHAT INTERNO ==================== */
+#chatWidget {
+  font-family: 'Inter', sans-serif;
+}
+
+#chatWindow {
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.95);
+}
+
+#chatMessages {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 #f7fafc;
+}
+
+#chatMessages::-webkit-scrollbar {
+  width: 6px;
+}
+
+#chatMessages::-webkit-scrollbar-track {
+  background: #f7fafc;
+  border-radius: 3px;
+}
+
+#chatMessages::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 3px;
+}
+
+#chatMessages::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}
+
+#chatInput:disabled {
+  background-color: #f7fafc;
+  cursor: not-allowed;
+}
+
+#chatSend:disabled {
+  background-color: #a0aec0;
+  cursor: not-allowed;
+}
+
+/* Animação para mensagens */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+#chatMessages > div {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Responsive chat */
+@media (max-width: 480px) {
+  #chatWindow {
+    width: calc(100vw - 2rem);
+    right: 1rem;
+    left: 1rem;
+  }
+}
+
 

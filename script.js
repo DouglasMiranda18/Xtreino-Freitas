@@ -1472,13 +1472,133 @@ function initCarousel() {
 if (window.firebaseReady) {
     loadHighlightsFromFirestore();
     loadNewsFromFirestore();
+    initChat();
 } else {
     window.addEventListener('load', () => {
         setTimeout(() => {
             loadHighlightsFromFirestore();
             loadNewsFromFirestore();
+            initChat();
         }, 1000);
     });
+}
+
+// ==================== CHAT INTERNO ====================
+
+// Verificar se está no horário de atendimento (Seg-Sex 08h-23h)
+function isBusinessHours() {
+    const now = new Date();
+    const day = now.getDay(); // 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
+    const hour = now.getHours();
+    
+    // Segunda a Sexta (1-5) das 08h às 23h
+    return day >= 1 && day <= 5 && hour >= 8 && hour < 23;
+}
+
+// Inicializar chat
+function initChat() {
+    const chatToggle = document.getElementById('chatToggle');
+    const chatWindow = document.getElementById('chatWindow');
+    const chatClose = document.getElementById('chatClose');
+    const chatInput = document.getElementById('chatInput');
+    const chatSend = document.getElementById('chatSend');
+    const onlineStatus = document.getElementById('onlineStatus');
+    const offlineStatus = document.getElementById('offlineStatus');
+    
+    if (!chatToggle || !chatWindow) return;
+    
+    // Verificar horário de atendimento
+    const isOnline = isBusinessHours();
+    
+    if (isOnline) {
+        onlineStatus.classList.remove('hidden');
+        offlineStatus.classList.add('hidden');
+        chatInput.disabled = false;
+        chatSend.disabled = false;
+        chatInput.placeholder = 'Digite sua mensagem...';
+    } else {
+        onlineStatus.classList.add('hidden');
+        offlineStatus.classList.remove('hidden');
+        chatInput.disabled = true;
+        chatSend.disabled = true;
+        chatInput.placeholder = 'Fora do horário de atendimento';
+    }
+    
+    // Toggle chat window
+    chatToggle.addEventListener('click', () => {
+        chatWindow.classList.toggle('hidden');
+        if (!chatWindow.classList.contains('hidden')) {
+            chatInput.focus();
+        }
+    });
+    
+    // Fechar chat
+    chatClose.addEventListener('click', () => {
+        chatWindow.classList.add('hidden');
+    });
+    
+    // Enviar mensagem
+    function sendMessage() {
+        const message = chatInput.value.trim();
+        if (!message || !isOnline) return;
+        
+        // Adicionar mensagem do usuário
+        addMessage(message, 'user');
+        chatInput.value = '';
+        
+        // Simular resposta automática
+        setTimeout(() => {
+            const responses = [
+                'Obrigado pela sua mensagem! Nossa equipe responderá em breve.',
+                'Recebemos sua mensagem. Aguarde um momento que já respondemos.',
+                'Sua mensagem foi enviada com sucesso! Em breve entraremos em contato.',
+                'Mensagem recebida! Nossa equipe de suporte está verificando sua solicitação.'
+            ];
+            const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+            addMessage(randomResponse, 'support');
+        }, 1000);
+    }
+    
+    // Event listeners
+    chatSend.addEventListener('click', sendMessage);
+    chatInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+    
+    // Atualizar status a cada minuto
+    setInterval(() => {
+        const isOnlineNow = isBusinessHours();
+        if (isOnlineNow !== isOnline) {
+            location.reload(); // Recarregar para atualizar status
+        }
+    }, 60000);
+}
+
+// Adicionar mensagem ao chat
+function addMessage(text, sender) {
+    const chatMessages = document.getElementById('chatMessages');
+    if (!chatMessages) return;
+    
+    const messageDiv = document.createElement('div');
+    const isUser = sender === 'user';
+    const time = new Date().toLocaleTimeString('pt-BR', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+    });
+    
+    messageDiv.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
+    messageDiv.innerHTML = `
+        <div class="${isUser ? 'bg-blue-matte text-white' : 'bg-gray-100'} rounded-lg p-3 max-w-xs">
+            <p class="text-sm">${text}</p>
+            <span class="text-xs ${isUser ? 'text-blue-100' : 'text-gray-500'}">${time}</span>
+        </div>
+    `;
+    
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
 // Carregar notícias do Firestore
