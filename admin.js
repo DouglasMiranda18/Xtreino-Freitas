@@ -18,10 +18,8 @@
 
   // Security: Admin email whitelist (configure these)
   const ADMIN_EMAILS = [
-    'admin@xtreinofreitas.com',
-    'mario@xtreinofreitas.com',
-    'wesley@xtreinofreitas.com',
-    'flavia@xtreinofreitas.com'
+    'cleitondouglass@gmail.com',
+    'cleitondouglass123@hotmail.com'
   ];
 
   // Security: Session timeout (30 minutes)
