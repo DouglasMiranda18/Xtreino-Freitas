@@ -928,9 +928,27 @@ function downloadPlanilhas(orderId) {
 
 // Download function for Imagens Aéreas (via proxy; baixa um por vez)
 function downloadImagensAereas(orderId) {
-    // Primeiro arquivo (podemos renderizar lista com indices depois)
-    const proxyUrl = `/.netlify/functions/download?orderId=${encodeURIComponent(orderId)}&i=0`;
-    window.open(proxyUrl, '_blank');
+    // Buscar lista de arquivos e baixar todos (ou poderia renderizar seleção)
+    const listUrl = `/.netlify/functions/download?orderId=${encodeURIComponent(orderId)}&list=1`;
+    fetch(listUrl)
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => {
+        const files = Array.isArray(data?.files) ? data.files : [];
+        if (files.length === 0) {
+          // fallback para primeiro arquivo
+          window.location.href = `/.netlify/functions/download?orderId=${encodeURIComponent(orderId)}&i=0`;
+          return;
+        }
+        // Abrir cada arquivo em nova aba (um por mapa comprado)
+        files.forEach(f => {
+          const url = `/.netlify/functions/download?orderId=${encodeURIComponent(orderId)}&i=${encodeURIComponent(f.index)}`;
+          window.open(url, '_blank');
+        });
+      })
+      .catch(() => {
+        // fallback
+        window.location.href = `/.netlify/functions/download?orderId=${encodeURIComponent(orderId)}&i=0`;
+      });
 }
 
 // Expor funções de download no escopo global (para onclick do HTML)

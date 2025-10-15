@@ -70,6 +70,12 @@ exports.handler = async (event) => {
         return { statusCode: 404, headers, body: 'Digital delivery not found' };
       }
       const order = orderDoc.data();
+      // Bloquear download antes da aprovação do pagamento
+      const status = (order.status || order.paymentStatus || '').toString().toLowerCase();
+      const paid = status.includes('paid') || status.includes('approved') || status.includes('confirmed');
+      if (!paid) {
+        return { statusCode: 402, headers, body: 'Payment required' };
+      }
       const productId = order.productId || order.item || order.title || '';
       const productOptions = order.productOptions || {};
       const siteBase = process.env.URL || process.env.DEPLOY_PRIME_URL || '';
