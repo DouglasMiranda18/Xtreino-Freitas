@@ -917,8 +917,6 @@ function getProductActionButton(product) {
 
 // Download function for Planilhas de Análises (via proxy)
 function downloadPlanilhas(orderId) {
-    const order = allOrdersData.find(o => o.id === orderId);
-    if (!order) { alert('Pedido não encontrado!'); return; }
     // Baixar o primeiro arquivo da lista (ou abrir seleção depois)
     const proxyUrl = `/.netlify/functions/download?orderId=${encodeURIComponent(orderId)}&i=0`;
     window.open(proxyUrl, '_blank');
@@ -926,8 +924,6 @@ function downloadPlanilhas(orderId) {
 
 // Download function for Imagens Aéreas (via proxy; baixa um por vez)
 function downloadImagensAereas(orderId) {
-    const order = allOrdersData.find(o => o.id === orderId);
-    if (!order) { alert('Pedido não encontrado!'); return; }
     // Primeiro arquivo (podemos renderizar lista com indices depois)
     const proxyUrl = `/.netlify/functions/download?orderId=${encodeURIComponent(orderId)}&i=0`;
     window.open(proxyUrl, '_blank');
