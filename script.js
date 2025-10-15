@@ -1476,10 +1476,13 @@ async function loadNewsFromFirestore() {
                 category = 'Confirmado';
             }
             
+            const hasImage = newsItem.imageUrl && typeof newsItem.imageUrl === 'string' && newsItem.imageUrl.startsWith('http');
+            const headerHtml = hasImage
+                ? `<div class="h-48 overflow-hidden bg-gray-100"><img src="${newsItem.imageUrl}" alt="${newsItem.title}" class="w-full h-48 object-cover" loading="lazy" referrerpolicy="no-referrer" /></div>`
+                : `<div class="bg-blue-matte h-48 flex items-center justify-center"><i class="${iconClass} text-4xl text-white"></i></div>`;
+
             newsCard.innerHTML = `
-                <div class="bg-blue-matte h-48 flex items-center justify-center">
-                    <i class="${iconClass} text-4xl text-white"></i>
-                </div>
+                ${headerHtml}
                 <div class="p-6">
                     <div class="text-sm text-blue-matte mb-2">${category}</div>
                     <h3 class="text-xl font-bold mb-3 text-gray-800">${newsItem.title}</h3>
