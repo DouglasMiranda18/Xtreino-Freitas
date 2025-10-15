@@ -119,31 +119,16 @@ exports.handler = async (event) => {
     }
 
     // Buscar o arquivo na origem e repassar o conteúdo
-    const resp = await fetch(url);
-    if (!resp.ok) {
-      return { statusCode: resp.status, headers, body: `Upstream error: ${await resp.text()}` };
-    }
-
-    const arrayBuf = await resp.arrayBuffer();
-    const filenameFromUrl = (() => {
-      try {
-        const u = new URL(url);
-        const parts = u.pathname.split('/').filter(Boolean);
-        return parts[parts.length - 1] || 'download.bin';
-      } catch (_) { return 'download.bin'; }
-    })();
-
-    const downloadName = (file.name || filenameFromUrl).replace(/[^a-zA-Z0-9._-]+/g, '_');
-
+    // Em vez de fazer proxy do conteúdo (limite 6MB em lambdas), fazemos redirect
+    // para a URL final. Como os arquivos são .zip/.xlsx, o navegador baixa direto.
     return {
-      statusCode: 200,
+      statusCode: 302,
       headers: {
         ...headers,
-        'Content-Type': 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${downloadName}"`
+        'Cache-Control': 'no-store',
+        Location: url
       },
-      body: Buffer.from(arrayBuf).toString('base64'),
-      isBase64Encoded: true
+      body: ''
     };
   } catch (err) {
     return { statusCode: 500, headers, body: `Error: ${err.message}` };
