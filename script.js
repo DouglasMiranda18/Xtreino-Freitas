@@ -250,7 +250,7 @@ async function checkAdminAccess() {
     // Verificar role no Firestore
     try {
         const uid = user.uid;
-        const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const { doc, getDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const snap = await getDoc(doc(collection(window.firebaseDb,'users'), uid));
         if (snap.exists()) {
             const role = (snap.data().role || '').toLowerCase();
