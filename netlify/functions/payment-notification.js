@@ -20,10 +20,18 @@ async function generateDownloadLinks(productId, productOptions = {}) {
                         }];
                     } else if (product.downloadType === 'maps') {
                         const maps = productOptions.maps || product.maps || [];
-                        const baseUrl = product.baseUrl || 'https://freitasteste.netlify.app/downloads/';
+                        const siteBase = process.env.URL || process.env.DEPLOY_PRIME_URL || 'https://freitasteste.netlify.app';
+                        const mapToFilename = (m) => {
+                            const slug = (m || '').toString().toLowerCase().replace(/\s+/g,'-');
+                            if (slug.includes('bermuda')) return 'BERMUDA.zip';
+                            if (slug.includes('kalahari')) return 'KALAHARI.zip';
+                            if (slug.includes('alp') || slug.includes('alpina') || slug.includes('alpine')) return 'ALPINE.zip';
+                            if (slug.includes('purg')) return 'PURGATORIO.zip';
+                            return `imagens-${slug}.zip`;
+                        };
                         return maps.map(map => ({
                             name: `${product.name} - ${map}`,
-                            url: `${baseUrl}imagens-${map.toLowerCase().replace(' ', '-')}.zip`,
+                            url: `${siteBase}/${mapToFilename(map)}`,
                             description: `~20 imagens com principais calls do mapa ${map}`
                         }));
                     }
@@ -49,49 +57,58 @@ async function generateDownloadLinks(productId, productOptions = {}) {
     }
     
     // Fallback para comportamento padrão
-    const baseUrl = 'https://freitasteste.netlify.app/downloads/';
+    const siteBase = process.env.URL || process.env.DEPLOY_PRIME_URL || 'https://freitasteste.netlify.app';
     
     switch (productId) {
         case 'sensibilidades':
             return [
                 {
                     name: 'Sensibilidade PC',
-                    url: `${baseUrl}sensibilidade-pc.zip`,
+                    url: `${siteBase}/sensibilidade-pc.zip`,
                     description: 'Arquivo de configuração para PC'
                 },
                 {
                     name: 'Sensibilidade Mobile',
-                    url: `${baseUrl}sensibilidade-mobile.zip`,
+                    url: `${siteBase}/sensibilidade-mobile.zip`,
                     description: 'Arquivo de configuração para Android/iOS'
                 },
                 {
                     name: 'Guia de Instalação',
-                    url: `${baseUrl}guia-sensibilidade.pdf`,
+                    url: `${siteBase}/guia-sensibilidade.pdf`,
                     description: 'Instruções passo a passo'
                 }
             ];
             
         case 'imagens':
-            const maps = productOptions.maps || [];
-            return maps.map(map => ({
-                name: `Imagens Aéreas - ${map}`,
-                url: `${baseUrl}imagens-${map.toLowerCase().replace(' ', '-')}.zip`,
-                description: `~20 imagens com principais calls do mapa ${map}`
-            }));
+            {
+                const maps = productOptions.maps || [];
+                const mapToFilename = (m) => {
+                    const slug = (m || '').toString().toLowerCase().replace(/\s+/g,'-');
+                    if (slug.includes('bermuda')) return 'BERMUDA.zip';
+                    if (slug.includes('kalahari')) return 'KALAHARI.zip';
+                    if (slug.includes('alp') || slug.includes('alpina') || slug.includes('alpine')) return 'ALPINE.zip';
+                    if (slug.includes('purg')) return 'PURGATORIO.zip';
+                    return `imagens-${slug}.zip`;
+                };
+                return maps.map(map => ({
+                    name: `Imagens Aéreas - ${map}`,
+                    url: `${siteBase}/${mapToFilename(map)}`,
+                    description: `~20 imagens com principais calls do mapa ${map}`
+                }));
+            }
             
         case 'planilhas':
-            return [
-                {
-                    name: 'Planilhas de Análise',
-                    url: `${baseUrl}planilhas-analise.xlsx`,
-                    description: 'Planilhas para coachs e analistas'
-                },
-                {
-                    name: 'Vídeo Explicativo',
-                    url: `${baseUrl}video-explicativo.mp4`,
-                    description: 'Tutorial de uso das planilhas'
-                }
-            ];
+            {
+                const file = 'CONTROLE DE LINES PARA COACH E ANALISTA .xlsx';
+                const enc = encodeURIComponent(file);
+                return [
+                    {
+                        name: 'Planilhas de Análise',
+                        url: `${siteBase}/${enc}`,
+                        description: 'Planilhas para coachs e analistas'
+                    }
+                ];
+            }
             
         case 'passe-booyah':
             return [

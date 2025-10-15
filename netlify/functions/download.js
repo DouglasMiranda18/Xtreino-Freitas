@@ -56,7 +56,12 @@ exports.handler = async (event) => {
     }
 
     const file = links[idx];
-    const url = file.url;
+    let url = file.url;
+    // Tornar relativo ao site, se necessário
+    if (url && url.startsWith('/')) {
+      const siteBase = process.env.URL || process.env.DEPLOY_PRIME_URL || '';
+      url = `${siteBase}${url}`;
+    }
     if (!url) {
       return { statusCode: 500, headers, body: 'Missing file URL' };
     }
