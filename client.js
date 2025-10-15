@@ -933,6 +933,12 @@ function downloadImagensAereas(orderId) {
     window.open(proxyUrl, '_blank');
 }
 
+// Expor funções de download no escopo global (para onclick do HTML)
+try {
+    window.downloadImagensAereas = downloadImagensAereas;
+    window.downloadPlanilhas = downloadPlanilhas;
+} catch (_) {}
+
 // Function to get product information from Firestore
 async function getProductInfo(productId) {
     try {
