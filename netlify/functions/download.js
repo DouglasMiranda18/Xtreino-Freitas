@@ -1,8 +1,24 @@
 // Netlify Function: Proxy seguro para downloads de produtos
 const admin = require('firebase-admin');
 
-// Inicialização preguiçosa do Firebase Admin (compatível com outras funções)
-try { if (!admin.apps.length) admin.initializeApp(); } catch (_) {}
+// Inicialização do Firebase Admin com diferentes fontes de credencial
+try {
+  if (!admin.apps.length) {
+    const svc = process.env.FIREBASE_SERVICE_ACCOUNT;
+    if (svc) {
+      const parsed = JSON.parse(svc);
+      admin.initializeApp({ credential: admin.credential.cert(parsed) });
+    } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      // Se estiver usando ADC (Application Default Credentials)
+      admin.initializeApp({ credential: admin.credential.applicationDefault() });
+    } else if (process.env.FIREBASE_PROJECT_ID) {
+      admin.initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID, credential: admin.credential.applicationDefault() });
+    } else {
+      // Último recurso: tentar inicializar sem credencial (pode falhar localmente)
+      admin.initializeApp();
+    }
+  }
+} catch (_) {}
 
 exports.handler = async (event) => {
   const headers = {
