@@ -19,7 +19,8 @@
   // Security: Admin email whitelist (configure these)
   const ADMIN_EMAILS = [
     'cleitondouglass@gmail.com',
-    'cleitondouglass123@hotmail.com'
+    'cleitondouglass123@hotmail.com',
+    'gilmariofreitas378@gmail.com'
   ];
 
   // Security: Session timeout (30 minutes)

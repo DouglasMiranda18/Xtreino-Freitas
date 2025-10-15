@@ -234,7 +234,7 @@ async function checkAdminAccess() {
     }
     
     const user = window.firebaseAuth.currentUser;
-    const authorizedEmails = ['cleitondouglass@gmail.com', 'cleitondouglass123@hotmail.com'];
+    const authorizedEmails = ['cleitondouglass@gmail.com', 'cleitondouglass123@hotmail.com', 'gilmariofreitas378@gmail.com'];
     
     console.log('📧 Email do usuário:', user.email);
     console.log('📋 Emails autorizados:', authorizedEmails);
