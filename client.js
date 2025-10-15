@@ -915,95 +915,22 @@ function getProductActionButton(product) {
     return '';
 }
 
-// Download function for Planilhas de Análises
+// Download function for Planilhas de Análises (via proxy)
 function downloadPlanilhas(orderId) {
-    // Find the order to get the product information
     const order = allOrdersData.find(o => o.id === orderId);
-    if (!order) {
-        alert('Pedido não encontrado!');
-        return;
-    }
-    
-    // Get product information from Firestore
-    getProductInfo('planilhas').then(product => {
-        if (product && product.downloadUrl) {
-            window.open(product.downloadUrl, '_blank');
-        } else {
-            // Fallback to default link
-            window.open('https://drive.google.com/drive/folders/1ABC123', '_blank');
-        }
-    }).catch(error => {
-        console.error('Erro ao obter informações do produto:', error);
-        // Fallback to default link
-        window.open('https://drive.google.com/drive/folders/1ABC123', '_blank');
-    });
+    if (!order) { alert('Pedido não encontrado!'); return; }
+    // Baixar o primeiro arquivo da lista (ou abrir seleção depois)
+    const proxyUrl = `/.netlify/functions/download?orderId=${encodeURIComponent(orderId)}&i=0`;
+    window.open(proxyUrl, '_blank');
 }
 
-// Download function for Imagens Aéreas
+// Download function for Imagens Aéreas (via proxy; baixa um por vez)
 function downloadImagensAereas(orderId) {
-    // Find the order to get the selected maps
     const order = allOrdersData.find(o => o.id === orderId);
-    if (!order) {
-        alert('Pedido não encontrado!');
-        return;
-    }
-    
-    // Get product information from Firestore
-    getProductInfo('imagens').then(product => {
-        if (product && product.downloadType === 'maps') {
-            const selectedMaps = order.maps || order.selectedMaps || product.maps || ['Bermuda'];
-            const baseUrl = product.baseUrl || 'https://freitasteste.netlify.app/downloads/';
-            
-            // Generate download links based on selected maps
-            const downloadLinks = selectedMaps.map(map => ({
-                name: `Imagens Aéreas - ${map}`,
-                url: `${baseUrl}imagens-${map.toLowerCase().replace(' ', '-')}.zip`,
-                description: `~20 imagens com principais calls do mapa ${map}`
-            }));
-            
-            // Open download links
-            downloadLinks.forEach(link => {
-                window.open(link.url, '_blank');
-            });
-            
-            // Show success message
-            alert(`Downloads iniciados para os mapas: ${selectedMaps.join(', ')}`);
-        } else if (product && product.downloadUrl) {
-            // Single file download
-            window.open(product.downloadUrl, '_blank');
-        } else {
-            // Fallback to default behavior
-            const selectedMaps = order.maps || order.selectedMaps || ['Bermuda'];
-            const baseUrl = 'https://freitasteste.netlify.app/downloads/';
-            const downloadLinks = selectedMaps.map(map => ({
-                name: `Imagens Aéreas - ${map}`,
-                url: `${baseUrl}imagens-${map.toLowerCase().replace(' ', '-')}.zip`,
-                description: `~20 imagens com principais calls do mapa ${map}`
-            }));
-            
-            downloadLinks.forEach(link => {
-                window.open(link.url, '_blank');
-            });
-            
-            alert(`Downloads iniciados para os mapas: ${selectedMaps.join(', ')}`);
-        }
-    }).catch(error => {
-        console.error('Erro ao obter informações do produto:', error);
-        // Fallback to default behavior
-        const selectedMaps = order.maps || order.selectedMaps || ['Bermuda'];
-        const baseUrl = 'https://freitasteste.netlify.app/downloads/';
-        const downloadLinks = selectedMaps.map(map => ({
-            name: `Imagens Aéreas - ${map}`,
-            url: `${baseUrl}imagens-${map.toLowerCase().replace(' ', '-')}.zip`,
-            description: `~20 imagens com principais calls do mapa ${map}`
-        }));
-        
-        downloadLinks.forEach(link => {
-            window.open(link.url, '_blank');
-        });
-        
-        alert(`Downloads iniciados para os mapas: ${selectedMaps.join(', ')}`);
-    });
+    if (!order) { alert('Pedido não encontrado!'); return; }
+    // Primeiro arquivo (podemos renderizar lista com indices depois)
+    const proxyUrl = `/.netlify/functions/download?orderId=${encodeURIComponent(orderId)}&i=0`;
+    window.open(proxyUrl, '_blank');
 }
 
 // Function to get product information from Firestore
