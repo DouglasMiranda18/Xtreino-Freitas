@@ -379,8 +379,12 @@ async function loadProducts() {
             const title = (order.title || '').toLowerCase();
             const item = (order.item || '').toLowerCase();
             const eventType = (order.eventType || '').toLowerCase();
+            const type = (order.type || '').toLowerCase();
             
-            // Exclude events, tokens and include only products
+            // Include if explicitly marked as digital product
+            if (type === 'digital_product') return true;
+
+            // Otherwise, exclude events/tokens and keep product-like titles
             return !title.includes('xtreino') && 
                    !title.includes('camp') && 
                    !title.includes('semanal') && 
