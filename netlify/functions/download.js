@@ -62,12 +62,39 @@ exports.handler = async (event) => {
       .limit(1)
       .get();
 
+    let links = [];
     if (snapshot.empty) {
-      return { statusCode: 404, headers, body: 'Digital delivery not found' };
+      // Fallback: gerar links a partir do pedido direto (orders/{orderId})
+      const orderDoc = await db.collection('orders').doc(orderId).get();
+      if (!orderDoc.exists) {
+        return { statusCode: 404, headers, body: 'Digital delivery not found' };
+      }
+      const order = orderDoc.data();
+      const productId = order.productId || order.item || order.title || '';
+      const productOptions = order.productOptions || {};
+      const siteBase = process.env.URL || process.env.DEPLOY_PRIME_URL || '';
+      const mapToFilename = (m) => {
+        const slug = (m || '').toString().toLowerCase().replace(/\s+/g,'-');
+        if (slug.includes('bermuda')) return 'BERMUDA.zip';
+        if (slug.includes('kalahari')) return 'KALAHARI.zip';
+        if (slug.includes('alp') || slug.includes('alpina') || slug.includes('alpine')) return 'ALPINE.zip';
+        if (slug.includes('purg')) return 'PURGATORIO.zip';
+        if (slug.includes('nova')) return 'NOVATERRA.zip';
+        return `imagens-${slug}.zip`;
+      };
+      if ((productId || '').toString().includes('imagem') || productId === 'imagens') {
+        const maps = productOptions.maps || ['Bermuda'];
+        links = maps.map(map => ({ name: `Imagens Aéreas - ${map}`, url: `${siteBase}/${mapToFilename(map)}` }));
+      } else if ((productId || '').toString().includes('planilha') || productId === 'planilhas') {
+        const file = 'CONTROLE DE LINES PARA COACH E ANALISTA .xlsx';
+        links = [{ name: 'Planilhas de Análise', url: `${siteBase}/${encodeURIComponent(file)}` }];
+      } else {
+        return { statusCode: 404, headers, body: 'Digital delivery not found' };
+      }
+    } else {
+      const delivery = snapshot.docs[0].data();
+      links = Array.isArray(delivery.downloadLinks) ? delivery.downloadLinks : [];
     }
-
-    const delivery = snapshot.docs[0].data();
-    const links = Array.isArray(delivery.downloadLinks) ? delivery.downloadLinks : [];
 
     if (listOnly) {
       // Retornar lista de arquivos disponíveis (sem expor URLs reais)
