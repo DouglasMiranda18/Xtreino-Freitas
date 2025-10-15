@@ -4,7 +4,21 @@ service cloud.firestore {
     function isSignedIn() { return request.auth != null; }
     function isSelf(userId) { return isSignedIn() && request.auth.uid == userId; }
     function isAdmin() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['Ceo','CEO','ceo','Gerente','GERENTE','gerente'];
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin','Admin','ADMIN','Ceo','CEO','ceo','Gerente','GERENTE','gerente'];
+    }
+    
+    function isVendedor() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['vendedor','Vendedor','VENDEDOR'];
+    }
+    
+    function isGerente() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['gerente','Gerente','GERENTE','admin','Admin','ADMIN','Ceo','CEO','ceo'];
+    }
+    
+    function isAuthorizedAdmin() {
+      return isSignedIn() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin','Admin','ADMIN','Ceo','CEO','ceo'] &&
+        request.auth.token.email in ['admin@xtreinofreitas.com','mario@xtreinofreitas.com','wesley@xtreinofreitas.com','flavia@xtreinofreitas.com'];
     }
 
     // users: cada usuário lê/escreve o próprio documento; Admins podem ler/escrever todos
@@ -50,20 +64,20 @@ service cloud.firestore {
       allow delete: if isAdmin(); // Apenas admins podem deletar configurações
     }
 
-    // highlights: leitura pública para destaques; escrita apenas para admins
+    // highlights: leitura pública para destaques; escrita apenas para admins autorizados
     match /highlights/{highlightId} {
       allow read: if true; // Permite leitura pública para destaques
-      allow create: if isAdmin(); // Apenas admins podem criar destaques
-      allow update: if isAdmin(); // Apenas admins podem atualizar destaques
-      allow delete: if isAdmin(); // Apenas admins podem deletar destaques
+      allow create: if isAuthorizedAdmin(); // Apenas admins autorizados podem criar destaques
+      allow update: if isAuthorizedAdmin(); // Apenas admins autorizados podem atualizar destaques
+      allow delete: if isAuthorizedAdmin(); // Apenas admins autorizados podem deletar destaques
     }
 
-    // news: leitura pública para notícias; escrita apenas para admins
+    // news: leitura pública para notícias; escrita apenas para admins autorizados
     match /news/{newsId} {
       allow read: if true; // Permite leitura pública para notícias
-      allow create: if isAdmin(); // Apenas admins podem criar notícias
-      allow update: if isAdmin(); // Apenas admins podem atualizar notícias
-      allow delete: if isAdmin(); // Apenas admins podem deletar notícias
+      allow create: if isAuthorizedAdmin(); // Apenas admins autorizados podem criar notícias
+      allow update: if isAuthorizedAdmin(); // Apenas admins autorizados podem atualizar notícias
+      allow delete: if isAuthorizedAdmin(); // Apenas admins autorizados podem deletar notícias
     }
 
     // products: leitura pública para produtos ativos; escrita apenas para admins

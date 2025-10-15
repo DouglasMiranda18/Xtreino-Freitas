@@ -1,5 +1,11 @@
-// Admin RBAC and dashboards
+// Admin RBAC and dashboards - Enhanced Security
 (async function(){
+  // Security: Check if running in admin context
+  if (!window.location.pathname.includes('admin.html') && !window.location.pathname.includes('admin')) {
+    console.warn('Admin script loaded outside admin context');
+    return;
+  }
+
   // Wait firebase
   const waitReady = () => new Promise(res => {
     const tick = () => window.firebaseReady ? res() : setTimeout(tick, 50);
@@ -7,12 +13,100 @@
   });
   await waitReady();
 
-  const { onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
-  const { collection, getDocs, doc, updateDoc, query, where, orderBy } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+  const { onAuthStateChanged, signInWithEmailAndPassword, signOut } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
+  const { collection, getDocs, doc, updateDoc, query, where, orderBy, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+  // Security: Admin email whitelist (configure these)
+  const ADMIN_EMAILS = [
+    'admin@xtreinofreitas.com',
+    'mario@xtreinofreitas.com',
+    'wesley@xtreinofreitas.com',
+    'flavia@xtreinofreitas.com'
+  ];
+
+  // Security: Session timeout (30 minutes)
+  const SESSION_TIMEOUT = 30 * 60 * 1000;
+  let sessionTimer = null;
 
   const authGate = document.getElementById('authGate');
   const dashboard = document.getElementById('dashboard');
   const roleBadge = document.getElementById('roleBadge');
+  const loginError = document.getElementById('loginError');
+
+  // Security: Check if user is authorized admin
+  async function isAuthorizedAdmin(user) {
+    if (!user || !user.email) return false;
+    
+    // Check email whitelist
+    if (!ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+      console.warn('Unauthorized admin access attempt:', user.email);
+      return false;
+    }
+
+    // Check user role in Firestore
+    try {
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (!userDoc.exists()) return false;
+      
+      const userData = userDoc.data();
+      const role = (userData.role || '').toLowerCase();
+      
+      return ['admin', 'gerente', 'vendedor'].includes(role);
+    } catch (error) {
+      console.error('Error checking user role:', error);
+      return false;
+    }
+  }
+
+  // Security: Session management
+  function startSessionTimer() {
+    if (sessionTimer) clearTimeout(sessionTimer);
+    sessionTimer = setTimeout(() => {
+      console.log('Session timeout - logging out');
+      logout();
+    }, SESSION_TIMEOUT);
+  }
+
+  function resetSessionTimer() {
+    startSessionTimer();
+  }
+
+  // Security: Enhanced logout
+  async function logout() {
+    try {
+      await signOut(auth);
+      sessionStorage.removeItem('adminSession');
+      localStorage.removeItem('adminSession');
+      if (sessionTimer) clearTimeout(sessionTimer);
+      showAuthGate();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  }
+
+  // Security: Show login form
+  function showAuthGate() {
+    authGate.classList.remove('hidden');
+    dashboard.classList.add('hidden');
+    document.body.style.overflow = 'auto';
+  }
+
+  // Security: Show dashboard
+  function showDashboard(userRole) {
+    authGate.classList.add('hidden');
+    dashboard.classList.remove('hidden');
+    setView(userRole);
+    startSessionTimer();
+  }
+
+  // Security: Show login error
+  function showLoginError(message) {
+    loginError.textContent = message;
+    loginError.classList.remove('hidden');
+    setTimeout(() => {
+      loginError.classList.add('hidden');
+    }, 5000);
+  }
 
   function setView(authRole){
     const role = (authRole||'').toLowerCase();
@@ -2922,15 +3016,131 @@ window.addProduct = addProduct;
 window.removeProduct = removeProduct;
 window.saveProducts = saveProducts;
 
-// Carregar produtos na inicialização
-window.addEventListener('load', () => {
-    setTimeout(() => {
-        if (window.firebaseDb && document.getElementById('productsPreview')) {
-            loadProducts();
+  // Security: Enhanced authentication system
+  async function initAuth() {
+    // Check for existing session
+    const savedSession = sessionStorage.getItem('adminSession');
+    if (savedSession) {
+      try {
+        const sessionData = JSON.parse(savedSession);
+        if (Date.now() - sessionData.timestamp < SESSION_TIMEOUT) {
+          // Session still valid, check with Firebase
+          const user = auth.currentUser;
+          if (user && await isAuthorizedAdmin(user)) {
+            showDashboard(user.role || 'admin');
+            return;
+          }
         }
-    }, 2000);
-});
+      } catch (error) {
+        console.error('Session validation error:', error);
+      }
+      // Clear invalid session
+      sessionStorage.removeItem('adminSession');
+    }
 
-main();
+    // Show login form
+    showAuthGate();
+  }
+
+  // Security: Enhanced login handler
+  async function handleLogin(email, password) {
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      
+      // Check if user is authorized
+      if (!(await isAuthorizedAdmin(user))) {
+        await signOut(auth);
+        showLoginError('Acesso negado. Email não autorizado para administração.');
+        return;
+      }
+
+      // Get user role
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      const userData = userDoc.data();
+      const role = userData?.role || 'admin';
+
+      // Save session
+      const sessionData = {
+        uid: user.uid,
+        email: user.email,
+        role: role,
+        timestamp: Date.now()
+      };
+      sessionStorage.setItem('adminSession', JSON.stringify(sessionData));
+
+      // Show dashboard
+      showDashboard(role);
+      
+    } catch (error) {
+      console.error('Login error:', error);
+      let errorMessage = 'Erro ao fazer login.';
+      
+      if (error.code === 'auth/user-not-found') {
+        errorMessage = 'Usuário não encontrado.';
+      } else if (error.code === 'auth/wrong-password') {
+        errorMessage = 'Senha incorreta.';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Email inválido.';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Muitas tentativas. Tente novamente mais tarde.';
+      }
+      
+      showLoginError(errorMessage);
+    }
+  }
+
+  // Security: Setup event listeners
+  function setupEventListeners() {
+    // Login form
+    const loginForm = document.getElementById('emailLoginForm');
+    if (loginForm) {
+      loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('adminEmail').value;
+        const password = document.getElementById('adminPassword').value;
+        
+        if (!email || !password) {
+          showLoginError('Por favor, preencha todos os campos.');
+          return;
+        }
+        
+        await handleLogin(email, password);
+      });
+    }
+
+    // Logout button
+    const logoutBtn = document.getElementById('btnLogout');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', logout);
+    }
+
+    // Reset session timer on user activity
+    document.addEventListener('click', resetSessionTimer);
+    document.addEventListener('keypress', resetSessionTimer);
+    document.addEventListener('scroll', resetSessionTimer);
+  }
+
+  // Initialize admin panel
+  async function initAdmin() {
+    try {
+      setupEventListeners();
+      await initAuth();
+      
+      // Load products if dashboard is visible
+      setTimeout(() => {
+        if (window.firebaseDb && document.getElementById('productsPreview') && !dashboard.classList.contains('hidden')) {
+          loadProducts();
+        }
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Admin initialization error:', error);
+      showLoginError('Erro ao inicializar o painel administrativo.');
+    }
+  }
+
+  // Start admin panel
+  initAdmin();
 
 
