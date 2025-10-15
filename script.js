@@ -1456,6 +1456,15 @@ async function loadNewsFromFirestore() {
             return;
         }
         
+        // função de truncar texto para o card
+        const truncate = (txt, max = 160) => {
+            try{
+                const s = String(txt || '');
+                if (s.length <= max) return s;
+                return s.slice(0, max).trimEnd() + '…';
+            }catch(_){ return ''; }
+        };
+
         news.forEach((raw, idx) => {
             const newsItem = { ...raw };
             // Normalizar data (Timestamp do Firestore ou string)
@@ -1492,12 +1501,13 @@ async function loadNewsFromFirestore() {
                 ? `<div class="h-48 overflow-hidden bg-gray-100"><img src="${newsItem.imageUrl}" alt="${newsItem.title}" class="w-full h-48 object-cover" loading="lazy" referrerpolicy="no-referrer" /></div>`
                 : '';
 
+            const contentPreview = truncate(newsItem.content, 180);
             newsCard.innerHTML = `
                 ${headerHtml}
                 <div class="p-6">
                     <div class="text-sm text-blue-matte mb-2">${category}</div>
                     <h3 class="text-xl font-bold mb-3 text-gray-800">${newsItem.title}</h3>
-                    <p class="text-gray-600 mb-4">${newsItem.content}</p>
+                    <p class="text-gray-600 mb-4">${contentPreview}</p>
                     <div class="flex items-center justify-between text-sm text-gray-500 mb-3">
                         <span>Por: ${newsItem.author}</span>
                         <span>${formattedDate}</span>
@@ -1554,7 +1564,8 @@ window.openNewsModal = function(index){
     const date = item.date?.toDate ? item.date.toDate() : (item.date ? new Date(item.date) : new Date());
     const meta = `${item.author || ''} • ${date.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric' })}`;
     const img = item.imageUrl || item.image || '';
-    const header = img ? `<img src="${img}" alt="${item.title||''}" class="w-full h-64 object-cover" loading="lazy" referrerpolicy="no-referrer" />` : '';
+    // Abrir imagem completa no modal
+    const header = img ? `<img src="${img}" alt="${item.title||''}" class="w-full object-contain max-h-[70vh] bg-black" loading="lazy" referrerpolicy="no-referrer" />` : '';
     document.getElementById('newsModalHeader').innerHTML = header;
     document.getElementById('newsModalCategory').textContent = '';
     document.getElementById('newsModalTitle').textContent = item.title || '';
