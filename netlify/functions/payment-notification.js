@@ -1,6 +1,30 @@
 // Netlify Function: Receber notificações de pagamento do Mercado Pago
 const admin = require('firebase-admin');
 
+// Inicialização Admin com múltiplas formas de credencial (evita variável gigante)
+try {
+  if (!admin.apps.length) {
+    const svc = process.env.FIREBASE_SERVICE_ACCOUNT;
+    const projectId = process.env.FIREBASE_PROJECT_ID;
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+    if (privateKey && privateKey.includes('\\n')) privateKey = privateKey.replace(/\\n/g, '\n');
+
+    if (projectId && clientEmail && privateKey) {
+      admin.initializeApp({ credential: admin.credential.cert({ projectId, clientEmail, privateKey }) });
+    } else if (svc) {
+      const parsed = JSON.parse(svc);
+      admin.initializeApp({ credential: admin.credential.cert(parsed) });
+    } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      admin.initializeApp({ credential: admin.credential.applicationDefault() });
+    } else if (process.env.FIREBASE_PROJECT_ID) {
+      admin.initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID, credential: admin.credential.applicationDefault() });
+    } else {
+      admin.initializeApp();
+    }
+  }
+} catch (_) {}
+
 // Função para gerar links de download baseado no produto
 async function generateDownloadLinks(productId, productOptions = {}) {
     try {
