@@ -278,17 +278,46 @@
                             <span id="usersPageInfo">Página 1 de 1</span>
                         </div>
                     </div>
+                    
+                    <!-- Filtros de Atividade -->
+                    <div class="mb-3">
+                        <div class="flex space-x-1">
+                            <button id="filterAllUsers" class="px-2 py-1 bg-blue-matte text-white rounded text-xs hover:bg-blue-600 transition-colors">Todos</button>
+                            <button id="filterActive30Days" class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs hover:bg-gray-300 transition-colors">30 dias</button>
+                            <button id="filterActive7Days" class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs hover:bg-gray-300 transition-colors">7 dias</button>
+                            <button id="filterActive1Day" class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs hover:bg-gray-300 transition-colors">1 dia</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Estatísticas -->
+                    <div class="grid grid-cols-3 gap-2 mb-3">
+                        <div class="bg-blue-50 p-2 rounded text-center">
+                            <div class="text-lg font-bold text-blue-matte" id="totalUsers">0</div>
+                            <div class="text-xs text-gray-600">Total</div>
+                        </div>
+                        <div class="bg-green-50 p-2 rounded text-center">
+                            <div class="text-lg font-bold text-green-600" id="activeUsers">0</div>
+                            <div class="text-xs text-gray-600">Ativos</div>
+                        </div>
+                        <div class="bg-orange-50 p-2 rounded text-center">
+                            <div class="text-lg font-bold text-orange-600" id="inactiveUsers">0</div>
+                            <div class="text-xs text-gray-600">Inativos</div>
+                        </div>
+                    </div>
+                    
                     <div class="overflow-x-auto">
                         <table class="w-full text-xs">
                             <thead>
                                 <tr class="border-b border-gray-200">
                                     <th class="text-left py-2 px-2 font-medium text-gray-600">Email</th>
                                     <th class="text-left py-2 px-2 font-medium text-gray-600">Função</th>
+                                    <th class="text-left py-2 px-2 font-medium text-gray-600">Último Login</th>
+                                    <th class="text-left py-2 px-2 font-medium text-gray-600">Status</th>
                                 </tr>
                             </thead>
                             <tbody id="usersTableBody">
                                 <tr>
-                                    <td colspan="2" class="py-6 text-center text-gray-500">Carregando usuários...</td>
+                                    <td colspan="4" class="py-6 text-center text-gray-500">Carregando usuários...</td>
                                 </tr>
                             </tbody>
                         </table>

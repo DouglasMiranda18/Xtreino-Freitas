@@ -3142,5 +3142,231 @@ window.saveProducts = saveProducts;
 
   // Start admin panel
   initAdmin();
+  
+  // Configurar filtros de usuários quando o DOM estiver pronto
+  document.addEventListener('DOMContentLoaded', () => {
+    setupUserFilters();
+  });
+
+// ==================== FUNÇÕES DE USUÁRIOS ====================
+
+// Variáveis para usuários
+let allUsers = [];
+let filteredUsers = [];
+let usersCurrentPage = 1;
+const usersPerPage = 10;
+let currentUserFilter = 'all'; // 'all', '30days', '7days', '1day'
+
+// Carregar usuários do Firestore
+async function loadUsers() {
+  try {
+    console.log('🔄 Carregando usuários...');
+    const usersRef = collection(window.firebaseDb, 'users');
+    const snapshot = await getDocs(usersRef);
+    
+    allUsers = [];
+    snapshot.forEach(doc => {
+      const userData = doc.data();
+      allUsers.push({
+        id: doc.id,
+        email: userData.email || 'N/A',
+        role: userData.role || 'Usuário',
+        lastLogin: userData.lastLogin || null,
+        name: userData.name || userData.email || 'Usuário',
+        createdAt: userData.createdAt || null
+      });
+    });
+    
+    console.log(`✅ ${allUsers.length} usuários carregados`);
+    applyUserFilter();
+    updateUsersStats();
+    displayUsers();
+  } catch (error) {
+    console.error('❌ Erro ao carregar usuários:', error);
+  }
+}
+
+// Aplicar filtro de usuários
+function applyUserFilter() {
+  const now = Date.now();
+  const oneDay = 24 * 60 * 60 * 1000;
+  const sevenDays = 7 * oneDay;
+  const thirtyDays = 30 * oneDay;
+  
+  filteredUsers = allUsers.filter(user => {
+    if (currentUserFilter === 'all') return true;
+    
+    if (!user.lastLogin) return false;
+    
+    const lastLoginTime = user.lastLogin;
+    const timeDiff = now - lastLoginTime;
+    
+    switch (currentUserFilter) {
+      case '1day':
+        return timeDiff <= oneDay;
+      case '7days':
+        return timeDiff <= sevenDays;
+      case '30days':
+        return timeDiff <= thirtyDays;
+      default:
+        return true;
+    }
+  });
+  
+  usersCurrentPage = 1; // Reset para primeira página
+}
+
+// Atualizar estatísticas de usuários
+function updateUsersStats() {
+  const totalUsers = allUsers.length;
+  const now = Date.now();
+  const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+  
+  const activeUsers = allUsers.filter(user => {
+    if (!user.lastLogin) return false;
+    return (now - user.lastLogin) <= thirtyDays;
+  }).length;
+  
+  const inactiveUsers = totalUsers - activeUsers;
+  
+  document.getElementById('totalUsers').textContent = totalUsers;
+  document.getElementById('activeUsers').textContent = activeUsers;
+  document.getElementById('inactiveUsers').textContent = inactiveUsers;
+}
+
+// Exibir usuários na tabela
+function displayUsers() {
+  const tbody = document.getElementById('usersTableBody');
+  if (!tbody) return;
+  
+  const startIndex = (usersCurrentPage - 1) * usersPerPage;
+  const endIndex = startIndex + usersPerPage;
+  const pageUsers = filteredUsers.slice(startIndex, endIndex);
+  
+  if (pageUsers.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="4" class="py-6 text-center text-gray-500">
+          ${currentUserFilter === 'all' ? 'Nenhum usuário encontrado' : 'Nenhum usuário ativo neste período'}
+        </td>
+      </tr>
+    `;
+  } else {
+    tbody.innerHTML = pageUsers.map(user => {
+      const lastLoginText = user.lastLogin ? 
+        new Date(user.lastLogin).toLocaleDateString('pt-BR') : 'Nunca';
+      
+      const statusClass = user.lastLogin && (Date.now() - user.lastLogin) <= (30 * 24 * 60 * 60 * 1000) ? 
+        'text-green-600' : 'text-orange-600';
+      const statusText = user.lastLogin && (Date.now() - user.lastLogin) <= (30 * 24 * 60 * 60 * 1000) ? 
+        'Ativo' : 'Inativo';
+      
+      return `
+        <tr class="border-b border-gray-100">
+          <td class="py-2 px-2 text-gray-900">${user.email}</td>
+          <td class="py-2 px-2 text-gray-600">${user.role}</td>
+          <td class="py-2 px-2 text-gray-600">${lastLoginText}</td>
+          <td class="py-2 px-2 ${statusClass}">${statusText}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+  
+  updateUsersPagination();
+  updateUsersCount();
+}
+
+// Atualizar paginação de usuários
+function updateUsersPagination() {
+  const paginationDiv = document.getElementById('usersPagination');
+  if (!paginationDiv) return;
+  
+  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
+  
+  if (totalPages <= 1) {
+    paginationDiv.innerHTML = '';
+    return;
+  }
+  
+  let paginationHTML = '';
+  
+  // Botão anterior
+  if (usersCurrentPage > 1) {
+    paginationHTML += `<button onclick="changeUsersPage(${usersCurrentPage - 1})" class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs hover:bg-gray-300">‹</button>`;
+  }
+  
+  // Páginas
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === usersCurrentPage) {
+      paginationHTML += `<button class="px-2 py-1 bg-blue-matte text-white rounded text-xs">${i}</button>`;
+    } else {
+      paginationHTML += `<button onclick="changeUsersPage(${i})" class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs hover:bg-gray-300">${i}</button>`;
+    }
+  }
+  
+  // Botão próximo
+  if (usersCurrentPage < totalPages) {
+    paginationHTML += `<button onclick="changeUsersPage(${usersCurrentPage + 1})" class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs hover:bg-gray-300">›</button>`;
+  }
+  
+  paginationDiv.innerHTML = paginationHTML;
+}
+
+// Mudar página de usuários
+function changeUsersPage(page) {
+  usersCurrentPage = page;
+  displayUsers();
+}
+
+// Atualizar contador de usuários
+function updateUsersCount() {
+  const usersCount = document.getElementById('usersCount');
+  const usersPageInfo = document.getElementById('usersPageInfo');
+  
+  if (usersCount) {
+    usersCount.textContent = `${filteredUsers.length} usuários`;
+  }
+  
+  if (usersPageInfo) {
+    const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
+    usersPageInfo.textContent = `Página ${usersCurrentPage} de ${totalPages}`;
+  }
+}
+
+// Configurar filtros de usuários
+function setupUserFilters() {
+  const filterButtons = [
+    { id: 'filterAllUsers', filter: 'all' },
+    { id: 'filterActive30Days', filter: '30days' },
+    { id: 'filterActive7Days', filter: '7days' },
+    { id: 'filterActive1Day', filter: '1day' }
+  ];
+  
+  filterButtons.forEach(({ id, filter }) => {
+    const button = document.getElementById(id);
+    if (button) {
+      button.addEventListener('click', () => {
+        // Atualizar botões ativos
+        filterButtons.forEach(({ id: btnId }) => {
+          const btn = document.getElementById(btnId);
+          if (btn) {
+            btn.className = btn.className.replace('bg-blue-matte text-white', 'bg-gray-200 text-gray-700');
+          }
+        });
+        
+        // Ativar botão atual
+        button.className = button.className.replace('bg-gray-200 text-gray-700', 'bg-blue-matte text-white');
+        
+        // Aplicar filtro
+        currentUserFilter = filter;
+        applyUserFilter();
+        displayUsers();
+      });
+    }
+  });
+}
+
+// Expor funções globalmente
+window.changeUsersPage = changeUsersPage;
 
 
