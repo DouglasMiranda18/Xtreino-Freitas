@@ -1484,7 +1484,7 @@ async function loadNewsFromFirestore() {
             const hasImage = newsItem.imageUrl && typeof newsItem.imageUrl === 'string';
             const headerHtml = hasImage
                 ? `<div class="h-48 overflow-hidden bg-gray-100"><img src="${newsItem.imageUrl}" alt="${newsItem.title}" class="w-full h-48 object-cover" loading="lazy" referrerpolicy="no-referrer" /></div>`
-                : `<div class="bg-blue-matte h-48 flex items-center justify-center"><i class="${iconClass} text-4xl text-white"></i></div>`;
+                : '';
 
             newsCard.innerHTML = `
                 ${headerHtml}
