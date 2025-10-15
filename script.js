@@ -1450,11 +1450,16 @@ async function loadNewsFromFirestore() {
             return;
         }
         
-        news.forEach(newsItem => {
+        news.forEach(raw => {
+            const newsItem = { ...raw };
+            // Normalizar data (Timestamp do Firestore ou string)
+            const asDate = newsItem.date?.toDate ? newsItem.date.toDate() : (newsItem.date ? new Date(newsItem.date) : new Date());
+            // Normalizar imagem (aceita imageUrl ou image)
+            newsItem.imageUrl = newsItem.imageUrl || newsItem.image || '';
             const newsCard = document.createElement('article');
             newsCard.className = 'bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 border border-gray-200';
             
-            const date = new Date(newsItem.date);
+            const date = asDate;
             const formattedDate = date.toLocaleDateString('pt-BR', {
                 day: '2-digit',
                 month: '2-digit',
@@ -1476,7 +1481,7 @@ async function loadNewsFromFirestore() {
                 category = 'Confirmado';
             }
             
-            const hasImage = newsItem.imageUrl && typeof newsItem.imageUrl === 'string' && newsItem.imageUrl.startsWith('http');
+            const hasImage = newsItem.imageUrl && typeof newsItem.imageUrl === 'string';
             const headerHtml = hasImage
                 ? `<div class="h-48 overflow-hidden bg-gray-100"><img src="${newsItem.imageUrl}" alt="${newsItem.title}" class="w-full h-48 object-cover" loading="lazy" referrerpolicy="no-referrer" /></div>`
                 : `<div class="bg-blue-matte h-48 flex items-center justify-center"><i class="${iconClass} text-4xl text-white"></i></div>`;
