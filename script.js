@@ -1435,6 +1435,12 @@ async function loadNewsFromFirestore() {
         // Ordenar por data (mais recente primeiro)
         news.sort((a, b) => new Date(b.date) - new Date(a.date));
         
+        // Guardar lista global para o modal
+        window._newsList = news;
+
+        // Garantir modal de notícia no DOM
+        ensureNewsModal();
+
         // Renderizar notícias
         const container = document.getElementById('newsContainer');
         if (!container) return;
@@ -1450,7 +1456,7 @@ async function loadNewsFromFirestore() {
             return;
         }
         
-        news.forEach(raw => {
+        news.forEach((raw, idx) => {
             const newsItem = { ...raw };
             // Normalizar data (Timestamp do Firestore ou string)
             const asDate = newsItem.date?.toDate ? newsItem.date.toDate() : (newsItem.date ? new Date(newsItem.date) : new Date());
@@ -1496,7 +1502,7 @@ async function loadNewsFromFirestore() {
                         <span>Por: ${newsItem.author}</span>
                         <span>${formattedDate}</span>
                     </div>
-                    <button class="text-blue-matte hover:underline font-semibold">Ver mais</button>
+                    <button class="text-blue-matte hover:underline font-semibold" onclick="openNewsModal(${idx})">Ver mais</button>
                 </div>
             `;
             
@@ -1514,6 +1520,52 @@ async function loadNewsFromFirestore() {
             `;
         }
     }
+}
+
+// Modal de notícias
+function ensureNewsModal(){
+    if (document.getElementById('newsModal')) return;
+    const modal = document.createElement('div');
+    modal.id = 'newsModal';
+    modal.className = 'fixed inset-0 z-50 hidden';
+    modal.innerHTML = `
+        <div class="absolute inset-0 bg-black bg-opacity-60" onclick="closeNewsModal()"></div>
+        <div class="relative max-w-3xl w-[92%] md:w-[800px] mx-auto my-8 bg-white rounded-2xl shadow-xl overflow-hidden">
+            <div id="newsModalHeader"></div>
+            <div class="p-6">
+                <div class="text-sm text-blue-matte mb-2" id="newsModalCategory"></div>
+                <h3 class="text-2xl font-bold mb-3 text-gray-800" id="newsModalTitle"></h3>
+                <div class="text-sm text-gray-500 mb-4" id="newsModalMeta"></div>
+                <div class="prose max-w-none text-gray-700" id="newsModalContent"></div>
+                <div class="mt-6 flex justify-end">
+                    <button class="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50" onclick="closeNewsModal()">Fechar</button>
+                </div>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+    // Esc para fechar
+    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeNewsModal(); });
+}
+
+window.openNewsModal = function(index){
+    const list = window._newsList || [];
+    const item = list[index];
+    if (!item) return;
+    const date = item.date?.toDate ? item.date.toDate() : (item.date ? new Date(item.date) : new Date());
+    const meta = `${item.author || ''} • ${date.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric' })}`;
+    const img = item.imageUrl || item.image || '';
+    const header = img ? `<img src="${img}" alt="${item.title||''}" class="w-full h-64 object-cover" loading="lazy" referrerpolicy="no-referrer" />` : '';
+    document.getElementById('newsModalHeader').innerHTML = header;
+    document.getElementById('newsModalCategory').textContent = '';
+    document.getElementById('newsModalTitle').textContent = item.title || '';
+    document.getElementById('newsModalMeta').textContent = meta;
+    document.getElementById('newsModalContent').textContent = item.content || '';
+    document.getElementById('newsModal').classList.remove('hidden');
+}
+
+window.closeNewsModal = function(){
+    const m = document.getElementById('newsModal');
+    if (m) m.classList.add('hidden');
 }
 
 // Cart
