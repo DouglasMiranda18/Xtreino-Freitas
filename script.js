@@ -224,17 +224,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Verificar se usuário é admin autorizado
 async function checkAdminAccess() {
+    console.log('🔍 Verificando acesso admin...');
+    console.log('isLoggedIn:', window.isLoggedIn);
+    console.log('currentUser:', window.firebaseAuth?.currentUser);
+    
     if (!window.isLoggedIn || !window.firebaseAuth?.currentUser) {
+        console.log('❌ Usuário não logado');
         return false;
     }
     
     const user = window.firebaseAuth.currentUser;
     const authorizedEmails = ['cleitondouglass@gmail.com', 'cleitondouglass123@hotmail.com'];
     
+    console.log('📧 Email do usuário:', user.email);
+    console.log('📋 Emails autorizados:', authorizedEmails);
+    
     // Verificar email na whitelist
     if (!authorizedEmails.includes(user.email.toLowerCase())) {
+        console.log('❌ Email não autorizado');
         return false;
     }
+    
+    console.log('✅ Email autorizado, verificando role...');
     
     // Verificar role no Firestore
     try {
@@ -243,10 +254,15 @@ async function checkAdminAccess() {
         const snap = await getDoc(doc(collection(window.firebaseDb,'users'), uid));
         if (snap.exists()) {
             const role = (snap.data().role || '').toLowerCase();
-            return ['admin', 'ceo', 'gerente', 'vendedor'].includes(role);
+            console.log('🎭 Role encontrado:', role);
+            const hasAccess = ['admin', 'ceo', 'gerente', 'vendedor'].includes(role);
+            console.log('🔐 Acesso admin:', hasAccess);
+            return hasAccess;
+        } else {
+            console.log('❌ Documento de usuário não encontrado no Firestore');
         }
     } catch (error) {
-        console.error('Erro ao verificar acesso admin:', error);
+        console.error('❌ Erro ao verificar acesso admin:', error);
     }
     
     return false;
@@ -254,14 +270,22 @@ async function checkAdminAccess() {
 
 // Mostrar/esconder link ADMIN baseado no acesso
 async function updateAdminLinkVisibility() {
+    console.log('🔄 Atualizando visibilidade do link ADMIN...');
     const adminLink = document.getElementById('adminLink');
-    if (!adminLink) return;
+    if (!adminLink) {
+        console.log('❌ Elemento adminLink não encontrado');
+        return;
+    }
     
     const hasAccess = await checkAdminAccess();
+    console.log('🔐 Has access:', hasAccess);
+    
     if (hasAccess) {
         adminLink.classList.remove('hidden');
+        console.log('✅ Link ADMIN mostrado');
     } else {
         adminLink.classList.add('hidden');
+        console.log('❌ Link ADMIN escondido');
     }
 }
 
