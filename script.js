@@ -2233,10 +2233,11 @@ async function handleProductPurchase(productId, cfg) {
             console.log('🔍 Attempting to save product order:', orderData);
             const docRef = await addDoc(collection(window.firebaseDb, 'orders'), orderData);
             console.log('✅ Product order saved to Firestore with ID:', docRef.id);
-            
+
             // Salvar external_reference para o webhook
-            const externalRef = `digital_${docRef.id}`;
+            var externalRef = `digital_${docRef.id}`;
             await updateDoc(docRef, { external_reference: externalRef });
+            try { sessionStorage.setItem('lastExternalRef', externalRef); } catch(_) {}
         }
 
         // Chamar function segura (Netlify) para criar Preference
@@ -2249,7 +2250,7 @@ async function handleProductPurchase(productId, cfg) {
                 currency_id: 'BRL',
                 quantity: 1,
                 back_url: window.location.origin + window.location.pathname,
-                external_reference: externalRef
+                external_reference: externalRef || (`digital_${docRef?.id || Date.now()}`)
             })
         });
 
