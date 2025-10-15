@@ -747,7 +747,7 @@ async function ensureUserProfile(user) {
             }
         } else {
             // Sem Firebase: usa somente base em memória (não persiste em localStorage)
-            window.currentUserProfile = baseProfile;
+                window.currentUserProfile = baseProfile;
             console.log('⚠️ Firebase indisponível — usando perfil em memória.');
         }
         
@@ -1646,10 +1646,10 @@ function initShopCartHook(){
         const m = onClick.match(/openScheduleModal\('([^']+)'\)/);
         if (!m) return;
         const pid = m[1];
-        btn.addEventListener('click', (e)=>{
+    btn.addEventListener('click', (e)=>{
             try{
                 if (!window.scheduleConfig || !window.scheduleConfig[pid] || !window.scheduleConfig[pid].isProduct) return; // deixa eventos intactos
-                e.preventDefault();
+        e.preventDefault();
                 const sc = window.scheduleConfig[pid];
                 const p = { name: sc.label, price: Number(sc.price) };
                 const exists = cart.find(c=>c.name===p.name);
@@ -1657,8 +1657,8 @@ function initShopCartHook(){
                 renderCart();
                 toggleCart(true);
             }catch(_){ }
-        });
     });
+});
 }
 
 function checkoutCart(){
@@ -1748,7 +1748,7 @@ function addProductOptions(productId) {
                         <label class="flex items-center gap-3 p-3 border rounded-lg bg-white"><input type="checkbox" name="mapOption" value="kalahari" class="w-4 h-4"> <span>Kalahari</span></label>
                         <label class="flex items-center gap-3 p-3 border rounded-lg bg-white"><input type="checkbox" name="mapOption" value="alpina" class="w-4 h-4"> <span>Alpina</span></label>
                         <label class="flex items-center gap-3 p-3 border rounded-lg bg-white"><input type="checkbox" name="mapOption" value="novaterra" class="w-4 h-4"> <span>Nova Terra</span></label>
-                    </div>
+                        </div>
                     <div class="mt-4 bg-blue-100 rounded-lg p-3">
                         <div class="flex items-center">
                             <svg class="w-4 h-4 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2306,7 +2306,7 @@ async function handleProductPurchase(productId, cfg) {
             console.log('🔍 Attempting to save product order:', orderData);
             const docRef = await addDoc(collection(window.firebaseDb, 'orders'), orderData);
             console.log('✅ Product order saved to Firestore with ID:', docRef.id);
-
+            
             // Salvar external_reference para o webhook
             var externalRef = `digital_${docRef.id}`;
             await updateDoc(docRef, { external_reference: externalRef });
