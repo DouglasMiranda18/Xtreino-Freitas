@@ -1130,10 +1130,9 @@ async function handlePurchase(event) {
         const sizeSelect = document.querySelector('#purchaseModal select');
         productOptions.size = sizeSelect?.value || '';
     } else if (currentProduct === 'imagens') {
-        const mapsNames = document.getElementById('mapsNames')?.value || '';
-        const mapsQty = document.getElementById('mapsQty')?.value || '1';
-        productOptions.maps = mapsNames.split(',').map(s=>s.trim()).filter(Boolean);
-        productOptions.quantity = parseInt(mapsQty);
+        const selected = Array.from(document.querySelectorAll('input[name="mapOption"]:checked')).map(i=>i.value);
+        productOptions.maps = selected;
+        productOptions.quantity = selected.length || 1;
     }
 
     try {
@@ -1661,7 +1660,7 @@ function addProductOptions(productId) {
             break;
             
         case 'imagens':
-            // Opções para imagens aéreas
+            // Opções para imagens aéreas (checkboxes com IDs padronizados)
             container.innerHTML = `
                 <div class="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-6 border border-blue-100">
                     <div class="flex items-center mb-4">
@@ -1672,30 +1671,35 @@ function addProductOptions(productId) {
                         </div>
                         <h4 class="text-lg font-semibold text-gray-800">Selecionar Mapas</h4>
                     </div>
-                    
                     <div class="grid md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Mapas desejados</label>
-                            <input type="text" id="mapsNames" placeholder="Ex.: Bermuda, Kalahari, Purgatório" 
-                                   class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-colors">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Quantidade</label>
-                            <input type="number" id="mapsQty" min="1" max="5" value="1" 
-                                   class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-colors">
-                        </div>
+                        <label class="flex items-center gap-3 p-3 border rounded-lg bg-white"><input type="checkbox" name="mapOption" value="bermuda" class="w-4 h-4"> <span>Bermuda</span></label>
+                        <label class="flex items-center gap-3 p-3 border rounded-lg bg-white"><input type="checkbox" name="mapOption" value="purgatorio" class="w-4 h-4"> <span>Purgatório</span></label>
+                        <label class="flex items-center gap-3 p-3 border rounded-lg bg-white"><input type="checkbox" name="mapOption" value="kalahari" class="w-4 h-4"> <span>Kalahari</span></label>
+                        <label class="flex items-center gap-3 p-3 border rounded-lg bg-white"><input type="checkbox" name="mapOption" value="alpina" class="w-4 h-4"> <span>Alpina</span></label>
+                        <label class="flex items-center gap-3 p-3 border rounded-lg bg-white"><input type="checkbox" name="mapOption" value="novaterra" class="w-4 h-4"> <span>Nova Terra</span></label>
                     </div>
-                    
                     <div class="mt-4 bg-blue-100 rounded-lg p-3">
                         <div class="flex items-center">
                             <svg class="w-4 h-4 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                             </svg>
-                            <span class="text-sm text-blue-800 font-medium">Preços: 1 mapa R$2 | 2 por R$4 | 3 por R$5 | 5 por R$7</span>
+                            <span class="text-sm text-blue-800 font-medium">Preços: 1 mapa R$2 | 2 por R$4 | 3 por R$5 | 5 por R$7 • Selecionados: <b id="mapsCount">0</b> • Total: <b id="mapsPrice">R$ 0,00</b></span>
                         </div>
                     </div>
                 </div>
             `;
+            // Atualizar contagem/preço conforme seleção
+            (function(){
+                const prices = { 1: 2, 2: 4, 3: 5, 4: 5, 5: 7 };
+                const update = () => {
+                    const count = document.querySelectorAll('input[name="mapOption"]:checked').length;
+                    const price = prices[count] || (count>5?prices[5]:0);
+                    const c = document.getElementById('mapsCount'); if (c) c.textContent = String(count);
+                    const p = document.getElementById('mapsPrice'); if (p) p.textContent = `R$ ${price.toFixed(2)}`;
+                };
+                document.querySelectorAll('input[name="mapOption"]').forEach(i=>i.addEventListener('change', update));
+                update();
+            })();
             break;
             
         case 'planilhas':
@@ -2186,14 +2190,12 @@ async function handleProductPurchase(productId, cfg) {
         let finalPrice = cfg.price;
         
         if (productId === 'imagens') {
-            const mapsNames = document.getElementById('mapsNames')?.value || '';
-            const mapsQty = parseInt(document.getElementById('mapsQty')?.value || 1);
-            productOptions.maps = mapsNames.split(',').map(s => s.trim()).filter(Boolean);
-            productOptions.quantity = mapsQty;
-            
-            // Atualizar preço baseado na quantidade
+            const selected = Array.from(document.querySelectorAll('input[name="mapOption"]:checked')).map(i=>i.value);
+            productOptions.maps = selected;
+            productOptions.quantity = selected.length || 1;
+            // Atualizar preço baseado na quantidade selecionada
             const prices = { 1: 2, 2: 4, 3: 5, 4: 5, 5: 7 };
-            finalPrice = prices[mapsQty] || 2;
+            finalPrice = prices[productOptions.quantity] || 2;
         } else if (productId === 'passe-booyah') {
             const playerId = document.getElementById('playerId')?.value || '';
             productOptions.playerId = playerId;
