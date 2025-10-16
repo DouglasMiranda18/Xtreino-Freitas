@@ -307,15 +307,7 @@
         const status = String(order.status || '').toLowerCase();
         const descriptorRaw = order.description || order.item || order.itemName || order.title || '';
         const descriptor = String(descriptorRaw).toLowerCase();
-        // console.log('🔍 Analisando pedido:', {
-          id: doc.id,
-          item: order.item,
-          itemName: order.itemName,
-          title: order.title,
-          description: order.description,
-          status,
-          customer: order.customer || order.customerName || order.buyerEmail
-        // });
+        // Log detalhado removido
         // Considera tokens se houver menção a "token" em qualquer campo descritivo
         if (descriptor.includes('token')) {
           // Apenas pedidos pagos/confirmados entram nas compras
@@ -476,13 +468,7 @@
       confirmedOrdersData = [];
       ordersSnapshot.forEach(doc => {
         const order = doc.data();
-        // console.log('🔍 Analisando pedido confirmado:', {
-          id: doc.id,
-          status: order.status,
-          item: order.item,
-          title: order.title,
-          customer: order.customer
-        // });
+        // Log detalhado removido
         if (['paid','approved','confirmed'].includes(String(order.status||'').toLowerCase())) {
           const originalDate = order.createdAt ? (order.createdAt.seconds ? new Date(order.createdAt.seconds * 1000) : new Date(order.createdAt)) : new Date(0);
           confirmedOrdersData.push({
