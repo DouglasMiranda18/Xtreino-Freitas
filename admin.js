@@ -619,6 +619,13 @@
     const isManager = ['ceo','gerente'].includes(roleLower);
     const isCeo = roleLower==='ceo';
     window.adminRoleLower = roleLower;
+    // Atualiza badge de papel na UI
+    try{
+      const badge = document.getElementById('roleBadge');
+      if (badge){
+        badge.textContent = `Permissões: ${roleLower.toUpperCase()}`;
+      }
+    }catch(_){ }
     // Controla visibilidade conforme o papel
     try {
       const highlightsSection = document.getElementById('sectionHighlights');
