@@ -3134,6 +3134,14 @@ window.saveProducts = saveProducts;
         }
       }, 2000);
       
+      // Load users and setup guards
+      setTimeout(() => {
+        if (window.firebaseDb) {
+          try { loadUsers(); } catch (_) {}
+        }
+        try { setupRoleGuards(); } catch (_) {}
+      }, 800);
+      
     } catch (error) {
       console.error('Admin initialization error:', error);
       showLoginError('Erro ao inicializar o painel administrativo.');
@@ -3146,6 +3154,7 @@ window.saveProducts = saveProducts;
   // Configurar filtros de usuários quando o DOM estiver pronto
   document.addEventListener('DOMContentLoaded', () => {
     setupUserFilters();
+    try { setupRoleGuards(); } catch (_) {}
   });
 
 // ==================== FUNÇÕES DE USUÁRIOS ====================
@@ -3161,17 +3170,30 @@ let currentUserFilter = 'all'; // 'all', '30days', '7days', '1day'
 async function loadUsers() {
   try {
     console.log('🔄 Carregando usuários...');
+    const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     const usersRef = collection(window.firebaseDb, 'users');
     const snapshot = await getDocs(usersRef);
     
     allUsers = [];
     snapshot.forEach(doc => {
       const userData = doc.data();
+      // Normaliza lastLogin para milissegundos
+      let lastLoginMs = null;
+      const ll = userData.lastLogin;
+      if (ll) {
+        if (typeof ll.toMillis === 'function') {
+          lastLoginMs = ll.toMillis();
+        } else if (typeof ll === 'number') {
+          lastLoginMs = ll;
+        } else if (typeof ll === 'object' && typeof ll.seconds === 'number') {
+          lastLoginMs = ll.seconds * 1000;
+        }
+      }
       allUsers.push({
         id: doc.id,
         email: userData.email || 'N/A',
         role: userData.role || 'Usuário',
-        lastLogin: userData.lastLogin || null,
+        lastLogin: lastLoginMs,
         name: userData.name || userData.email || 'Usuário',
         createdAt: userData.createdAt || null
       });
@@ -3196,7 +3218,7 @@ function applyUserFilter() {
   filteredUsers = allUsers.filter(user => {
     if (currentUserFilter === 'all') return true;
     
-    if (!user.lastLogin) return false;
+    if (!user.lastLogin || isNaN(user.lastLogin)) return false;
     
     const lastLoginTime = user.lastLogin;
     const timeDiff = now - lastLoginTime;
@@ -3236,7 +3258,7 @@ function updateUsersStats() {
 
 // Exibir usuários na tabela
 function displayUsers() {
-  const tbody = document.getElementById('usersTableBody');
+  const tbody = document.getElementById('recentUsersTableBody') || document.getElementById('usersTableBody');
   if (!tbody) return;
   
   const startIndex = (usersCurrentPage - 1) * usersPerPage;
@@ -3253,12 +3275,12 @@ function displayUsers() {
     `;
   } else {
     tbody.innerHTML = pageUsers.map(user => {
-      const lastLoginText = user.lastLogin ? 
-        new Date(user.lastLogin).toLocaleDateString('pt-BR') : 'Nunca';
+      const lastLoginText = (user.lastLogin && !isNaN(user.lastLogin)) ? 
+        new Date(user.lastLogin).toLocaleString('pt-BR') : 'Nunca';
       
-      const statusClass = user.lastLogin && (Date.now() - user.lastLogin) <= (30 * 24 * 60 * 60 * 1000) ? 
+      const statusClass = (user.lastLogin && !isNaN(user.lastLogin) && (Date.now() - user.lastLogin) <= (30 * 24 * 60 * 60 * 1000)) ? 
         'text-green-600' : 'text-orange-600';
-      const statusText = user.lastLogin && (Date.now() - user.lastLogin) <= (30 * 24 * 60 * 60 * 1000) ? 
+      const statusText = (user.lastLogin && !isNaN(user.lastLogin) && (Date.now() - user.lastLogin) <= (30 * 24 * 60 * 60 * 1000)) ? 
         'Ativo' : 'Inativo';
       
       return `
@@ -3368,5 +3390,43 @@ function setupUserFilters() {
 
 // Expor funções globalmente
 window.changeUsersPage = changeUsersPage;
+
+// ==================== RESTRIÇÕES DE PAPÉIS ====================
+
+function getCurrentAdminRole() {
+  try {
+    const session = JSON.parse(sessionStorage.getItem('adminSession') || '{}');
+    if (session && session.role) return String(session.role);
+  } catch (_) {}
+  return undefined;
+}
+
+function canAssignRole(targetRole) {
+  const role = (getCurrentAdminRole() || '').toLowerCase();
+  const target = String(targetRole || '').toLowerCase();
+  if (role === 'gerente' && (target === 'ceo' || target === 'ceo ')) return false;
+  return true;
+}
+
+function setupRoleGuards() {
+  const tables = [document.getElementById('usersTableBody'), document.getElementById('recentUsersTableBody')].filter(Boolean);
+  tables.forEach((tbl) => {
+    tbl.addEventListener('change', (e) => {
+      const el = e.target;
+      if (el && el.tagName === 'SELECT') {
+        const newVal = el.value;
+        if (!canAssignRole(newVal)) {
+          e.preventDefault();
+          // Reverter seleção
+          const prev = el.getAttribute('data-prev') || '';
+          if (prev) el.value = prev;
+          alert('Gerente não pode definir cargo CEO.');
+        } else {
+          el.setAttribute('data-prev', newVal);
+        }
+      }
+    });
+  });
+}
 
 
