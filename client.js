@@ -678,9 +678,6 @@ function displayAllOrdersPaginated() {
                 <div>
                     <span class="font-medium">${order.paidWithTokens ? 'Consumo:' : 'Valor:'}</span> ${order.paidWithTokens ? `-${order.tokensUsed||1} token${(order.tokensUsed||1)>1?'s':''}` : `R$ ${Number(order.price||0).toFixed(2)}`}
                 </div>
-                <div>
-                    <span class="font-medium">ID:</span> ${order.id.substring(0, 8)}...
-                </div>
             </div>
         </div>
     `).join('');
@@ -766,9 +763,6 @@ function displayAllProductsPaginated(productsData) {
                 </div>
                 <div>
                     <span class="font-medium">Valor:</span> R$ ${product.price?.toFixed(2) || '0,00'}
-                </div>
-                <div>
-                    <span class="font-medium">ID:</span> ${product.id.substring(0, 8)}...
                 </div>
             </div>
             ${getProductActionButton(product)}
