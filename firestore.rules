@@ -33,15 +33,15 @@ service cloud.firestore {
       allow write: if isSignedIn();
     }
 
-    // orders: leitura para o próprio usuário; escrita para logados
+    // orders: leitura para staff (admin/gerente/vendedor) e para o próprio usuário; escrita para logados
     match /orders/{orderId} {
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin() || isGerente() || isVendedor());
       allow write: if isSignedIn();
     }
 
-    // registrations: leitura para o próprio usuário; escrita para logados
+    // registrations: leitura para staff (admin/gerente/vendedor) e para o próprio usuário; escrita para logados
     match /registrations/{registrationId} {
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin() || isGerente() || isVendedor());
       allow write: if isSignedIn();
     }
 

@@ -45,7 +45,7 @@
 
     // Check user role in Firestore
     try {
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      const userDoc = await getDoc(doc(window.firebaseDb, 'users', user.uid));
       if (!userDoc.exists()) return false;
       
       const userData = userDoc.data();
@@ -666,13 +666,14 @@
     if (btnLoadBoard) btnLoadBoard.onclick = loadBoard;
     const formAddTeam = document.getElementById('formAddTeam');
     if (formAddTeam) formAddTeam.onsubmit = submitAddTeam;
+    // Carrega relatórios e pendências para todas as funções
+    await loadReports().catch(()=>{});
     if (isManager){
-      await loadReports(); // Reabilitado - loadTokensData foi desabilitado dentro
-      await loadRecentSchedules();
-      await loadPending(true);
+      await loadRecentSchedules().catch(()=>{});
+      await loadPending(true).catch(()=>{});
     } else {
       await loadRecentOrders().catch(()=>{});
-      await loadPending(false);
+      await loadPending(false).catch(()=>{});
     }
   });
 
@@ -3070,7 +3071,7 @@ window.saveProducts = saveProducts;
       }
 
       // Get user role
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      const userDoc = await getDoc(doc(window.firebaseDb, 'users', user.uid));
       const userData = userDoc.data();
       const role = userData?.role || 'admin';
 
