@@ -635,21 +635,14 @@
     window.adminRoleLower = roleLower;
     // Controla visibilidade conforme o papel
     try {
-      const highlightsSection = document.querySelector('h3.font-bold.text-sm:nth-of-type(1)')?.closest('div.bg-white');
-      const newsSection = document.querySelector('h3.font-bold.text-sm:nth-of-type(2)')?.closest('div.bg-white');
-      const productsSection = Array.from(document.querySelectorAll('h3.font-bold.text-sm')).find(h=>h.textContent.includes('Gerenciar Produtos'))?.closest('div.bg-white');
-      if (roleLower === 'vendedor') {
-        if (highlightsSection) highlightsSection.classList.add('hidden');
-        if (newsSection) newsSection.classList.add('hidden');
-        if (productsSection) productsSection.classList.add('hidden');
-      } else {
-        if (highlightsSection) highlightsSection.classList.remove('hidden');
-        if (newsSection) newsSection.classList.remove('hidden');
-        if (productsSection) productsSection.classList.remove('hidden');
-      }
-
-      
-      
+      const highlightsSection = document.getElementById('sectionHighlights');
+      const newsSection = document.getElementById('sectionNews');
+      const productsSection = document.getElementById('sectionProducts');
+      const toggle = (el, show) => { if (!el) return; el.classList[show ? 'remove' : 'add']('hidden'); };
+      const isVendedor = roleLower === 'vendedor';
+      toggle(highlightsSection, !isVendedor);
+      toggle(newsSection, !isVendedor);
+      toggle(productsSection, !isVendedor);
     } catch(_){ }
 
     try { 
