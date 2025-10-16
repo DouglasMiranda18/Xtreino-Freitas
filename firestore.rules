@@ -20,6 +20,18 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin','Admin','ADMIN','Ceo','CEO','ceo'] &&
         request.auth.token.email in ['cleitondouglass@gmail.com','cleitondouglass123@hotmail.com','gilmariofreitas378@gmail.com','gilmariofreitas387@gmail.com'];
     }
+    
+    function isDesign() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['design','Design','DESIGN'];
+    }
+    
+    function isSocio() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['socio','Socio','SOCIO','sócio','Sócio','SÓCIO'];
+    }
+    
+    function canReadAll() {
+      return isAdmin() || isGerente() || isVendedor() || isDesign() || isSocio();
+    }
 
     // users: cada usuário lê/escreve o próprio documento; Admins podem ler/escrever todos
     match /users/{userId} {
@@ -33,34 +45,34 @@ service cloud.firestore {
       allow write: if isSignedIn();
     }
 
-    // orders: leitura para staff (admin/gerente/vendedor) e para o próprio usuário; escrita para logados
+    // orders: leitura para staff (admin/gerente/vendedor/sócio) e para o próprio usuário; escrita para logados
     match /orders/{orderId} {
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin() || isGerente() || isVendedor());
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || canReadAll());
       allow write: if isSignedIn();
     }
 
-    // registrations: leitura para staff (admin/gerente/vendedor) e para o próprio usuário; escrita para logados
+    // registrations: leitura para staff (admin/gerente/vendedor/sócio) e para o próprio usuário; escrita para logados
     match /registrations/{registrationId} {
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin() || isGerente() || isVendedor());
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || canReadAll());
       allow write: if isSignedIn();
     }
 
-    // digital_deliveries: leitura para o próprio usuário; escrita para logados
+    // digital_deliveries: leitura para o próprio usuário e sócio; escrita para logados
     match /digital_deliveries/{deliveryId} {
-      allow read: if isSignedIn() && (resource.data.customerEmail == request.auth.token.email || isAdmin());
+      allow read: if isSignedIn() && (resource.data.customerEmail == request.auth.token.email || canReadAll());
       allow write: if isSignedIn();
     }
 
-    // highlights: leitura pública; escrita apenas para admins autorizados
+    // highlights: leitura pública; escrita para admins autorizados e design
     match /highlights/{highlightId} {
       allow read: if true;
-      allow create, update, delete: if isAuthorizedAdmin();
+      allow create, update, delete: if isAuthorizedAdmin() || isDesign();
     }
 
-    // news: leitura pública; escrita apenas para admins autorizados
+    // news: leitura pública; escrita para admins autorizados e design
     match /news/{newsId} {
       allow read: if true;
-      allow create, update, delete: if isAuthorizedAdmin();
+      allow create, update, delete: if isAuthorizedAdmin() || isDesign();
     }
 
     // config: leitura pública; escrita apenas para admins autorizados

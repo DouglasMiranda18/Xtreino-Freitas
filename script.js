@@ -175,13 +175,13 @@ function onAuthLogged(user){
                 if (uid) {
                     await loadUserProfile(uid);
                     const role = (window.currentUserProfile?.role || '').toLowerCase();
-                    if (['ceo','gerente','vendedor'].includes(role)) {
+                    if (['ceo','gerente','vendedor','design','socio'].includes(role)) {
                         window.postLoginRedirect = null;
                         window.location.href = 'admin.html';
                         return;
                     }
                 }
-                alert('Acesso ao painel restrito (CEO, Gerente ou Vendedor).');
+                alert('Acesso ao painel restrito (CEO, Gerente, Vendedor, Design ou Sócio).');
                 window.postLoginRedirect = null;
             } catch (_) { window.postLoginRedirect = null; }
         }, 100);
@@ -261,7 +261,7 @@ async function checkAdminAccess() {
         if (snap.exists()) {
             const role = (snap.data().role || '').toLowerCase();
             // console.log('🎭 Role encontrado:', role);
-            const hasAccess = ['admin', 'ceo', 'gerente', 'vendedor'].includes(role);
+            const hasAccess = ['admin', 'ceo', 'gerente', 'vendedor', 'design', 'socio'].includes(role);
             // console.log('🔐 Acesso admin:', hasAccess);
             return hasAccess;
         } else {

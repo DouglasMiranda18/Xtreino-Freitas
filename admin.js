@@ -51,7 +51,7 @@
       const userData = userDoc.data();
       const role = (userData.role || '').toLowerCase();
       
-      return ['admin', 'gerente', 'vendedor'].includes(role);
+      return ['admin', 'gerente', 'vendedor', 'design', 'socio'].includes(role);
     } catch (error) {
       console.error('Error checking user role:', error);
       return false;
@@ -99,6 +99,46 @@
     startSessionTimer();
   }
 
+  // Control section visibility based on role
+  function controlSectionVisibility(userRole) {
+    const role = (userRole || '').toLowerCase();
+    
+    // Get section elements
+    const sectionHighlights = document.getElementById('sectionHighlights');
+    const sectionNews = document.getElementById('sectionNews');
+    const sectionProducts = document.getElementById('sectionProducts');
+    const sectionUsers = document.getElementById('sectionUsers');
+    
+    // Design: Can only edit highlights and news
+    if (role === 'design') {
+      if (sectionHighlights) sectionHighlights.style.display = 'block';
+      if (sectionNews) sectionNews.style.display = 'block';
+      if (sectionProducts) sectionProducts.style.display = 'none';
+      if (sectionUsers) sectionUsers.style.display = 'none';
+    }
+    // Sócio: Can see everything but cannot edit (read-only)
+    else if (role === 'socio') {
+      if (sectionHighlights) sectionHighlights.style.display = 'block';
+      if (sectionNews) sectionNews.style.display = 'block';
+      if (sectionProducts) sectionProducts.style.display = 'block';
+      if (sectionUsers) sectionUsers.style.display = 'block';
+      
+      // Disable all edit buttons for sócio
+      const editButtons = document.querySelectorAll('button[onclick*="edit"], button[onclick*="add"], button[onclick*="delete"], button[onclick*="save"]');
+      editButtons.forEach(btn => {
+        btn.disabled = true;
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+      });
+    }
+    // Other roles: Show all sections
+    else {
+      if (sectionHighlights) sectionHighlights.style.display = 'block';
+      if (sectionNews) sectionNews.style.display = 'block';
+      if (sectionProducts) sectionProducts.style.display = 'block';
+      if (sectionUsers) sectionUsers.style.display = 'block';
+    }
+  }
+
   // Security: Show login error
   function showLoginError(message) {
     loginError.textContent = message;
@@ -111,11 +151,16 @@
   function setView(authRole){
     const role = (authRole||'').toLowerCase();
     roleBadge.textContent = `Permissão: ${authRole||'desconhecida'}`;
+    
+    // Apply role-based section visibility
+    controlSectionVisibility(role);
+    
     // Controle de visão
     const kpiCards = document.querySelectorAll('#kpiToday, #kpiMonth, #kpiReceivable');
     const productsCard = document.getElementById('popularHoursChart')?.closest('.bg-white');
     const salesChartCard = document.getElementById('salesChart')?.closest('.bg-white');
     const topProductsCard = document.getElementById('topProductsChart')?.closest('.bg-white');
+    
     if (role === 'vendedor'){
       // Vendedor: vê pedidos recentes e chat (futuro). Esconde KPIs e gestão de produtos.
       kpiCards.forEach(e => e && (e.closest('.bg-white').classList.add('hidden')));
@@ -127,6 +172,15 @@
       const kpiMonthCard = document.getElementById('kpiMonth')?.closest('.bg-white');
       if (kpiMonthCard) kpiMonthCard.classList.add('hidden');
       if (salesChartCard) salesChartCard.classList.add('hidden');
+    } else if (role === 'design'){
+      // Design: esconde todos os KPIs e gráficos
+      kpiCards.forEach(e => e && (e.closest('.bg-white').classList.add('hidden')));
+      if (productsCard) productsCard.classList.add('hidden');
+      if (salesChartCard) salesChartCard.classList.add('hidden');
+      if (topProductsCard) topProductsCard.classList.add('hidden');
+    } else if (role === 'socio'){
+      // Sócio: vê tudo (read-only)
+      // Nenhuma ocultação de elementos
     }
   }
 
