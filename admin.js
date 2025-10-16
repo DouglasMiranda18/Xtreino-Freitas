@@ -1857,6 +1857,7 @@ async function renderPopularHours() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                aspectRatio: 2.5,
                 plugins: {
                     legend: {
                         display: false
@@ -1873,12 +1874,18 @@ async function renderPopularHours() {
                     y: {
                         beginAtZero: true,
                         ticks: {
-                            stepSize: 1
+                            stepSize: 1,
+                            font: {
+                                size: 10
+                            }
                         }
                     },
                     x: {
                         ticks: {
-                            maxRotation: 45
+                            maxRotation: 45,
+                            font: {
+                                size: 10
+                            }
                         }
                     }
                 }
