@@ -3122,6 +3122,10 @@ window.saveProducts = saveProducts;
     document.addEventListener('scroll', resetSessionTimer);
   }
 
+  // Session timer fallbacks (no-op to avoid runtime errors)
+  function startSessionTimer() {}
+  function resetSessionTimer() {}
+
   // Basic login error renderer (fallback-safe)
   function showLoginError(message) {
     try {
