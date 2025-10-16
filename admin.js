@@ -3121,6 +3121,34 @@ window.saveProducts = saveProducts;
     document.addEventListener('scroll', resetSessionTimer);
   }
 
+  // Basic login error renderer (fallback-safe)
+  function showLoginError(message) {
+    try {
+      const box = document.getElementById('loginError');
+      if (box) {
+        box.textContent = message || 'Erro ao fazer login';
+        box.classList.remove('hidden');
+      } else {
+        console.error('Login error:', message);
+      }
+    } catch (e) {
+      console.error('Login error (fallback):', message, e);
+    }
+  }
+
+  // Logout handler
+  async function logout() {
+    try {
+      if (window.firebaseAuth && typeof window.firebaseAuth.signOut === 'function') {
+        await window.firebaseAuth.signOut();
+      }
+      sessionStorage.removeItem('adminSession');
+      location.reload();
+    } catch (e) {
+      console.error('Logout error:', e);
+    }
+  }
+
   // Initialize admin panel
   async function initAdmin() {
     try {
@@ -3170,7 +3198,8 @@ let currentUserFilter = 'all'; // 'all', '30days', '7days', '1day'
 async function loadUsers() {
   try {
     console.log('🔄 Carregando usuários...');
-    const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const { collection, getDocs, query, orderBy, limit } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    // 1) Carrega usuários
     const usersRef = collection(window.firebaseDb, 'users');
     const snapshot = await getDocs(usersRef);
     
@@ -3197,6 +3226,40 @@ async function loadUsers() {
         name: userData.name || userData.email || 'Usuário',
         createdAt: userData.createdAt || null
       });
+    });
+
+    // 2) Usa atividade recente de pedidos como fallback de "último login"
+    console.log('🔎 Buscando atividade recente em pedidos...');
+    const ordersRef = collection(window.firebaseDb, 'orders');
+    // Pega os mais recentes para manter leve
+    const ordersSnap = await getDocs(query(ordersRef, orderBy('createdAt', 'desc'), limit(500)));
+    const emailToLastActivity = new Map();
+    ordersSnap.forEach(orderDoc => {
+      const o = orderDoc.data() || {};
+      const email = o.buyerEmail || o.customerEmail || o.customer || o.email;
+      if (!email) return;
+      let ts = null;
+      const paid = o.paidAt || o.approvedAt || o.confirmedAt;
+      const created = o.createdAt;
+      const normalize = (v) => {
+        if (!v) return null;
+        if (typeof v.toMillis === 'function') return v.toMillis();
+        if (typeof v === 'number') return v;
+        if (typeof v === 'object' && typeof v.seconds === 'number') return v.seconds * 1000;
+        return null;
+      };
+      ts = normalize(paid) || normalize(created);
+      if (!ts) return;
+      const prev = emailToLastActivity.get(email) || 0;
+      if (ts > prev) emailToLastActivity.set(email, ts);
+    });
+
+    // 3) Mescla atividade aos usuários sem lastLogin
+    allUsers = allUsers.map(u => {
+      if (!u.lastLogin && emailToLastActivity.has(u.email)) {
+        return { ...u, lastLogin: emailToLastActivity.get(u.email) };
+      }
+      return u;
     });
     
     console.log(`✅ ${allUsers.length} usuários carregados`);

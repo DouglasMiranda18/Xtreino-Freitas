@@ -137,7 +137,16 @@ async function sendPasswordReset(){
 }
 
 function onAuthLogged(user){
-    console.log('User logged in:', user.email);
+    // Atualiza lastLogin no Firestore
+    try{
+        if (window.firebaseReady && window.firebaseDb && user?.uid){
+            (async()=>{
+                const { doc, setDoc, collection, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+                const ref = doc(collection(window.firebaseDb,'users'), user.uid);
+                await setDoc(ref, { lastLogin: serverTimestamp(), email: user.email || null }, { merge: true });
+            })().catch(()=>{});
+        }
+    }catch(_){/* noop */}
     try{
         const name = user?.displayName || user?.email || 'Usuário';
         const welcome = document.getElementById('accWelcome');
@@ -224,28 +233,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Verificar se usuário é admin autorizado
 async function checkAdminAccess() {
-    console.log('🔍 Verificando acesso admin...');
-    console.log('isLoggedIn:', window.isLoggedIn);
-    console.log('currentUser:', window.firebaseAuth?.currentUser);
+    // Debug removido
     
     if (!window.isLoggedIn || !window.firebaseAuth?.currentUser) {
-        console.log('❌ Usuário não logado');
+        // console.log('❌ Usuário não logado');
         return false;
     }
     
     const user = window.firebaseAuth.currentUser;
     const authorizedEmails = ['cleitondouglass@gmail.com', 'cleitondouglass123@hotmail.com', 'gilmariofreitas378@gmail.com', 'gilmariofreitas387@gmail.com'];
     
-    console.log('📧 Email do usuário:', user.email);
-    console.log('📋 Emails autorizados:', authorizedEmails);
+    // Debug removido
     
     // Verificar email na whitelist
     if (!authorizedEmails.includes(user.email.toLowerCase())) {
-        console.log('❌ Email não autorizado');
+        // console.log('❌ Email não autorizado');
         return false;
     }
     
-    console.log('✅ Email autorizado, verificando role...');
+    // Debug removido
     
     // Verificar role no Firestore
     try {
@@ -254,12 +260,12 @@ async function checkAdminAccess() {
         const snap = await getDoc(doc(collection(window.firebaseDb,'users'), uid));
         if (snap.exists()) {
             const role = (snap.data().role || '').toLowerCase();
-            console.log('🎭 Role encontrado:', role);
+            // console.log('🎭 Role encontrado:', role);
             const hasAccess = ['admin', 'ceo', 'gerente', 'vendedor'].includes(role);
-            console.log('🔐 Acesso admin:', hasAccess);
+            // console.log('🔐 Acesso admin:', hasAccess);
             return hasAccess;
         } else {
-            console.log('❌ Documento de usuário não encontrado no Firestore');
+            // console.log('❌ Documento de usuário não encontrado no Firestore');
         }
     } catch (error) {
         console.error('❌ Erro ao verificar acesso admin:', error);
@@ -270,22 +276,22 @@ async function checkAdminAccess() {
 
 // Mostrar/esconder link ADMIN baseado no acesso
 async function updateAdminLinkVisibility() {
-    console.log('🔄 Atualizando visibilidade do link ADMIN...');
+    // Debug removido
     const adminLink = document.getElementById('adminLink');
     if (!adminLink) {
-        console.log('❌ Elemento adminLink não encontrado');
+        // console.log('❌ Elemento adminLink não encontrado');
         return;
     }
     
     const hasAccess = await checkAdminAccess();
-    console.log('🔐 Has access:', hasAccess);
+    // console.log('🔐 Has access:', hasAccess);
     
     if (hasAccess) {
         adminLink.classList.remove('hidden');
-        console.log('✅ Link ADMIN mostrado');
+        // console.log('✅ Link ADMIN mostrado');
     } else {
         adminLink.classList.add('hidden');
-        console.log('❌ Link ADMIN escondido');
+        // console.log('❌ Link ADMIN escondido');
     }
 }
 
