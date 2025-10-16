@@ -5,38 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minha Conta - XTreino Freitas</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <link rel="icon" type="image/png" href="Logo - Xtreino Freitas.png">
 </head>
 <body class="bg-gray-50">
     <!-- Header -->
-    <header class="bg-white shadow-sm border-b">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16">
-                <div class="flex items-center">
-                    <a href="index.html" class="text-xl font-bold text-gray-900">XTreino Freitas</a>
-                    <a href="index.html" class="ml-4 text-sm text-gray-600 hover:text-gray-900 flex items-center">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                        </svg>
-                        Voltar ao Site
-                    </a>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <span id="userName" class="text-sm text-gray-700"></span>
-                    <button id="logoutBtn" class="bg-red-600 text-white px-4 py-2 rounded-md text-sm hover:bg-red-700">
-                        Sair
-                    </button>
+    <header class="w-full border-b border-gray-200 bg-white sticky top-0 z-40">
+        <nav class="container mx-auto px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <img src="Logo - Xtreino Freitas.png" alt="X-TREINO FREITAS" class="h-16 w-16 rounded-lg object-contain" />
+                <div>
+                    <h1 class="text-lg font-bold">Minha Conta</h1>
                 </div>
             </div>
-        </div>
+            <div class="flex items-center gap-4">
+                <a href="index.html" class="text-sm px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 flex items-center gap-2">
+                    <i class="fas fa-home"></i>
+                    Voltar ao Site
+                </a>
+                <button id="logoutBtn" class="bg-red-600 text-white px-4 py-2 rounded-md text-sm hover:bg-red-700">
+                    Sair
+                </button>
+            </div>
+        </nav>
     </header>
 
     <!-- Main Content -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <!-- Welcome Section -->
         <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
-            <h1 class="text-2xl font-bold text-gray-900 mb-2">Bem-vindo à sua conta!</h1>
+            <h1 id="welcomeMessage" class="text-2xl font-bold text-gray-900 mb-2">Bem-vindo à sua conta!</h1>
             <p class="text-gray-600">Gerencie seus pedidos, perfil e tokens aqui.</p>
         </div>
 

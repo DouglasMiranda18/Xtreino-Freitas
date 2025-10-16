@@ -201,9 +201,12 @@ async function loadUserProfile() {
             }
         }
         
-        const userNameElement = document.getElementById('userName');
-        if (userNameElement) {
-            userNameElement.textContent = userProfile.name || currentUser.email;
+        // Atualizar mensagem de boas-vindas com primeiro nome
+        const welcomeMessageElement = document.getElementById('welcomeMessage');
+        if (welcomeMessageElement) {
+            const fullName = userProfile.name || currentUser.email;
+            const firstName = fullName.split(' ')[0]; // Pega apenas o primeiro nome
+            welcomeMessageElement.textContent = `Bem-vindo à sua conta, ${firstName}!`;
         }
     } catch (error) {
         console.error('Error loading user profile:', error);
@@ -1117,7 +1120,13 @@ async function saveProfile(e) {
         
         // Update userProfile
         userProfile = { ...userProfile, ...profileData };
-        document.getElementById('userName').textContent = profileData.name || currentUser.email;
+        // Atualizar mensagem de boas-vindas após atualizar perfil
+        const welcomeMessageElement = document.getElementById('welcomeMessage');
+        if (welcomeMessageElement) {
+            const fullName = profileData.name || currentUser.email;
+            const firstName = fullName.split(' ')[0]; // Pega apenas o primeiro nome
+            welcomeMessageElement.textContent = `Bem-vindo à sua conta, ${firstName}!`;
+        }
         
         alert('Perfil atualizado com sucesso!');
     } catch (error) {
