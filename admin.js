@@ -633,16 +633,18 @@
       toggle(usersSection, !isVendedor);
     } catch(_){ }
 
-    try { 
-      // console.log('🔍 Carregando dados...');
-      await carregarUsuarios(); 
-      // console.log('✅ Usuários carregados');
-      await carregarDadosTokens();
-      // console.log('✅ Tokens carregados');
-      await carregarDadosUsoTokens();
-      // console.log('✅ Uso de tokens carregado');
-      await carregarPedidosConfirmados();
-      // console.log('✅ Pedidos confirmados carregados');
+    try {
+      // Carregamento de dados conforme papel
+      if (isManager) {
+        // Gerente/CEO: pode carregar datasets completos
+        await carregarUsuarios();
+        await carregarDadosTokens();
+        await carregarDadosUsoTokens();
+        await carregarPedidosConfirmados();
+      } else {
+        // Vendedor: evita coleções com restrição global
+        // Mostra apenas relatórios simplificados e pedidos próprios (já feito abaixo)
+      }
     } catch(e){
       console.error('❌ Erro ao carregar dados:', e);
     }
