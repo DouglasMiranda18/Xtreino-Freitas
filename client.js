@@ -246,13 +246,15 @@ async function loadRecentOrders() {
         const ordersData = await fetchUserDocs('orders', 5, true);
         const orders = ordersData.map(d => ({
             id: d.id,
-            ...d.data,
             date: d.data.createdAt?.toDate?.() || new Date(),
             title: d.data.title || d.data.item || 'Pedido',
             status: d.data.status || 'pending',
             price: d.data.amount ?? d.data.total ?? 0,
             eventDate: d.data.date || null,
-            schedule: d.data.schedule || d.data.hour || d.data.time || ''
+            schedule: d.data.schedule || d.data.hour || d.data.time || '',
+            eventType: d.data.eventType || '',
+            paidWithTokens: d.data.paidWithTokens || false,
+            tokensUsed: d.data.tokensUsed || 0
         }));
 
         // Registrations pagas com tokens (e.g., XTreino Associado)
@@ -261,17 +263,17 @@ async function loadRecentOrders() {
           .filter(d => d.data.paidWithTokens === true)
           .map(d => ({
             id: d.id,
-            ...d.data,
             date: d.data.createdAt?.toDate?.() || new Date(),
             title: d.data.title || d.data.eventType || 'Reserva',
             // marcar como pago para aparecer como concluído
             status: d.data.status || 'paid',
             // preço 0 pois foi pago com tokens
             price: 0,
-            paidWithTokens: true,
-            tokensUsed: d.data.tokensUsed || d.data.tokenCost || 1,
             eventDate: d.data.date || null,
-            schedule: d.data.schedule || d.data.hour || d.data.time || ''
+            schedule: d.data.schedule || d.data.hour || d.data.time || '',
+            eventType: d.data.eventType || '',
+            paidWithTokens: true,
+            tokensUsed: d.data.tokensUsed || d.data.tokenCost || 1
           }));
 
         const merged = [...orders, ...tokenRegs]
@@ -328,13 +330,15 @@ async function loadOrders() {
         const ordersData = await fetchUserDocs('orders', 200, true);
         const mappedOrders = ordersData.map(d => ({
             id: d.id,
-            ...d.data,
             date: d.data.createdAt?.toDate?.() || new Date(),
             title: d.data.title || d.data.item || 'Pedido',
             status: d.data.status || 'pending',
             price: d.data.amount ?? d.data.total ?? 0,
             eventDate: d.data.date || null,
-            schedule: d.data.schedule || d.data.hour || d.data.time || ''
+            schedule: d.data.schedule || d.data.hour || d.data.time || '',
+            eventType: d.data.eventType || '',
+            paidWithTokens: d.data.paidWithTokens || false,
+            tokensUsed: d.data.tokensUsed || 0
         }));
 
         // incluir eventos pagos com tokens das registrations
@@ -343,15 +347,15 @@ async function loadOrders() {
           .filter(d => d.data.paidWithTokens === true)
           .map(d => ({
             id: d.id,
-            ...d.data,
             date: d.data.createdAt?.toDate?.() || new Date(),
             title: d.data.title || d.data.eventType || 'Reserva',
             status: d.data.status || 'paid',
             price: 0,
-            paidWithTokens: true,
-            tokensUsed: d.data.tokensUsed || d.data.tokenCost || 1,
             eventDate: d.data.date || null,
-            schedule: d.data.schedule || d.data.hour || d.data.time || ''
+            schedule: d.data.schedule || d.data.hour || d.data.time || '',
+            eventType: d.data.eventType || '',
+            paidWithTokens: true,
+            tokensUsed: d.data.tokensUsed || d.data.tokenCost || 1
           }));
 
         allOrdersData = [...mappedOrders, ...mappedRegs]
@@ -371,10 +375,11 @@ async function loadProducts() {
         const ordersData = await fetchUserDocs('orders', 200, true);
         const productsData = ordersData.map(d => ({
             id: d.id,
-            ...d.data,
             date: d.data.createdAt?.toDate?.() || new Date(),
             title: d.data.title || d.data.item || 'Produto',
-            status: d.data.status || 'pending'
+            status: d.data.status || 'pending',
+            price: d.data.amount ?? d.data.total ?? 0,
+            eventType: d.data.eventType || ''
         }));
 
         // Filter only products (not events or tokens)
