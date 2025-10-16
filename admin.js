@@ -1729,6 +1729,191 @@ async function loadCharts() {
     });
 }
 
+// ===== SISTEMA DE FILTROS PARA HORÁRIOS MAIS PROCURADOS =====
+
+// Variável global para armazenar o gráfico
+let popularHoursChart = null;
+
+// Função para carregar eventos únicos do banco de dados
+async function loadEventOptions() {
+    try {
+        const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const registrationsCol = collection(window.firebaseDb, 'registrations');
+        const snap = await getDocs(registrationsCol);
+        
+        const events = new Set();
+        snap.forEach(doc => {
+            const data = doc.data();
+            if (data.eventType && data.eventType.trim()) {
+                events.add(data.eventType.trim());
+            }
+        });
+        
+        const eventFilter = document.getElementById('eventFilter');
+        if (eventFilter) {
+            // Limpar opções existentes (exceto a primeira)
+            eventFilter.innerHTML = '<option value="">Todos os eventos</option>';
+            
+            // Adicionar eventos únicos ordenados alfabeticamente
+            Array.from(events).sort().forEach(event => {
+                const option = document.createElement('option');
+                option.value = event;
+                option.textContent = event;
+                eventFilter.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Erro ao carregar eventos:', error);
+    }
+}
+
+// Função para obter o dia da semana em português
+function getDayOfWeek(date) {
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    return days[date.getDay()];
+}
+
+// Função para carregar dados de horários com filtros
+async function loadPopularHoursData(dayFilter = '', eventFilter = '') {
+    try {
+        const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const registrationsCol = collection(window.firebaseDb, 'registrations');
+        const snap = await getDocs(registrationsCol);
+        
+        const hourCounts = new Map();
+        
+        snap.forEach(doc => {
+            const data = doc.data();
+            
+            // Filtrar por status (apenas confirmados/pagos)
+            if (!['paid', 'confirmed'].includes(data.status)) return;
+            
+            // Filtrar por evento se especificado
+            if (eventFilter && data.eventType !== eventFilter) return;
+            
+            // Filtrar por dia da semana se especificado
+            if (dayFilter) {
+                const registrationDate = data.date ? new Date(data.date) : new Date();
+                const dayOfWeek = getDayOfWeek(registrationDate);
+                if (dayOfWeek !== dayFilter) return;
+            }
+            
+            // Extrair horário
+            const hour = data.schedule || data.hour || '—';
+            if (hour && hour !== '—') {
+                hourCounts.set(hour, (hourCounts.get(hour) || 0) + 1);
+            }
+        });
+        
+        // Converter para arrays ordenados
+        const entries = Array.from(hourCounts.entries());
+        entries.sort((a, b) => {
+            // Extrair número do horário para ordenação
+            const hourA = parseInt(String(a[0]).replace(/\D/g, '')) || 0;
+            const hourB = parseInt(String(b[0]).replace(/\D/g, '')) || 0;
+            return hourA - hourB;
+        });
+        
+        return {
+            labels: entries.map(([hour]) => hour),
+            data: entries.map(([, count]) => count)
+        };
+    } catch (error) {
+        console.error('Erro ao carregar dados de horários:', error);
+        return { labels: [], data: [] };
+    }
+}
+
+// Função para renderizar o gráfico de horários mais procurados
+async function renderPopularHours() {
+    try {
+        const dayFilter = document.getElementById('dayFilter')?.value || '';
+        const eventFilter = document.getElementById('eventFilter')?.value || '';
+        
+        const chartData = await loadPopularHoursData(dayFilter, eventFilter);
+        const ctx = document.getElementById('popularHoursChart');
+        
+        if (!ctx) return;
+        
+        // Destruir gráfico existente se houver
+        if (popularHoursChart) {
+            popularHoursChart.destroy();
+        }
+        
+        // Criar novo gráfico
+        popularHoursChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: chartData.labels,
+                datasets: [{
+                    label: 'Demanda',
+                    data: chartData.data,
+                    backgroundColor: '#4a90e2',
+                    borderColor: '#357abd',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `Demanda: ${context.parsed.y} reservas`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            maxRotation: 45
+                        }
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Erro ao renderizar gráfico de horários:', error);
+    }
+}
+
+// Função para configurar event listeners dos filtros
+function setupPopularHoursFilters() {
+    const dayFilter = document.getElementById('dayFilter');
+    const eventFilter = document.getElementById('eventFilter');
+    const resetBtn = document.getElementById('resetFiltersBtn');
+    
+    if (dayFilter) {
+        dayFilter.addEventListener('change', renderPopularHours);
+    }
+    
+    if (eventFilter) {
+        eventFilter.addEventListener('change', renderPopularHours);
+    }
+    
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            if (dayFilter) dayFilter.value = '';
+            if (eventFilter) eventFilter.value = '';
+            renderPopularHours();
+        });
+    }
+}
+
+// ===== FIM DO SISTEMA DE FILTROS =====
+
 async function loadTables(canManageProducts) {
     const { collection, query, orderBy, limit, getDocsFromServer } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     // Orders
@@ -3487,6 +3672,15 @@ function setupUserFilters() {
 
 // Expor funções globalmente
 window.changeUsersPage = changeUsersPage;
+
+// Inicializar sistema de filtros de horários populares
+setTimeout(() => {
+  if (document.getElementById('popularHoursChart')) {
+    loadEventOptions();
+    setupPopularHoursFilters();
+    renderPopularHours();
+  }
+}, 1000);
 
 // ==================== RESTRIÇÕES DE PAPÉIS ====================
 
