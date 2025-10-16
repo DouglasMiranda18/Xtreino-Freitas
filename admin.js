@@ -932,12 +932,18 @@
     kpiRecEl.textContent = brl(receivable);
 
     if (kpiActiveEl){
-      try{
-        const usersSnap = await getDocs(collection(window.firebaseDb,'users'));
-        const weekAgo = Date.now() - 7*24*60*60*1000;
-        let active = 0; usersSnap.forEach(d=>{ const u=d.data(); if (Number(u.lastLogin||0) >= weekAgo) active++; });
-        kpiActiveEl.textContent = String(active);
-      }catch(_){ kpiActiveEl.textContent = '—'; }
+      const roleLower = (window.adminRoleLower||'').toLowerCase();
+      if (roleLower==='ceo' || roleLower==='gerente'){
+        try{
+          const usersSnap = await getDocs(collection(window.firebaseDb,'users'));
+          const weekAgo = Date.now() - 7*24*60*60*1000;
+          let active = 0; usersSnap.forEach(d=>{ const u=d.data(); if (Number(u.lastLogin||0) >= weekAgo) active++; });
+          kpiActiveEl.textContent = String(active);
+        }catch(_){ kpiActiveEl.textContent = '—'; }
+      } else {
+        // Vendedor não tem permissão para ler users
+        kpiActiveEl.textContent = '—';
+      }
     }
   }
 
