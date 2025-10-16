@@ -305,8 +305,8 @@ function displayRecentOrders(orders) {
             </div>
             <div class="text-right">
                 <p class="font-medium text-gray-900">R$ ${order.price?.toFixed(2) || '0,00'}</p>
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status)}">
-                    ${getStatusText(order.status)}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status, order)}">
+                    ${getStatusText(order.status, order)}
                 </span>
             </div>
         </div>
@@ -661,8 +661,8 @@ function displayAllOrdersPaginated() {
         <div class="bg-gray-50 rounded-lg p-4 mb-4">
             <div class="flex items-center justify-between mb-2">
                 <h4 class="font-medium text-gray-900">${formatTitleWithSchedule((order.title||'Reserva'), (order.eventDate||''), (order.schedule||''))}</h4>
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status)}">
-                    ${getStatusText(order.status)}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status, order)}">
+                    ${getStatusText(order.status, order)}
                 </span>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
@@ -750,8 +750,8 @@ function displayAllProductsPaginated(productsData) {
         <div class="bg-gray-50 rounded-lg p-4 mb-4">
             <div class="flex items-center justify-between mb-2">
                 <h4 class="font-medium text-gray-900">${product.title || 'Produto'}</h4>
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(product.status)}">
-                    ${getStatusText(product.status)}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(product.status, product)}">
+                    ${getStatusText(product.status, product)}
                 </span>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
@@ -1163,8 +1163,8 @@ async function loadTokensHistory() {
                 </div>
                 <div class="text-right">
                     <p class="font-medium text-gray-900">R$ ${order.data.amount?.toFixed(2) || '0,00'}</p>
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.data.status)}">
-                        ${getStatusText(order.data.status)}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.data.status, order.data)}">
+                        ${getStatusText(order.data.status, order.data)}
                     </span>
                 </div>
             </div>
@@ -1273,7 +1273,7 @@ async function loadTokenUsageHistory() {
                             <div class="flex items-center space-x-2">
                                 <span class="text-sm font-medium text-yellow-600">-${tokensUsed} token${tokensUsed > 1 ? 's' : ''}</span>
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status)}">
-                                    ${getStatusText(status)}
+                                    ${getStatusText(status, { eventType: 'xtreino-tokens' })}
                                 </span>
                             </div>
                             ${whatsappLink ? `
@@ -1382,7 +1382,18 @@ async function persistUserProfile(profile) {
     }
 }
 
-function getStatusColor(status) {
+function getStatusColor(status, orderData = null) {
+    // Caso especial para XTreino Tokens com status desconhecido
+    if (status === 'desconhecido' && orderData) {
+        const title = (orderData.title || '').toLowerCase();
+        const item = (orderData.item || '').toLowerCase();
+        const eventType = (orderData.eventType || '').toLowerCase();
+        
+        if (title.includes('xtreino tokens') || item.includes('xtreino tokens') || eventType === 'xtreino-tokens') {
+            return 'bg-yellow-100 text-yellow-800';
+        }
+    }
+    
     switch(status) {
         case 'paid':
         case 'approved':
@@ -1397,7 +1408,18 @@ function getStatusColor(status) {
     }
 }
 
-function getStatusText(status) {
+function getStatusText(status, orderData = null) {
+    // Caso especial para XTreino Tokens com status desconhecido
+    if (status === 'desconhecido' && orderData) {
+        const title = (orderData.title || '').toLowerCase();
+        const item = (orderData.item || '').toLowerCase();
+        const eventType = (orderData.eventType || '').toLowerCase();
+        
+        if (title.includes('xtreino tokens') || item.includes('xtreino tokens') || eventType === 'xtreino-tokens') {
+            return 'Token';
+        }
+    }
+    
     switch(status) {
         case 'paid':
         case 'approved':
