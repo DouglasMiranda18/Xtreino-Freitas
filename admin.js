@@ -295,11 +295,11 @@
   // Função para carregar dados de tokens
   async function carregarDadosTokens() {
     try {
-      console.log('🔍 Carregando dados de tokens...');
+      // console.log('🔍 Carregando dados de tokens...');
       // Buscar pedidos de tokens
       const ordersRef = collection(window.firebaseDb, 'orders');
       const ordersSnapshot = await getDocs(ordersRef);
-      console.log('📊 Total de pedidos encontrados:', ordersSnapshot.size);
+      // console.log('📊 Total de pedidos encontrados:', ordersSnapshot.size);
       
       tokensData = [];
       ordersSnapshot.forEach(doc => {
@@ -307,7 +307,7 @@
         const status = String(order.status || '').toLowerCase();
         const descriptorRaw = order.description || order.item || order.itemName || order.title || '';
         const descriptor = String(descriptorRaw).toLowerCase();
-        console.log('🔍 Analisando pedido:', {
+        // console.log('🔍 Analisando pedido:', {
           id: doc.id,
           item: order.item,
           itemName: order.itemName,
@@ -315,7 +315,7 @@
           description: order.description,
           status,
           customer: order.customer || order.customerName || order.buyerEmail
-        });
+        // });
         // Considera tokens se houver menção a "token" em qualquer campo descritivo
         if (descriptor.includes('token')) {
           // Apenas pedidos pagos/confirmados entram nas compras
@@ -347,7 +347,7 @@
       // Atualizar contador
       document.getElementById('tokensCount').textContent = `${tokensData.length} compras`;
       document.getElementById('totalTokensPurchased').textContent = tokensData.length;
-      console.log('✅ Tokens carregados:', tokensData.length);
+      // console.log('✅ Tokens carregados:', tokensData.length);
       
       // Mostrar primeira página
       mostrarTokensPagina(1);
@@ -467,22 +467,22 @@
   // Função para carregar pedidos confirmados
   async function carregarPedidosConfirmados() {
     try {
-      console.log('🔍 Carregando pedidos confirmados...');
+      // console.log('🔍 Carregando pedidos confirmados...');
       // Buscar pedidos confirmados
       const ordersRef = collection(window.firebaseDb, 'orders');
       const ordersSnapshot = await getDocs(ordersRef);
-      console.log('📊 Total de pedidos encontrados:', ordersSnapshot.size);
+      // console.log('📊 Total de pedidos encontrados:', ordersSnapshot.size);
       
       confirmedOrdersData = [];
       ordersSnapshot.forEach(doc => {
         const order = doc.data();
-        console.log('🔍 Analisando pedido confirmado:', {
+        // console.log('🔍 Analisando pedido confirmado:', {
           id: doc.id,
           status: order.status,
           item: order.item,
           title: order.title,
           customer: order.customer
-        });
+        // });
         if (['paid','approved','confirmed'].includes(String(order.status||'').toLowerCase())) {
           const originalDate = order.createdAt ? (order.createdAt.seconds ? new Date(order.createdAt.seconds * 1000) : new Date(order.createdAt)) : new Date(0);
           confirmedOrdersData.push({
@@ -505,7 +505,7 @@
       
       // Atualizar contador
       document.getElementById('confirmedCount').textContent = `${confirmedOrdersData.length} pedidos`;
-      console.log('✅ Pedidos confirmados carregados:', confirmedOrdersData.length);
+      // console.log('✅ Pedidos confirmados carregados:', confirmedOrdersData.length);
       
       // Mostrar primeira página
       mostrarPedidosConfirmadosPagina(1);
@@ -621,7 +621,7 @@
       if (snap.exists()) role = (snap.data().role)||'Vendedor';
     }catch(e){}
 
-    console.log('ADMIN UID:', uid, 'ROLE:', role);
+    // console.log('ADMIN UID:', uid, 'ROLE:', role);
     if (!['ceo','gerente','vendedor'].includes((role||'').toLowerCase())){
       authGate.classList.remove('hidden');
       dashboard.classList.add('hidden');
@@ -629,21 +629,39 @@
     }
     authGate.classList.add('hidden');
     dashboard.classList.remove('hidden');
-    setView(role);
     const roleLower = (role||'').toLowerCase();
     const isManager = ['ceo','gerente'].includes(roleLower);
     const isCeo = roleLower==='ceo';
     window.adminRoleLower = roleLower;
+    // Controla visibilidade conforme o papel
+    try {
+      const highlightsSection = document.querySelector('h3.font-bold.text-sm:nth-of-type(1)')?.closest('div.bg-white');
+      const newsSection = document.querySelector('h3.font-bold.text-sm:nth-of-type(2)')?.closest('div.bg-white');
+      const productsSection = Array.from(document.querySelectorAll('h3.font-bold.text-sm')).find(h=>h.textContent.includes('Gerenciar Produtos'))?.closest('div.bg-white');
+      if (roleLower === 'vendedor') {
+        if (highlightsSection) highlightsSection.classList.add('hidden');
+        if (newsSection) newsSection.classList.add('hidden');
+        if (productsSection) productsSection.classList.add('hidden');
+      } else {
+        if (highlightsSection) highlightsSection.classList.remove('hidden');
+        if (newsSection) newsSection.classList.remove('hidden');
+        if (productsSection) productsSection.classList.remove('hidden');
+      }
+
+      
+      
+    } catch(_){ }
+
     try { 
-      console.log('🔍 Carregando dados...');
+      // console.log('🔍 Carregando dados...');
       await carregarUsuarios(); 
-      console.log('✅ Usuários carregados');
+      // console.log('✅ Usuários carregados');
       await carregarDadosTokens();
-      console.log('✅ Tokens carregados');
+      // console.log('✅ Tokens carregados');
       await carregarDadosUsoTokens();
-      console.log('✅ Uso de tokens carregado');
+      // console.log('✅ Uso de tokens carregado');
       await carregarPedidosConfirmados();
-      console.log('✅ Pedidos confirmados carregados');
+      // console.log('✅ Pedidos confirmados carregados');
     } catch(e){
       console.error('❌ Erro ao carregar dados:', e);
     }
