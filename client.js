@@ -1389,7 +1389,7 @@ async function persistUserProfile(profile) {
 
 function getStatusColor(status, orderData = null) {
     // Caso especial para XTreino Tokens com status desconhecido
-    if (status === 'desconhecido' && orderData) {
+    if (status && status.toLowerCase() === 'desconhecido' && orderData) {
         const title = (orderData.title || '').toLowerCase();
         const item = (orderData.item || '').toLowerCase();
         const eventType = (orderData.eventType || '').toLowerCase();
@@ -1414,13 +1414,19 @@ function getStatusColor(status, orderData = null) {
 }
 
 function getStatusText(status, orderData = null) {
+    // Debug: verificar o que está chegando
+    console.log('🔍 getStatusText called with:', { status, orderData });
+    
     // Caso especial para XTreino Tokens com status desconhecido
-    if (status === 'desconhecido' && orderData) {
+    if (status && status.toLowerCase() === 'desconhecido' && orderData) {
         const title = (orderData.title || '').toLowerCase();
         const item = (orderData.item || '').toLowerCase();
         const eventType = (orderData.eventType || '').toLowerCase();
         
+        console.log('🔍 Checking XTreino Tokens:', { title, item, eventType });
+        
         if (title.includes('xtreino tokens') || item.includes('xtreino tokens') || eventType === 'xtreino-tokens') {
+            console.log('✅ Returning Token for XTreino Tokens');
             return 'Token';
         }
     }
