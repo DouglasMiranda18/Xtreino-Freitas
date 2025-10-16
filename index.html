@@ -945,12 +945,15 @@
 
                         <!-- Time Selection -->
                         <div class="bg-gray-50 rounded-2xl p-6">
-                            <h4 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                                <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                                Horários Disponíveis
-                            </h4>
+                            <div class="flex items-center justify-between mb-4">
+                                <h4 class="text-lg font-semibold text-gray-900 flex items-center">
+                                    <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    Horários Disponíveis
+                                </h4>
+                                <span class="text-sm text-gray-500">Selecione múltiplos horários</span>
+                            </div>
                             <div id="schedTimes" class="grid grid-cols-2 gap-3"></div>
                         </div>
                     </div>
@@ -983,20 +986,40 @@
                         <form id="schedForm" onsubmit="submitSchedule(event)" class="space-y-4">
                             <input type="hidden" id="schedSelectedTime">
                             
+                            <!-- Teams Section -->
                             <div class="bg-white rounded-2xl p-6 border border-gray-200">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h4 class="text-lg font-semibold text-gray-900 flex items-center">
+                                        <svg class="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                        </svg>
+                                        Informações dos Times
+                                    </h4>
+                                    <button type="button" onclick="addTeam()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
+                                        + Adicionar Time
+                                    </button>
+                                </div>
+                                <div id="teamsContainer" class="space-y-4">
+                                    <!-- Teams will be added here dynamically -->
+                                </div>
+                            </div>
+
+                            <!-- Reservations Summary -->
+                            <div class="bg-gradient-to-br from-green-50 to-blue-50 rounded-2xl p-6 border border-green-100">
                                 <h4 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                                    <svg class="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                    <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
                                     </svg>
-                                    Informações do Time
+                                    Resumo das Reservas
                                 </h4>
-                                <div class="space-y-4">
-                                    <input id="schedTeam" type="text" required placeholder="Nome do time" 
-                                           class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-4 py-3 text-lg focus:border-blue-500 focus:ring-0 transition-colors">
-                                    <input id="schedEmail" type="email" required placeholder="Email" 
-                                           class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-4 py-3 text-lg focus:border-blue-500 focus:ring-0 transition-colors">
-                                    <input id="schedPhone" type="tel" required placeholder="WhatsApp (11) 99999-9999" 
-                                           class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-4 py-3 text-lg focus:border-blue-500 focus:ring-0 transition-colors">
+                                <div id="reservationsSummary" class="space-y-2 text-sm">
+                                    <p class="text-gray-600">Nenhuma reserva selecionada</p>
+                                </div>
+                                <div class="mt-4 pt-4 border-t border-gray-200">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-lg font-semibold text-gray-900">Total:</span>
+                                        <span class="text-2xl font-bold text-green-600" id="totalPrice">R$ 0,00</span>
+                                    </div>
                                 </div>
                             </div>
 
@@ -1006,7 +1029,7 @@
                                     <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
                                     </svg>
-                                    Finalizar Reserva
+                                    Finalizar Reservas
                                 </h4>
                                 <div class="space-y-4">
                                     <div class="flex gap-3">
