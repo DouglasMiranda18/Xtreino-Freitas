@@ -3126,6 +3126,16 @@ window.saveProducts = saveProducts;
   function startSessionTimer() {}
   function resetSessionTimer() {}
 
+  // Auth gate helper (fallback)
+  function showAuthGate() {
+    try {
+      const authGate = document.getElementById('authGate');
+      const dashboard = document.getElementById('dashboard');
+      if (authGate) authGate.classList.remove('hidden');
+      if (dashboard) dashboard.classList.add('hidden');
+    } catch(_) { /* noop */ }
+  }
+
   // Basic login error renderer (fallback-safe)
   function showLoginError(message) {
     try {
