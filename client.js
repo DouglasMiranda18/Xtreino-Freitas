@@ -307,6 +307,7 @@ function displayRecentOrders(orders) {
             </div>
             <div class="text-right">
                 <p class="font-medium text-gray-900">R$ ${order.price?.toFixed(2) || '0,00'}</p>
+                <!-- Debug: ${JSON.stringify({price: order.price, amount: order.amount, total: order.total})} -->
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status, order)}">
                     ${getStatusText(order.status, order)}
                 </span>
@@ -1388,12 +1389,13 @@ async function persistUserProfile(profile) {
 }
 
 function getStatusColor(status, orderData = null) {
-    // Caso especial para XTreino Tokens com status desconhecido
-    if (status && status.toLowerCase() === 'desconhecido' && orderData) {
+    // Caso especial para XTreino Tokens - sempre amarelo se for token
+    if (orderData) {
         const title = (orderData.title || '').toLowerCase();
         const item = (orderData.item || '').toLowerCase();
         const eventType = (orderData.eventType || '').toLowerCase();
         
+        // Se for XTreino Tokens, sempre retornar amarelo
         if (title.includes('xtreino tokens') || item.includes('xtreino tokens') || eventType === 'xtreino-tokens') {
             return 'bg-yellow-100 text-yellow-800';
         }
@@ -1414,19 +1416,27 @@ function getStatusColor(status, orderData = null) {
 }
 
 function getStatusText(status, orderData = null) {
-    // Debug: verificar o que está chegando
-    console.log('🔍 getStatusText called with:', { status, orderData });
+    // Debug detalhado
+    console.log('🔍 getStatusText called with:', { 
+        status, 
+        orderData: orderData ? {
+            title: orderData.title,
+            item: orderData.item,
+            eventType: orderData.eventType
+        } : null
+    });
     
-    // Caso especial para XTreino Tokens com status desconhecido
-    if (status && status.toLowerCase() === 'desconhecido' && orderData) {
+    // Caso especial para XTreino Tokens - verificar se é um token independente do status
+    if (orderData) {
         const title = (orderData.title || '').toLowerCase();
         const item = (orderData.item || '').toLowerCase();
         const eventType = (orderData.eventType || '').toLowerCase();
         
-        console.log('🔍 Checking XTreino Tokens:', { title, item, eventType });
+        console.log('🔍 Checking for XTreino Tokens:', { title, item, eventType });
         
+        // Se for XTreino Tokens, sempre retornar "Token"
         if (title.includes('xtreino tokens') || item.includes('xtreino tokens') || eventType === 'xtreino-tokens') {
-            console.log('✅ Returning Token for XTreino Tokens');
+            console.log('✅ Found XTreino Tokens, returning "Token"');
             return 'Token';
         }
     }
