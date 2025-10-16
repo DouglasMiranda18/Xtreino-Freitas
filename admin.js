@@ -3186,7 +3186,12 @@ window.saveProducts = saveProducts;
       // Load users and setup guards
       setTimeout(() => {
         if (window.firebaseDb) {
-          try { loadUsers(); } catch (_) {}
+          try {
+            const roleLower = (window.adminRoleLower||'').toLowerCase();
+            if (roleLower==='ceo' || roleLower==='gerente') {
+              loadUsers();
+            }
+          } catch (_) {}
         }
         try { setupRoleGuards(); } catch (_) {}
       }, 800);
