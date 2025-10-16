@@ -629,6 +629,8 @@
       toggle(highlightsSection, !isVendedor);
       toggle(newsSection, !isVendedor);
       toggle(productsSection, !isVendedor);
+      const usersSection = document.getElementById('sectionUsers');
+      toggle(usersSection, !isVendedor);
     } catch(_){ }
 
     try { 
