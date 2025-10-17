@@ -695,6 +695,11 @@
         badge.textContent = `Permissões: ${roleLower.toUpperCase()}`;
       }
     }catch(_){ }
+    
+    // Carregar usuários de permissões depois de definir o cargo
+    if (window.loadPermissionsUsers) {
+      window.loadPermissionsUsers();
+    }
     // Controla visibilidade conforme o papel
     try {
       const highlightsSection = document.getElementById('sectionHighlights');
@@ -3829,15 +3834,12 @@ setTimeout(() => {
 function getCurrentAdminRole() {
   try {
     const session = JSON.parse(sessionStorage.getItem('adminSession') || '{}');
-    console.log('🔍 Debug - Session completa:', session);
     if (session && session.role) {
-      console.log('🔍 Debug - Cargo da sessão:', session.role);
       return String(session.role);
     }
   } catch (e) {
-    console.log('🔍 Debug - Erro ao ler sessão:', e);
+    // Erro ao ler sessão
   }
-  console.log('🔍 Debug - Nenhum cargo encontrado na sessão');
   return undefined;
 }
 
@@ -4197,17 +4199,7 @@ function renderPermissionsTable() {
   const roleFromSession = (getCurrentAdminRole() || '').toLowerCase();
   const currentUserRole = roleFromWindow || roleFromSession;
   
-  console.log('🔍 Debug - window.adminRoleLower:', window.adminRoleLower);
-  console.log('🔍 Debug - roleFromSession:', roleFromSession);
-  console.log('🔍 Debug - currentUserRole final:', currentUserRole);
-  
-  console.log('🔍 Debug - currentUserRole tipo:', typeof currentUserRole);
-  console.log('🔍 Debug - currentUserRole length:', currentUserRole.length);
-  console.log('🔍 Debug - currentUserRole charCodes:', currentUserRole.split('').map(c => c.charCodeAt(0)));
-  
   const canEdit = ['ceo', 'gerente'].includes(currentUserRole.toLowerCase()); // CEO e Gerente podem editar
-  console.log('🔍 Debug - Pode editar:', canEdit);
-  console.log('🔍 Debug - Comparação:', ['ceo', 'gerente'].includes(currentUserRole.toLowerCase()));
   
   // Função para gerar opções de cargo baseado na permissão do usuário
   function getRoleOptions(userRole) {
@@ -4416,7 +4408,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const waitForFirebase = () => {
     if (window.firebaseReady && window.firebaseDb) {
       loadUsersForTables();
-      loadPermissionsUsers(); // Carregar também os usuários de permissões
+      // loadPermissionsUsers será chamada depois do login via setView
     } else {
       setTimeout(waitForFirebase, 100);
     }
