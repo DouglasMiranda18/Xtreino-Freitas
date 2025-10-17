@@ -3355,9 +3355,9 @@ window.saveProducts = saveProducts;
         return;
       }
       
-      // For admin/gerente/vendedor, check email whitelist
+      // For admin/gerente/vendedor/ceo, check email whitelist
       // For design/designer/socio/sócio, allow any email with the correct role
-      if (['admin', 'gerente', 'vendedor'].includes(role)) {
+      if (['admin', 'gerente', 'vendedor', 'ceo'].includes(role)) {
         const ADMIN_EMAILS = [
           'cleitondouglass@gmail.com',
           'cleitondouglass123@hotmail.com',
@@ -3365,11 +3365,18 @@ window.saveProducts = saveProducts;
           'gilmariofreitas387@gmail.com'
         ];
         
+        console.log('🔍 Verificando email:', user.email, 'na lista:', ADMIN_EMAILS);
+        console.log('🔍 Email em minúsculas:', user.email.toLowerCase());
+        console.log('🔍 Está na lista?', ADMIN_EMAILS.includes(user.email.toLowerCase()));
+        
         if (!ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+          console.log('❌ Email não autorizado:', user.email);
           await signOutFn(window.firebaseAuth);
           showLoginError('Acesso negado. Email não autorizado para administração.');
           return;
         }
+        
+        console.log('✅ Email autorizado:', user.email);
       }
 
       // Save session
