@@ -1011,7 +1011,7 @@ const products = {
     'mentalidade': { name: 'XTreino - Mentalidade', price: 'R$ 39,90', description: 'Sessão de 1.5 horas de treinamento' },
     'camisa': { name: 'Camisa Oficial', price: 'R$ 89,90', description: 'Produto físico - Camisa premium' },
     'planilhas': { name: 'Planilhas de Análise', price: 'R$ 29,90', description: 'Download digital imediato' },
-    'imagens': { name: 'Imagens Aéreas', price: 'R$ 19,90', description: 'Download digital imediato' },
+    'imagens': { name: 'Imagens Aéreas', price: 'R$ 6,00', description: 'Pacote completo com todos os mapas' },
     'sensibilidades': { name: 'Sensibilidades', price: 'R$ 8,00', description: 'Download digital imediato' },
     // Eventos e Reservas (cupom ADMFALL = 5% off)
     'evt-xtreino-gratuito': { name: 'XTreino Gratuito', price: 'R$ 0,00', description: 'Evento gratuito — horários 14h–23h' },
@@ -1199,9 +1199,10 @@ async function handlePurchase(event) {
         const sizeSelect = document.querySelector('#purchaseModal select');
         productOptions.size = sizeSelect?.value || '';
     } else if (currentProduct === 'imagens') {
-        const selected = Array.from(document.querySelectorAll('input[name="mapOption"]:checked')).map(i=>i.value);
-        productOptions.maps = selected;
-        productOptions.quantity = selected.length || 1;
+        // Sempre entregar todos os mapas disponíveis
+        const allMaps = ['bermuda', 'purgatorio', 'kalahari', 'alpina'];
+        productOptions.maps = allMaps;
+        productOptions.quantity = allMaps.length;
     }
 
     try {
@@ -1816,7 +1817,7 @@ function addToCartByProductId(productId){
         'mentalidade': { name:'XTreino - Mentalidade', price:39.90 },
         'camisa': { name:'Camisa Oficial', price:89.90 },
         'planilhas': { name:'Planilhas de Análise', price:29.90 },
-        'imagens': { name:'Imagens Aéreas', price:19.90 },
+        'imagens': { name:'Imagens Aéreas', price:6.00 },
         'sensibilidades': { name:'Sensibilidades', price:14.90 },
         'camp-fases': { name:'Camp de Fases', price:99.90 }
     };
@@ -1875,7 +1876,7 @@ const scheduleConfig = {
     'xtreino-tokens': { label: 'XTreino Tokens', price: 1.00, payWithToken: true },
     // Produtos da loja virtual
     'sensibilidades': { label: 'Sensis Freitas – PC / Android / iOS', price: 8.00, isProduct: true },
-    'imagens': { label: 'Imagens Aéreas', price: 2.00, isProduct: true },
+    'imagens': { label: 'Imagens Aéreas', price: 6.00, isProduct: true },
     'planilhas': { label: 'Planilhas de Análises', price: 29.90, isProduct: true },
     'passe-booyah': { label: 'Passe Booyah', price: 11.00, isProduct: true },
     'camisa': { label: 'Camisa Oficial', price: 89.90, isProduct: true }
@@ -1920,7 +1921,7 @@ function addProductOptions(productId) {
             break;
             
         case 'imagens':
-            // Opções para imagens aéreas (checkboxes com IDs padronizados)
+            // Opções para imagens aéreas (4 mapas por R$ 6,00 - entrega todos)
             container.innerHTML = `
                 <div class="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-6 border border-blue-100">
                     <div class="flex items-center mb-4">
@@ -1929,31 +1930,37 @@ function addProductOptions(productId) {
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
                             </svg>
                         </div>
-                        <h4 class="text-lg font-semibold text-gray-800">Selecionar Mapas</h4>
+                        <h4 class="text-lg font-semibold text-gray-800">Pacote de Mapas</h4>
                     </div>
                     <div class="grid md:grid-cols-2 gap-4">
                         <label class="flex items-center gap-3 p-3 border rounded-lg bg-white"><input type="checkbox" name="mapOption" value="bermuda" class="w-4 h-4"> <span>Bermuda</span></label>
                         <label class="flex items-center gap-3 p-3 border rounded-lg bg-white"><input type="checkbox" name="mapOption" value="purgatorio" class="w-4 h-4"> <span>Purgatório</span></label>
                         <label class="flex items-center gap-3 p-3 border rounded-lg bg-white"><input type="checkbox" name="mapOption" value="kalahari" class="w-4 h-4"> <span>Kalahari</span></label>
                         <label class="flex items-center gap-3 p-3 border rounded-lg bg-white"><input type="checkbox" name="mapOption" value="alpina" class="w-4 h-4"> <span>Alpina</span></label>
-                        <label class="flex items-center gap-3 p-3 border rounded-lg bg-white"><input type="checkbox" name="mapOption" value="novaterra" class="w-4 h-4"> <span>Nova Terra</span></label>
                         </div>
                     <div class="mt-4 bg-blue-100 rounded-lg p-3">
                         <div class="flex items-center">
                             <svg class="w-4 h-4 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                             </svg>
-                            <span class="text-sm text-blue-800 font-medium">Preços: 1 mapa R$2 | 2 por R$4 | 3 por R$5 | 5 por R$7 • Selecionados: <b id="mapsCount">0</b> • Total: <b id="mapsPrice">R$ 0,00</b></span>
+                            <span class="text-sm text-blue-800 font-medium">Pacote completo: 4 mapas por R$ 6,00 • Selecionados: <b id="mapsCount">0</b> • Total: <b id="mapsPrice">R$ 0,00</b></span>
+                        </div>
+                    </div>
+                    <div class="mt-3 bg-green-100 rounded-lg p-3">
+                        <div class="flex items-center">
+                            <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            <span class="text-sm text-green-800 font-medium">✅ Ao comprar, você recebe TODOS os mapas disponíveis!</span>
                         </div>
                     </div>
                 </div>
             `;
             // Atualizar contagem/preço conforme seleção
             (function(){
-                const prices = { 1: 2, 2: 4, 3: 5, 4: 5, 5: 7 };
                 const update = () => {
                     const count = document.querySelectorAll('input[name="mapOption"]:checked').length;
-                    const price = prices[count] || (count>5?prices[5]:0);
+                    const price = count > 0 ? 6.00 : 0; // Preço fixo de R$ 6,00 para qualquer quantidade
                     const c = document.getElementById('mapsCount'); if (c) c.textContent = String(count);
                     const p = document.getElementById('mapsPrice'); if (p) p.textContent = `R$ ${price.toFixed(2)}`;
                 };
@@ -2574,12 +2581,12 @@ async function handleProductPurchase(productId, cfg) {
         let finalPrice = cfg.price;
         
         if (productId === 'imagens') {
-            const selected = Array.from(document.querySelectorAll('input[name="mapOption"]:checked')).map(i=>i.value);
-            productOptions.maps = selected;
-            productOptions.quantity = selected.length || 1;
-            // Atualizar preço baseado na quantidade selecionada
-            const prices = { 1: 2, 2: 4, 3: 5, 4: 5, 5: 7 };
-            finalPrice = prices[productOptions.quantity] || 2;
+            // Sempre entregar todos os mapas disponíveis
+            const allMaps = ['bermuda', 'purgatorio', 'kalahari', 'alpina'];
+            productOptions.maps = allMaps;
+            productOptions.quantity = allMaps.length;
+            // Preço fixo de R$ 6,00
+            finalPrice = 6.00;
         } else if (productId === 'passe-booyah') {
             const playerId = document.getElementById('playerId')?.value || '';
             productOptions.playerId = playerId;
