@@ -70,59 +70,68 @@
                 <p id="roleBadge" class="text-sm text-gray-500">Carregando permissões...</p>
             </div>
 
-            <div class="grid md:grid-cols-4 gap-6 mb-8">
-                <div class="bg-white border border-gray-200 rounded-xl p-6">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8">
+                <div class="bg-white border border-gray-200 rounded-xl p-4 md:p-6">
                     <div class="text-sm text-gray-500">Vendas Hoje</div>
-                    <div id="kpiToday" class="text-3xl font-bold">R$ 0,00</div>
+                    <div id="kpiToday" class="text-2xl md:text-3xl font-bold">R$ 0,00</div>
                 </div>
-                <div class="bg-white border border-gray-200 rounded-xl p-6">
+                <div class="bg-white border border-gray-200 rounded-xl p-4 md:p-6">
                     <div class="text-sm text-gray-500">Vendas Mês</div>
-                    <div id="kpiMonth" class="text-3xl font-bold">R$ 0,00</div>
+                    <div id="kpiMonth" class="text-2xl md:text-3xl font-bold">R$ 0,00</div>
                 </div>
-                <div class="bg-white border border-gray-200 rounded-xl p-6">
+                <div class="bg-white border border-gray-200 rounded-xl p-4 md:p-6">
                     <div class="text-sm text-gray-500">A Receber</div>
-                    <div id="kpiReceivable" class="text-3xl font-bold">R$ 0,00</div>
+                    <div id="kpiReceivable" class="text-2xl md:text-3xl font-bold">R$ 0,00</div>
                 </div>
-                <div class="bg-white border border-gray-200 rounded-xl p-6">
+                <div class="bg-white border border-gray-200 rounded-xl p-4 md:p-6">
                     <div class="text-sm text-gray-500">Usuários Ativos (7d)</div>
-                    <div id="kpiActiveUsers" class="text-3xl font-bold">0</div>
+                    <div id="kpiActiveUsers" class="text-2xl md:text-3xl font-bold">0</div>
                 </div>
             </div>
 
-            <div class="bg-white border border-gray-200 rounded-xl p-4 mb-6 flex flex-wrap items-end gap-3">
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">Período</label>
-                    <select id="reportPeriod" class="border rounded px-2 py-1">
-                        <option value="today">Hoje</option>
-                        <option value="7d">Últimos 7 dias</option>
-                        <option value="30d">Últimos 30 dias</option>
-                        <option value="custom">Personalizado</option>
-                    </select>
+            <div class="bg-white border border-gray-200 rounded-xl p-4 mb-6">
+                <!-- Filtros de Período -->
+                <div class="flex flex-wrap items-end gap-3 mb-4">
+                    <div class="min-w-[120px]">
+                        <label class="block text-xs text-gray-500 mb-1">Período</label>
+                        <select id="reportPeriod" class="w-full border rounded px-2 py-1 text-sm">
+                            <option value="today">Hoje</option>
+                            <option value="7d">Últimos 7 dias</option>
+                            <option value="30d">Últimos 30 dias</option>
+                            <option value="custom">Personalizado</option>
+                        </select>
+                    </div>
+                    <div class="min-w-[120px]">
+                        <label class="block text-xs text-gray-500 mb-1">De</label>
+                        <input id="dateFrom" type="date" class="w-full border rounded px-2 py-1 text-sm" />
+                    </div>
+                    <div class="min-w-[120px]">
+                        <label class="block text-xs text-gray-500 mb-1">Até</label>
+                        <input id="dateTo" type="date" class="w-full border rounded px-2 py-1 text-sm" />
+                    </div>
+                    <button id="btnApplyFilter" class="px-3 py-2 bg-black text-white rounded text-sm whitespace-nowrap">Aplicar</button>
                 </div>
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">De</label>
-                    <input id="dateFrom" type="date" class="border rounded px-2 py-1" />
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">Até</label>
-                    <input id="dateTo" type="date" class="border rounded px-2 py-1" />
-                </div>
-                <button id="btnApplyFilter" class="px-3 py-2 bg-black text-white rounded">Aplicar</button>
-                <div class="ml-auto flex gap-2">
-                    <button id="btnExportOrdersCsv" class="px-3 py-2 border rounded">Exportar Vendas (CSV)</button>
-                    <button id="btnExportSchedulesCsv" class="px-3 py-2 border rounded">Exportar Inscrições (CSV)</button>
-                    <button onclick="showGiveTokensModal()" class="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700">🎁 Dar Tokens</button>
+                
+                <!-- Botões de Ação -->
+                <div class="flex flex-wrap gap-2">
+                    <button id="btnExportOrdersCsv" class="px-3 py-2 border rounded text-sm hover:bg-gray-50 whitespace-nowrap">Exportar Vendas (CSV)</button>
+                    <button id="btnExportSchedulesCsv" class="px-3 py-2 border rounded text-sm hover:bg-gray-50 whitespace-nowrap">Exportar Inscrições (CSV)</button>
+                    <button onclick="showGiveTokensModal()" class="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm whitespace-nowrap">🎁 Dar Tokens</button>
                 </div>
             </div>
 
-            <div class="grid lg:grid-cols-3 gap-6 mb-8">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
                 <div class="bg-white border border-gray-200 rounded-xl p-4 lg:col-span-2">
                     <h3 class="font-bold mb-3 text-sm">Vendas - Últimos 30 dias</h3>
-                    <canvas id="salesChart" height="80"></canvas>
+                    <div class="relative w-full h-64 lg:h-48">
+                        <canvas id="salesChart" class="w-full h-full"></canvas>
+                    </div>
                 </div>
                 <div id="sectionUsers" class="bg-white border border-gray-200 rounded-xl p-4">
                     <h3 class="font-bold mb-3 text-sm">Top Produtos</h3>
-                    <canvas id="topProductsChart" height="80"></canvas>
+                    <div class="relative w-full h-64 lg:h-48">
+                        <canvas id="topProductsChart" class="w-full h-full"></canvas>
+                    </div>
                 </div>
             </div>
 
@@ -294,11 +303,14 @@
                         </div>
                     </div>
                     
-                    <div class="relative h-64 w-full">
-                        <canvas id="popularHoursChart"></canvas>
+                    <div class="relative h-64 w-full overflow-x-auto">
+                        <canvas id="popularHoursChart" class="min-w-[400px]"></canvas>
                     </div>
                 </div>
-                
+            </div>
+
+            <!-- Cards de Usuários - Layout Responsivo -->
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
                 <!-- Novo Card: Usuários Ativos -->
                 <div class="bg-white border border-gray-200 rounded-xl p-4">
                     <div class="flex items-center justify-between mb-3">
@@ -316,38 +328,38 @@
                     
                     <!-- Filtros de Atividade -->
                     <div class="mb-3">
-                        <div class="flex space-x-1">
-                            <button id="filterAllUsers" class="px-2 py-1 bg-blue-matte text-white rounded text-xs hover:bg-blue-600 transition-colors">Todos</button>
-                            <button id="filterActive30Days" class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs hover:bg-gray-300 transition-colors">30 dias</button>
-                            <button id="filterActive7Days" class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs hover:bg-gray-300 transition-colors">7 dias</button>
-                            <button id="filterActive1Day" class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs hover:bg-gray-300 transition-colors">1 dia</button>
+                        <div class="flex flex-wrap gap-1">
+                            <button id="filterAllUsers" class="px-2 py-1 bg-blue-matte text-white rounded text-xs hover:bg-blue-600 transition-colors whitespace-nowrap">Todos</button>
+                            <button id="filterActive30Days" class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs hover:bg-gray-300 transition-colors whitespace-nowrap">30 dias</button>
+                            <button id="filterActive7Days" class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs hover:bg-gray-300 transition-colors whitespace-nowrap">7 dias</button>
+                            <button id="filterActive1Day" class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs hover:bg-gray-300 transition-colors whitespace-nowrap">1 dia</button>
                         </div>
                     </div>
                     
                     <!-- Estatísticas -->
                     <div class="grid grid-cols-3 gap-2 mb-3">
-                        <div class="bg-blue-50 p-2 rounded text-center">
+                        <div class="bg-blue-50 p-2 rounded text-center min-w-0">
                             <div class="text-lg font-bold text-blue-matte" id="totalUsers">0</div>
-                            <div class="text-xs text-gray-600">Total</div>
+                            <div class="text-xs text-gray-600 truncate">Total</div>
                         </div>
-                        <div class="bg-green-50 p-2 rounded text-center">
+                        <div class="bg-green-50 p-2 rounded text-center min-w-0">
                             <div class="text-lg font-bold text-green-600" id="activeUsers">0</div>
-                            <div class="text-xs text-gray-600">Ativos</div>
+                            <div class="text-xs text-gray-600 truncate">Ativos</div>
                         </div>
-                        <div class="bg-orange-50 p-2 rounded text-center">
+                        <div class="bg-orange-50 p-2 rounded text-center min-w-0">
                             <div class="text-lg font-bold text-orange-600" id="inactiveUsers">0</div>
-                            <div class="text-xs text-gray-600">Inativos</div>
+                            <div class="text-xs text-gray-600 truncate">Inativos</div>
                         </div>
                     </div>
                     
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-xs">
+                    <div class="overflow-x-auto -mx-4 px-4">
+                        <table class="w-full text-xs min-w-[500px]">
                             <thead>
                                 <tr class="border-b border-gray-200">
-                                    <th class="text-left py-2 px-2 font-medium text-gray-600">Email</th>
-                                    <th class="text-left py-2 px-2 font-medium text-gray-600">Função</th>
-                                    <th class="text-left py-2 px-2 font-medium text-gray-600">Último Login</th>
-                                    <th class="text-left py-2 px-2 font-medium text-gray-600">Status</th>
+                                    <th class="text-left py-2 px-2 font-medium text-gray-600 min-w-[150px]">Email</th>
+                                    <th class="text-left py-2 px-2 font-medium text-gray-600 min-w-[80px]">Função</th>
+                                    <th class="text-left py-2 px-2 font-medium text-gray-600 min-w-[100px]">Último Login</th>
+                                    <th class="text-left py-2 px-2 font-medium text-gray-600 min-w-[80px]">Status</th>
                                 </tr>
                             </thead>
                             <tbody id="activeUsersTableBody">
@@ -378,15 +390,15 @@
                         </div>
                     </div>
                     
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-xs">
+                    <div class="overflow-x-auto -mx-4 px-4">
+                        <table class="w-full text-xs min-w-[600px]">
                             <thead>
                                 <tr class="border-b border-gray-200">
-                                    <th class="text-left py-2 px-2 font-medium text-gray-600">Nome</th>
-                                    <th class="text-left py-2 px-2 font-medium text-gray-600">Email</th>
-                                    <th class="text-left py-2 px-2 font-medium text-gray-600">Função</th>
-                                    <th class="text-left py-2 px-2 font-medium text-gray-600">Nova Função</th>
-                                    <th class="text-left py-2 px-2 font-medium text-gray-600">Ação</th>
+                                    <th class="text-left py-2 px-2 font-medium text-gray-600 min-w-[120px]">Nome</th>
+                                    <th class="text-left py-2 px-2 font-medium text-gray-600 min-w-[150px]">Email</th>
+                                    <th class="text-left py-2 px-2 font-medium text-gray-600 min-w-[80px]">Função</th>
+                                    <th class="text-left py-2 px-2 font-medium text-gray-600 min-w-[100px]">Nova Função</th>
+                                    <th class="text-left py-2 px-2 font-medium text-gray-600 min-w-[80px]">Ação</th>
                                 </tr>
                             </thead>
                             <tbody id="permissionsTableBody">
