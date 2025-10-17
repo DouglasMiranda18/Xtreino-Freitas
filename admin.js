@@ -2051,7 +2051,7 @@ async function upsertUserProfile(user) {
 
 async function loadUsersAndRoles(currentRole) {
     const roleStr = String(currentRole || '').toLowerCase();
-    const canEditRoles = ['ceo','gerente'].includes(roleStr); // Sócio não pode editar
+    const canEditRoles = ['gerente'].includes(roleStr); // CEO e Sócio não podem editar
     const isCeo = roleStr==='ceo';
     const isGerente = roleStr==='gerente';
     const { collection, getDocsFromServer, doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
@@ -2068,7 +2068,7 @@ async function loadUsersAndRoles(currentRole) {
         // Gerar opções baseado na hierarquia de permissões
         let roleOptions = '';
         if (isCeo) {
-            // CEO pode atribuir qualquer cargo
+            // CEO vê todos os cargos mas não pode editar (somente leitura)
             roleOptions = `
                 <option value="Vendedor" ${role==='Vendedor'?'selected':''}>Vendedor</option>
                 <option value="Gerente" ${role==='Gerente'?'selected':''}>Gerente</option>
@@ -3838,8 +3838,8 @@ function canAssignRole(targetRole) {
   const role = (getCurrentAdminRole() || '').toLowerCase();
   const target = String(targetRole || '').toLowerCase();
   
-  // CEO: pode atribuir qualquer cargo para qualquer pessoa
-  if (role === 'ceo') return true;
+  // CEO: não pode atribuir cargos (somente leitura)
+  if (role === 'ceo') return false;
   
   // Gerente: pode atribuir apenas cargo de Vendedor
   if (role === 'gerente') {
@@ -4187,7 +4187,7 @@ function renderPermissionsTable() {
   
   // Verificar se o usuário atual pode editar e quais cargos pode atribuir
   const currentUserRole = (window.adminRoleLower || '').toLowerCase();
-  const canEdit = ['ceo', 'gerente'].includes(currentUserRole);
+  const canEdit = ['gerente'].includes(currentUserRole); // CEO não pode editar
   
   // Função para gerar opções de cargo baseado na permissão do usuário
   function getRoleOptions(userRole) {
@@ -4202,7 +4202,7 @@ function renderPermissionsTable() {
     ];
     
     if (currentUserRole === 'ceo') {
-      // CEO pode atribuir qualquer cargo
+      // CEO vê todos os cargos mas não pode editar (somente leitura)
       return allRoles.map(role => 
         `<option value="${role.value}" ${userRole === role.value ? 'selected' : ''}>${role.label}</option>`
       ).join('');
@@ -4242,6 +4242,10 @@ function renderPermissionsTable() {
                   class="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-1">
             Salvar
           </button>
+        ` : currentUserRole === 'ceo' ? `
+          <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium cursor-not-allowed">
+            CEO - Somente Leitura
+          </span>
         ` : `
           <span class="px-3 py-1 bg-gray-300 text-gray-600 rounded text-xs font-medium cursor-not-allowed">
             Somente Leitura
