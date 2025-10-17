@@ -2176,6 +2176,12 @@ function openScheduleModal(eventType){
             teamsSection.style.display = 'none';
         }
         
+        // Alterar texto do botão para "Finalizar Compra" quando for produto
+        const submitBtn = document.getElementById('schedSubmit');
+        if (submitBtn) {
+            submitBtn.textContent = '🛒 Finalizar Compra';
+        }
+        
         console.log('Modal de produto aberto - coluna esquerda escondida');
         
         // Esconder botão "Comprar tokens"
@@ -2205,6 +2211,12 @@ function openScheduleModal(eventType){
     const teamsSection = document.getElementById('teamsSection');
     if (teamsSection) {
         teamsSection.style.display = 'block';
+    }
+    
+    // Restaurar texto original do botão para eventos
+    const submitBtn = document.getElementById('schedSubmit');
+    if (submitBtn) {
+        submitBtn.textContent = '✅ Confirmar e Pagar';
     }
     
     // Se havia opções de produto (ex.: seleção de mapas), remover ao abrir um evento
@@ -2607,10 +2619,14 @@ function selectTime(timeValue, element) {
 // Função para lidar com compra de produtos da loja
 async function handleProductPurchase(productId, cfg) {
     try {
-        // Coletar dados do formulário
-        const team = document.getElementById('schedTeam').value.trim();
-        const email = document.getElementById('schedEmail').value.trim();
-        const phone = document.getElementById('schedPhone').value.trim();
+        // Coletar dados do formulário (apenas se existirem)
+        const teamElement = document.getElementById('schedTeam');
+        const emailElement = document.getElementById('schedEmail');
+        const phoneElement = document.getElementById('schedPhone');
+        
+        const team = teamElement ? teamElement.value.trim() : '';
+        const email = emailElement ? emailElement.value.trim() : '';
+        const phone = phoneElement ? phoneElement.value.trim() : '';
         
         if (!email) {
             alert('Email é obrigatório.');
