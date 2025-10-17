@@ -700,6 +700,15 @@
     if (window.loadPermissionsUsers) {
       window.loadPermissionsUsers();
     }
+    
+    // Carregar dados das novas seções
+    if (window.loadTokensUsers) {
+      window.loadTokensUsers();
+    }
+    
+    if (window.loadAdminHistory) {
+      window.loadAdminHistory();
+    }
     // Controla visibilidade conforme o papel
     try {
       const highlightsSection = document.getElementById('sectionHighlights');
@@ -4324,6 +4333,12 @@ async function updatePermissionsUserRole(userId) {
     const userRef = doc(window.firebaseDb, 'users', userId);
     await updateDoc(userRef, { role: newRole });
     
+    // Log da ação
+    const user = permissionsUsersData.find(u => u.id === userId);
+    if (user) {
+      await logAdminAction('change_role', `Alterou cargo de ${user.email} para ${getRoleDisplayName(newRole)}`);
+    }
+    
     console.log('✅ Função do usuário atualizada com sucesso!');
     
     // Mostrar feedback visual
@@ -4397,10 +4412,352 @@ function changePermissionsPage(page) {
   updatePermissionsPagination();
 }
 
+// ==================== GERENCIAMENTO DE TOKENS ====================
+
+// Variáveis para tokens
+let tokensUsersData = [];
+let tokensCurrentPage = 1;
+const tokensPerPage = 5;
+
+// Carregar usuários para gerenciamento de tokens
+async function loadTokensUsers() {
+  try {
+    console.log('🔄 Carregando usuários para tokens...');
+    const { collection, getDocsFromServer } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const usersCol = collection(window.firebaseDb, 'users');
+    const snapUsers = await getDocsFromServer(usersCol);
+    
+    tokensUsersData = [];
+    snapUsers.forEach(doc => {
+      const data = doc.data();
+      tokensUsersData.push({
+        id: doc.id,
+        email: data.email || 'N/A',
+        role: data.role || 'Usuário',
+        tokens: data.tokens || 0
+      });
+    });
+    
+    console.log(`✅ ${tokensUsersData.length} usuários carregados para tokens`);
+    renderTokensTable();
+    updateTokensPagination();
+  } catch (error) {
+    console.error('❌ Erro ao carregar usuários para tokens:', error);
+  }
+}
+
+// Renderizar tabela de tokens
+function renderTokensTable() {
+  const tbody = document.getElementById('tokensTableBody');
+  if (!tbody) return;
+  
+  const startIndex = (tokensCurrentPage - 1) * tokensPerPage;
+  const endIndex = startIndex + tokensPerPage;
+  const usersPage = tokensUsersData.slice(startIndex, endIndex);
+  
+  // Verificar se o usuário atual pode gerenciar tokens
+  const currentUserRole = (window.adminRoleLower || '').toLowerCase();
+  const canManageTokens = ['ceo', 'gerente'].includes(currentUserRole);
+  
+  tbody.innerHTML = usersPage.map(user => `
+    <tr class="border-b border-gray-100">
+      <td class="py-3 px-2">
+        <div class="font-medium text-gray-900">${user.email}</div>
+      </td>
+      <td class="py-3 px-2">
+        <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">${getRoleDisplayName(user.role)}</span>
+      </td>
+      <td class="py-3 px-2">
+        <span class="font-bold text-blue-600">${user.tokens}</span>
+      </td>
+      <td class="py-3 px-2">
+        ${canManageTokens ? `
+          <div class="flex gap-1">
+            <button onclick="addTokens('${user.id}', '${user.email}')" 
+                    class="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700">
+              + Adicionar
+            </button>
+            <button onclick="removeTokens('${user.id}', '${user.email}')" 
+                    class="px-2 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700">
+              - Remover
+            </button>
+          </div>
+        ` : `
+          <span class="px-2 py-1 bg-gray-300 text-gray-600 rounded text-xs cursor-not-allowed">
+            Somente Leitura
+          </span>
+        `}
+      </td>
+    </tr>
+  `).join('');
+  
+  // Atualizar contador
+  const countElement = document.getElementById('tokensUsersCount');
+  if (countElement) {
+    countElement.textContent = `${tokensUsersData.length} usuários`;
+  }
+}
+
+// Adicionar tokens
+async function addTokens(userId, userEmail) {
+  const amount = prompt(`Quantos tokens adicionar para ${userEmail}?`);
+  if (!amount || isNaN(amount) || amount <= 0) {
+    alert('Por favor, insira um número válido maior que zero.');
+    return;
+  }
+  
+  try {
+    const { doc, updateDoc, increment } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const userRef = doc(window.firebaseDb, 'users', userId);
+    await updateDoc(userRef, {
+      tokens: increment(parseInt(amount))
+    });
+    
+    // Log da ação
+    await logAdminAction('add_tokens', `Adicionou ${amount} tokens para ${userEmail}`);
+    
+    alert(`✅ ${amount} tokens adicionados para ${userEmail}`);
+    loadTokensUsers(); // Recarregar dados
+  } catch (error) {
+    console.error('❌ Erro ao adicionar tokens:', error);
+    alert('❌ Erro ao adicionar tokens. Tente novamente.');
+  }
+}
+
+// Remover tokens
+async function removeTokens(userId, userEmail) {
+  const amount = prompt(`Quantos tokens remover de ${userEmail}?`);
+  if (!amount || isNaN(amount) || amount <= 0) {
+    alert('Por favor, insira um número válido maior que zero.');
+    return;
+  }
+  
+  try {
+    const { doc, updateDoc, increment } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const userRef = doc(window.firebaseDb, 'users', userId);
+    await updateDoc(userRef, {
+      tokens: increment(-parseInt(amount))
+    });
+    
+    // Log da ação
+    await logAdminAction('remove_tokens', `Removeu ${amount} tokens de ${userEmail}`);
+    
+    alert(`✅ ${amount} tokens removidos de ${userEmail}`);
+    loadTokensUsers(); // Recarregar dados
+  } catch (error) {
+    console.error('❌ Erro ao remover tokens:', error);
+    alert('❌ Erro ao remover tokens. Tente novamente.');
+  }
+}
+
+// Paginação de tokens
+function updateTokensPagination() {
+  const totalPages = Math.ceil(tokensUsersData.length / tokensPerPage);
+  const paginationContainer = document.getElementById('tokensPagination');
+  if (!paginationContainer) return;
+  
+  if (totalPages <= 1) {
+    paginationContainer.innerHTML = '';
+    return;
+  }
+  
+  let paginationHTML = '';
+  
+  // Botão anterior
+  if (tokensCurrentPage > 1) {
+    paginationHTML += `<button onclick="changeTokensPage(${tokensCurrentPage - 1})" class="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300">‹</button>`;
+  }
+  
+  // Páginas
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === tokensCurrentPage) {
+      paginationHTML += `<button class="px-2 py-1 text-xs bg-blue-600 text-white rounded">${i}</button>`;
+    } else {
+      paginationHTML += `<button onclick="changeTokensPage(${i})" class="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300">${i}</button>`;
+    }
+  }
+  
+  // Botão próximo
+  if (tokensCurrentPage < totalPages) {
+    paginationHTML += `<button onclick="changeTokensPage(${tokensCurrentPage + 1})" class="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300">›</button>`;
+  }
+  
+  paginationContainer.innerHTML = paginationHTML;
+}
+
+function changeTokensPage(page) {
+  tokensCurrentPage = page;
+  renderTokensTable();
+  updateTokensPagination();
+}
+
+// ==================== HISTÓRICO DO ADMIN ====================
+
+// Variáveis para histórico
+let adminHistoryData = [];
+let adminHistoryCurrentPage = 1;
+const adminHistoryPerPage = 5;
+
+// Carregar histórico do admin
+async function loadAdminHistory() {
+  try {
+    console.log('🔄 Carregando histórico do admin...');
+    const { collection, getDocsFromServer, orderBy, limit, query } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const historyCol = collection(window.firebaseDb, 'adminHistory');
+    const q = query(historyCol, orderBy('timestamp', 'desc'), limit(50));
+    const snapHistory = await getDocsFromServer(q);
+    
+    adminHistoryData = [];
+    snapHistory.forEach(doc => {
+      const data = doc.data();
+      adminHistoryData.push({
+        id: doc.id,
+        ...data
+      });
+    });
+    
+    console.log(`✅ ${adminHistoryData.length} ações carregadas do histórico`);
+    renderAdminHistoryTable();
+    updateAdminHistoryPagination();
+  } catch (error) {
+    console.error('❌ Erro ao carregar histórico do admin:', error);
+  }
+}
+
+// Renderizar tabela de histórico
+function renderAdminHistoryTable() {
+  const tbody = document.getElementById('adminHistoryTableBody');
+  if (!tbody) return;
+  
+  const startIndex = (adminHistoryCurrentPage - 1) * adminHistoryPerPage;
+  const endIndex = startIndex + adminHistoryPerPage;
+  const historyPage = adminHistoryData.slice(startIndex, endIndex);
+  
+  tbody.innerHTML = historyPage.map(entry => `
+    <tr class="border-b border-gray-100">
+      <td class="py-3 px-2">
+        <div class="text-xs text-gray-600">${formatDateTime(entry.timestamp)}</div>
+      </td>
+      <td class="py-3 px-2">
+        <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">${entry.adminEmail || 'N/A'}</span>
+      </td>
+      <td class="py-3 px-2">
+        <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">${getActionDisplayName(entry.action)}</span>
+      </td>
+      <td class="py-3 px-2">
+        <div class="text-xs text-gray-600 max-w-[200px] truncate" title="${entry.details || ''}">${entry.details || 'N/A'}</div>
+      </td>
+    </tr>
+  `).join('');
+  
+  // Atualizar contador
+  const countElement = document.getElementById('adminHistoryCount');
+  if (countElement) {
+    countElement.textContent = `${adminHistoryData.length} ações`;
+  }
+}
+
+// Log de ação do admin
+async function logAdminAction(action, details) {
+  try {
+    const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const historyCol = collection(window.firebaseDb, 'adminHistory');
+    
+    const currentUser = JSON.parse(sessionStorage.getItem('adminSession') || '{}');
+    
+    await addDoc(historyCol, {
+      action: action,
+      details: details,
+      adminEmail: currentUser.email || 'N/A',
+      adminRole: currentUser.role || 'N/A',
+      timestamp: serverTimestamp()
+    });
+    
+    // Recarregar histórico
+    loadAdminHistory();
+  } catch (error) {
+    console.error('❌ Erro ao registrar ação do admin:', error);
+  }
+}
+
+// Obter nome de exibição da ação
+function getActionDisplayName(action) {
+  const actionNames = {
+    'add_tokens': 'Adicionar Tokens',
+    'remove_tokens': 'Remover Tokens',
+    'change_role': 'Alterar Cargo',
+    'login': 'Login',
+    'logout': 'Logout',
+    'export_data': 'Exportar Dados'
+  };
+  return actionNames[action] || action;
+}
+
+// Formatar data e hora
+function formatDateTime(timestamp) {
+  if (!timestamp) return 'N/A';
+  
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  return date.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+// Paginação do histórico
+function updateAdminHistoryPagination() {
+  const totalPages = Math.ceil(adminHistoryData.length / adminHistoryPerPage);
+  const paginationContainer = document.getElementById('adminHistoryPagination');
+  if (!paginationContainer) return;
+  
+  if (totalPages <= 1) {
+    paginationContainer.innerHTML = '';
+    return;
+  }
+  
+  let paginationHTML = '';
+  
+  // Botão anterior
+  if (adminHistoryCurrentPage > 1) {
+    paginationHTML += `<button onclick="changeAdminHistoryPage(${adminHistoryCurrentPage - 1})" class="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300">‹</button>`;
+  }
+  
+  // Páginas
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === adminHistoryCurrentPage) {
+      paginationHTML += `<button class="px-2 py-1 text-xs bg-blue-600 text-white rounded">${i}</button>`;
+    } else {
+      paginationHTML += `<button onclick="changeAdminHistoryPage(${i})" class="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300">${i}</button>`;
+    }
+  }
+  
+  // Botão próximo
+  if (adminHistoryCurrentPage < totalPages) {
+    paginationHTML += `<button onclick="changeAdminHistoryPage(${adminHistoryCurrentPage + 1})" class="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300">›</button>`;
+  }
+  
+  paginationContainer.innerHTML = paginationHTML;
+}
+
+function changeAdminHistoryPage(page) {
+  adminHistoryCurrentPage = page;
+  renderAdminHistoryTable();
+  updateAdminHistoryPagination();
+}
+
 // Expor funções globalmente
 window.loadPermissionsUsers = loadPermissionsUsers;
 window.updatePermissionsUserRole = updatePermissionsUserRole;
 window.changePermissionsPage = changePermissionsPage;
+window.loadTokensUsers = loadTokensUsers;
+window.addTokens = addTokens;
+window.removeTokens = removeTokens;
+window.changeTokensPage = changeTokensPage;
+window.loadAdminHistory = loadAdminHistory;
+window.changeAdminHistoryPage = changeAdminHistoryPage;
 
 // Carregar usuários quando o admin for inicializado
 document.addEventListener('DOMContentLoaded', function() {

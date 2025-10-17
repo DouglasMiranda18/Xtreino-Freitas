@@ -414,6 +414,77 @@
                 </div>
             </div>
 
+            <!-- Seção de Gerenciamento de Tokens -->
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+                <!-- Card de Tokens por Usuário -->
+                <div class="bg-white border border-gray-200 rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold text-sm flex items-center">
+                            <span class="mr-2">🪙</span>
+                            Gerenciamento de Tokens
+                        </h3>
+                        <div class="text-xs text-gray-500">
+                            <span id="tokensUsersCount">0 usuários</span>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto -mx-4 px-4">
+                        <table class="w-full text-xs min-w-[500px]">
+                            <thead>
+                                <tr class="border-b border-gray-200">
+                                    <th class="text-left py-2 px-2 font-medium text-gray-600 min-w-[150px]">Email</th>
+                                    <th class="text-left py-2 px-2 font-medium text-gray-600 min-w-[80px]">Função</th>
+                                    <th class="text-left py-2 px-2 font-medium text-gray-600 min-w-[80px]">Tokens</th>
+                                    <th class="text-left py-2 px-2 font-medium text-gray-600 min-w-[120px]">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tokensTableBody">
+                                <tr>
+                                    <td colspan="4" class="py-6 text-center text-gray-500">Carregando usuários...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="tokensPagination" class="flex justify-center mt-3 gap-1">
+                        <!-- Pagination buttons will be added here -->
+                    </div>
+                </div>
+
+                <!-- Card de Histórico do Admin -->
+                <div class="bg-white border border-gray-200 rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold text-sm flex items-center">
+                            <span class="mr-2">📋</span>
+                            Histórico do Admin
+                        </h3>
+                        <div class="text-xs text-gray-500">
+                            <span id="adminHistoryCount">0 ações</span>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto -mx-4 px-4">
+                        <table class="w-full text-xs min-w-[500px]">
+                            <thead>
+                                <tr class="border-b border-gray-200">
+                                    <th class="text-left py-2 px-2 font-medium text-gray-600 min-w-[120px]">Data/Hora</th>
+                                    <th class="text-left py-2 px-2 font-medium text-gray-600 min-w-[100px]">Admin</th>
+                                    <th class="text-left py-2 px-2 font-medium text-gray-600 min-w-[150px]">Ação</th>
+                                    <th class="text-left py-2 px-2 font-medium text-gray-600 min-w-[100px]">Detalhes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminHistoryTableBody">
+                                <tr>
+                                    <td colspan="4" class="py-6 text-center text-gray-500">Carregando histórico...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="adminHistoryPagination" class="flex justify-center mt-3 gap-1">
+                        <!-- Pagination buttons will be added here -->
+                    </div>
+                </div>
+            </div>
+
             <!-- Gerenciar Destaques -->
             <div id="sectionHighlights" class="bg-white border border-gray-200 rounded-xl p-6 mt-6">
                 <div class="flex items-center justify-between mb-4">
