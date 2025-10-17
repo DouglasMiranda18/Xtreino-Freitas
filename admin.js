@@ -3345,8 +3345,8 @@ window.saveProducts = saveProducts;
       
       console.log('🔍 Cargo encontrado no Firestore:', userData.role, '-> normalizado:', role);
       
-      // Check if role is authorized (including variations)
-      const authorizedRoles = ['admin', 'gerente', 'vendedor', 'design', 'designer', 'socio', 'sócio'];
+      // Check if role is authorized (including variations and typos)
+      const authorizedRoles = ['admin', 'gerente', 'vendedor', 'design', 'designer', 'desgin', 'socio', 'sócio'];
       const isAuthorized = authorizedRoles.includes(role);
       
       if (!isAuthorized) {

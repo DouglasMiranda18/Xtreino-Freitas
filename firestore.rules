@@ -25,12 +25,12 @@ service cloud.firestore {
       return isSignedIn() && (
         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin','Admin','ADMIN','Ceo','CEO','ceo'] &&
          request.auth.token.email in ['cleitondouglass@gmail.com','cleitondouglass123@hotmail.com','gilmariofreitas378@gmail.com','gilmariofreitas387@gmail.com']) ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['design','Design','DESIGN','Designer','DESIGNER','designer']
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['design','Design','DESIGN','Designer','DESIGNER','designer','Desgin','DESGIN','desgin']
       );
     }
     
     function isDesign() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['design','Design','DESIGN','Designer','DESIGNER','designer'];
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['design','Design','DESIGN','Designer','DESIGNER','designer','Desgin','DESGIN','desgin'];
     }
     
     function isSocio() {
