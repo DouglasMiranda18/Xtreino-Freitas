@@ -3319,12 +3319,14 @@ window.saveProducts = saveProducts;
   // Security: Enhanced login handler
   async function handleLogin(email, password) {
     try {
-      const userCredential = await signInWithEmailAndPassword(window.firebaseAuth, email, password);
+      const { signInWithEmailAndPassword: signIn } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
+      const userCredential = await signIn(window.firebaseAuth, email, password);
       const user = userCredential.user;
       
       // Check if user is authorized
       if (!(await isAuthorizedAdmin(user))) {
-        await signOut(window.firebaseAuth);
+        const { signOut: signOutFn } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
+        await signOutFn(window.firebaseAuth);
         showLoginError('Acesso negado. Email não autorizado para administração.');
         return;
       }
