@@ -3343,8 +3343,11 @@ window.saveProducts = saveProducts;
       const userData = userDoc.data();
       const role = (userData.role || '').toLowerCase();
       
-      // Check if role is authorized
-      const isAuthorized = ['admin', 'gerente', 'vendedor', 'design', 'socio'].includes(role);
+      console.log('🔍 Cargo encontrado no Firestore:', userData.role, '-> normalizado:', role);
+      
+      // Check if role is authorized (including variations)
+      const authorizedRoles = ['admin', 'gerente', 'vendedor', 'design', 'designer', 'socio', 'sócio'];
+      const isAuthorized = authorizedRoles.includes(role);
       
       if (!isAuthorized) {
         await signOutFn(window.firebaseAuth);
@@ -3353,7 +3356,7 @@ window.saveProducts = saveProducts;
       }
       
       // For admin/gerente/vendedor, check email whitelist
-      // For design/socio, allow any email with the correct role
+      // For design/designer/socio/sócio, allow any email with the correct role
       if (['admin', 'gerente', 'vendedor'].includes(role)) {
         const ADMIN_EMAILS = [
           'cleitondouglass@gmail.com',
