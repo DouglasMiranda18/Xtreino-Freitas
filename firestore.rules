@@ -33,9 +33,9 @@ service cloud.firestore {
       return isAdmin() || isGerente() || isVendedor() || isDesign() || isSocio();
     }
 
-    // users: cada usuário lê/escreve o próprio documento; Admins podem ler/escrever todos
+    // users: cada usuário lê/escreve o próprio documento; Staff pode ler todos
     match /users/{userId} {
-      allow read: if isSelf(userId) || isAdmin();
+      allow read: if isSelf(userId) || canReadAll();
       allow write: if isSelf(userId) || isAdmin();
     }
 

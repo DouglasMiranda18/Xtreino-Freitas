@@ -3799,11 +3799,30 @@ async function loadUsers() {
       });
     });
     
+    // Armazenar usuários globalmente para filtros
+    allUsers = users;
+    
     renderUsersTable(users);
     renderActiveUsersTable(users);
+    updateActiveUsersStats(users);
+    
+    // Adicionar event listeners para filtros
+    setupFilterEventListeners();
   } catch (error) {
     console.error('Erro ao carregar usuários:', error);
   }
+}
+
+function setupFilterEventListeners() {
+  const filterAll = document.getElementById('filterAllUsers');
+  const filter30 = document.getElementById('filterActive30Days');
+  const filter7 = document.getElementById('filterActive7Days');
+  const filter1 = document.getElementById('filterActive1Day');
+  
+  if (filterAll) filterAll.onclick = () => filterActiveUsers('all');
+  if (filter30) filter30.onclick = () => filterActiveUsers('30');
+  if (filter7) filter7.onclick = () => filterActiveUsers('7');
+  if (filter1) filter1.onclick = () => filterActiveUsers('1');
 }
 
 function renderUsersTable(users) {
@@ -3918,9 +3937,109 @@ async function updateUserRole(userId, newRole) {
   }
 }
 
+// Funções de filtro para Usuários Ativos
+let currentActiveFilter = 'all';
+let allUsers = [];
+
+function filterActiveUsers(filter) {
+  currentActiveFilter = filter;
+  
+  // Atualizar botões de filtro
+  const buttons = ['filterAllUsers', 'filterActive30Days', 'filterActive7Days', 'filterActive1Day'];
+  buttons.forEach(btnId => {
+    const btn = document.getElementById(btnId);
+    if (btn) {
+      if (btnId === `filter${filter.charAt(0).toUpperCase() + filter.slice(1)}Users` || 
+          (filter === 'all' && btnId === 'filterAllUsers') ||
+          (filter === '30' && btnId === 'filterActive30Days') ||
+          (filter === '7' && btnId === 'filterActive7Days') ||
+          (filter === '1' && btnId === 'filterActive1Day')) {
+        btn.className = 'px-2 py-1 bg-blue-matte text-white rounded text-xs hover:bg-blue-600 transition-colors';
+      } else {
+        btn.className = 'px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs hover:bg-gray-300 transition-colors';
+      }
+    }
+  });
+  
+  // Filtrar usuários
+  let filteredUsers = allUsers;
+  const now = Date.now();
+  
+  if (filter === '30') {
+    filteredUsers = allUsers.filter(user => {
+      if (!user.lastLogin) return false;
+      let date;
+      if (user.lastLogin.seconds) {
+        date = new Date(user.lastLogin.seconds * 1000);
+      } else if (user.lastLogin.toDate) {
+        date = user.lastLogin.toDate();
+      } else {
+        date = new Date(user.lastLogin);
+      }
+      return (now - date.getTime()) <= (30 * 24 * 60 * 60 * 1000);
+    });
+  } else if (filter === '7') {
+    filteredUsers = allUsers.filter(user => {
+      if (!user.lastLogin) return false;
+      let date;
+      if (user.lastLogin.seconds) {
+        date = new Date(user.lastLogin.seconds * 1000);
+      } else if (user.lastLogin.toDate) {
+        date = user.lastLogin.toDate();
+      } else {
+        date = new Date(user.lastLogin);
+      }
+      return (now - date.getTime()) <= (7 * 24 * 60 * 60 * 1000);
+    });
+  } else if (filter === '1') {
+    filteredUsers = allUsers.filter(user => {
+      if (!user.lastLogin) return false;
+      let date;
+      if (user.lastLogin.seconds) {
+        date = new Date(user.lastLogin.seconds * 1000);
+      } else if (user.lastLogin.toDate) {
+        date = user.lastLogin.toDate();
+      } else {
+        date = new Date(user.lastLogin);
+      }
+      return (now - date.getTime()) <= (24 * 60 * 60 * 1000);
+    });
+  }
+  
+  // Atualizar apenas a tabela de usuários ativos
+  renderActiveUsersTable(filteredUsers);
+  updateActiveUsersStats(filteredUsers);
+}
+
+function updateActiveUsersStats(users) {
+  const total = users.length;
+  const active = users.filter(user => {
+    if (!user.lastLogin) return false;
+    let date;
+    if (user.lastLogin.seconds) {
+      date = new Date(user.lastLogin.seconds * 1000);
+    } else if (user.lastLogin.toDate) {
+      date = user.lastLogin.toDate();
+    } else {
+      date = new Date(user.lastLogin);
+    }
+    return (Date.now() - date.getTime()) <= (7 * 24 * 60 * 60 * 1000);
+  }).length;
+  const inactive = total - active;
+  
+  const totalEl = document.getElementById('totalUsers');
+  const activeEl = document.getElementById('activeUsers');
+  const inactiveEl = document.getElementById('inactiveUsers');
+  
+  if (totalEl) totalEl.textContent = total;
+  if (activeEl) activeEl.textContent = active;
+  if (inactiveEl) inactiveEl.textContent = inactive;
+}
+
 // Expor funções globalmente
 window.loadUsers = loadUsers;
 window.updateUserRole = updateUserRole;
+window.filterActiveUsers = filterActiveUsers;
 
 // Carregar usuários quando o admin for inicializado
 document.addEventListener('DOMContentLoaded', function() {

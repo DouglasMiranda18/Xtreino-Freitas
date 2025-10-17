@@ -233,25 +233,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Verificar se usuário é admin autorizado
 async function checkAdminAccess() {
-    // Debug removido
+    console.log('🔍 Verificando acesso admin...');
     
     if (!window.isLoggedIn || !window.firebaseAuth?.currentUser) {
-        // console.log('❌ Usuário não logado');
+        console.log('❌ Usuário não logado');
         return false;
     }
     
     const user = window.firebaseAuth.currentUser;
     const authorizedEmails = ['cleitondouglass@gmail.com', 'cleitondouglass123@hotmail.com', 'gilmariofreitas378@gmail.com', 'gilmariofreitas387@gmail.com'];
     
-    // Debug removido
+    console.log('📧 Email do usuário:', user.email);
     
     // Verificar email na whitelist
     if (!authorizedEmails.includes(user.email.toLowerCase())) {
-        // console.log('❌ Email não autorizado');
+        console.log('❌ Email não autorizado:', user.email);
         return false;
     }
     
-    // Debug removido
+    console.log('✅ Email autorizado');
     
     // Verificar role no Firestore
     try {
@@ -260,7 +260,7 @@ async function checkAdminAccess() {
         const snap = await getDoc(doc(collection(window.firebaseDb,'users'), uid));
         if (snap.exists()) {
             const role = (snap.data().role || '').toLowerCase();
-            // console.log('🎭 Role encontrado:', role);
+            console.log('🎭 Role encontrado:', role);
             const hasAccess = ['admin', 'ceo', 'gerente', 'vendedor', 'design', 'socio'].includes(role);
             // console.log('🔐 Acesso admin:', hasAccess);
             return hasAccess;
