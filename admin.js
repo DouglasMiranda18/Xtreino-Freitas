@@ -74,7 +74,7 @@
   // Security: Enhanced logout
   async function logout() {
     try {
-      await signOut(auth);
+      await signOut(window.firebaseAuth);
       sessionStorage.removeItem('adminSession');
       localStorage.removeItem('adminSession');
       if (sessionTimer) clearTimeout(sessionTimer);
@@ -3306,12 +3306,12 @@ window.saveProducts = saveProducts;
   // Security: Enhanced login handler
   async function handleLogin(email, password) {
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(window.firebaseAuth, email, password);
       const user = userCredential.user;
       
       // Check if user is authorized
       if (!(await isAuthorizedAdmin(user))) {
-        await signOut(auth);
+        await signOut(window.firebaseAuth);
         showLoginError('Acesso negado. Email não autorizado para administração.');
         return;
       }
