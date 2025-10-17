@@ -3351,6 +3351,23 @@ window.saveProducts = saveProducts;
         showLoginError('Acesso negado. Você não tem permissão para acessar o painel administrativo.');
         return;
       }
+      
+      // For admin/gerente/vendedor, check email whitelist
+      // For design/socio, allow any email with the correct role
+      if (['admin', 'gerente', 'vendedor'].includes(role)) {
+        const ADMIN_EMAILS = [
+          'cleitondouglass@gmail.com',
+          'cleitondouglass123@hotmail.com',
+          'gilmariofreitas378@gmail.com',
+          'gilmariofreitas387@gmail.com'
+        ];
+        
+        if (!ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+          await signOutFn(window.firebaseAuth);
+          showLoginError('Acesso negado. Email não autorizado para administração.');
+          return;
+        }
+      }
 
       // Save session
       const sessionData = {
