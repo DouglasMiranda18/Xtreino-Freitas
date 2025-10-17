@@ -2149,10 +2149,15 @@ function openScheduleModal(eventType){
             grid.classList.add('grid-cols-1');
         }
         
-        // Esconder seção "Resumo das Reservas" para produtos
+        // Esconder seções específicas para produtos
         const reservationsSummarySection = document.getElementById('reservationsSummarySection');
         if (reservationsSummarySection) {
             reservationsSummarySection.style.display = 'none';
+        }
+        
+        const teamsSection = document.getElementById('teamsSection');
+        if (teamsSection) {
+            teamsSection.style.display = 'none';
         }
         
         console.log('Modal de produto aberto - coluna esquerda escondida');
@@ -2175,10 +2180,15 @@ function openScheduleModal(eventType){
         leftColumn.style.display = 'block';
     }
     
-    // Mostrar seção "Resumo das Reservas" para eventos
+    // Mostrar seções específicas para eventos
     const reservationsSummarySection = document.getElementById('reservationsSummarySection');
     if (reservationsSummarySection) {
         reservationsSummarySection.style.display = 'block';
+    }
+    
+    const teamsSection = document.getElementById('teamsSection');
+    if (teamsSection) {
+        teamsSection.style.display = 'block';
     }
     
     // Se havia opções de produto (ex.: seleção de mapas), remover ao abrir um evento
