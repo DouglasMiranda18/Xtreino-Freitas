@@ -1894,9 +1894,17 @@ function addProductOptions(productId) {
         container.id = 'productOptions';
         container.className = 'mt-6';
         
-        // Inserir após o campo de telefone
-        const phoneField = document.getElementById('schedPhone').parentElement;
-        phoneField.parentNode.insertBefore(container, phoneField.nextSibling);
+        // Inserir após o campo de telefone (se existir) ou no final do formulário
+        const phoneField = document.getElementById('schedPhone');
+        if (phoneField && phoneField.parentElement) {
+            phoneField.parentElement.parentNode.insertBefore(container, phoneField.parentElement.nextSibling);
+        } else {
+            // Se não encontrar o campo de telefone, inserir no final do formulário
+            const form = document.getElementById('schedForm');
+            if (form) {
+                form.appendChild(container);
+            }
+        }
     }
     
     const container = document.getElementById('productOptions');
