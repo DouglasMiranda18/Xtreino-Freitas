@@ -3781,4 +3781,123 @@ function setupRoleGuards() {
   });
 }
 
+// Funções para gerenciar usuários
+async function loadUsers() {
+  try {
+    const usersSnapshot = await getDocs(collection(window.firebaseDb, 'users'));
+    const users = [];
+    
+    usersSnapshot.forEach(doc => {
+      const userData = doc.data();
+      users.push({
+        id: doc.id,
+        email: userData.email || 'N/A',
+        role: userData.role || 'user',
+        lastLogin: userData.lastLogin || null,
+        createdAt: userData.createdAt || null
+      });
+    });
+    
+    renderUsersTable(users);
+    renderActiveUsersTable(users);
+  } catch (error) {
+    console.error('Erro ao carregar usuários:', error);
+  }
+}
+
+function renderUsersTable(users) {
+  const tbody = document.getElementById('usersTableBody');
+  if (!tbody) return;
+  
+  if (users.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="py-6 text-center text-gray-500">Nenhum usuário encontrado</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = users.map(user => `
+    <tr class="border-b border-gray-100">
+      <td class="py-2 px-2 text-gray-700">${user.email}</td>
+      <td class="py-2 px-2">
+        <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">${user.role}</span>
+      </td>
+      <td class="py-2 px-2">
+        <select class="text-xs border border-gray-300 rounded px-2 py-1" onchange="updateUserRole('${user.id}', this.value)">
+          <option value="user" ${user.role === 'user' ? 'selected' : ''}>Usuário</option>
+          <option value="vendedor" ${user.role === 'vendedor' ? 'selected' : ''}>Vendedor</option>
+          <option value="gerente" ${user.role === 'gerente' ? 'selected' : ''}>Gerente</option>
+          <option value="design" ${user.role === 'design' ? 'selected' : ''}>Design</option>
+          <option value="socio" ${user.role === 'socio' ? 'selected' : ''}>Sócio</option>
+          <option value="ceo" ${user.role === 'ceo' ? 'selected' : ''}>CEO</option>
+          <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
+        </select>
+      </td>
+      <td class="py-2 px-2">
+        <button onclick="updateUserRole('${user.id}', document.querySelector('select[onchange*=\"${user.id}\"]').value)" 
+                class="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors">
+          Salvar
+        </button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function renderActiveUsersTable(users) {
+  const tbody = document.getElementById('activeUsersTableBody');
+  if (!tbody) return;
+  
+  if (users.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="py-6 text-center text-gray-500">Nenhum usuário encontrado</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = users.map(user => {
+    const lastLogin = user.lastLogin ? new Date(user.lastLogin.seconds * 1000).toLocaleDateString('pt-BR') : 'Nunca';
+    const isActive = user.lastLogin ? (Date.now() - user.lastLogin.seconds * 1000) < (7 * 24 * 60 * 60 * 1000) : false;
+    
+    return `
+      <tr class="border-b border-gray-100">
+        <td class="py-2 px-2 text-gray-700">${user.email}</td>
+        <td class="py-2 px-2">
+          <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">${user.role}</span>
+        </td>
+        <td class="py-2 px-2 text-gray-600">${lastLogin}</td>
+        <td class="py-2 px-2">
+          <span class="px-2 py-1 rounded text-xs ${isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
+            ${isActive ? 'Ativo' : 'Inativo'}
+          </span>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function updateUserRole(userId, newRole) {
+  try {
+    await updateDoc(doc(window.firebaseDb, 'users', userId), {
+      role: newRole,
+      updatedAt: new Date()
+    });
+    
+    alert('Função do usuário atualizada com sucesso!');
+    loadUsers(); // Recarregar a tabela
+  } catch (error) {
+    console.error('Erro ao atualizar função do usuário:', error);
+    alert('Erro ao atualizar função do usuário');
+  }
+}
+
+// Expor funções globalmente
+window.loadUsers = loadUsers;
+window.updateUserRole = updateUserRole;
+
+// Carregar usuários quando o admin for inicializado
+document.addEventListener('DOMContentLoaded', function() {
+  // Aguardar um pouco para garantir que o Firebase esteja pronto
+  setTimeout(() => {
+    if (window.firebaseReady) {
+      loadUsers();
+    }
+  }, 1000);
+});
+
 
