@@ -2374,7 +2374,25 @@ async function renderScheduleTimes(){
     const dayNames = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
     const d = new Date(date + 'T00:00:00');
     const day = dayNames[d.getDay()];
-    const slots = ['19h','20h','21h','22h','23h'];
+    
+    // Definir horários baseados no tipo de evento
+    let slots = [];
+    if (eventType === 'xtreino-tokens') {
+        // XTreino Tokens: 14h às 23h
+        slots = ['14h','15h','16h','17h','18h','19h','20h','21h','22h','23h'];
+    } else if (eventType === 'modo-liga') {
+        // XTreino Modo Liga: 14h às 23h
+        slots = ['14h','15h','16h','17h','18h','19h','20h','21h','22h','23h'];
+    } else if (eventType === 'camp-freitas') {
+        // Camp Freitas: 19h às 23h
+        slots = ['19h','20h','21h','22h','23h'];
+    } else if (eventType === 'semanal-freitas') {
+        // Semanal Freitas: 19h, 20h, 21h (todo dia)
+        slots = ['19h','20h','21h'];
+    } else {
+        // Fallback padrão
+        slots = ['19h','20h','21h','22h','23h'];
+    }
     const now = new Date();
     const selectedDate = new Date(date + 'T00:00:00');
     const isToday = selectedDate.toDateString() === now.toDateString();
