@@ -1893,12 +1893,12 @@ function addProductOptions(productId) {
         container.id = 'productOptions';
         container.className = 'mt-6';
         
-        // Inserir após o campo de telefone (se existir) ou no final do formulário
-        const phoneField = document.getElementById('schedPhone');
-        if (phoneField && phoneField.parentElement) {
-            phoneField.parentElement.parentNode.insertBefore(container, phoneField.parentElement.nextSibling);
+        // Inserir antes da seção "Finalizar Reservas" (Payment Section)
+        const paymentSection = document.querySelector('#schedForm .bg-white.rounded-2xl.p-6.border.border-gray-200:last-child');
+        if (paymentSection) {
+            paymentSection.parentNode.insertBefore(container, paymentSection);
         } else {
-            // Se não encontrar o campo de telefone, inserir no final do formulário
+            // Fallback: inserir no final do formulário
             const form = document.getElementById('schedForm');
             if (form) {
                 form.appendChild(container);
