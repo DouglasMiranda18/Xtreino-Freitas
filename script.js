@@ -2476,6 +2476,69 @@ async function checkSlotAvailability(date, schedule, eventType){
         return snap.size < 12;
     }catch(_){ return true; }
 }
+
+// Verifica disponibilidade para múltiplos horários e times
+async function checkMultipleSlotAvailability(date, selectedTimes, eventType, numberOfTeams) {
+    try {
+        if (!window.firebaseReady) return { available: true };
+        
+        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const regsRef = collection(window.firebaseDb, 'registrations');
+        
+        const unavailableSlots = [];
+        const partiallyAvailableSlots = [];
+        
+        // Verificar cada horário selecionado
+        for (let schedule of selectedTimes) {
+            const clauses = [ 
+                where('date','==', date), 
+                where('schedule','==', schedule), 
+                where('status','in',['paid','confirmed']) 
+            ];
+            if (eventType) clauses.push(where('eventType','==', eventType));
+            
+            const q = query(regsRef, ...clauses);
+            const snap = await getDocs(q);
+            const occupiedSlots = snap.size;
+            const availableSlots = 12 - occupiedSlots;
+            
+            if (availableSlots === 0) {
+                unavailableSlots.push(schedule);
+            } else if (availableSlots < numberOfTeams) {
+                partiallyAvailableSlots.push({
+                    schedule: schedule,
+                    available: availableSlots,
+                    requested: numberOfTeams
+                });
+            }
+        }
+        
+        // Gerar mensagem de erro apropriada
+        if (unavailableSlots.length > 0) {
+            return {
+                available: false,
+                message: `❌ Horários sem vagas: ${unavailableSlots.join(', ')}\n\nLimite: 12 times por horário`
+            };
+        }
+        
+        if (partiallyAvailableSlots.length > 0) {
+            const details = partiallyAvailableSlots.map(slot => 
+                `${slot.schedule}: ${slot.available} vagas disponíveis (você quer ${slot.requested})`
+            ).join('\n');
+            
+            return {
+                available: false,
+                message: `⚠️ Vagas insuficientes:\n\n${details}\n\nLimite: 12 times por horário\n\nSugestão: Reduza o número de times ou escolha outros horários.`
+            };
+        }
+        
+        return { available: true };
+        
+    } catch (error) {
+        console.error('Erro ao verificar disponibilidade:', error);
+        return { available: true }; // Em caso de erro, permite continuar
+    }
+}
 async function updateOccupiedAndRefreshButtons(day, date, eventType, container){
     // cache por data
     const cacheKey = `${date}__${eventType||'all'}`;
@@ -2580,7 +2643,7 @@ function updateTeam(teamId, field, value) {
 }
 
 // Function to update reservations summary
-function updateReservationsSummary() {
+async function updateReservationsSummary() {
     const summaryContainer = document.getElementById('reservationsSummary');
     const totalPriceElement = document.getElementById('totalPrice');
     
@@ -2601,6 +2664,31 @@ function updateReservationsSummary() {
     // Calculate total reservations (times × selected times)
     totalReservations = teams.length * selectedTimes.length;
     
+    // Verificar disponibilidade e mostrar avisos
+    const date = document.getElementById('schedDate')?.value;
+    let availabilityWarning = '';
+    
+    if (date && eventType && window.firebaseReady) {
+        try {
+            const availabilityCheck = await checkMultipleSlotAvailability(date, selectedTimes, eventType, teams.length);
+            if (!availabilityCheck.available) {
+                availabilityWarning = `
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+                        <div class="flex items-center">
+                            <svg class="w-5 h-5 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                            </svg>
+                            <span class="text-red-700 font-medium">⚠️ Vagas insuficientes!</span>
+                        </div>
+                        <p class="text-red-600 text-sm mt-1">Reduza o número de times ou escolha outros horários.</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Erro ao verificar disponibilidade:', error);
+        }
+    }
+    
     // Build summary
     selectedTimes.forEach(time => {
         summaryHTML += `<div class="flex justify-between items-center py-1">
@@ -2609,7 +2697,7 @@ function updateReservationsSummary() {
         </div>`;
     });
     
-    summaryContainer.innerHTML = summaryHTML;
+    summaryContainer.innerHTML = availabilityWarning + summaryHTML;
     
     const totalPrice = totalReservations * pricePerReservation;
     totalPriceElement.textContent = `R$ ${totalPrice.toFixed(2)}`;
@@ -2781,6 +2869,15 @@ async function submitSchedule(e){
     
     if (teams.length === 0) {
         alert('Adicione pelo menos um time.');
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+        return;
+    }
+    
+    // Verificar disponibilidade de vagas para cada horário
+    const availabilityCheck = await checkMultipleSlotAvailability(date, selectedTimes, eventType, teams.length);
+    if (!availabilityCheck.available) {
+        const message = availabilityCheck.message || 'Não há vagas suficientes para os horários selecionados.';
+        alert(message);
         if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
         return;
     }
