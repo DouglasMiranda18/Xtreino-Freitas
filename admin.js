@@ -3319,22 +3319,38 @@ window.saveProducts = saveProducts;
   // Security: Enhanced login handler
   async function handleLogin(email, password) {
     try {
-      const { signInWithEmailAndPassword: signIn } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
+      const { signInWithEmailAndPassword: signIn, signOut: signOutFn } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
+      const { doc: docRef, getDoc: getDocFn } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+      
       const userCredential = await signIn(window.firebaseAuth, email, password);
       const user = userCredential.user;
       
       // Check if user is authorized
-      if (!(await isAuthorizedAdmin(user))) {
-        const { signOut: signOutFn } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
+      if (!user || !user.email) {
         await signOutFn(window.firebaseAuth);
-        showLoginError('Acesso negado. Email não autorizado para administração.');
+        showLoginError('Erro ao fazer login.');
         return;
       }
-
-      // Get user role
-      const userDoc = await getDoc(doc(window.firebaseDb, 'users', user.uid));
+      
+      // Get user role from Firestore
+      const userDoc = await getDocFn(docRef(window.firebaseDb, 'users', user.uid));
+      if (!userDoc.exists()) {
+        await signOutFn(window.firebaseAuth);
+        showLoginError('Usuário não encontrado.');
+        return;
+      }
+      
       const userData = userDoc.data();
-      const role = userData?.role || 'admin';
+      const role = (userData.role || '').toLowerCase();
+      
+      // Check if role is authorized
+      const isAuthorized = ['admin', 'gerente', 'vendedor', 'design', 'socio'].includes(role);
+      
+      if (!isAuthorized) {
+        await signOutFn(window.firebaseAuth);
+        showLoginError('Acesso negado. Você não tem permissão para acessar o painel administrativo.');
+        return;
+      }
 
       // Save session
       const sessionData = {
