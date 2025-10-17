@@ -3852,8 +3852,38 @@ function renderActiveUsersTable(users) {
   }
   
   tbody.innerHTML = users.map(user => {
-    const lastLogin = user.lastLogin ? new Date(user.lastLogin.seconds * 1000).toLocaleDateString('pt-BR') : 'Nunca';
-    const isActive = user.lastLogin ? (Date.now() - user.lastLogin.seconds * 1000) < (7 * 24 * 60 * 60 * 1000) : false;
+    let lastLogin = 'Nunca';
+    let isActive = false;
+    
+    if (user.lastLogin) {
+      try {
+        // Tentar diferentes formatos de data
+        let date;
+        if (user.lastLogin.seconds) {
+          // Firestore Timestamp
+          date = new Date(user.lastLogin.seconds * 1000);
+        } else if (user.lastLogin.toDate) {
+          // Firestore Timestamp com método toDate()
+          date = user.lastLogin.toDate();
+        } else if (typeof user.lastLogin === 'string') {
+          // String ISO
+          date = new Date(user.lastLogin);
+        } else if (typeof user.lastLogin === 'number') {
+          // Timestamp em milissegundos
+          date = new Date(user.lastLogin);
+        } else {
+          date = new Date(user.lastLogin);
+        }
+        
+        if (!isNaN(date.getTime())) {
+          lastLogin = date.toLocaleDateString('pt-BR');
+          isActive = (Date.now() - date.getTime()) < (7 * 24 * 60 * 60 * 1000);
+        }
+      } catch (error) {
+        console.error('Erro ao processar data de login:', error);
+        lastLogin = 'Erro';
+      }
+    }
     
     return `
       <tr class="border-b border-gray-100">
