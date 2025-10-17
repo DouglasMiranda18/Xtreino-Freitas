@@ -153,8 +153,8 @@ service cloud.firestore {
 
     // product_backups: leitura para admins; escrita apenas para admins autorizados
     match /product_backups/{backupId} {
-      allow read: if isAdmin();
-      allow create, update, delete: if isAuthorizedAdmin();
+      allow read: if isAdmin() || isDesign();
+      allow create, update, delete: if isAuthorizedAdminOrDesign();
     }
   }
 }
