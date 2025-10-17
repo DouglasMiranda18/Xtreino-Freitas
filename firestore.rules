@@ -4,7 +4,7 @@ service cloud.firestore {
     function isSignedIn() { return request.auth != null; }
     function isSelf(userId) { return isSignedIn() && request.auth.uid == userId; }
     function isAdmin() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin','Admin','ADMIN','Ceo','CEO','ceo','Gerente','GERENTE','gerente'];
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin','Admin','ADMIN','Ceo','CEO','ceo'];
     }
     
     function isVendedor() {
@@ -22,7 +22,7 @@ service cloud.firestore {
     }
     
     function isDesign() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['design','Design','DESIGN'];
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['design','Design','DESIGN','Designer','DESIGNER','designer'];
     }
     
     function isSocio() {
