@@ -37,23 +37,36 @@
   async function isAuthorizedAdmin(user) {
     if (!user || !user.email) return false;
     
+    console.log('🔍 Verificando autorização para:', user.email);
+    
     // Check email whitelist
     if (!ADMIN_EMAILS.includes(user.email.toLowerCase())) {
-      console.warn('Unauthorized admin access attempt:', user.email);
+      console.warn('❌ Email não autorizado:', user.email);
+      console.log('📋 Emails autorizados:', ADMIN_EMAILS);
       return false;
     }
+    
+    console.log('✅ Email autorizado:', user.email);
 
     // Check user role in Firestore
     try {
       const userDoc = await getDoc(doc(window.firebaseDb, 'users', user.uid));
-      if (!userDoc.exists()) return false;
+      if (!userDoc.exists()) {
+        console.log('❌ Documento de usuário não encontrado no Firestore');
+        return false;
+      }
       
       const userData = userDoc.data();
       const role = (userData.role || '').toLowerCase();
       
-      return ['admin', 'gerente', 'vendedor', 'design', 'socio'].includes(role);
+      console.log('🎭 Cargo encontrado:', role);
+      
+      const isAuthorized = ['admin', 'gerente', 'vendedor', 'design', 'socio'].includes(role);
+      console.log('🔐 Autorizado:', isAuthorized);
+      
+      return isAuthorized;
     } catch (error) {
-      console.error('Error checking user role:', error);
+      console.error('❌ Erro ao verificar cargo:', error);
       return false;
     }
   }
