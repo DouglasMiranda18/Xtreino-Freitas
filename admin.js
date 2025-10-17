@@ -3845,6 +3845,7 @@ let currentActiveFilter = 'all';
 
 // Funções para gerenciar usuários (NOVA - para tabelas separadas)
 let newTablesUsers = []; // Variável separada para as novas tabelas
+let permissionsUsers = []; // Variável separada para a tabela de permissões
 
 async function loadUsersForTables() {
   try {
@@ -3863,13 +3864,14 @@ async function loadUsersForTables() {
       });
     });
     
-    // Armazenar usuários separadamente para as novas tabelas
-    newTablesUsers = users;
+    // Armazenar usuários separadamente para cada tabela
+    newTablesUsers = users; // Para Usuários Ativos
+    permissionsUsers = users; // Para Usuários & Permissões (sempre todos os usuários)
     
-    // Renderizar ambas as tabelas com todos os usuários inicialmente
-    renderUsersTable(users);
-    renderActiveUsersTable(users);
-    updateActiveUsersStats(users);
+    // Renderizar ambas as tabelas com seus respectivos dados
+    renderUsersTable(permissionsUsers); // Sempre todos os usuários
+    renderActiveUsersTable(newTablesUsers); // Pode ser filtrado
+    updateActiveUsersStats(newTablesUsers);
     
     // Adicionar event listeners para filtros (apenas para Usuários Ativos)
     setupFilterEventListeners();
@@ -3897,7 +3899,7 @@ function renderUsersTable(users) {
     return;
   }
   
-  console.log('✅ Renderizando tabela de usuários com', users.length, 'usuários');
+  console.log('✅ Renderizando tabela de permissões com', users.length, 'usuários');
   
   if (users.length === 0) {
     tbody.innerHTML = '<tr><td colspan="4" class="py-6 text-center text-gray-500">Nenhum usuário encontrado</td></tr>';
@@ -3905,25 +3907,26 @@ function renderUsersTable(users) {
   }
   
   tbody.innerHTML = users.map(user => `
-    <tr class="border-b border-gray-100">
-      <td class="py-2 px-2 text-gray-700">${user.email}</td>
-      <td class="py-2 px-2">
-        <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">${user.role}</span>
+    <tr class="border-b border-gray-100 hover:bg-gray-50">
+      <td class="py-3 px-4 text-gray-700 font-medium">${user.email}</td>
+      <td class="py-3 px-4">
+        <span class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">${user.role}</span>
       </td>
-      <td class="py-2 px-2">
-        <select class="text-xs border border-gray-300 rounded px-2 py-1" onchange="updateUserRole('${user.id}', this.value)">
-          <option value="user" ${user.role === 'user' ? 'selected' : ''}>Usuário Comum</option>
+      <td class="py-3 px-4">
+        <select class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                onchange="updateUserRole('${user.id}', this.value)">
+          <option value="user" ${user.role === 'user' ? 'selected' : ''}>Usuário</option>
           <option value="vendedor" ${user.role === 'vendedor' ? 'selected' : ''}>Vendedor</option>
           <option value="gerente" ${user.role === 'gerente' ? 'selected' : ''}>Gerente</option>
           <option value="design" ${user.role === 'design' ? 'selected' : ''}>Design</option>
           <option value="socio" ${user.role === 'socio' ? 'selected' : ''}>Sócio</option>
-          <option value="ceo" ${user.role === 'ceo' ? 'selected' : ''}>CEO</option>
+          <option value="ceo" ${user.role === 'ceo' ? 'selected' : ''}>Ceo</option>
           <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
         </select>
       </td>
-      <td class="py-2 px-2">
+      <td class="py-3 px-4">
         <button onclick="updateUserRole('${user.id}', document.querySelector('select[onchange*=\"${user.id}\"]').value)" 
-                class="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors">
+                class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
           Salvar
         </button>
       </td>
@@ -3993,17 +3996,33 @@ function renderActiveUsersTable(users) {
 
 async function updateUserRole(userId, newRole) {
   try {
+    // Atualizar estado local primeiro (para feedback imediato)
+    const userIndex = permissionsUsers.findIndex(user => user.id === userId);
+    if (userIndex !== -1) {
+      permissionsUsers[userIndex].role = newRole;
+      renderUsersTable(permissionsUsers); // Atualizar UI imediatamente
+    }
+    
+    // Atualizar no Firestore
     const { updateDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     await updateDoc(doc(window.firebaseDb, 'users', userId), {
       role: newRole,
       updatedAt: new Date()
     });
     
-    alert('Função do usuário atualizada com sucesso!');
-    loadUsersForTables(); // Recarregar a tabela
+    // Atualizar também a variável newTablesUsers para manter consistência
+    const activeUserIndex = newTablesUsers.findIndex(user => user.id === userId);
+    if (activeUserIndex !== -1) {
+      newTablesUsers[activeUserIndex].role = newRole;
+    }
+    
+    console.log('✅ Função do usuário atualizada com sucesso!');
   } catch (error) {
     console.error('Erro ao atualizar função do usuário:', error);
     alert('Erro ao atualizar função do usuário');
+    
+    // Reverter mudança local em caso de erro
+    loadUsersForTables();
   }
 }
 
