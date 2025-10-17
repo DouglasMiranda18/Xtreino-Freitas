@@ -3784,6 +3784,7 @@ function setupRoleGuards() {
 // Funções para gerenciar usuários
 async function loadUsers() {
   try {
+    const { getDocs, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     const usersSnapshot = await getDocs(collection(window.firebaseDb, 'users'));
     const users = [];
     
@@ -3822,7 +3823,7 @@ function renderUsersTable(users) {
       </td>
       <td class="py-2 px-2">
         <select class="text-xs border border-gray-300 rounded px-2 py-1" onchange="updateUserRole('${user.id}', this.value)">
-          <option value="user" ${user.role === 'user' ? 'selected' : ''}>Usuário</option>
+          <option value="user" ${user.role === 'user' ? 'selected' : ''}>Usuário Comum</option>
           <option value="vendedor" ${user.role === 'vendedor' ? 'selected' : ''}>Vendedor</option>
           <option value="gerente" ${user.role === 'gerente' ? 'selected' : ''}>Gerente</option>
           <option value="design" ${user.role === 'design' ? 'selected' : ''}>Design</option>
@@ -3873,6 +3874,7 @@ function renderActiveUsersTable(users) {
 
 async function updateUserRole(userId, newRole) {
   try {
+    const { updateDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     await updateDoc(doc(window.firebaseDb, 'users', userId), {
       role: newRole,
       updatedAt: new Date()
@@ -3892,12 +3894,15 @@ window.updateUserRole = updateUserRole;
 
 // Carregar usuários quando o admin for inicializado
 document.addEventListener('DOMContentLoaded', function() {
-  // Aguardar um pouco para garantir que o Firebase esteja pronto
-  setTimeout(() => {
-    if (window.firebaseReady) {
+  // Aguardar o Firebase estar pronto
+  const waitForFirebase = () => {
+    if (window.firebaseReady && window.firebaseDb) {
       loadUsers();
+    } else {
+      setTimeout(waitForFirebase, 100);
     }
-  }, 1000);
+  };
+  waitForFirebase();
 });
 
 
