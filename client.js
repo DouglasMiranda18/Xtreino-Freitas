@@ -891,6 +891,20 @@ function getProductActionButton(product) {
     const title = (product.title || '').toLowerCase();
     const item = (product.item || '').toLowerCase();
     
+    // Check if it's Sensibilidades
+    if (title.includes('sensibilidades') || title.includes('sensibilidade') || item.includes('sensibilidades') || item.includes('sensibilidade')) {
+        return `
+            <div class="mt-3">
+                <button onclick="downloadSensibilidades('${product.id}')" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    Download
+                </button>
+        </div>
+        `;
+    }
+    
     // Check if it's Imagens Aéreas
     if (title.includes('imagens') || title.includes('aéreas') || item.includes('imagens') || item.includes('aéreas')) {
         return `
@@ -929,6 +943,31 @@ function downloadPlanilhas(orderId) {
     window.open(proxyUrl, '_blank');
 }
 
+// Download function for Sensibilidades (considera plataforma)
+function downloadSensibilidades(orderId) {
+    // Buscar informações do pedido para obter a plataforma selecionada
+    const listUrl = `/.netlify/functions/download?orderId=${encodeURIComponent(orderId)}&list=1`;
+    fetch(listUrl)
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => {
+        const files = Array.isArray(data?.files) ? data.files : [];
+        if (files.length === 0) {
+          // fallback para primeiro arquivo
+          window.location.href = `/.netlify/functions/download?orderId=${encodeURIComponent(orderId)}&i=0`;
+          return;
+        }
+        // Baixar arquivo baseado na plataforma selecionada
+        const platform = data.platform || 'pc'; // fallback para PC
+        const fileIndex = files.findIndex(f => f.platform === platform) || 0;
+        const url = `/.netlify/functions/download?orderId=${encodeURIComponent(orderId)}&i=${encodeURIComponent(fileIndex)}`;
+        window.open(url, '_blank');
+      })
+      .catch(() => {
+        // fallback para primeiro arquivo
+        window.location.href = `/.netlify/functions/download?orderId=${encodeURIComponent(orderId)}&i=0`;
+      });
+}
+
 // Download function for Imagens Aéreas (via proxy; baixa um por vez)
 function downloadImagensAereas(orderId) {
     // Buscar lista de arquivos e baixar todos (ou poderia renderizar seleção)
@@ -956,6 +995,7 @@ function downloadImagensAereas(orderId) {
 
 // Expor funções de download no escopo global (para onclick do HTML)
 try {
+    window.downloadSensibilidades = downloadSensibilidades;
     window.downloadImagensAereas = downloadImagensAereas;
     window.downloadPlanilhas = downloadPlanilhas;
 } catch (_) {}

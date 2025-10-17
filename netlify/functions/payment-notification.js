@@ -85,17 +85,30 @@ async function generateDownloadLinks(productId, productOptions = {}) {
     
     switch (productId) {
         case 'sensibilidades':
-            return [
-                {
+            const platform = productOptions.platform || 'pc';
+            const platformFiles = {
+                'pc': {
                     name: 'Sensibilidade PC',
                     url: `${siteBase}/sensibilidade-pc.zip`,
-                    description: 'Arquivo de configuração para PC'
+                    description: 'Arquivo de configuração para PC (Windows)',
+                    platform: 'pc'
                 },
-                {
-                    name: 'Sensibilidade Mobile',
-                    url: `${siteBase}/sensibilidade-mobile.zip`,
-                    description: 'Arquivo de configuração para Android/iOS'
+                'android': {
+                    name: 'Sensibilidade Android',
+                    url: `${siteBase}/sensibilidade-android.zip`,
+                    description: 'Arquivo de configuração para Android',
+                    platform: 'android'
                 },
+                'ios': {
+                    name: 'Sensibilidade iOS',
+                    url: `${siteBase}/sensibilidade-ios.zip`,
+                    description: 'Arquivo de configuração para iOS (iPhone/iPad)',
+                    platform: 'ios'
+                }
+            };
+            
+            return [
+                platformFiles[platform] || platformFiles['pc'],
                 {
                     name: 'Guia de Instalação',
                     url: `${siteBase}/guia-sensibilidade.pdf`,

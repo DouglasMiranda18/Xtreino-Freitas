@@ -1910,7 +1910,7 @@ function addProductOptions(productId) {
     
     switch (productId) {
         case 'sensibilidades':
-            // Sensibilidades não precisa de opções extras
+            // Sensibilidades com seleção de plataforma
             container.innerHTML = `
                 <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
                     <div class="flex items-center mb-4">
@@ -1922,7 +1922,23 @@ function addProductOptions(productId) {
                         </div>
                         <h4 class="text-lg font-semibold text-gray-800">Configuração Completa</h4>
                     </div>
-                    <p class="text-gray-600 text-sm">Inclui: Sensibilidade otimizada (PC/Android/iOS), Pack de Otimização, Configuração Completa, Aprimoramento de Mira e Reação.</p>
+                    <p class="text-gray-600 text-sm mb-4">Inclui: Sensibilidade otimizada, Pack de Otimização, Configuração Completa, Aprimoramento de Mira e Reação.</p>
+                    
+                    <div class="space-y-3">
+                        <label class="block text-sm font-medium text-gray-700">
+                            <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                            </svg>
+                            Escolha sua plataforma:
+                        </label>
+                        <select id="platformSelect" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-700">
+                            <option value="">Selecione uma plataforma</option>
+                            <option value="pc">🖥️ PC (Windows)</option>
+                            <option value="android">📱 Android</option>
+                            <option value="ios">🍎 iOS (iPhone/iPad)</option>
+                        </select>
+                        <p class="text-xs text-gray-500">O arquivo será personalizado para sua plataforma escolhida</p>
+                    </div>
                 </div>
             `;
             break;
@@ -2605,7 +2621,14 @@ async function handleProductPurchase(productId, cfg) {
         let productOptions = {};
         let finalPrice = cfg.price;
         
-        if (productId === 'imagens') {
+        if (productId === 'sensibilidades') {
+            const platform = document.getElementById('platformSelect').value;
+            if (!platform) {
+                alert('Por favor, selecione uma plataforma.');
+                return;
+            }
+            productOptions.platform = platform;
+        } else if (productId === 'imagens') {
             const selected = Array.from(document.querySelectorAll('input[name="mapOption"]:checked')).map(i=>i.value);
             productOptions.maps = selected;
             productOptions.quantity = selected.length || 1;

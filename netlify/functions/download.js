@@ -100,6 +100,22 @@ exports.handler = async (event) => {
     } else {
       const delivery = snapshot.docs[0].data();
       links = Array.isArray(delivery.downloadLinks) ? delivery.downloadLinks : [];
+      
+      // Incluir plataforma nos dados retornados para sensibilidades
+      if (delivery.productId === 'sensibilidades' && delivery.productOptions?.platform) {
+        return {
+          statusCode: 200,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            files: links.map((link, index) => ({
+              ...link,
+              index: index,
+              platform: delivery.productOptions.platform
+            })),
+            platform: delivery.productOptions.platform
+          })
+        };
+      }
       // Verificar se há mapas faltando comparando com o pedido original
       try {
         const orderDoc = await db.collection('orders').doc(orderId).get();
