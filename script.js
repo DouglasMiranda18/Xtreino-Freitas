@@ -2148,6 +2148,13 @@ function openScheduleModal(eventType){
             grid.classList.remove('lg:grid-cols-2');
             grid.classList.add('grid-cols-1');
         }
+        
+        // Esconder seção "Resumo das Reservas" para produtos
+        const reservationsSummarySection = document.getElementById('reservationsSummarySection');
+        if (reservationsSummarySection) {
+            reservationsSummarySection.style.display = 'none';
+        }
+        
         console.log('Modal de produto aberto - coluna esquerda escondida');
         
         // Esconder botão "Comprar tokens"
@@ -2167,6 +2174,13 @@ function openScheduleModal(eventType){
     if (leftColumn) {
         leftColumn.style.display = 'block';
     }
+    
+    // Mostrar seção "Resumo das Reservas" para eventos
+    const reservationsSummarySection = document.getElementById('reservationsSummarySection');
+    if (reservationsSummarySection) {
+        reservationsSummarySection.style.display = 'block';
+    }
+    
     // Se havia opções de produto (ex.: seleção de mapas), remover ao abrir um evento
     const prodOpts = document.getElementById('productOptions');
     if (prodOpts && prodOpts.parentNode) {
