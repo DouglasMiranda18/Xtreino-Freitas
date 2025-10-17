@@ -4201,8 +4201,13 @@ function renderPermissionsTable() {
   console.log('🔍 Debug - roleFromSession:', roleFromSession);
   console.log('🔍 Debug - currentUserRole final:', currentUserRole);
   
-  const canEdit = ['ceo', 'gerente'].includes(currentUserRole); // CEO e Gerente podem editar
+  console.log('🔍 Debug - currentUserRole tipo:', typeof currentUserRole);
+  console.log('🔍 Debug - currentUserRole length:', currentUserRole.length);
+  console.log('🔍 Debug - currentUserRole charCodes:', currentUserRole.split('').map(c => c.charCodeAt(0)));
+  
+  const canEdit = ['ceo', 'gerente'].includes(currentUserRole.toLowerCase()); // CEO e Gerente podem editar
   console.log('🔍 Debug - Pode editar:', canEdit);
+  console.log('🔍 Debug - Comparação:', ['ceo', 'gerente'].includes(currentUserRole.toLowerCase()));
   
   // Função para gerar opções de cargo baseado na permissão do usuário
   function getRoleOptions(userRole) {
