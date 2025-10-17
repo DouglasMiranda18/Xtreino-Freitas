@@ -3786,6 +3786,8 @@ let currentActiveFilter = 'all';
 // allUsers já declarado na linha 3471
 
 // Funções para gerenciar usuários (NOVA - para tabelas separadas)
+let newTablesUsers = []; // Variável separada para as novas tabelas
+
 async function loadUsersForTables() {
   try {
     const { getDocs, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
@@ -3803,14 +3805,15 @@ async function loadUsersForTables() {
       });
     });
     
-    // Armazenar usuários globalmente para filtros
-    allUsers = users;
+    // Armazenar usuários separadamente para as novas tabelas
+    newTablesUsers = users;
     
+    // Renderizar ambas as tabelas com todos os usuários inicialmente
     renderUsersTable(users);
     renderActiveUsersTable(users);
     updateActiveUsersStats(users);
     
-    // Adicionar event listeners para filtros
+    // Adicionar event listeners para filtros (apenas para Usuários Ativos)
     setupFilterEventListeners();
   } catch (error) {
     console.error('Erro ao carregar usuários:', error);
@@ -3831,7 +3834,12 @@ function setupFilterEventListeners() {
 
 function renderUsersTable(users) {
   const tbody = document.getElementById('usersTableBody');
-  if (!tbody) return;
+  if (!tbody) {
+    console.log('❌ usersTableBody não encontrado');
+    return;
+  }
+  
+  console.log('✅ Renderizando tabela de usuários com', users.length, 'usuários');
   
   if (users.length === 0) {
     tbody.innerHTML = '<tr><td colspan="4" class="py-6 text-center text-gray-500">Nenhum usuário encontrado</td></tr>';
@@ -3963,12 +3971,12 @@ function filterActiveUsers(filter) {
     }
   });
   
-  // Filtrar usuários
-  let filteredUsers = allUsers;
+  // Filtrar usuários usando a variável separada
+  let filteredUsers = newTablesUsers;
   const now = Date.now();
   
   if (filter === '30') {
-    filteredUsers = allUsers.filter(user => {
+    filteredUsers = newTablesUsers.filter(user => {
       if (!user.lastLogin) return false;
       let date;
       if (user.lastLogin.seconds) {
@@ -3981,7 +3989,7 @@ function filterActiveUsers(filter) {
       return (now - date.getTime()) <= (30 * 24 * 60 * 60 * 1000);
     });
   } else if (filter === '7') {
-    filteredUsers = allUsers.filter(user => {
+    filteredUsers = newTablesUsers.filter(user => {
       if (!user.lastLogin) return false;
       let date;
       if (user.lastLogin.seconds) {
@@ -3994,7 +4002,7 @@ function filterActiveUsers(filter) {
       return (now - date.getTime()) <= (7 * 24 * 60 * 60 * 1000);
     });
   } else if (filter === '1') {
-    filteredUsers = allUsers.filter(user => {
+    filteredUsers = newTablesUsers.filter(user => {
       if (!user.lastLogin) return false;
       let date;
       if (user.lastLogin.seconds) {
@@ -4008,9 +4016,11 @@ function filterActiveUsers(filter) {
     });
   }
   
-  // Atualizar apenas a tabela de usuários ativos
+  // Atualizar APENAS a tabela de usuários ativos (NÃO a de permissões)
   renderActiveUsersTable(filteredUsers);
   updateActiveUsersStats(filteredUsers);
+  
+  // NÃO atualizar a tabela de Usuários & Permissões - ela deve sempre mostrar todos os usuários
 }
 
 function updateActiveUsersStats(users) {
