@@ -3783,10 +3783,10 @@ function setupRoleGuards() {
 
 // Variáveis globais para filtros
 let currentActiveFilter = 'all';
-let allUsers = [];
+// allUsers já declarado na linha 3471
 
-// Funções para gerenciar usuários
-async function loadUsers() {
+// Funções para gerenciar usuários (NOVA - para tabelas separadas)
+async function loadUsersForTables() {
   try {
     const { getDocs, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     const usersSnapshot = await getDocs(collection(window.firebaseDb, 'users'));
@@ -3934,7 +3934,7 @@ async function updateUserRole(userId, newRole) {
     });
     
     alert('Função do usuário atualizada com sucesso!');
-    loadUsers(); // Recarregar a tabela
+    loadUsersForTables(); // Recarregar a tabela
   } catch (error) {
     console.error('Erro ao atualizar função do usuário:', error);
     alert('Erro ao atualizar função do usuário');
@@ -4040,6 +4040,7 @@ function updateActiveUsersStats(users) {
 
 // Expor funções globalmente
 window.loadUsers = loadUsers;
+window.loadUsersForTables = loadUsersForTables;
 window.updateUserRole = updateUserRole;
 window.filterActiveUsers = filterActiveUsers;
 
@@ -4048,7 +4049,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Aguardar o Firebase estar pronto
   const waitForFirebase = () => {
     if (window.firebaseReady && window.firebaseDb) {
-      loadUsers();
+      loadUsersForTables();
     } else {
       setTimeout(waitForFirebase, 100);
     }
