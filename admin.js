@@ -3781,6 +3781,10 @@ function setupRoleGuards() {
   });
 }
 
+// Variáveis globais para filtros
+let currentActiveFilter = 'all';
+let allUsers = [];
+
 // Funções para gerenciar usuários
 async function loadUsers() {
   try {
@@ -3938,8 +3942,6 @@ async function updateUserRole(userId, newRole) {
 }
 
 // Funções de filtro para Usuários Ativos
-let currentActiveFilter = 'all';
-let allUsers = [];
 
 function filterActiveUsers(filter) {
   currentActiveFilter = filter;
