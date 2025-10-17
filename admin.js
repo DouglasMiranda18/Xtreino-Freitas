@@ -3829,8 +3829,15 @@ setTimeout(() => {
 function getCurrentAdminRole() {
   try {
     const session = JSON.parse(sessionStorage.getItem('adminSession') || '{}');
-    if (session && session.role) return String(session.role);
-  } catch (_) {}
+    console.log('🔍 Debug - Session completa:', session);
+    if (session && session.role) {
+      console.log('🔍 Debug - Cargo da sessão:', session.role);
+      return String(session.role);
+    }
+  } catch (e) {
+    console.log('🔍 Debug - Erro ao ler sessão:', e);
+  }
+  console.log('🔍 Debug - Nenhum cargo encontrado na sessão');
   return undefined;
 }
 
@@ -4186,8 +4193,16 @@ function renderPermissionsTable() {
   const usersPage = permissionsUsersData.slice(startIndex, endIndex);
   
   // Verificar se o usuário atual pode editar e quais cargos pode atribuir
-  const currentUserRole = (window.adminRoleLower || '').toLowerCase();
+  const roleFromWindow = (window.adminRoleLower || '').toLowerCase();
+  const roleFromSession = (getCurrentAdminRole() || '').toLowerCase();
+  const currentUserRole = roleFromWindow || roleFromSession;
+  
+  console.log('🔍 Debug - window.adminRoleLower:', window.adminRoleLower);
+  console.log('🔍 Debug - roleFromSession:', roleFromSession);
+  console.log('🔍 Debug - currentUserRole final:', currentUserRole);
+  
   const canEdit = ['ceo', 'gerente'].includes(currentUserRole); // CEO e Gerente podem editar
+  console.log('🔍 Debug - Pode editar:', canEdit);
   
   // Função para gerar opções de cargo baseado na permissão do usuário
   function getRoleOptions(userRole) {
