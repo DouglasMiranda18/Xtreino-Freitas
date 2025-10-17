@@ -685,6 +685,8 @@
     const roleLower = (role||'').toLowerCase();
     const isManager = ['ceo','gerente'].includes(roleLower);
     const isCeo = roleLower==='ceo';
+    const isSocio = roleLower==='socio';
+    const canViewAll = ['ceo','gerente','socio'].includes(roleLower);
     window.adminRoleLower = roleLower;
     // Atualiza badge de papel na UI
     try{
@@ -709,8 +711,8 @@
 
     try {
       // Carregamento de dados conforme papel
-      if (isManager) {
-        // Gerente/CEO: pode carregar datasets completos
+      if (canViewAll) {
+        // CEO/Gerente/Sócio: pode carregar datasets completos
         await carregarUsuarios();
         await carregarDadosTokens();
         await carregarDadosUsoTokens();
@@ -735,7 +737,7 @@
     if (formAddTeam) formAddTeam.onsubmit = submitAddTeam;
     // Carrega relatórios e pendências para todas as funções
     await loadReports().catch(()=>{});
-    if (isManager){
+    if (canViewAll){
       await loadRecentSchedules().catch(()=>{});
       await loadPending(true).catch(()=>{});
     } else {
@@ -1008,7 +1010,7 @@
 
     if (kpiActiveEl){
       const roleLower = (window.adminRoleLower||'').toLowerCase();
-      if (roleLower==='ceo' || roleLower==='gerente'){
+      if (roleLower==='ceo' || roleLower==='gerente' || roleLower==='socio'){
         try{
           const usersSnap = await getDocs(collection(window.firebaseDb,'users'));
           const weekAgo = Date.now() - 7*24*60*60*1000;
@@ -2049,7 +2051,7 @@ async function upsertUserProfile(user) {
 
 async function loadUsersAndRoles(currentRole) {
     const roleStr = String(currentRole || '').toLowerCase();
-    const canEditRoles = ['ceo','gerente'].includes(roleStr);
+    const canEditRoles = ['ceo','gerente'].includes(roleStr); // Sócio não pode editar
     const isCeo = roleStr==='ceo';
     const { collection, getDocsFromServer, doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     const usersCol = collection(window.firebaseDb, 'users');
@@ -3500,7 +3502,7 @@ window.saveProducts = saveProducts;
         if (window.firebaseDb) {
           try {
             const roleLower = (window.adminRoleLower||'').toLowerCase();
-            if (roleLower==='ceo' || roleLower==='gerente') {
+            if (roleLower==='ceo' || roleLower==='gerente' || roleLower==='socio') {
               loadUsers();
             }
           } catch (_) {}
@@ -3815,6 +3817,7 @@ function canAssignRole(targetRole) {
   const role = (getCurrentAdminRole() || '').toLowerCase();
   const target = String(targetRole || '').toLowerCase();
   if (role === 'gerente' && (target === 'ceo' || target === 'ceo ')) return false;
+  if (role === 'socio') return false; // Sócio não pode atribuir nenhuma função
   return true;
 }
 
@@ -4153,6 +4156,10 @@ function renderPermissionsTable() {
   const endIndex = startIndex + permissionsPerPage;
   const usersPage = permissionsUsersData.slice(startIndex, endIndex);
   
+  // Verificar se o usuário atual pode editar (CEO e Gerente podem, Sócio não)
+  const currentUserRole = (window.adminRoleLower || '').toLowerCase();
+  const canEdit = ['ceo', 'gerente'].includes(currentUserRole);
+  
   tbody.innerHTML = usersPage.map(user => `
     <tr class="border-b border-gray-100 hover:bg-gray-50">
       <td class="py-3 px-2 text-gray-700 font-medium">${user.displayName}</td>
@@ -4162,20 +4169,27 @@ function renderPermissionsTable() {
       </td>
       <td class="py-3 px-2">
         <select class="w-full text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                data-user-id="${user.id}" data-current-role="${user.role}">
+                data-user-id="${user.id}" data-current-role="${user.role}" ${!canEdit ? 'disabled' : ''}>
           <option value="user" ${user.role === 'user' ? 'selected' : ''}>Usuário</option>
           <option value="vendedor" ${user.role === 'vendedor' ? 'selected' : ''}>Vendedor</option>
           <option value="gerente" ${user.role === 'gerente' ? 'selected' : ''}>Gerente</option>
           <option value="design" ${user.role === 'design' ? 'selected' : ''}>Design</option>
           <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
+          <option value="socio" ${user.role === 'socio' ? 'selected' : ''}>Sócio</option>
           <option value="ceo" ${user.role === 'ceo' ? 'selected' : ''}>Ceo</option>
         </select>
       </td>
       <td class="py-3 px-2">
-        <button onclick="updatePermissionsUserRole('${user.id}')" 
-                class="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-1">
-          Salvar
-        </button>
+        ${canEdit ? `
+          <button onclick="updatePermissionsUserRole('${user.id}')" 
+                  class="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-1">
+            Salvar
+          </button>
+        ` : `
+          <span class="px-3 py-1 bg-gray-300 text-gray-600 rounded text-xs font-medium cursor-not-allowed">
+            Somente Leitura
+          </span>
+        `}
       </td>
     </tr>
   `).join('');
@@ -4189,6 +4203,7 @@ function getRoleDisplayName(role) {
     'gerente': 'Gerente',
     'design': 'Design',
     'admin': 'Admin',
+    'socio': 'Sócio',
     'ceo': 'Ceo'
   };
   return roleNames[role] || role;
