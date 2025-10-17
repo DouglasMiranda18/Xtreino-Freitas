@@ -2053,6 +2053,7 @@ async function loadUsersAndRoles(currentRole) {
     const roleStr = String(currentRole || '').toLowerCase();
     const canEditRoles = ['ceo','gerente'].includes(roleStr); // Sócio não pode editar
     const isCeo = roleStr==='ceo';
+    const isGerente = roleStr==='gerente';
     const { collection, getDocsFromServer, doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     const usersCol = collection(window.firebaseDb, 'users');
     const snapUsers = await getDocsFromServer(usersCol);
@@ -2064,10 +2065,30 @@ async function loadUsersAndRoles(currentRole) {
         const data = u.data();
         const role = (data.role || 'Vendedor');
         const tr = document.createElement('tr');
+        // Gerar opções baseado na hierarquia de permissões
+        let roleOptions = '';
+        if (isCeo) {
+            // CEO pode atribuir qualquer cargo
+            roleOptions = `
+                <option value="Vendedor" ${role==='Vendedor'?'selected':''}>Vendedor</option>
+                <option value="Gerente" ${role==='Gerente'?'selected':''}>Gerente</option>
+                <option value="Design" ${role==='Design'?'selected':''}>Design</option>
+                <option value="Admin" ${role==='Admin'?'selected':''}>Admin</option>
+                <option value="Sócio" ${role==='Sócio'?'selected':''}>Sócio</option>
+                <option value="Ceo" ${role==='Ceo'?'selected':''}>Ceo</option>
+            `;
+        } else if (isGerente) {
+            // Gerente pode atribuir apenas Vendedor
+            roleOptions = `
+                <option value="Vendedor" ${role==='Vendedor'?'selected':''}>Vendedor</option>
+            `;
+        } else {
+            // Outros não podem alterar cargo
+            roleOptions = `<option value="${role}" selected>${role}</option>`;
+        }
+        
         const selectHtml = `<select class="border border-gray-300 rounded px-2 py-1" data-uid="${u.id}" ${canEditRoles ? '' : 'disabled'}>
-            <option value="Vendedor" ${role==='Vendedor'?'selected':''}>Vendedor</option>
-            <option value="Gerente" ${role==='Gerente'?'selected':''}>Gerente</option>
-            ${isCeo?`<option value="Ceo" ${role==='Ceo'?'selected':''}>Ceo</option>`:''}
+            ${roleOptions}
         </select>`;
         tr.innerHTML = `<td class="py-2">${data.email||'-'}</td>
         <td class="py-2">${u.id}</td>
@@ -3816,9 +3837,17 @@ function getCurrentAdminRole() {
 function canAssignRole(targetRole) {
   const role = (getCurrentAdminRole() || '').toLowerCase();
   const target = String(targetRole || '').toLowerCase();
-  if (role === 'gerente' && (target === 'ceo' || target === 'ceo ')) return false;
-  if (role === 'socio') return false; // Sócio não pode atribuir nenhuma função
-  return true;
+  
+  // CEO: pode atribuir qualquer cargo para qualquer pessoa
+  if (role === 'ceo') return true;
+  
+  // Gerente: pode atribuir apenas cargo de Vendedor
+  if (role === 'gerente') {
+    return target === 'vendedor';
+  }
+  
+  // Outros cargos: não podem alterar funções de ninguém
+  return false;
 }
 
 function setupRoleGuards() {
@@ -4156,9 +4185,43 @@ function renderPermissionsTable() {
   const endIndex = startIndex + permissionsPerPage;
   const usersPage = permissionsUsersData.slice(startIndex, endIndex);
   
-  // Verificar se o usuário atual pode editar (CEO e Gerente podem, Sócio não)
+  // Verificar se o usuário atual pode editar e quais cargos pode atribuir
   const currentUserRole = (window.adminRoleLower || '').toLowerCase();
   const canEdit = ['ceo', 'gerente'].includes(currentUserRole);
+  
+  // Função para gerar opções de cargo baseado na permissão do usuário
+  function getRoleOptions(userRole) {
+    const allRoles = [
+      { value: 'user', label: 'Usuário' },
+      { value: 'vendedor', label: 'Vendedor' },
+      { value: 'gerente', label: 'Gerente' },
+      { value: 'design', label: 'Design' },
+      { value: 'admin', label: 'Admin' },
+      { value: 'socio', label: 'Sócio' },
+      { value: 'ceo', label: 'Ceo' }
+    ];
+    
+    if (currentUserRole === 'ceo') {
+      // CEO pode atribuir qualquer cargo
+      return allRoles.map(role => 
+        `<option value="${role.value}" ${userRole === role.value ? 'selected' : ''}>${role.label}</option>`
+      ).join('');
+    } else if (currentUserRole === 'gerente') {
+      // Gerente pode atribuir apenas Vendedor
+      return allRoles
+        .filter(role => role.value === 'vendedor')
+        .map(role => 
+          `<option value="${role.value}" ${userRole === role.value ? 'selected' : ''}>${role.label}</option>`
+        ).join('');
+    } else {
+      // Outros não podem atribuir nenhum cargo
+      return allRoles
+        .filter(role => role.value === userRole) // Apenas o cargo atual
+        .map(role => 
+          `<option value="${role.value}" selected>${role.label}</option>`
+        ).join('');
+    }
+  }
   
   tbody.innerHTML = usersPage.map(user => `
     <tr class="border-b border-gray-100 hover:bg-gray-50">
@@ -4170,13 +4233,7 @@ function renderPermissionsTable() {
       <td class="py-3 px-2">
         <select class="w-full text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
                 data-user-id="${user.id}" data-current-role="${user.role}" ${!canEdit ? 'disabled' : ''}>
-          <option value="user" ${user.role === 'user' ? 'selected' : ''}>Usuário</option>
-          <option value="vendedor" ${user.role === 'vendedor' ? 'selected' : ''}>Vendedor</option>
-          <option value="gerente" ${user.role === 'gerente' ? 'selected' : ''}>Gerente</option>
-          <option value="design" ${user.role === 'design' ? 'selected' : ''}>Design</option>
-          <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
-          <option value="socio" ${user.role === 'socio' ? 'selected' : ''}>Sócio</option>
-          <option value="ceo" ${user.role === 'ceo' ? 'selected' : ''}>Ceo</option>
+          ${getRoleOptions(user.role)}
         </select>
       </td>
       <td class="py-3 px-2">
@@ -4223,6 +4280,14 @@ async function updatePermissionsUserRole(userId) {
     
     if (newRole === currentRole) {
       console.log('ℹ️ Função não alterada para o usuário:', userId);
+      return;
+    }
+    
+    // Verificar se o usuário atual tem permissão para atribuir este cargo
+    if (!canAssignRole(newRole)) {
+      alert('❌ Você não tem permissão para atribuir este cargo.');
+      // Reverter o select para o valor anterior
+      selectElement.value = currentRole;
       return;
     }
     
