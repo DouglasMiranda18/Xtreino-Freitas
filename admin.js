@@ -3868,8 +3868,8 @@ async function loadUsersForTables() {
     newTablesUsers = users; // Para Usuários Ativos
     permissionsUsers = users; // Para Usuários & Permissões (sempre todos os usuários)
     
-    // Renderizar ambas as tabelas com seus respectivos dados
-    renderUsersTable(permissionsUsers); // Sempre todos os usuários
+    // Renderizar apenas a tabela de usuários ativos
+    // A tabela de permissões é gerenciada separadamente por loadPermissionsUsers()
     renderActiveUsersTable(newTablesUsers); // Pode ser filtrado
     updateActiveUsersStats(newTablesUsers);
     
@@ -3892,46 +3892,11 @@ function setupFilterEventListeners() {
   if (filter1) filter1.onclick = () => filterActiveUsers('1');
 }
 
+// Esta função não é mais usada - foi substituída por renderPermissionsTable
+// Mantida apenas para compatibilidade, mas não deve ser chamada
 function renderUsersTable(users) {
-  const tbody = document.getElementById('usersTableBody');
-  if (!tbody) {
-    console.log('❌ usersTableBody não encontrado');
-    return;
-  }
-  
-  console.log('✅ Renderizando tabela de permissões com', users.length, 'usuários');
-  
-  if (users.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" class="py-6 text-center text-gray-500">Nenhum usuário encontrado</td></tr>';
-    return;
-  }
-  
-  tbody.innerHTML = users.map(user => `
-    <tr class="border-b border-gray-100 hover:bg-gray-50">
-      <td class="py-3 px-4 text-gray-700 font-medium">${user.email}</td>
-      <td class="py-3 px-4">
-        <span class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">${user.role}</span>
-      </td>
-      <td class="py-3 px-4">
-        <select class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                onchange="updateUserRole('${user.id}', this.value)">
-          <option value="user" ${user.role === 'user' ? 'selected' : ''}>Usuário</option>
-          <option value="vendedor" ${user.role === 'vendedor' ? 'selected' : ''}>Vendedor</option>
-          <option value="gerente" ${user.role === 'gerente' ? 'selected' : ''}>Gerente</option>
-          <option value="design" ${user.role === 'design' ? 'selected' : ''}>Design</option>
-          <option value="socio" ${user.role === 'socio' ? 'selected' : ''}>Sócio</option>
-          <option value="ceo" ${user.role === 'ceo' ? 'selected' : ''}>Ceo</option>
-          <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
-        </select>
-      </td>
-      <td class="py-3 px-4">
-        <button onclick="updateUserRole('${user.id}', document.querySelector('select[onchange*=\"${user.id}\"]').value)" 
-                class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-          Salvar
-        </button>
-      </td>
-    </tr>
-  `).join('');
+  console.log('⚠️ renderUsersTable está obsoleta - use renderPermissionsTable');
+  // Não fazer nada - a tabela de permissões é gerenciada separadamente
 }
 
 function renderActiveUsersTable(users) {
@@ -4000,7 +3965,7 @@ async function updateUserRole(userId, newRole) {
     const userIndex = permissionsUsers.findIndex(user => user.id === userId);
     if (userIndex !== -1) {
       permissionsUsers[userIndex].role = newRole;
-      renderUsersTable(permissionsUsers); // Atualizar UI imediatamente
+      // A tabela de permissões é gerenciada separadamente
     }
     
     // Atualizar no Firestore
@@ -4131,12 +4096,218 @@ window.loadUsersForTables = loadUsersForTables;
 window.updateUserRole = updateUserRole;
 window.filterActiveUsers = filterActiveUsers;
 
+// ==================== FUNÇÕES SEPARADAS PARA CARD DE PERMISSÕES ====================
+
+// Variáveis separadas para o card de permissões
+let permissionsUsersData = [];
+let permissionsCurrentPage = 1;
+const permissionsPerPage = 10;
+
+// Carregar usuários especificamente para o card de permissões
+async function loadPermissionsUsers() {
+  try {
+    console.log('🔄 Carregando usuários para permissões...');
+    const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    
+    const usersRef = collection(window.firebaseDb, 'users');
+    const snapshot = await getDocs(usersRef);
+    
+    permissionsUsersData = [];
+    snapshot.forEach(doc => {
+      const userData = doc.data();
+      permissionsUsersData.push({
+        id: doc.id,
+        email: userData.email || 'N/A',
+        displayName: userData.displayName || userData.name || 'N/A',
+        role: userData.role || 'user',
+        lastLogin: userData.lastLoginAt ? userData.lastLoginAt.toDate() : null
+      });
+    });
+    
+    console.log(`✅ ${permissionsUsersData.length} usuários carregados para permissões`);
+    renderPermissionsTable();
+    updatePermissionsPagination();
+  } catch (error) {
+    console.error('❌ Erro ao carregar usuários para permissões:', error);
+  }
+}
+
+// Renderizar tabela de permissões
+function renderPermissionsTable() {
+  const tbody = document.getElementById('permissionsTableBody');
+  if (!tbody) {
+    console.log('❌ permissionsTableBody não encontrado');
+    return;
+  }
+  
+  if (permissionsUsersData.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" class="py-6 text-center text-gray-500">Nenhum usuário encontrado</td>
+      </tr>
+    `;
+    return;
+  }
+  
+  const startIndex = (permissionsCurrentPage - 1) * permissionsPerPage;
+  const endIndex = startIndex + permissionsPerPage;
+  const usersPage = permissionsUsersData.slice(startIndex, endIndex);
+  
+  tbody.innerHTML = usersPage.map(user => `
+    <tr class="border-b border-gray-100 hover:bg-gray-50">
+      <td class="py-3 px-2 text-gray-700 font-medium">${user.displayName}</td>
+      <td class="py-3 px-2 text-gray-600">${user.email}</td>
+      <td class="py-3 px-2">
+        <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">${getRoleDisplayName(user.role)}</span>
+      </td>
+      <td class="py-3 px-2">
+        <select class="w-full text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                data-user-id="${user.id}" data-current-role="${user.role}">
+          <option value="user" ${user.role === 'user' ? 'selected' : ''}>Usuário</option>
+          <option value="vendedor" ${user.role === 'vendedor' ? 'selected' : ''}>Vendedor</option>
+          <option value="gerente" ${user.role === 'gerente' ? 'selected' : ''}>Gerente</option>
+          <option value="design" ${user.role === 'design' ? 'selected' : ''}>Design</option>
+          <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
+          <option value="ceo" ${user.role === 'ceo' ? 'selected' : ''}>Ceo</option>
+        </select>
+      </td>
+      <td class="py-3 px-2">
+        <button onclick="updatePermissionsUserRole('${user.id}')" 
+                class="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-1">
+          Salvar
+        </button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// Função para obter nome de exibição da função
+function getRoleDisplayName(role) {
+  const roleNames = {
+    'user': 'Usuário',
+    'vendedor': 'Vendedor',
+    'gerente': 'Gerente',
+    'design': 'Design',
+    'admin': 'Admin',
+    'ceo': 'Ceo'
+  };
+  return roleNames[role] || role;
+}
+
+// Atualizar função do usuário (específico para permissões)
+async function updatePermissionsUserRole(userId) {
+  try {
+    const selectElement = document.querySelector(`select[data-user-id="${userId}"]`);
+    if (!selectElement) {
+      console.error('❌ Select element não encontrado para o usuário:', userId);
+      return;
+    }
+    
+    const newRole = selectElement.value;
+    const currentRole = selectElement.getAttribute('data-current-role');
+    
+    if (newRole === currentRole) {
+      console.log('ℹ️ Função não alterada para o usuário:', userId);
+      return;
+    }
+    
+    // Atualizar estado local primeiro
+    const userIndex = permissionsUsersData.findIndex(user => user.id === userId);
+    if (userIndex !== -1) {
+      permissionsUsersData[userIndex].role = newRole;
+      selectElement.setAttribute('data-current-role', newRole);
+    }
+    
+    // Atualizar no Firestore
+    const { updateDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const userRef = doc(window.firebaseDb, 'users', userId);
+    await updateDoc(userRef, { role: newRole });
+    
+    console.log('✅ Função do usuário atualizada com sucesso!');
+    
+    // Mostrar feedback visual
+    const button = selectElement.parentElement.nextElementSibling.querySelector('button');
+    const originalText = button.textContent;
+    button.textContent = 'Salvo!';
+    button.className = 'px-3 py-1 bg-green-600 text-white rounded text-xs font-medium transition-colors';
+    
+    setTimeout(() => {
+      button.textContent = originalText;
+      button.className = 'px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-1';
+    }, 2000);
+    
+  } catch (error) {
+    console.error('❌ Erro ao atualizar função do usuário:', error);
+    alert('Erro ao atualizar função do usuário');
+    
+    // Reverter mudança local em caso de erro
+    loadPermissionsUsers();
+  }
+}
+
+// Atualizar paginação do card de permissões
+function updatePermissionsPagination() {
+  const totalPages = Math.ceil(permissionsUsersData.length / permissionsPerPage);
+  const paginationContainer = document.getElementById('permissionsPagination');
+  const countElement = document.getElementById('permissionsUsersCount');
+  const pageInfoElement = document.getElementById('permissionsUsersPageInfo');
+  
+  if (countElement) {
+    countElement.textContent = `${permissionsUsersData.length} usuários`;
+  }
+  
+  if (pageInfoElement) {
+    pageInfoElement.textContent = `Página ${permissionsCurrentPage} de ${totalPages}`;
+  }
+  
+  if (!paginationContainer || totalPages <= 1) {
+    if (paginationContainer) paginationContainer.innerHTML = '';
+    return;
+  }
+  
+  let paginationHTML = '';
+  
+  // Botão anterior
+  if (permissionsCurrentPage > 1) {
+    paginationHTML += `<button onclick="changePermissionsPage(${permissionsCurrentPage - 1})" class="px-2 py-1 text-xs border rounded hover:bg-gray-50">‹</button>`;
+  }
+  
+  // Páginas
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === permissionsCurrentPage) {
+      paginationHTML += `<button class="px-2 py-1 text-xs bg-blue-600 text-white rounded">${i}</button>`;
+    } else {
+      paginationHTML += `<button onclick="changePermissionsPage(${i})" class="px-2 py-1 text-xs border rounded hover:bg-gray-50">${i}</button>`;
+    }
+  }
+  
+  // Botão próximo
+  if (permissionsCurrentPage < totalPages) {
+    paginationHTML += `<button onclick="changePermissionsPage(${permissionsCurrentPage + 1})" class="px-2 py-1 text-xs border rounded hover:bg-gray-50">›</button>`;
+  }
+  
+  paginationContainer.innerHTML = paginationHTML;
+}
+
+// Mudar página do card de permissões
+function changePermissionsPage(page) {
+  permissionsCurrentPage = page;
+  renderPermissionsTable();
+  updatePermissionsPagination();
+}
+
+// Expor funções globalmente
+window.loadPermissionsUsers = loadPermissionsUsers;
+window.updatePermissionsUserRole = updatePermissionsUserRole;
+window.changePermissionsPage = changePermissionsPage;
+
 // Carregar usuários quando o admin for inicializado
 document.addEventListener('DOMContentLoaded', function() {
   // Aguardar o Firebase estar pronto
   const waitForFirebase = () => {
     if (window.firebaseReady && window.firebaseDb) {
       loadUsersForTables();
+      loadPermissionsUsers(); // Carregar também os usuários de permissões
     } else {
       setTimeout(waitForFirebase, 100);
     }

@@ -373,8 +373,8 @@
                             Usuários & Permissões
                         </h3>
                         <div class="flex items-center gap-2 text-xs text-gray-500">
-                            <span id="usersCount">0 usuários</span>
-                            <span id="usersPageInfo">Página 1 de 1</span>
+                            <span id="permissionsUsersCount">0 usuários</span>
+                            <span id="permissionsUsersPageInfo">Página 1 de 1</span>
                         </div>
                     </div>
                     
@@ -382,20 +382,21 @@
                         <table class="w-full text-xs">
                             <thead>
                                 <tr class="border-b border-gray-200">
+                                    <th class="text-left py-2 px-2 font-medium text-gray-600">Nome</th>
                                     <th class="text-left py-2 px-2 font-medium text-gray-600">Email</th>
-                                    <th class="text-left py-2 px-2 font-medium text-gray-600">Função Atual</th>
+                                    <th class="text-left py-2 px-2 font-medium text-gray-600">Função</th>
                                     <th class="text-left py-2 px-2 font-medium text-gray-600">Nova Função</th>
                                     <th class="text-left py-2 px-2 font-medium text-gray-600">Ação</th>
                                 </tr>
                             </thead>
-                            <tbody id="usersTableBody">
+                            <tbody id="permissionsTableBody">
                                 <tr>
-                                    <td colspan="4" class="py-6 text-center text-gray-500">Carregando usuários...</td>
+                                    <td colspan="5" class="py-6 text-center text-gray-500">Carregando usuários...</td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
-                    <div id="usersPagination" class="flex justify-center mt-3 gap-1">
+                    <div id="permissionsPagination" class="flex justify-center mt-3 gap-1">
                         <!-- Pagination buttons will be added here -->
                     </div>
                 </div>
