@@ -156,5 +156,11 @@ service cloud.firestore {
       allow read: if isAdmin() || isDesign();
       allow create, update, delete: if isAuthorizedAdminOrDesign();
     }
+
+    // adminHistory: leitura para staff (admin/gerente/sócio); escrita apenas para admins autorizados
+    match /adminHistory/{historyId} {
+      allow read: if isAdmin() || isGerente() || isSocio();
+      allow create, update, delete: if isAuthorizedAdmin();
+    }
   }
 }

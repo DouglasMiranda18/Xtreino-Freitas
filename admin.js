@@ -4709,23 +4709,31 @@ function renderAdminHistoryTable() {
 // Log de ação do admin
 async function logAdminAction(action, details) {
   try {
+    console.log('🔄 Registrando ação do admin:', action, details);
     const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     const historyCol = collection(window.firebaseDb, 'adminHistory');
     
     const currentUser = JSON.parse(sessionStorage.getItem('adminSession') || '{}');
+    console.log('👤 Usuário atual da sessão:', currentUser);
     
-    await addDoc(historyCol, {
+    const logData = {
       action: action,
       details: details,
       adminEmail: currentUser.email || 'N/A',
       adminRole: currentUser.role || 'N/A',
       timestamp: serverTimestamp()
-    });
+    };
+    
+    console.log('📝 Dados do log:', logData);
+    
+    await addDoc(historyCol, logData);
+    console.log('✅ Ação registrada com sucesso no histórico');
     
     // Recarregar histórico
     loadAdminHistory();
   } catch (error) {
     console.error('❌ Erro ao registrar ação do admin:', error);
+    console.error('❌ Detalhes do erro:', error.message);
   }
 }
 
