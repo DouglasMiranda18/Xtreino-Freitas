@@ -111,6 +111,9 @@
     setView(userRole);
     startSessionTimer();
   }
+  
+  // Expor showDashboard globalmente imediatamente
+  window.showDashboard = showDashboard;
 
   // Control section visibility based on role
   function controlSectionVisibility(userRole) {
@@ -3426,7 +3429,20 @@ window.saveProducts = saveProducts;
       sessionStorage.setItem('adminSession', JSON.stringify(sessionData));
 
       // Show dashboard
-      showDashboard(role);
+      if (typeof showDashboard === 'function') {
+        showDashboard(role);
+      } else {
+        console.error('❌ showDashboard não está disponível');
+        // Fallback: mostrar dashboard manualmente
+        const authGate = document.getElementById('authGate');
+        const dashboard = document.getElementById('dashboard');
+        if (authGate && dashboard) {
+          authGate.classList.add('hidden');
+          dashboard.classList.remove('hidden');
+          setView(role);
+          startSessionTimer();
+        }
+      }
       
     } catch (error) {
       console.error('Login error:', error);
@@ -4902,7 +4918,6 @@ window.filterTokensUsers = filterTokensUsers;
 window.loadAdminHistory = loadAdminHistory;
 window.changeAdminHistoryPage = changeAdminHistoryPage;
 window.filterAdminHistory = filterAdminHistory;
-window.showDashboard = showDashboard;
 
 // Carregar usuários quando o admin for inicializado
 document.addEventListener('DOMContentLoaded', function() {
