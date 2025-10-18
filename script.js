@@ -245,15 +245,7 @@ async function checkAdminAccess() {
     
     console.log('📧 Email do usuário:', user.email);
     
-    // Verificar email na whitelist
-    if (!authorizedEmails.includes(user.email.toLowerCase())) {
-        console.log('❌ Email não autorizado:', user.email);
-        return false;
-    }
-    
-    console.log('✅ Email autorizado');
-    
-    // Verificar role no Firestore
+    // Verificar role no Firestore primeiro
     try {
         const uid = user.uid;
         const { doc, getDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
@@ -261,11 +253,24 @@ async function checkAdminAccess() {
         if (snap.exists()) {
             const role = (snap.data().role || '').toLowerCase();
             console.log('🎭 Role encontrado:', role);
-            const hasAccess = ['admin', 'ceo', 'gerente', 'vendedor', 'design', 'socio'].includes(role);
-            // console.log('🔐 Acesso admin:', hasAccess);
-            return hasAccess;
+            
+            // Para design e socio, permitir qualquer email
+            if (['design', 'socio'].includes(role)) {
+                console.log('✅ Acesso liberado para Design/Sócio');
+                return true;
+            }
+            
+            // Para outros cargos, verificar email na whitelist
+            if (['admin', 'ceo', 'gerente', 'vendedor'].includes(role)) {
+                if (!authorizedEmails.includes(user.email.toLowerCase())) {
+                    console.log('❌ Email não autorizado:', user.email);
+                    return false;
+                }
+                console.log('✅ Email autorizado para', role);
+                return true;
+            }
         } else {
-            // console.log('❌ Documento de usuário não encontrado no Firestore');
+            console.log('❌ Documento de usuário não encontrado no Firestore');
         }
     } catch (error) {
         console.error('❌ Erro ao verificar acesso admin:', error);

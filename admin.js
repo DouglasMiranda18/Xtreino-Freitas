@@ -675,7 +675,7 @@
     }catch(e){}
 
     // console.log('ADMIN UID:', uid, 'ROLE:', role);
-    if (!['ceo','gerente','vendedor'].includes((role||'').toLowerCase())){
+    if (!['ceo','gerente','vendedor','design','socio'].includes((role||'').toLowerCase())){
       authGate.classList.remove('hidden');
       dashboard.classList.add('hidden');
       return;
@@ -4902,6 +4902,7 @@ window.filterTokensUsers = filterTokensUsers;
 window.loadAdminHistory = loadAdminHistory;
 window.changeAdminHistoryPage = changeAdminHistoryPage;
 window.filterAdminHistory = filterAdminHistory;
+window.showDashboard = showDashboard;
 
 // Carregar usuários quando o admin for inicializado
 document.addEventListener('DOMContentLoaded', function() {
