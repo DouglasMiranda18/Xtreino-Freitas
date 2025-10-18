@@ -162,5 +162,17 @@ service cloud.firestore {
       allow read: if isAdmin() || isGerente() || isSocio();
       allow create, update, delete: if isAuthorizedAdmin();
     }
+
+    // coupons: leitura para staff (admin/gerente/sócio); escrita apenas para admins autorizados
+    match /coupons/{couponId} {
+      allow read: if isAdmin() || isGerente() || isSocio();
+      allow create, update, delete: if isAuthorizedAdmin();
+    }
+
+    // couponUsage: leitura para staff (admin/gerente/sócio); escrita para usuários logados
+    match /couponUsage/{usageId} {
+      allow read: if isAdmin() || isGerente() || isSocio();
+      allow create: if isSignedIn();
+    }
   }
 }

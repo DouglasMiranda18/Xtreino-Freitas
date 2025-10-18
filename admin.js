@@ -127,6 +127,8 @@
     const sectionTokenStats = document.getElementById('sectionTokenStats');
     const sectionUsersManagement = document.getElementById('sectionUsersManagement');
     const sectionTokens = document.getElementById('sectionTokens');
+    const sectionCoupons = document.getElementById('sectionCoupons');
+    const sectionCouponUsage = document.getElementById('sectionCouponUsage');
     const sectionHighlights = document.getElementById('sectionHighlights');
     const sectionNews = document.getElementById('sectionNews');
     const sectionProducts = document.getElementById('sectionProducts');
@@ -143,6 +145,8 @@
       if (sectionTokenStats) sectionTokenStats.style.display = 'none';
       if (sectionUsersManagement) sectionUsersManagement.style.display = 'none';
       if (sectionTokens) sectionTokens.style.display = 'none';
+      if (sectionCoupons) sectionCoupons.style.display = 'none';
+      if (sectionCouponUsage) sectionCouponUsage.style.display = 'none';
       if (sectionProducts) sectionProducts.style.display = 'none';
       if (sectionSchedules) sectionSchedules.style.display = 'none';
       
@@ -161,6 +165,8 @@
       if (sectionTokenStats) sectionTokenStats.style.display = 'block';
       if (sectionUsersManagement) sectionUsersManagement.style.display = 'block';
       if (sectionTokens) sectionTokens.style.display = 'block';
+      if (sectionCoupons) sectionCoupons.style.display = 'block';
+      if (sectionCouponUsage) sectionCouponUsage.style.display = 'block';
       if (sectionHighlights) sectionHighlights.style.display = 'block';
       if (sectionNews) sectionNews.style.display = 'block';
       if (sectionProducts) sectionProducts.style.display = 'block';
@@ -184,6 +190,8 @@
       if (sectionTokenStats) sectionTokenStats.style.display = 'block';
       if (sectionUsersManagement) sectionUsersManagement.style.display = 'block';
       if (sectionTokens) sectionTokens.style.display = 'block';
+      if (sectionCoupons) sectionCoupons.style.display = 'block';
+      if (sectionCouponUsage) sectionCouponUsage.style.display = 'block';
       if (sectionHighlights) sectionHighlights.style.display = 'block';
       if (sectionNews) sectionNews.style.display = 'block';
       if (sectionProducts) sectionProducts.style.display = 'block';
@@ -747,6 +755,15 @@
     
     if (window.loadAdminHistory) {
       window.loadAdminHistory();
+    }
+    
+    // Carregar dados de cupons
+    if (window.loadCoupons) {
+      window.loadCoupons();
+    }
+    
+    if (window.loadCouponUsage) {
+      window.loadCouponUsage();
     }
     // Controla visibilidade conforme o papel
     try {
@@ -4673,6 +4690,310 @@ function filterTokensUsers() {
   updateTokensPagination();
 }
 
+// ==================== SISTEMA DE CUPONS ====================
+
+// Variáveis globais para cupons
+let couponsData = [];
+let couponUsageData = [];
+
+// Carregar cupons
+async function loadCoupons() {
+    try {
+        console.log('🔄 Carregando cupons...');
+        const { collection, getDocs, orderBy, query } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const couponsRef = collection(window.firebaseDb, 'coupons');
+        const q = query(couponsRef, orderBy('createdAt', 'desc'));
+        const snapshot = await getDocs(q);
+        
+        couponsData = [];
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            couponsData.push({
+                id: doc.id,
+                ...data,
+                createdAt: data.createdAt?.toDate() || new Date(),
+                expirationDate: data.expirationDate?.toDate() || null
+            });
+        });
+        
+        console.log(`✅ ${couponsData.length} cupons carregados`);
+        renderCouponsTable();
+    } catch (error) {
+        console.error('❌ Erro ao carregar cupons:', error);
+        const tbody = document.getElementById('couponsTableBody');
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="py-6 text-center text-red-500">Erro ao carregar cupons</td>
+                </tr>
+            `;
+        }
+    }
+}
+
+// Renderizar tabela de cupons
+function renderCouponsTable() {
+    const tbody = document.getElementById('couponsTableBody');
+    const countElement = document.getElementById('activeCouponsCount');
+    
+    if (!tbody) return;
+    
+    if (couponsData.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" class="py-6 text-center text-gray-500">Nenhum cupom encontrado</td>
+            </tr>
+        `;
+        if (countElement) countElement.textContent = '0 cupons';
+        return;
+    }
+    
+    if (countElement) countElement.textContent = `${couponsData.length} cupons`;
+    
+    tbody.innerHTML = couponsData.map(coupon => {
+        const isExpired = coupon.expirationDate && coupon.expirationDate < new Date();
+        const isActive = coupon.isActive && !isExpired;
+        const usageCount = coupon.usageCount || 0;
+        const usageLimit = coupon.usageLimit || '∞';
+        
+        const discountText = coupon.discountType === 'percentage' 
+            ? `${coupon.discountValue}%` 
+            : `R$ ${coupon.discountValue.toFixed(2)}`;
+        
+        const statusBadge = isActive 
+            ? '<span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Ativo</span>'
+            : '<span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs">Inativo</span>';
+        
+        return `
+            <tr class="border-b border-gray-100 hover:bg-gray-50">
+                <td class="py-2 px-2">
+                    <span class="font-mono text-xs bg-gray-100 px-2 py-1 rounded">${coupon.code}</span>
+                </td>
+                <td class="py-2 px-2 text-xs">${discountText}</td>
+                <td class="py-2 px-2 text-xs">${usageCount}/${usageLimit}</td>
+                <td class="py-2 px-2">${statusBadge}</td>
+                <td class="py-2 px-2">
+                    <div class="flex gap-1">
+                        <button onclick="toggleCouponStatus('${coupon.id}', ${!isActive})" 
+                                class="px-2 py-1 text-xs rounded ${isActive ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-green-100 text-green-700 hover:bg-green-200'}">
+                            ${isActive ? 'Desativar' : 'Ativar'}
+                        </button>
+                        <button onclick="deleteCoupon('${coupon.id}')" 
+                                class="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200">
+                            Excluir
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// Carregar histórico de uso de cupons
+async function loadCouponUsage() {
+    try {
+        console.log('🔄 Carregando histórico de uso de cupons...');
+        const { collection, getDocs, orderBy, query } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const usageRef = collection(window.firebaseDb, 'couponUsage');
+        const q = query(usageRef, orderBy('usedAt', 'desc'));
+        const snapshot = await getDocs(q);
+        
+        couponUsageData = [];
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            couponUsageData.push({
+                id: doc.id,
+                ...data,
+                usedAt: data.usedAt?.toDate() || new Date()
+            });
+        });
+        
+        console.log(`✅ ${couponUsageData.length} usos de cupons carregados`);
+        renderCouponUsageTable();
+    } catch (error) {
+        console.error('❌ Erro ao carregar histórico de cupons:', error);
+        const tbody = document.getElementById('couponUsageTableBody');
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="py-6 text-center text-red-500">Erro ao carregar histórico</td>
+                </tr>
+            `;
+        }
+    }
+}
+
+// Renderizar tabela de uso de cupons
+function renderCouponUsageTable() {
+    const tbody = document.getElementById('couponUsageTableBody');
+    const countElement = document.getElementById('couponUsageCount');
+    
+    if (!tbody) return;
+    
+    if (couponUsageData.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="py-6 text-center text-gray-500">Nenhum uso de cupom encontrado</td>
+            </tr>
+        `;
+        if (countElement) countElement.textContent = '0 usos';
+        return;
+    }
+    
+    if (countElement) countElement.textContent = `${couponUsageData.length} usos`;
+    
+    tbody.innerHTML = couponUsageData.map(usage => {
+        const discountText = usage.discountType === 'percentage' 
+            ? `${usage.discountValue}%` 
+            : `R$ ${usage.discountValue.toFixed(2)}`;
+        
+        return `
+            <tr class="border-b border-gray-100 hover:bg-gray-50">
+                <td class="py-2 px-2 text-xs">${formatDateTime(usage.usedAt)}</td>
+                <td class="py-2 px-2">
+                    <span class="font-mono text-xs bg-blue-100 px-2 py-1 rounded">${usage.couponCode}</span>
+                </td>
+                <td class="py-2 px-2 text-xs">${usage.customerName || usage.customerEmail}</td>
+                <td class="py-2 px-2 text-xs">R$ ${usage.originalValue.toFixed(2)}</td>
+                <td class="py-2 px-2 text-xs text-green-600">-${discountText}</td>
+                <td class="py-2 px-2 text-xs font-medium">R$ ${usage.finalValue.toFixed(2)}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// Abrir modal de criação de cupom
+function openCreateCouponModal() {
+    const modal = document.getElementById('createCouponModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        // Limpar formulário
+        const form = document.getElementById('createCouponForm');
+        if (form) form.reset();
+    }
+}
+
+// Fechar modal de criação de cupom
+function closeCreateCouponModal() {
+    const modal = document.getElementById('createCouponModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+// Criar novo cupom
+async function createCoupon(event) {
+    event.preventDefault();
+    
+    const couponData = {
+        code: document.getElementById('couponCode').value.toUpperCase().trim(),
+        discountType: document.getElementById('discountType').value,
+        discountValue: parseFloat(document.getElementById('discountValue').value),
+        usageLimit: parseInt(document.getElementById('usageLimit').value) || null,
+        expirationDate: document.getElementById('expirationDate').value ? 
+            new Date(document.getElementById('expirationDate').value) : null,
+        minOrderValue: parseFloat(document.getElementById('minOrderValue').value) || 0,
+        isActive: true,
+        usageCount: 0,
+        createdAt: new Date(),
+        createdBy: window.adminRoleLower || 'admin'
+    };
+    
+    // Validações
+    if (couponData.discountValue <= 0) {
+        alert('O valor do desconto deve ser maior que zero');
+        return;
+    }
+    
+    if (couponData.discountType === 'percentage' && couponData.discountValue > 100) {
+        alert('O desconto percentual não pode ser maior que 100%');
+        return;
+    }
+    
+    try {
+        console.log('🔄 Criando cupom:', couponData.code);
+        
+        // Verificar se o código já existe
+        const existingCoupon = couponsData.find(c => c.code === couponData.code);
+        if (existingCoupon) {
+            alert('Já existe um cupom com este código');
+            return;
+        }
+        
+        // Salvar no Firestore
+        const { collection, addDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const docRef = await addDoc(collection(window.firebaseDb, 'coupons'), couponData);
+        console.log('✅ Cupom criado com ID:', docRef.id);
+        
+        // Log da ação
+        await logAdminAction('create_coupon', `Criou cupom ${couponData.code} (${couponData.discountType === 'percentage' ? couponData.discountValue + '%' : 'R$ ' + couponData.discountValue})`);
+        
+        // Recarregar dados
+        await loadCoupons();
+        
+        // Fechar modal
+        closeCreateCouponModal();
+        
+        alert('Cupom criado com sucesso!');
+        
+    } catch (error) {
+        console.error('❌ Erro ao criar cupom:', error);
+        alert('Erro ao criar cupom: ' + error.message);
+    }
+}
+
+// Alternar status do cupom
+async function toggleCouponStatus(couponId, newStatus) {
+    try {
+        console.log(`🔄 ${newStatus ? 'Ativando' : 'Desativando'} cupom:`, couponId);
+        
+        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        await updateDoc(doc(window.firebaseDb, 'coupons', couponId), {
+            isActive: newStatus
+        });
+        
+        // Log da ação
+        const coupon = couponsData.find(c => c.id === couponId);
+        await logAdminAction('toggle_coupon', `${newStatus ? 'Ativou' : 'Desativou'} cupom ${coupon?.code || couponId}`);
+        
+        // Recarregar dados
+        await loadCoupons();
+        
+    } catch (error) {
+        console.error('❌ Erro ao alterar status do cupom:', error);
+        alert('Erro ao alterar status do cupom: ' + error.message);
+    }
+}
+
+// Excluir cupom
+async function deleteCoupon(couponId) {
+    const coupon = couponsData.find(c => c.id === couponId);
+    if (!coupon) return;
+    
+    if (!confirm(`Tem certeza que deseja excluir o cupom "${coupon.code}"?`)) {
+        return;
+    }
+    
+    try {
+        console.log('🔄 Excluindo cupom:', couponId);
+        
+        const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        await deleteDoc(doc(window.firebaseDb, 'coupons', couponId));
+        
+        // Log da ação
+        await logAdminAction('delete_coupon', `Excluiu cupom ${coupon.code}`);
+        
+        // Recarregar dados
+        await loadCoupons();
+        
+        alert('Cupom excluído com sucesso!');
+        
+    } catch (error) {
+        console.error('❌ Erro ao excluir cupom:', error);
+        alert('Erro ao excluir cupom: ' + error.message);
+    }
+}
+
 // ==================== HISTÓRICO DO ADMIN ====================
 
 // Variáveis para histórico
@@ -4955,6 +5276,15 @@ window.loadAdminHistory = loadAdminHistory;
 window.changeAdminHistoryPage = changeAdminHistoryPage;
 window.filterAdminHistory = filterAdminHistory;
 
+// Expor funções de cupons globalmente
+window.loadCoupons = loadCoupons;
+window.loadCouponUsage = loadCouponUsage;
+window.openCreateCouponModal = openCreateCouponModal;
+window.closeCreateCouponModal = closeCreateCouponModal;
+window.createCoupon = createCoupon;
+window.toggleCouponStatus = toggleCouponStatus;
+window.deleteCoupon = deleteCoupon;
+
 // Carregar usuários quando o admin for inicializado
 document.addEventListener('DOMContentLoaded', function() {
   // Aguardar o Firebase estar pronto
@@ -4967,6 +5297,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   };
   waitForFirebase();
+  
+  // Event listener para formulário de criação de cupons
+  const createCouponForm = document.getElementById('createCouponForm');
+  if (createCouponForm) {
+    createCouponForm.addEventListener('submit', createCoupon);
+  }
 });
 
 

@@ -513,6 +513,93 @@
                 </div>
             </div>
 
+            <!-- Seção de Cupons -->
+            <div id="sectionCoupons" class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+                <!-- Card de Criação de Cupons -->
+                <div class="bg-white border border-gray-200 rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold text-sm flex items-center">
+                            <span class="mr-2">🎫</span>
+                            Criar Cupom
+                        </h3>
+                        <button onclick="openCreateCouponModal()" class="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700">
+                            <i class="fas fa-plus mr-1"></i>Novo Cupom
+                        </button>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <div class="text-center text-gray-500 text-sm">
+                            Clique em "Novo Cupom" para criar um cupom de desconto
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card de Cupons Ativos -->
+                <div class="bg-white border border-gray-200 rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold text-sm flex items-center">
+                            <span class="mr-2">📊</span>
+                            Cupons Ativos
+                        </h3>
+                        <div class="text-xs text-gray-500">
+                            <span id="activeCouponsCount">0 cupons</span>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto -mx-4 px-4">
+                        <table class="w-full text-xs min-w-[400px]">
+                            <thead>
+                                <tr class="border-b border-gray-200">
+                                    <th class="text-left py-2 px-2 font-medium text-gray-600 min-w-[100px]">Código</th>
+                                    <th class="text-left py-2 px-2 font-medium text-gray-600 min-w-[80px]">Desconto</th>
+                                    <th class="text-left py-2 px-2 font-medium text-gray-600 min-w-[80px]">Usos</th>
+                                    <th class="text-left py-2 px-2 font-medium text-gray-600 min-w-[100px]">Status</th>
+                                    <th class="text-left py-2 px-2 font-medium text-gray-600 min-w-[80px]">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="couponsTableBody">
+                                <tr>
+                                    <td colspan="5" class="py-6 text-center text-gray-500">Carregando cupons...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seção de Uso de Cupons -->
+            <div id="sectionCouponUsage" class="bg-white border border-gray-200 rounded-xl p-4 mb-8">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-sm flex items-center">
+                        <span class="mr-2">📈</span>
+                        Histórico de Uso de Cupons
+                    </h3>
+                    <div class="text-xs text-gray-500">
+                        <span id="couponUsageCount">0 usos</span>
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto -mx-4 px-4">
+                    <table class="w-full text-xs min-w-[600px]">
+                        <thead>
+                            <tr class="border-b border-gray-200">
+                                <th class="text-left py-2 px-2 font-medium text-gray-600 min-w-[120px]">Data/Hora</th>
+                                <th class="text-left py-2 px-2 font-medium text-gray-600 min-w-[100px]">Código</th>
+                                <th class="text-left py-2 px-2 font-medium text-gray-600 min-w-[150px]">Cliente</th>
+                                <th class="text-left py-2 px-2 font-medium text-gray-600 min-w-[100px]">Valor Original</th>
+                                <th class="text-left py-2 px-2 font-medium text-gray-600 min-w-[100px]">Desconto</th>
+                                <th class="text-left py-2 px-2 font-medium text-gray-600 min-w-[100px]">Valor Final</th>
+                            </tr>
+                        </thead>
+                        <tbody id="couponUsageTableBody">
+                            <tr>
+                                <td colspan="6" class="py-6 text-center text-gray-500">Carregando histórico...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- Gerenciar Destaques -->
             <div id="sectionHighlights" class="bg-white border border-gray-200 rounded-xl p-6 mt-6">
                 <div class="flex items-center justify-between mb-4">
@@ -585,6 +672,79 @@
             </div>
         </section>
     </main>
+
+    <!-- Modal de Criação de Cupom -->
+    <div id="createCouponModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-xl p-6 w-full max-w-md">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-lg">Criar Novo Cupom</h3>
+                    <button onclick="closeCreateCouponModal()" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <form id="createCouponForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Código do Cupom</label>
+                        <input type="text" id="couponCode" placeholder="Ex: DESCONTO10" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                               maxlength="20" required>
+                        <p class="text-xs text-gray-500 mt-1">Máximo 20 caracteres, sem espaços</p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Desconto</label>
+                        <select id="discountType" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" required>
+                            <option value="percentage">Porcentagem (%)</option>
+                            <option value="fixed">Valor Fixo (R$)</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Valor do Desconto</label>
+                        <input type="number" id="discountValue" placeholder="10" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                               min="0" step="0.01" required>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Limite de Usos</label>
+                        <input type="number" id="usageLimit" placeholder="100" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                               min="1" required>
+                        <p class="text-xs text-gray-500 mt-1">Deixe vazio para uso ilimitado</p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Data de Expiração</label>
+                        <input type="date" id="expirationDate" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                        <p class="text-xs text-gray-500 mt-1">Opcional - deixe vazio para não expirar</p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Valor Mínimo do Pedido</label>
+                        <input type="number" id="minOrderValue" placeholder="50.00" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                               min="0" step="0.01">
+                        <p class="text-xs text-gray-500 mt-1">Valor mínimo para usar o cupom</p>
+                    </div>
+                    
+                    <div class="flex gap-3 pt-4">
+                        <button type="button" onclick="closeCreateCouponModal()" 
+                                class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm">
+                            Cancelar
+                        </button>
+                        <button type="submit" 
+                                class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm">
+                            Criar Cupom
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
     <footer class="py-10 text-center text-gray-500 text-sm">
         © 2025 X-TREINO FREITAS • Admin
