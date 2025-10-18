@@ -1021,6 +1021,7 @@ function handleContactForm(event) {
 // Purchase modal functions
 let currentProduct = null;
 let appliedCoupon = null;
+let appliedScheduleCoupon = null;
 let originalPrice = 0;
 const products = {
     'passe-booyah': { name: 'Passe Booyah', price: 'R$ 11,00', description: 'Assinatura mensal com acesso completo' },
@@ -1279,17 +1280,44 @@ function validateCoupon(coupon) {
         }
     }
     
-    // Verificar limite de usos
-    if (coupon.usageLimit && coupon.usageCount >= coupon.usageLimit) {
-        return { valid: false, message: 'Cupom esgotado' };
-    }
-    
-    // Verificar valor mínimo do pedido
-    if (coupon.minOrderValue && originalPrice < coupon.minOrderValue) {
-        return { valid: false, message: `Valor mínimo do pedido: R$ ${coupon.minOrderValue.toFixed(2)}` };
+    // Verificar tipo de uso do cupom
+    const currentContext = getCurrentPurchaseContext();
+    if (!isCouponValidForContext(coupon, currentContext)) {
+        return { valid: false, message: 'Cupom não válido para este tipo de compra' };
     }
     
     return { valid: true };
+}
+
+// Determinar contexto atual da compra
+function getCurrentPurchaseContext() {
+    // Verificar se estamos no modal de compra de produtos da loja
+    const purchaseModal = document.getElementById('purchaseModal');
+    if (purchaseModal && !purchaseModal.classList.contains('hidden')) {
+        return 'store';
+    }
+    
+    // Verificar se estamos no modal de agendamento de eventos
+    const scheduleModal = document.getElementById('scheduleModal');
+    if (scheduleModal && !scheduleModal.classList.contains('hidden')) {
+        return 'events';
+    }
+    
+    return 'unknown';
+}
+
+// Verificar se cupom é válido para o contexto atual
+function isCouponValidForContext(coupon, context) {
+    // Se o cupom pode ser usado em ambos os contextos
+    if (coupon.usageType === 'both') return true;
+    
+    // Se o cupom é específico para eventos e estamos em contexto de eventos
+    if (coupon.usageType === 'events' && context === 'events') return true;
+    
+    // Se o cupom é específico para loja e estamos em contexto de loja
+    if (coupon.usageType === 'store' && context === 'store') return true;
+    
+    return false;
 }
 
 // Atualizar preço com cupom aplicado
@@ -1349,45 +1377,6 @@ function getDiscountText(coupon) {
     }
 }
 
-// Registrar uso do cupom
-async function recordCouponUsage(coupon, finalPrice, originalPrice) {
-    try {
-        console.log('🔄 Registrando uso do cupom:', coupon.code);
-        
-        // Importar Firebase
-        const { collection, addDoc, doc, updateDoc, increment } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        
-        // Obter dados do cliente
-        const customerName = document.querySelector('#purchaseModal input[type="text"]')?.value || '';
-        const customerEmail = document.querySelector('#purchaseModal input[type="email"]')?.value || '';
-        
-        // Registrar uso do cupom
-        const usageData = {
-            couponCode: coupon.code,
-            customerName: customerName,
-            customerEmail: customerEmail,
-            originalValue: originalPrice,
-            discountValue: coupon.discountValue,
-            discountType: coupon.discountType,
-            finalValue: finalPrice,
-            usedAt: new Date(),
-            productId: currentProduct
-        };
-        
-        await addDoc(collection(window.firebaseDb, 'couponUsage'), usageData);
-        
-        // Incrementar contador de uso do cupom
-        await updateDoc(doc(window.firebaseDb, 'coupons', coupon.id), {
-            usageCount: increment(1)
-        });
-        
-        console.log('✅ Uso do cupom registrado com sucesso');
-        
-    } catch (error) {
-        console.error('❌ Erro ao registrar uso do cupom:', error);
-        // Não bloquear a compra se houver erro no registro
-    }
-}
 
 async function handlePurchase(event) {
     event.preventDefault();
@@ -1492,7 +1481,15 @@ async function handlePurchase(event) {
         
         // Registrar uso do cupom se aplicado
         if (appliedCoupon) {
-            await recordCouponUsage(appliedCoupon, totalNum, originalPrice);
+            const discountAmount = originalPrice - totalNum;
+            await recordCouponUsage(
+                appliedCoupon.id,
+                appliedCoupon.code,
+                originalPrice,
+                discountAmount,
+                'store',
+                data.external_reference || 'product_' + Date.now()
+            );
         }
         
         closePurchaseModal();
@@ -3234,16 +3231,40 @@ async function submitSchedule(e){
     }
     // Fluxo normal: Checkout via Netlify Function
     const totalReservations = teams.length * selectedTimes.length;
-    const total = Number((cfg.price * totalReservations).toFixed(2));
+    const originalTotal = Number((cfg.price * totalReservations).toFixed(2));
+    
+    // Calcular preço final com cupom aplicado
+    let finalPrice = originalTotal;
+    let couponInfo = null;
+    
+    if (appliedScheduleCoupon) {
+        let discountAmount = 0;
+        if (appliedScheduleCoupon.discountType === 'percentage') {
+            discountAmount = originalTotal * (appliedScheduleCoupon.discountValue / 100);
+        } else {
+            discountAmount = appliedScheduleCoupon.discountValue;
+        }
+        finalPrice = Math.max(0, originalTotal - discountAmount);
+        
+        couponInfo = {
+            code: appliedScheduleCoupon.code,
+            discountType: appliedScheduleCoupon.discountType,
+            discountValue: appliedScheduleCoupon.discountValue,
+            originalPrice: originalTotal,
+            finalPrice: finalPrice,
+            discountAmount: discountAmount
+        };
+    }
     
     fetch('/.netlify/functions/create-preference',{
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ 
             title: `${cfg.label} - ${totalReservations} reservas - ${date}`, 
-            unit_price: cfg.price, 
+            unit_price: finalPrice, 
             currency_id:'BRL', 
-            quantity: totalReservations,
+            quantity: 1, // Mudamos para 1 pois já calculamos o preço total
             back_url: window.location.origin + window.location.pathname,
+            coupon_info: couponInfo,
             multiple_reservations: {
                 teams: teams.map(t => t.name),
                 schedules: selectedTimes,
@@ -3269,6 +3290,23 @@ async function submitSchedule(e){
                 }
             }catch(_){ }
         }
+        // Registrar uso do cupom se aplicado
+        if (appliedScheduleCoupon && couponInfo) {
+            try {
+                await recordCouponUsage(
+                    appliedScheduleCoupon.id,
+                    appliedScheduleCoupon.code,
+                    originalTotal,
+                    couponInfo.discountAmount,
+                    'events',
+                    data.external_reference || 'schedule_' + Date.now()
+                );
+            } catch (error) {
+                console.error('❌ Erro ao registrar uso do cupom:', error);
+                // Não bloquear o pagamento se houver erro no registro
+            }
+        }
+        
         const url = data.init_point || data.sandbox_init_point; // prioriza produção
         if (url) window.location.href = url; else alert('Não foi possível iniciar o pagamento.');
     }).catch((err)=> { alert('Falha ao iniciar pagamento. ' + (err && err.message ? err.message : '')); })
@@ -3710,6 +3748,167 @@ function maybeClearMobileModalState(){
 }
 
 // Expor função de cupom globalmente
+// Aplicar cupom no modal de agendamento
+async function applyScheduleCoupon() {
+    const couponCode = document.getElementById('schedCouponCodeInput')?.value?.trim().toUpperCase();
+    const messageDiv = document.getElementById('schedCouponMessage');
+    
+    if (!couponCode) {
+        showScheduleCouponMessage('Digite um código de cupom', 'error');
+        return;
+    }
+    
+    try {
+        console.log('🔄 Validando cupom para eventos:', couponCode);
+        
+        // Importar Firebase
+        const { collection, getDocs, query, where, limit } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        
+        // Buscar cupom no Firestore
+        const couponsRef = collection(window.firebaseDb, 'coupons');
+        const q = query(couponsRef, where('code', '==', couponCode), limit(1));
+        const snapshot = await getDocs(q);
+        
+        if (snapshot.empty) {
+            showScheduleCouponMessage('Cupom não encontrado', 'error');
+            return;
+        }
+        
+        const couponDoc = snapshot.docs[0];
+        const coupon = { id: couponDoc.id, ...couponDoc.data() };
+        
+        // Validar cupom para eventos
+        const validation = validateScheduleCoupon(coupon);
+        if (!validation.valid) {
+            showScheduleCouponMessage(validation.message, 'error');
+            return;
+        }
+        
+        // Aplicar cupom
+        appliedScheduleCoupon = coupon;
+        updateSchedulePriceWithCoupon();
+        showScheduleCouponMessage(`Cupom aplicado! Desconto: ${getDiscountText(coupon)}`, 'success');
+        
+        console.log('✅ Cupom aplicado para eventos:', coupon);
+        
+    } catch (error) {
+        console.error('❌ Erro ao validar cupom:', error);
+        showScheduleCouponMessage('Erro ao validar cupom. Tente novamente.', 'error');
+    }
+}
+
+// Validar cupom para eventos
+function validateScheduleCoupon(coupon) {
+    // Verificar se está ativo
+    if (!coupon.isActive) {
+        return { valid: false, message: 'Cupom inativo' };
+    }
+    
+    // Verificar data de expiração
+    if (coupon.expirationDate) {
+        const expirationDate = coupon.expirationDate.toDate ? coupon.expirationDate.toDate() : new Date(coupon.expirationDate);
+        if (expirationDate < new Date()) {
+            return { valid: false, message: 'Cupom expirado' };
+        }
+    }
+    
+    // Verificar se o cupom pode ser usado em eventos
+    if (coupon.usageType === 'store') {
+        return { valid: false, message: 'Cupom válido apenas para loja virtual' };
+    }
+    
+    return { valid: true };
+}
+
+// Obter total atual do agendamento
+function getCurrentScheduleTotal() {
+    const totalElement = document.getElementById('totalPrice');
+    if (!totalElement) return 0;
+    
+    const totalText = totalElement.textContent.replace('R$ ', '').replace(',', '.');
+    return parseFloat(totalText) || 0;
+}
+
+// Atualizar preço do agendamento com cupom
+function updateSchedulePriceWithCoupon() {
+    if (!appliedScheduleCoupon) return;
+    
+    const totalElement = document.getElementById('totalPrice');
+    if (!totalElement) return;
+    
+    const currentTotal = getCurrentScheduleTotal();
+    let discountAmount = 0;
+    
+    if (appliedScheduleCoupon.discountType === 'percentage') {
+        discountAmount = currentTotal * (appliedScheduleCoupon.discountValue / 100);
+    } else {
+        discountAmount = appliedScheduleCoupon.discountValue;
+    }
+    
+    const finalTotal = Math.max(0, currentTotal - discountAmount);
+    totalElement.textContent = `R$ ${finalTotal.toFixed(2).replace('.', ',')}`;
+}
+
+// Mostrar mensagem de cupom no agendamento
+function showScheduleCouponMessage(message, type) {
+    const messageDiv = document.getElementById('schedCouponMessage');
+    messageDiv.textContent = message;
+    messageDiv.className = `text-sm ${type === 'success' ? 'text-green-600' : 'text-red-600'}`;
+    messageDiv.classList.remove('hidden');
+    
+    setTimeout(() => {
+        messageDiv.classList.add('hidden');
+    }, 3000);
+}
+
+// Registrar uso de cupom
+async function recordCouponUsage(couponId, couponCode, orderValue, discountAmount, context, orderId) {
+    try {
+        const { collection, addDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        
+        const usageData = {
+            couponId: couponId,
+            couponCode: couponCode,
+            customerEmail: window.currentUser?.email || 'guest',
+            customerName: window.currentUser?.displayName || 'Cliente',
+            orderValue: orderValue,
+            discountAmount: discountAmount,
+            finalValue: orderValue - discountAmount,
+            context: context, // 'store' ou 'events'
+            orderId: orderId,
+            usedAt: new Date(),
+            userId: window.currentUser?.uid || null
+        };
+        
+        await addDoc(collection(window.firebaseDb, 'couponUsage'), usageData);
+        
+        // Atualizar contador de uso do cupom
+        await updateCouponUsageCount(couponId);
+        
+        console.log('✅ Uso de cupom registrado:', usageData);
+    } catch (error) {
+        console.error('❌ Erro ao registrar uso de cupom:', error);
+    }
+}
+
+// Atualizar contador de uso do cupom
+async function updateCouponUsageCount(couponId) {
+    try {
+        const { doc, updateDoc, increment } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        
+        const couponRef = doc(window.firebaseDb, 'coupons', couponId);
+        await updateDoc(couponRef, {
+            usageCount: increment(1)
+        });
+        
+        console.log('✅ Contador de uso do cupom atualizado');
+    } catch (error) {
+        console.error('❌ Erro ao atualizar contador de uso:', error);
+    }
+}
+
 window.applyCoupon = applyCoupon;
+window.applyScheduleCoupon = applyScheduleCoupon;
+window.recordCouponUsage = recordCouponUsage;
 
 

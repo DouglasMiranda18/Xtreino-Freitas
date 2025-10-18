@@ -4753,12 +4753,16 @@ function renderCouponsTable() {
     tbody.innerHTML = couponsData.map(coupon => {
         const isExpired = coupon.expirationDate && coupon.expirationDate < new Date();
         const isActive = coupon.isActive && !isExpired;
-        const usageCount = coupon.usageCount || 0;
-        const usageLimit = coupon.usageLimit || '∞';
         
         const discountText = coupon.discountType === 'percentage' 
             ? `${coupon.discountValue}%` 
             : `R$ ${coupon.discountValue.toFixed(2)}`;
+        
+        const usageTypeText = {
+            'both': 'Eventos + Loja',
+            'events': 'Apenas Eventos',
+            'store': 'Apenas Loja'
+        }[coupon.usageType] || 'N/A';
         
         const statusBadge = isActive 
             ? '<span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Ativo</span>'
@@ -4770,7 +4774,9 @@ function renderCouponsTable() {
                     <span class="font-mono text-xs bg-gray-100 px-2 py-1 rounded">${coupon.code}</span>
                 </td>
                 <td class="py-2 px-2 text-xs">${discountText}</td>
-                <td class="py-2 px-2 text-xs">${usageCount}/${usageLimit}</td>
+                <td class="py-2 px-2">
+                    <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">${usageTypeText}</span>
+                </td>
                 <td class="py-2 px-2">${statusBadge}</td>
                 <td class="py-2 px-2">
                     <div class="flex gap-1">
@@ -4889,10 +4895,10 @@ async function createCoupon(event) {
         code: document.getElementById('couponCode').value.toUpperCase().trim(),
         discountType: document.getElementById('discountType').value,
         discountValue: parseFloat(document.getElementById('discountValue').value),
-        usageLimit: parseInt(document.getElementById('usageLimit').value) || null,
         expirationDate: document.getElementById('expirationDate').value ? 
             new Date(document.getElementById('expirationDate').value) : null,
-        minOrderValue: parseFloat(document.getElementById('minOrderValue').value) || 0,
+        usageType: document.getElementById('couponUsageType').value,
+        specificEvents: Array.from(document.getElementById('specificEvents').selectedOptions).map(option => option.value),
         isActive: true,
         usageCount: 0,
         createdAt: new Date(),
