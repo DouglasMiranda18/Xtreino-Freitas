@@ -1726,13 +1726,13 @@
     }catch(e){ console.error('openManageHourModal error', e); }
   }
 
-  // Usuários ativos nos últimos 7 dias (baseado em lastLogin em users)
+  // Usuários ativos nos últimos 30 dias (baseado em lastLogin em users)
   async function renderActiveUsers(){
     try{
   	  const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
       const snap = await getDocs(collection(window.firebaseDb,'users'));
-      const weekAgo = Date.now() - 7*24*60*60*1000;
-      let active = 0; snap.forEach(d=>{ const u=d.data(); if (Number(u.lastLogin||0) >= weekAgo) active++; });
+      const thirtyDaysAgo = Date.now() - 30*24*60*60*1000;
+      let active = 0; snap.forEach(d=>{ const u=d.data(); if (Number(u.lastLogin||0) >= thirtyDaysAgo) active++; });
   	  const kpiActiveEl = document.getElementById('kpiActiveUsers');
   	  if (kpiActiveEl) kpiActiveEl.textContent = String(active);
     }catch(e){ console.log('Erro ativos', e); }
