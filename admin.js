@@ -4416,6 +4416,7 @@ function changePermissionsPage(page) {
 
 // Variáveis para tokens
 let tokensUsersData = [];
+let tokensFilteredData = [];
 let tokensCurrentPage = 1;
 const tokensPerPage = 5;
 
@@ -4439,6 +4440,7 @@ async function loadTokensUsers() {
     });
     
     console.log(`✅ ${tokensUsersData.length} usuários carregados para tokens`);
+    tokensFilteredData = [...tokensUsersData]; // Inicializar dados filtrados
     renderTokensTable();
     updateTokensPagination();
   } catch (error) {
@@ -4453,7 +4455,7 @@ function renderTokensTable() {
   
   const startIndex = (tokensCurrentPage - 1) * tokensPerPage;
   const endIndex = startIndex + tokensPerPage;
-  const usersPage = tokensUsersData.slice(startIndex, endIndex);
+  const usersPage = tokensFilteredData.slice(startIndex, endIndex);
   
   // Verificar se o usuário atual pode gerenciar tokens
   const currentUserRole = (window.adminRoleLower || '').toLowerCase();
@@ -4494,7 +4496,13 @@ function renderTokensTable() {
   // Atualizar contador
   const countElement = document.getElementById('tokensUsersCount');
   if (countElement) {
-    countElement.textContent = `${tokensUsersData.length} usuários`;
+    const totalUsers = tokensUsersData.length;
+    const filteredUsers = tokensFilteredData.length;
+    if (filteredUsers === totalUsers) {
+      countElement.textContent = `${totalUsers} usuários`;
+    } else {
+      countElement.textContent = `${filteredUsers} de ${totalUsers} usuários`;
+    }
   }
 }
 
@@ -4552,7 +4560,7 @@ async function removeTokens(userId, userEmail) {
 
 // Paginação de tokens
 function updateTokensPagination() {
-  const totalPages = Math.ceil(tokensUsersData.length / tokensPerPage);
+  const totalPages = Math.ceil(tokensFilteredData.length / tokensPerPage);
   const paginationContainer = document.getElementById('tokensPagination');
   if (!paginationContainer) return;
   
@@ -4591,10 +4599,33 @@ function changeTokensPage(page) {
   updateTokensPagination();
 }
 
+// Filtrar usuários de tokens
+function filterTokensUsers() {
+  const searchInput = document.getElementById('tokensSearchInput');
+  if (!searchInput) return;
+  
+  const searchTerm = searchInput.value.toLowerCase().trim();
+  
+  if (searchTerm === '') {
+    tokensFilteredData = [...tokensUsersData];
+  } else {
+    tokensFilteredData = tokensUsersData.filter(user => 
+      user.email.toLowerCase().includes(searchTerm) ||
+      user.role.toLowerCase().includes(searchTerm) ||
+      getRoleDisplayName(user.role).toLowerCase().includes(searchTerm)
+    );
+  }
+  
+  tokensCurrentPage = 1; // Reset para primeira página
+  renderTokensTable();
+  updateTokensPagination();
+}
+
 // ==================== HISTÓRICO DO ADMIN ====================
 
 // Variáveis para histórico
 let adminHistoryData = [];
+let adminHistoryFilteredData = [];
 let adminHistoryCurrentPage = 1;
 const adminHistoryPerPage = 5;
 
@@ -4617,10 +4648,22 @@ async function loadAdminHistory() {
     });
     
     console.log(`✅ ${adminHistoryData.length} ações carregadas do histórico`);
+    adminHistoryFilteredData = [...adminHistoryData]; // Inicializar dados filtrados
     renderAdminHistoryTable();
     updateAdminHistoryPagination();
   } catch (error) {
     console.error('❌ Erro ao carregar histórico do admin:', error);
+    // Se não conseguir carregar, mostrar mensagem na tabela
+    const tbody = document.getElementById('adminHistoryTableBody');
+    if (tbody) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="4" class="py-6 text-center text-gray-500">
+            Nenhum histórico encontrado. As ações aparecerão aqui conforme forem realizadas.
+          </td>
+        </tr>
+      `;
+    }
   }
 }
 
@@ -4631,7 +4674,7 @@ function renderAdminHistoryTable() {
   
   const startIndex = (adminHistoryCurrentPage - 1) * adminHistoryPerPage;
   const endIndex = startIndex + adminHistoryPerPage;
-  const historyPage = adminHistoryData.slice(startIndex, endIndex);
+  const historyPage = adminHistoryFilteredData.slice(startIndex, endIndex);
   
   tbody.innerHTML = historyPage.map(entry => `
     <tr class="border-b border-gray-100">
@@ -4653,7 +4696,13 @@ function renderAdminHistoryTable() {
   // Atualizar contador
   const countElement = document.getElementById('adminHistoryCount');
   if (countElement) {
-    countElement.textContent = `${adminHistoryData.length} ações`;
+    const totalActions = adminHistoryData.length;
+    const filteredActions = adminHistoryFilteredData.length;
+    if (filteredActions === totalActions) {
+      countElement.textContent = `${totalActions} ações`;
+    } else {
+      countElement.textContent = `${filteredActions} de ${totalActions} ações`;
+    }
   }
 }
 
@@ -4709,7 +4758,7 @@ function formatDateTime(timestamp) {
 
 // Paginação do histórico
 function updateAdminHistoryPagination() {
-  const totalPages = Math.ceil(adminHistoryData.length / adminHistoryPerPage);
+  const totalPages = Math.ceil(adminHistoryFilteredData.length / adminHistoryPerPage);
   const paginationContainer = document.getElementById('adminHistoryPagination');
   if (!paginationContainer) return;
   
@@ -4748,6 +4797,30 @@ function changeAdminHistoryPage(page) {
   updateAdminHistoryPagination();
 }
 
+// Filtrar histórico do admin
+function filterAdminHistory() {
+  const searchInput = document.getElementById('historySearchInput');
+  if (!searchInput) return;
+  
+  const searchTerm = searchInput.value.toLowerCase().trim();
+  
+  if (searchTerm === '') {
+    adminHistoryFilteredData = [...adminHistoryData];
+  } else {
+    adminHistoryFilteredData = adminHistoryData.filter(entry => 
+      (entry.adminEmail && entry.adminEmail.toLowerCase().includes(searchTerm)) ||
+      (entry.action && entry.action.toLowerCase().includes(searchTerm)) ||
+      (entry.details && entry.details.toLowerCase().includes(searchTerm)) ||
+      (entry.adminRole && entry.adminRole.toLowerCase().includes(searchTerm)) ||
+      (getActionDisplayName(entry.action) && getActionDisplayName(entry.action).toLowerCase().includes(searchTerm))
+    );
+  }
+  
+  adminHistoryCurrentPage = 1; // Reset para primeira página
+  renderAdminHistoryTable();
+  updateAdminHistoryPagination();
+}
+
 // Expor funções globalmente
 window.loadPermissionsUsers = loadPermissionsUsers;
 window.updatePermissionsUserRole = updatePermissionsUserRole;
@@ -4756,8 +4829,10 @@ window.loadTokensUsers = loadTokensUsers;
 window.addTokens = addTokens;
 window.removeTokens = removeTokens;
 window.changeTokensPage = changeTokensPage;
+window.filterTokensUsers = filterTokensUsers;
 window.loadAdminHistory = loadAdminHistory;
 window.changeAdminHistoryPage = changeAdminHistoryPage;
+window.filterAdminHistory = filterAdminHistory;
 
 // Carregar usuários quando o admin for inicializado
 document.addEventListener('DOMContentLoaded', function() {
