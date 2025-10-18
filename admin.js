@@ -4719,20 +4719,59 @@ async function logAdminAction(action, details) {
     
     const currentUser = JSON.parse(sessionStorage.getItem('adminSession') || '{}');
     console.log('👤 Usuário atual da sessão:', currentUser);
+    console.log('👤 UID do usuário:', currentUser.uid);
     
     // Buscar dados completos do usuário para obter o nome
     let adminName = 'N/A';
     if (currentUser.uid) {
       try {
+        console.log('🔍 Buscando dados do usuário no Firebase...');
         const userRef = doc(window.firebaseDb, 'users', currentUser.uid);
         const userSnap = await getDoc(userRef);
+        console.log('📄 Documento do usuário existe:', userSnap.exists());
+        
         if (userSnap.exists()) {
           const userData = userSnap.data();
-          adminName = userData.name || userData.displayName || userData.email || 'N/A';
+          console.log('📊 Dados do usuário:', userData);
+          
+          // Tentar diferentes campos para o nome
+          if (userData.name && userData.name.trim() !== '') {
+            adminName = userData.name;
+          } else if (userData.displayName && userData.displayName.trim() !== '') {
+            adminName = userData.displayName;
+          } else if (userData.email) {
+            // Usar parte do email antes do @ como nome
+            adminName = userData.email.split('@')[0];
+          } else {
+            adminName = 'Usuário';
+          }
+          
+          console.log('👤 Nome extraído:', adminName);
+        } else {
+          console.warn('⚠️ Documento do usuário não existe no Firebase');
+          // Usar parte do email como nome
+          if (currentUser.email) {
+            adminName = currentUser.email.split('@')[0];
+          } else {
+            adminName = 'Usuário';
+          }
         }
       } catch (error) {
         console.warn('⚠️ Erro ao buscar nome do usuário:', error);
-        adminName = currentUser.email || 'N/A';
+        // Usar parte do email como nome
+        if (currentUser.email) {
+          adminName = currentUser.email.split('@')[0];
+        } else {
+          adminName = 'Usuário';
+        }
+      }
+    } else {
+      console.warn('⚠️ UID não encontrado na sessão');
+      // Usar parte do email como nome
+      if (currentUser.email) {
+        adminName = currentUser.email.split('@')[0];
+      } else {
+        adminName = 'Usuário';
       }
     }
     
