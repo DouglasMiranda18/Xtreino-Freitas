@@ -4682,7 +4682,11 @@ function renderAdminHistoryTable() {
         <div class="text-xs text-gray-600">${formatDateTime(entry.timestamp)}</div>
       </td>
       <td class="py-3 px-2">
-        <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">${entry.adminEmail || 'N/A'}</span>
+        <div class="space-y-1">
+          <div class="font-medium text-xs text-gray-900">${entry.adminName || 'N/A'}</div>
+          <div class="text-xs text-gray-500">${entry.adminEmail || 'N/A'}</div>
+          <span class="px-1 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">${getRoleDisplayName(entry.adminRole)}</span>
+        </div>
       </td>
       <td class="py-3 px-2">
         <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">${getActionDisplayName(entry.action)}</span>
@@ -4710,16 +4714,33 @@ function renderAdminHistoryTable() {
 async function logAdminAction(action, details) {
   try {
     console.log('🔄 Registrando ação do admin:', action, details);
-    const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const { collection, addDoc, serverTimestamp, doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     const historyCol = collection(window.firebaseDb, 'adminHistory');
     
     const currentUser = JSON.parse(sessionStorage.getItem('adminSession') || '{}');
     console.log('👤 Usuário atual da sessão:', currentUser);
     
+    // Buscar dados completos do usuário para obter o nome
+    let adminName = 'N/A';
+    if (currentUser.uid) {
+      try {
+        const userRef = doc(window.firebaseDb, 'users', currentUser.uid);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          adminName = userData.name || userData.displayName || userData.email || 'N/A';
+        }
+      } catch (error) {
+        console.warn('⚠️ Erro ao buscar nome do usuário:', error);
+        adminName = currentUser.email || 'N/A';
+      }
+    }
+    
     const logData = {
       action: action,
       details: details,
       adminEmail: currentUser.email || 'N/A',
+      adminName: adminName,
       adminRole: currentUser.role || 'N/A',
       timestamp: serverTimestamp()
     };
@@ -4817,6 +4838,7 @@ function filterAdminHistory() {
   } else {
     adminHistoryFilteredData = adminHistoryData.filter(entry => 
       (entry.adminEmail && entry.adminEmail.toLowerCase().includes(searchTerm)) ||
+      (entry.adminName && entry.adminName.toLowerCase().includes(searchTerm)) ||
       (entry.action && entry.action.toLowerCase().includes(searchTerm)) ||
       (entry.details && entry.details.toLowerCase().includes(searchTerm)) ||
       (entry.adminRole && entry.adminRole.toLowerCase().includes(searchTerm)) ||
