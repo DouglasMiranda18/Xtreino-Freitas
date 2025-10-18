@@ -2417,21 +2417,6 @@ async function giveTokensToUser(userEmail, tokenAmount) {
     }
 }
 
-// Função para mostrar modal de dar tokens
-function showGiveTokensModal() {
-    const email = prompt('Digite o email do usuário:');
-    if (!email) return;
-    
-    const amount = prompt('Quantos tokens dar?');
-    if (!amount || isNaN(amount) || amount <= 0) {
-        alert('Quantidade inválida');
-        return;
-    }
-    
-    if (confirm(`Dar ${amount} token(s) para ${email}?`)) {
-        giveTokensToUser(email, parseInt(amount));
-    }
-}
 
 // ===== GERENCIAMENTO DE DESTAQUES =====
 
@@ -2741,7 +2726,6 @@ async function saveHighlights() {
 
 // Tornar funções globais
 window.approveOrder = approveOrder;
-window.showGiveTokensModal = showGiveTokensModal;
 window.openHighlightsModal = openHighlightsModal;
 window.closeHighlightsModal = closeHighlightsModal;
 window.saveHighlights = saveHighlights;
