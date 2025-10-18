@@ -251,12 +251,17 @@ async function checkAdminAccess() {
         const { doc, getDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const snap = await getDoc(doc(collection(window.firebaseDb,'users'), uid));
         if (snap.exists()) {
-            const role = (snap.data().role || '').toLowerCase();
-            console.log('🎭 Role encontrado:', role);
+            const userData = snap.data();
+            const role = (userData.role || '').toLowerCase();
+            console.log('🎭 Role encontrado:', userData.role, '-> normalizado:', role);
+            console.log('📊 Dados completos do usuário:', userData);
             
-            // Para design e socio, permitir qualquer email
-            if (['design', 'socio'].includes(role)) {
-                console.log('✅ Acesso liberado para Design/Sócio');
+            // Para design e socio, permitir qualquer email (incluindo variações)
+            const designVariations = ['design', 'designer', 'desgin', 'desgine'];
+            const socioVariations = ['socio', 'sócio'];
+            
+            if (designVariations.includes(role) || socioVariations.includes(role)) {
+                console.log('✅ Acesso liberado para Design/Sócio (cargo:', role, ')');
                 return true;
             }
             
@@ -281,22 +286,25 @@ async function checkAdminAccess() {
 
 // Mostrar/esconder link ADMIN baseado no acesso
 async function updateAdminLinkVisibility() {
-    // Debug removido
+    console.log('🔄 Atualizando visibilidade do link ADMIN...');
     const adminLink = document.getElementById('adminLink');
     if (!adminLink) {
-        // console.log('❌ Elemento adminLink não encontrado');
+        console.log('❌ Elemento adminLink não encontrado');
         return;
     }
     
+    console.log('👤 Usuário logado:', window.isLoggedIn);
+    console.log('🔥 Firebase Auth:', !!window.firebaseAuth?.currentUser);
+    
     const hasAccess = await checkAdminAccess();
-    // console.log('🔐 Has access:', hasAccess);
+    console.log('🔐 Has access:', hasAccess);
     
     if (hasAccess) {
         adminLink.classList.remove('hidden');
-        // console.log('✅ Link ADMIN mostrado');
+        console.log('✅ Link ADMIN mostrado');
     } else {
         adminLink.classList.add('hidden');
-        // console.log('❌ Link ADMIN escondido');
+        console.log('❌ Link ADMIN escondido');
     }
 }
 
@@ -402,7 +410,10 @@ async function submitRegister(){ /* removed */ }
 window.addEventListener('load', () => { 
     try{ 
         initShopCartHook(); 
-        updateAdminLinkVisibility();
+        // Aguardar um pouco para garantir que o Firebase esteja carregado
+        setTimeout(() => {
+            updateAdminLinkVisibility();
+        }, 1000);
     }catch(_){ } 
 });
 
