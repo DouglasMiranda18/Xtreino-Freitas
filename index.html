@@ -878,11 +878,36 @@
                             <label class="block text-sm font-medium mb-2">Email</label>
                             <input type="email" required class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-black placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="seu@email.com">
                         </div>
-                        <!-- Método de pagamento removido: checkout é feito no Mercado Pago -->
-                        <div class="bg-blue-matte bg-opacity-20 rounded-lg p-4">
+                        
+                        <!-- Campo de Cupom -->
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Cupom de Desconto (Opcional)</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="couponCodeInput" placeholder="Digite o código do cupom" 
+                                       class="flex-1 bg-white border border-gray-300 rounded-lg px-4 py-3 text-black placeholder-gray-400 focus:border-blue-matte focus:outline-none">
+                                <button type="button" onclick="applyCoupon()" 
+                                        class="px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors">
+                                    Aplicar
+                                </button>
+                            </div>
+                            <div id="couponMessage" class="mt-2 text-sm hidden"></div>
+                        </div>
+                        
+                        <!-- Resumo de Preços -->
+                        <div class="bg-gray-50 rounded-lg p-4 space-y-2">
                             <div class="flex justify-between items-center">
-                                <span>Total:</span>
-                                <span id="purchasePrice" class="text-2xl font-bold text-blue-matte">R$ 0,00</span>
+                                <span>Subtotal:</span>
+                                <span id="purchaseSubtotal" class="font-medium">R$ 0,00</span>
+                            </div>
+                            <div id="discountRow" class="flex justify-between items-center text-green-600 hidden">
+                                <span>Desconto:</span>
+                                <span id="discountAmount" class="font-medium">-R$ 0,00</span>
+                            </div>
+                            <div class="border-t pt-2">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-semibold">Total:</span>
+                                    <span id="purchasePrice" class="text-2xl font-bold text-blue-matte">R$ 0,00</span>
+                                </div>
                             </div>
                         </div>
                         <button type="submit" class="w-full btn-primary py-3 rounded-lg font-semibold transition-colors">

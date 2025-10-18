@@ -1020,6 +1020,8 @@ function handleContactForm(event) {
 
 // Purchase modal functions
 let currentProduct = null;
+let appliedCoupon = null;
+let originalPrice = 0;
 const products = {
     'passe-booyah': { name: 'Passe Booyah', price: 'R$ 11,00', description: 'Assinatura mensal com acesso completo' },
     'aim-training': { name: 'XTreino - Aim Training', price: 'R$ 49,90', description: 'Sessão de 2 horas de treinamento' },
@@ -1152,16 +1154,33 @@ function updatePurchaseTotal(productId){
     } else {
         const product = products[productId];
         total = Number((product.price || '0').replace(/[^0-9,]/g,'').replace(',','.')) || 0;
-        // aplicar cupom de 5% apenas em eventos
-        if (productId.startsWith('evt-')){
-            const code = (document.getElementById('couponCode')?.value || '').trim().toUpperCase();
-            if (code === 'ADMFALL') {
-                total = Number((total * 0.95).toFixed(2));
-            }
+    }
+    
+    // Armazenar preço original
+    originalPrice = total;
+    
+    // Atualizar subtotal
+    const subtotalEl = document.getElementById('purchaseSubtotal');
+    if (subtotalEl) {
+        subtotalEl.textContent = total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+    
+    // Se há cupom aplicado, recalcular com desconto
+    if (appliedCoupon) {
+        updatePriceWithCoupon();
+    } else {
+        // Sem cupom, mostrar preço original
+        const priceEl = document.getElementById('purchasePrice');
+        if (priceEl) {
+            priceEl.textContent = total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+        
+        // Esconder linha de desconto
+        const discountRowEl = document.getElementById('discountRow');
+        if (discountRowEl) {
+            discountRowEl.classList.add('hidden');
         }
     }
-    const priceEl = document.getElementById('purchasePrice');
-    if (priceEl) priceEl.textContent = total.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 }
 
 function syncMapsQtyWithNames(){
@@ -1178,7 +1197,196 @@ function syncMapsQtyWithNames(){
 function closePurchaseModal() {
     document.getElementById('purchaseModal').classList.add('hidden');
     currentProduct = null;
+    appliedCoupon = null;
+    originalPrice = 0;
+    // Limpar campos de cupom
+    const couponInput = document.getElementById('couponCodeInput');
+    const couponMessage = document.getElementById('couponMessage');
+    if (couponInput) couponInput.value = '';
+    if (couponMessage) {
+        couponMessage.classList.add('hidden');
+        couponMessage.textContent = '';
+    }
     if (window.innerWidth <= 767) maybeClearMobileModalState();
+}
+
+// Função para aplicar cupom
+async function applyCoupon() {
+    const couponCode = document.getElementById('couponCodeInput')?.value?.trim().toUpperCase();
+    const couponMessage = document.getElementById('couponMessage');
+    
+    if (!couponCode) {
+        showCouponMessage('Digite um código de cupom', 'error');
+        return;
+    }
+    
+    if (!currentProduct) {
+        showCouponMessage('Erro: produto não selecionado', 'error');
+        return;
+    }
+    
+    try {
+        console.log('🔄 Validando cupom:', couponCode);
+        
+        // Importar Firebase
+        const { collection, getDocs, query, where, limit } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        
+        // Buscar cupom no Firestore
+        const couponsRef = collection(window.firebaseDb, 'coupons');
+        const q = query(couponsRef, where('code', '==', couponCode), limit(1));
+        const snapshot = await getDocs(q);
+        
+        if (snapshot.empty) {
+            showCouponMessage('Cupom não encontrado', 'error');
+            return;
+        }
+        
+        const couponDoc = snapshot.docs[0];
+        const coupon = { id: couponDoc.id, ...couponDoc.data() };
+        
+        // Validar cupom
+        const validation = validateCoupon(coupon);
+        if (!validation.valid) {
+            showCouponMessage(validation.message, 'error');
+            return;
+        }
+        
+        // Aplicar cupom
+        appliedCoupon = coupon;
+        updatePriceWithCoupon();
+        showCouponMessage(`Cupom aplicado! Desconto: ${getDiscountText(coupon)}`, 'success');
+        
+        console.log('✅ Cupom aplicado:', coupon);
+        
+    } catch (error) {
+        console.error('❌ Erro ao validar cupom:', error);
+        showCouponMessage('Erro ao validar cupom. Tente novamente.', 'error');
+    }
+}
+
+// Validar cupom
+function validateCoupon(coupon) {
+    // Verificar se está ativo
+    if (!coupon.isActive) {
+        return { valid: false, message: 'Cupom inativo' };
+    }
+    
+    // Verificar data de expiração
+    if (coupon.expirationDate) {
+        const expirationDate = coupon.expirationDate.toDate ? coupon.expirationDate.toDate() : new Date(coupon.expirationDate);
+        if (expirationDate < new Date()) {
+            return { valid: false, message: 'Cupom expirado' };
+        }
+    }
+    
+    // Verificar limite de usos
+    if (coupon.usageLimit && coupon.usageCount >= coupon.usageLimit) {
+        return { valid: false, message: 'Cupom esgotado' };
+    }
+    
+    // Verificar valor mínimo do pedido
+    if (coupon.minOrderValue && originalPrice < coupon.minOrderValue) {
+        return { valid: false, message: `Valor mínimo do pedido: R$ ${coupon.minOrderValue.toFixed(2)}` };
+    }
+    
+    return { valid: true };
+}
+
+// Atualizar preço com cupom aplicado
+function updatePriceWithCoupon() {
+    if (!appliedCoupon) return;
+    
+    const subtotalEl = document.getElementById('purchaseSubtotal');
+    const discountRowEl = document.getElementById('discountRow');
+    const discountAmountEl = document.getElementById('discountAmount');
+    const totalEl = document.getElementById('purchasePrice');
+    
+    if (!subtotalEl || !discountRowEl || !discountAmountEl || !totalEl) return;
+    
+    // Calcular desconto
+    let discountAmount = 0;
+    if (appliedCoupon.discountType === 'percentage') {
+        discountAmount = originalPrice * (appliedCoupon.discountValue / 100);
+    } else {
+        discountAmount = appliedCoupon.discountValue;
+    }
+    
+    // Garantir que o desconto não seja maior que o preço
+    discountAmount = Math.min(discountAmount, originalPrice);
+    
+    const finalPrice = originalPrice - discountAmount;
+    
+    // Atualizar elementos
+    subtotalEl.textContent = originalPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    discountAmountEl.textContent = `-${discountAmount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`;
+    totalEl.textContent = finalPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    
+    // Mostrar linha de desconto
+    discountRowEl.classList.remove('hidden');
+}
+
+// Mostrar mensagem de cupom
+function showCouponMessage(message, type) {
+    const couponMessage = document.getElementById('couponMessage');
+    if (!couponMessage) return;
+    
+    couponMessage.textContent = message;
+    couponMessage.classList.remove('hidden', 'text-green-600', 'text-red-600');
+    
+    if (type === 'success') {
+        couponMessage.classList.add('text-green-600');
+    } else if (type === 'error') {
+        couponMessage.classList.add('text-red-600');
+    }
+}
+
+// Obter texto do desconto
+function getDiscountText(coupon) {
+    if (coupon.discountType === 'percentage') {
+        return `${coupon.discountValue}%`;
+    } else {
+        return `R$ ${coupon.discountValue.toFixed(2)}`;
+    }
+}
+
+// Registrar uso do cupom
+async function recordCouponUsage(coupon, finalPrice, originalPrice) {
+    try {
+        console.log('🔄 Registrando uso do cupom:', coupon.code);
+        
+        // Importar Firebase
+        const { collection, addDoc, doc, updateDoc, increment } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        
+        // Obter dados do cliente
+        const customerName = document.querySelector('#purchaseModal input[type="text"]')?.value || '';
+        const customerEmail = document.querySelector('#purchaseModal input[type="email"]')?.value || '';
+        
+        // Registrar uso do cupom
+        const usageData = {
+            couponCode: coupon.code,
+            customerName: customerName,
+            customerEmail: customerEmail,
+            originalValue: originalPrice,
+            discountValue: coupon.discountValue,
+            discountType: coupon.discountType,
+            finalValue: finalPrice,
+            usedAt: new Date(),
+            productId: currentProduct
+        };
+        
+        await addDoc(collection(window.firebaseDb, 'couponUsage'), usageData);
+        
+        // Incrementar contador de uso do cupom
+        await updateDoc(doc(window.firebaseDb, 'coupons', coupon.id), {
+            usageCount: increment(1)
+        });
+        
+        console.log('✅ Uso do cupom registrado com sucesso');
+        
+    } catch (error) {
+        console.error('❌ Erro ao registrar uso do cupom:', error);
+        // Não bloquear a compra se houver erro no registro
+    }
 }
 
 async function handlePurchase(event) {
@@ -1192,6 +1400,15 @@ async function handlePurchase(event) {
     // total atual do modal
     const totalText = document.getElementById('purchasePrice')?.textContent || '0';
     const totalNum = Number(totalText.replace(/[^0-9,]/g,'').replace(',','.')) || 0;
+    
+    // Informações do cupom aplicado
+    const couponInfo = appliedCoupon ? {
+        code: appliedCoupon.code,
+        discountType: appliedCoupon.discountType,
+        discountValue: appliedCoupon.discountValue,
+        originalPrice: originalPrice,
+        finalPrice: totalNum
+    } : null;
     
     // validação específica para imagens (quantidade vs nomes)
     if (currentProduct === 'imagens'){
@@ -1265,12 +1482,18 @@ async function handlePurchase(event) {
                 currency_id: 'BRL',
                 quantity: 1,
                 back_url: window.location.origin + window.location.pathname,
+                coupon_info: couponInfo,
                 external_reference: externalRef
             })
         });
 
         if (!response.ok) throw new Error(await response.text());
         const data = await response.json();
+        
+        // Registrar uso do cupom se aplicado
+        if (appliedCoupon) {
+            await recordCouponUsage(appliedCoupon, totalNum, originalPrice);
+        }
         
         closePurchaseModal();
         
@@ -3485,5 +3708,8 @@ function maybeClearMobileModalState(){
     ].some(el => el && !el.classList.contains('hidden'));
     if (!anyOpen) document.body.classList.remove('modal-open-mobile');
 }
+
+// Expor função de cupom globalmente
+window.applyCoupon = applyCoupon;
 
 
