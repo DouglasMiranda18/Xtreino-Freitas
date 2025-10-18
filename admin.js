@@ -118,40 +118,76 @@
   // Control section visibility based on role
   function controlSectionVisibility(userRole) {
     const role = (userRole || '').toLowerCase();
+    console.log('🎭 Configurando visibilidade para cargo:', role);
     
-    // Get section elements
+    // Get all section elements
+    const sectionKPIs = document.getElementById('sectionKPIs');
+    const sectionFilters = document.getElementById('sectionFilters');
+    const sectionCharts = document.getElementById('sectionCharts');
+    const sectionTokenStats = document.getElementById('sectionTokenStats');
+    const sectionUsersManagement = document.getElementById('sectionUsersManagement');
+    const sectionTokens = document.getElementById('sectionTokens');
     const sectionHighlights = document.getElementById('sectionHighlights');
     const sectionNews = document.getElementById('sectionNews');
     const sectionProducts = document.getElementById('sectionProducts');
-    const sectionUsers = document.getElementById('sectionUsers');
+    const sectionSchedules = document.getElementById('sectionSchedules');
     
     // Design: Can only edit highlights and news
-    if (role === 'design') {
+    if (role === 'design' || role === 'desgin') {
+      console.log('🎨 Configurando visão para Design - apenas Notícias e Destaques');
+      
+      // Ocultar todas as seções administrativas
+      if (sectionKPIs) sectionKPIs.style.display = 'none';
+      if (sectionFilters) sectionFilters.style.display = 'none';
+      if (sectionCharts) sectionCharts.style.display = 'none';
+      if (sectionTokenStats) sectionTokenStats.style.display = 'none';
+      if (sectionUsersManagement) sectionUsersManagement.style.display = 'none';
+      if (sectionTokens) sectionTokens.style.display = 'none';
+      if (sectionProducts) sectionProducts.style.display = 'none';
+      if (sectionSchedules) sectionSchedules.style.display = 'none';
+      
+      // Mostrar apenas Notícias e Destaques
       if (sectionHighlights) sectionHighlights.style.display = 'block';
       if (sectionNews) sectionNews.style.display = 'block';
-      if (sectionProducts) sectionProducts.style.display = 'none';
-      if (sectionUsers) sectionUsers.style.display = 'none';
     }
     // Sócio: Can see everything but cannot edit (read-only)
-    else if (role === 'socio') {
+    else if (role === 'socio' || role === 'sócio') {
+      console.log('👥 Configurando visão para Sócio - visualização completa (somente leitura)');
+      
+      // Mostrar todas as seções
+      if (sectionKPIs) sectionKPIs.style.display = 'block';
+      if (sectionFilters) sectionFilters.style.display = 'block';
+      if (sectionCharts) sectionCharts.style.display = 'block';
+      if (sectionTokenStats) sectionTokenStats.style.display = 'block';
+      if (sectionUsersManagement) sectionUsersManagement.style.display = 'block';
+      if (sectionTokens) sectionTokens.style.display = 'block';
       if (sectionHighlights) sectionHighlights.style.display = 'block';
       if (sectionNews) sectionNews.style.display = 'block';
       if (sectionProducts) sectionProducts.style.display = 'block';
-      if (sectionUsers) sectionUsers.style.display = 'block';
+      if (sectionSchedules) sectionSchedules.style.display = 'block';
       
       // Disable all edit buttons for sócio
-      const editButtons = document.querySelectorAll('button[onclick*="edit"], button[onclick*="add"], button[onclick*="delete"], button[onclick*="save"]');
+      const editButtons = document.querySelectorAll('button[onclick*="edit"], button[onclick*="add"], button[onclick*="delete"], button[onclick*="save"], button[onclick*="update"], button[onclick*="remove"]');
       editButtons.forEach(btn => {
         btn.disabled = true;
         btn.classList.add('opacity-50', 'cursor-not-allowed');
       });
     }
-    // Other roles: Show all sections
+    // Other roles (CEO, Admin, Gerente, Vendedor): Show all sections
     else {
+      console.log('👑 Configurando visão completa para:', role);
+      
+      // Mostrar todas as seções
+      if (sectionKPIs) sectionKPIs.style.display = 'block';
+      if (sectionFilters) sectionFilters.style.display = 'block';
+      if (sectionCharts) sectionCharts.style.display = 'block';
+      if (sectionTokenStats) sectionTokenStats.style.display = 'block';
+      if (sectionUsersManagement) sectionUsersManagement.style.display = 'block';
+      if (sectionTokens) sectionTokens.style.display = 'block';
       if (sectionHighlights) sectionHighlights.style.display = 'block';
       if (sectionNews) sectionNews.style.display = 'block';
       if (sectionProducts) sectionProducts.style.display = 'block';
-      if (sectionUsers) sectionUsers.style.display = 'block';
+      if (sectionSchedules) sectionSchedules.style.display = 'block';
     }
   }
 
