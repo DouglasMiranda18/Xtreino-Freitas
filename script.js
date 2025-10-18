@@ -3273,7 +3273,7 @@ async function submitSchedule(e){
             }
         })
     }).then(async res=>{ if(!res.ok){ const t = await res.text(); throw new Error(t || 'Erro na função de pagamento'); } return res.json(); })
-    .then(data=>{
+    .then(async data=>{
         closeScheduleModal();
         // Salvar external_reference para verificação posterior
         if (data.external_reference) {
@@ -3910,5 +3910,14 @@ async function updateCouponUsageCount(couponId) {
 window.applyCoupon = applyCoupon;
 window.applyScheduleCoupon = applyScheduleCoupon;
 window.recordCouponUsage = recordCouponUsage;
+window.openScheduleModal = openScheduleModal;
+window.openLoginModal = openLoginModal;
+window.closeLoginModal = closeLoginModal;
+window.openPurchaseModal = openPurchaseModal;
+window.closePurchaseModal = closePurchaseModal;
+window.openTokensModal = openTokensModal;
+window.closeTokensModal = closeTokensModal;
+window.openFreeWhatsModal = openFreeWhatsModal;
+window.closeFreeWhatsModal = closeFreeWhatsModal;
 
 
