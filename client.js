@@ -227,6 +227,7 @@ async function checkAuthState() {
             console.log('✅ User authenticated, loading profile and dashboard');
             await loadUserProfile();
             await loadDashboard();
+            await reconcilePendingPayments();
             // Verificar role de afiliado após carregar perfil (já é chamado no loadDashboard, mas garantir)
             await checkAffiliateRole();
             // Verificar novamente após um delay para garantir que o DOM está pronto
@@ -296,6 +297,7 @@ async function switchTab(tabName) {
             break;
         case 'orders':
             loadOrders();
+            reconcilePendingPayments().catch(console.error);
             break;
         case 'products':
             loadProducts();
@@ -439,7 +441,7 @@ async function loadRecentOrders() {
                 tokensUsed: d.data.tokensUsed || d.data.tokenCost || 0
             }));
 
-        const merged = [...orders, ...regEvents]
+        const merged = [...regEvents]
             .sort((a, b) => (b.date?.getTime?.() || 0) - (a.date?.getTime?.() || 0))
             .slice(0, 5);
 
@@ -600,211 +602,6 @@ async function loadProducts() {
         console.error('Error loading products:', error);
         document.getElementById('allProducts').innerHTML = '<p class="text-gray-500 text-center">Erro ao carregar produtos</p>';
     }
-}
-
-// Função para converter data e horário do evento em DateTime - VERSÃO CORRIGIDA PRESERVANDO HORÁRIO
-function getEventDateTime(dateStr, scheduleStr) {
-    try {
-        console.log('🔍 getEventDateTime - dateStr:', dateStr, 'scheduleStr:', scheduleStr);
-        
-        // Verificar se dateStr é válido
-        if (!dateStr || dateStr === 'undefined' || dateStr === 'null' || dateStr === '' || dateStr === 'Invalid Date') {
-            console.log('❌ dateStr inválido ou vazio:', dateStr);
-            return new Date(NaN); // Retorna data inválida
-        }
-        
-        let date;
-        
-        // Se dateStr já é um objeto Date
-        if (dateStr instanceof Date) {
-            // Verificar se é uma data válida
-            if (isNaN(dateStr.getTime())) {
-                console.log('❌ Date inválida');
-                return new Date(NaN);
-            }
-            // Usar a data COM o horário original
-            date = new Date(dateStr);
-            console.log('🔍 dateStr é Date, usando com horário original:', date);
-            console.log('🔍 Horário original:', date.getHours() + ':' + date.getMinutes());
-        } 
-        // Se é uma string
-        else if (typeof dateStr === 'string') {
-            console.log('🔍 dateStr é string, processando...');
-            
-            // Limpar a string
-            dateStr = dateStr.trim();
-            
-            // Tentar diferentes formatos de data
-            if (dateStr.includes('/')) {
-                // Formato DD/MM/YYYY ou DD/MM/YYYY HH:mm
-                console.log('🔍 Formato com / detectado');
-                const dateParts = dateStr.split(/[/\sT]/);
-                
-                if (dateParts.length >= 3) {
-                    const day = parseInt(dateParts[0], 10);
-                    const month = parseInt(dateParts[1], 10) - 1; // Meses são 0-indexed
-                    const year = parseInt(dateParts[2], 10);
-                    
-                    // Verificar se é uma data válida
-                    if (isNaN(day) || isNaN(month) || isNaN(year) || day < 1 || day > 31 || month < 0 || month > 11) {
-                        console.log('❌ Partes de data inválidas:', { day, month, year });
-                        return new Date(NaN);
-                    }
-                    
-                    // Se tiver partes de hora (partes 3 e 4)
-                    let hour = 0;
-                    let minute = 0;
-                    
-                    if (dateParts.length >= 4) {
-                        // Extrair hora dos formatos como "HH:mm" ou "HH:mm:ss"
-                        const timeParts = dateParts[3].split(':');
-                        hour = parseInt(timeParts[0], 10) || 0;
-                        minute = parseInt(timeParts[1], 10) || 0;
-                    }
-                    
-                    date = new Date(year, month, day, hour, minute);
-                    console.log('🔍 Data criada a partir de partes com horário:', { year, month, day, hour, minute, result: date });
-                } else {
-                    console.log('❌ Formato de data inválido');
-                    return new Date(NaN);
-                }
-            } 
-            else if (dateStr.includes('-')) {
-                // Formato YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss
-                console.log('🔍 Formato com - detectado');
-                
-                // Se tiver "T" (formato ISO), manter hora original
-                if (dateStr.includes('T')) {
-                    // Formato ISO completo: YYYY-MM-DDTHH:mm:ss
-                    const isoDate = new Date(dateStr);
-                    if (isNaN(isoDate.getTime())) {
-                        console.log('❌ Formato ISO inválido');
-                        return new Date(NaN);
-                    }
-                    date = isoDate;
-                    console.log('🔍 Data criada a partir de formato ISO:', date);
-                } else {
-                    // Formato YYYY-MM-DD sem hora
-                    const parts = dateStr.split('-');
-                    
-                    if (parts.length === 3) {
-                        const year = parseInt(parts[0], 10);
-                        const month = parseInt(parts[1], 10) - 1; // Meses são 0-indexed
-                        const day = parseInt(parts[2], 10);
-                        
-                        // Verificar se é uma data válida
-                        if (isNaN(year) || isNaN(month) || isNaN(day) || day < 1 || day > 31 || month < 0 || month > 11) {
-                            console.log('❌ Partes de data inválidas:', { year, month, day });
-                            return new Date(NaN);
-                        }
-                        
-                        date = new Date(year, month, day); // Sem hora (meia-noite)
-                        console.log('🔍 Data criada no formato YYYY-MM-DD (sem hora):', date);
-                    } else {
-                        console.log('❌ Formato de data inválido');
-                        return new Date(NaN);
-                    }
-                }
-            } 
-            else {
-                // Tentar parsing direto
-                console.log('🔍 Formato não reconhecido, tentando new Date()');
-                const tempDate = new Date(dateStr);
-                if (isNaN(tempDate.getTime())) {
-                    console.log('❌ new Date() retornou inválido');
-                    return new Date(NaN);
-                }
-                date = new Date(tempDate);
-                console.log('🔍 Data criada por new Date():', date);
-            }
-        } 
-        else {
-            console.log('❌ Tipo não reconhecido para dateStr:', typeof dateStr);
-            return new Date(NaN);
-        }
-        
-        console.log('🔍 Data base criada:', date);
-        console.log('🔍 Horário da data base:', date.getHours() + ':' + date.getMinutes() + ':' + date.getSeconds());
-        console.log('🔍 Data base é válida?', !isNaN(date.getTime()));
-        
-        // Verificar se a data é válida
-        if (isNaN(date.getTime())) {
-            console.log('❌ Data inválida após parsing');
-            return new Date(NaN);
-        }
-        
-        // Extrair o horário do schedule (somente se scheduleStr tiver horário válido)
-        if (scheduleStr && scheduleStr.trim()) {
-            console.log('🔍 Processando schedule para possível ajuste de horário:', scheduleStr);
-            
-            // Extrair números do schedule (aceita "19", "19h", "19:00", "19h00", "Terça-feira - 19h")
-            const timeMatch = scheduleStr.toString().match(/(\d{1,2})[h:]?(\d{0,2})/i);
-            
-            if (timeMatch) {
-                const hour = parseInt(timeMatch[1], 10);
-                const minute = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
-                
-                // Validar hora e minuto
-                if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
-                    // Ajustar SOMENTE se a data atual não tiver horário específico (meia-noite)
-                    // OU se quisermos sempre priorizar o schedule (dependendo da regra de negócio)
-                    
-                    // REGRA: Se a data já tem um horário específico (não é meia-noite), manter
-                    // Se for meia-noite, usar o schedule
-                    if (date.getHours() === 0 && date.getMinutes() === 0) {
-                        console.log('🔍 Data tem meia-noite, ajustando com horário do schedule:', hour, ':', minute);
-                        date.setHours(hour, minute, 0, 0);
-                    } else {
-                        console.log('🔍 Data já tem horário específico, mantendo:', date.getHours(), ':', date.getMinutes());
-                        console.log('🔍 Schedule ignorado pois data já tem horário');
-                    }
-                } else {
-                    console.log('❌ Hora/minuto inválidos do schedule:', { hour, minute });
-                }
-            } else {
-                console.log('❌ Não foi possível extrair hora do schedule');
-            }
-        } else {
-            console.log('⚠️ Sem schedule, mantendo horário da data');
-        }
-        
-        console.log('🔍 Data/hora final do evento:', date);
-        console.log('🔍 Data/hora final (ISO):', date.toISOString());
-        console.log('🔍 Data/hora final (local):', date.toLocaleString('pt-BR'));
-        console.log('🔍 Data/hora final é válida?', !isNaN(date.getTime()));
-        
-        return date;
-    } catch (error) {
-        console.error('❌ Erro ao converter data/hora do evento:', error);
-        console.error('❌ Stack trace:', error.stack);
-        return new Date(NaN);
-    }
-}
-
-function getWeekdayPtBr(dateStr){
-    try{
-        const d = new Date(`${dateStr}T00:00:00`);
-        const wd = d.toLocaleDateString('pt-BR', { weekday: 'long' });
-        return wd.charAt(0).toUpperCase() + wd.slice(1);
-    }catch(_){ return ''; }
-}
-
-function formatTitleWithSchedule(title, dateStr, schedule){
-    const { weekday, hour } = parseSchedule(schedule);
-    const wd = weekday || (dateStr ? getWeekdayPtBr(dateStr) : '');
-    if (wd && hour) return `${title} • ${wd} - ${hour}`;
-    if (wd) return `${title} • ${wd}`;
-    if (hour) return `${title} • ${hour}`;
-    return title;
-}
-
-function parseSchedule(scheduleStr) {
-    const match = scheduleStr?.match(/^(.+?)\s-\s(.+)$/);
-
-    return {
-        weekday: match ? match[1] : '',
-        hour: match ? match[2] : ''
-    };
 }
 
 async function displayAllOrdersPaginated() {
@@ -3138,6 +2935,169 @@ function getStatusText(status, orderData = null) {
             return 'Rejeitado';       
         default:
             return 'Em análise';
+    }
+}
+
+
+/**
+ * Reconcilia pagamentos pendentes do usuário atual.
+ * Varre todos os seus registrations e orders com status pending
+ * e que tenham external_reference, e tenta confirmá-los via API.
+ */
+async function reconcilePendingPayments() {
+    if (!currentUser || !currentUser.uid) return;
+
+    try {
+        console.log('🔄 Verificando pagamentos pendentes do usuário...');
+
+        // Buscar registrations pendentes do usuário
+        const registrations = await fetchUserDocs('registrations', 100, false);
+        const pendingRegs = registrations.filter(r => 
+            r.data.status === 'pending' && r.data.external_reference
+        );
+
+        // Buscar orders pendentes do usuário
+        const orders = await fetchUserDocs('orders', 100, false);
+        const pendingOrders = orders.filter(o => 
+            o.data.status === 'pending' && o.data.external_reference
+        );
+
+        // Unir e remover duplicatas de external_reference
+        const allRefs = [
+            ...pendingRegs.map(r => r.data.external_reference),
+            ...pendingOrders.map(o => o.data.external_reference)
+        ];
+        const uniqueRefs = [...new Set(allRefs)];
+
+        if (uniqueRefs.length === 0) {
+            console.log('✅ Nenhum pagamento pendente encontrado.');
+            return;
+        }
+
+        console.log(`🔍 ${uniqueRefs.length} pagamento(s) pendente(s) encontrado(s).`);
+
+        for (const ref of uniqueRefs) {
+            console.log(`📡 Verificando external_reference: ${ref}`);
+            try {
+                const response = await fetch('/.netlify/functions/check-payment-status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ external_reference: ref })
+                });
+                const data = await response.json();
+                if (data.status === 'approved') {
+                    console.log(`✅ Pagamento ${ref} aprovado, processando...`);
+                    await processSuccessfulPayment(ref);
+                } else {
+                    console.log(`⏳ Pagamento ${ref} ainda pendente (${data.status})`);
+                }
+            } catch (err) {
+                console.error(`❌ Erro ao verificar ${ref}:`, err);
+                console.error(err.stack); // Add stack trace
+            }
+            // Pequena pausa para evitar sobrecarga
+            await new Promise(r => setTimeout(r, 300));
+        }
+
+        // Após reconciliar, recarregar pedidos se a aba atual for orders
+        const activeTab = document.querySelector('.tab-content:not(.hidden)')?.id;
+        if (activeTab === 'ordersContent') {
+            loadOrders();
+        } else if (activeTab === 'dashboardContent') {
+            loadDashboard(); // atualiza cards
+        }
+
+    } catch (error) {
+        console.error('❌ Erro na reconciliação:', error);
+    }
+}
+
+async function processSuccessfulPayment(externalRef = null) {
+    const extRef = externalRef || sessionStorage.getItem('lastExternalRef');
+    console.log('🔄 processSuccessfulPayment iniciada. externalRef:', extRef);
+
+    if (!extRef) {
+        console.warn('❌ Nenhum external_reference encontrado.');
+        return;
+    }
+
+    if (!window.firebaseDb) {
+        console.error('❌ Firebase não inicializado. Impossível processar pagamento.');
+        return;
+    }
+
+    // Limpar dados de pagamento após processar
+    sessionStorage.removeItem('lastExternalRef');
+    sessionStorage.removeItem('lastRegId');
+    sessionStorage.removeItem('lastRegInfo');
+    try { sessionStorage.removeItem('lastCheckoutUrl'); } catch (_) { }
+
+    try {
+        const { collection, query, where, getDocs, doc, updateDoc, addDoc, serverTimestamp, writeBatch } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+        // 1) Atualizar todas as registrations com este external_reference
+        const regsRef = collection(window.firebaseDb, 'registrations');
+        const q = query(regsRef, where('external_reference', '==', extRef));
+        const snap = await getDocs(q);
+        let groupLink = null;
+
+        const batch = writeBatch(window.firebaseDb);
+        snap.forEach(d => {
+            const ref = doc(window.firebaseDb, 'registrations', d.id);
+            batch.update(ref, { status: 'paid', paidAt: serverTimestamp() });
+            const data = d.data();
+            if (!groupLink && data && data.groupLink) groupLink = data.groupLink;
+        });
+        await batch.commit();
+
+        // 2) Garantir que exista um pedido correspondente em orders
+        if (!snap.empty) {
+            const firstReg = snap.docs[0].data();
+            const ordersRef = collection(window.firebaseDb, 'orders');
+            const orderQ = query(ordersRef, where('external_reference', '==', extRef));
+            const orderSnap = await getDocs(orderQ);
+            if (orderSnap.empty) {
+                const totalAmount = firstReg.price || 0;
+                await addDoc(ordersRef, {
+                    title: firstReg.title || firstReg.eventType || 'Evento',
+                    description: firstReg.title || firstReg.eventType || 'Evento',
+                    item: firstReg.title || firstReg.eventType || 'Evento',
+                    amount: totalAmount,
+                    total: totalAmount,
+                    quantity: 1,
+                    currency: 'BRL',
+                    status: 'paid',
+                    customer: firstReg.email || firstReg.contact || '',
+                    customerName: firstReg.teamName || '',
+                    buyerEmail: firstReg.email || '',
+                    userId: firstReg.userId || null,
+                    uid: firstReg.userId || null,
+                    external_reference: extRef,
+                    createdAt: serverTimestamp(),
+                    timestamp: Date.now(),
+                    type: 'event'
+                });
+            } else {
+                const existingOrder = orderSnap.docs[0];
+                if (existingOrder.data().status !== 'paid') {
+                    await updateDoc(doc(window.firebaseDb, 'orders', existingOrder.id), { status: 'paid', paidAt: serverTimestamp() });
+                }
+            }
+        }
+
+        // Mostrar modal ou alerta de sucesso
+        if (typeof openPaymentConfirmModal === 'function') {
+            openPaymentConfirmModal('Pagamento confirmado', 'Seu pagamento foi aprovado. Confira seus acessos na área Minha Conta.', groupLink);
+        } else {
+            alert('✅ Pagamento confirmado! Confira seus acessos na área Minha Conta.');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao processar pagamento:', error);
+        if (typeof openPaymentConfirmModal === 'function') {
+            openPaymentConfirmModal('Pagamento confirmado', 'Seu pagamento foi aprovado. Confira seus acessos na área Minha Conta.');
+        } else {
+            alert('✅ Pagamento confirmado! Confira seus acessos na área Minha Conta.');
+        }
     }
 }
 
