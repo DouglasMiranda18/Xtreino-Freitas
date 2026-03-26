@@ -381,6 +381,7 @@ async function loadDashboard() {
             await loadUserProfile();
         }
         
+        await new Promise(r => setTimeout(r, 500));
         // Verificar role de afiliado após carregar perfil
         await checkAffiliateRole();
         
