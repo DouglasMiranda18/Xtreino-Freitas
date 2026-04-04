@@ -75,6 +75,7 @@ service cloud.firestore {
     match /orders/{orderId} {
       allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || canReadAll());
       allow write: if isSignedIn();
+      allow update: if request.auth != null && request.auth.uid == resource.data.userId;
     }
 
     // registrations: leitura para staff (admin/gerente/vendedor/sócio) e para o próprio usuário; escrita para logados
@@ -92,6 +93,7 @@ service cloud.firestore {
         )
       );
       allow write: if isSignedIn();
+      allow update: if request.auth != null && request.auth.uid == resource.data.userId;
     }
 
     // digital_deliveries: leitura para o próprio usuário e sócio; escrita para logados
