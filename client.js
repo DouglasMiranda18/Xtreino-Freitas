@@ -379,9 +379,8 @@ async function loadDashboard() {
         if (!userProfile && currentUser) {
             console.log('🔍 UserProfile not loaded, loading it first...');
             await loadUserProfile();
-        }
-        
-        await new Promise(r => setTimeout(r, 500));
+        }       
+       
         // Verificar role de afiliado após carregar perfil
         await checkAffiliateRole();
         
@@ -1159,9 +1158,13 @@ async function getOrderActionButton(order) {
             buttonText = 'Data/hora do evento inválida';
             buttonClass = 'text-gray-500 bg-gray-100 cursor-not-allowed';
             isAvailable = false;
-        } else {
+        } else {          
             const now = new Date();
-            const ymd = now.toISOString().split('T')[0];            
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+
+            const ymd = `${year}-${month}-${day}`;        
             const eventTime = order.eventDate;           
             
             // Disponibilidade: agora <= horário do evento

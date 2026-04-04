@@ -327,56 +327,15 @@ function showAuthTab(tab) {
     const msg = document.getElementById('authMsg'); if (msg) msg.textContent = '';
 }
 
-// async function loginWithGoogle() {
-//     try {
-//         if (!window.firebaseReady) { throw new Error('Firebase não inicializado'); }
-//         const { GoogleAuthProvider, signInWithPopup } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
-//         const provider = new GoogleAuthProvider();
-//         const res = await signInWithPopup(window.firebaseAuth, provider);
-//         onAuthLogged(res.user);
-//     } catch (e) { document.getElementById('authMsg').textContent = 'Erro no login Google.'; }
-// }
-
-
 async function loginWithGoogle() {
     try {
         if (!window.firebaseReady) { throw new Error('Firebase não inicializado'); }
         const { GoogleAuthProvider, signInWithPopup } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
         const provider = new GoogleAuthProvider();
-        const result = await signInWithPopup(window.firebaseAuth, provider);
-        const user = result.user;
-
-        // Criar/atualizar documento do usuário no Firestore
-        const { doc, getDoc, setDoc, collection, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const userRef = doc(collection(window.firebaseDb, 'users'), user.uid);
-        const userSnap = await getDoc(userRef);
-        if (!userSnap.exists()) {
-            // Cria um documento básico
-            await setDoc(userRef, {
-                uid: user.uid,
-                email: user.email,
-                name: user.displayName || '',
-                photoURL: user.photoURL || '',
-                role: 'user',
-                tokens: 0,
-                createdAt: serverTimestamp(),
-                lastLogin: serverTimestamp()
-            });
-            console.log('✅ Documento do usuário criado para login Google');
-        } else {
-            // Atualiza apenas o último login
-            await setDoc(userRef, { lastLogin: serverTimestamp() }, { merge: true });
-        }
-
-        // Continua com o fluxo normal de autenticação
-        onAuthLogged(user);
-    } catch (e) {
-        console.error('Erro no login Google:', e);
-        document.getElementById('authMsg').textContent = 'Erro no login Google.';
-    }
+        const res = await signInWithPopup(window.firebaseAuth, provider);
+        onAuthLogged(res.user);
+    } catch (e) { document.getElementById('authMsg').textContent = 'Erro no login Google.'; }
 }
-
-
 
 
 async function loginWithEmailPassword() {
