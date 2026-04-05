@@ -71,17 +71,25 @@ service cloud.firestore {
       allow write: if isSignedIn();
     }
 
-    // orders: leitura para staff (admin/gerente/vendedor/sócio) e para o próprio usuário; escrita para logados
+    // orders: leitura para staff e para o próprio usuário (usando userId ou uid); escrita para logados
     match /orders/{orderId} {
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || canReadAll());
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.uid == request.auth.uid ||
+        canReadAll()
+      );
       allow write: if isSignedIn();
-      allow update: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow update: if isSignedIn() && (
+        request.auth.uid == resource.data.userId ||
+        request.auth.uid == resource.data.uid
+      );
     }
 
-    // registrations: leitura para staff (admin/gerente/vendedor/sócio) e para o próprio usuário; escrita para logados
+    // registrations: leitura para staff e para o próprio usuário (usando userId ou uid); escrita para logados
     match /registrations/{registrationId} {
       allow read: if isSignedIn() && (
         resource.data.userId == request.auth.uid ||
+        resource.data.uid == request.auth.uid ||
         canReadAll() ||
         (
           isStaff() && (
@@ -93,7 +101,10 @@ service cloud.firestore {
         )
       );
       allow write: if isSignedIn();
-      allow update: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow update: if isSignedIn() && (
+        request.auth.uid == resource.data.userId ||
+        request.auth.uid == resource.data.uid
+      );
     }
 
     // digital_deliveries: leitura para o próprio usuário e sócio; escrita para logados
