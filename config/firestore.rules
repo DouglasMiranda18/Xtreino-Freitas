@@ -76,14 +76,12 @@ service cloud.firestore {
       allow read: if isSignedIn() && (
         resource.data.userId == request.auth.uid ||
         resource.data.uid == request.auth.uid ||
-        canReadAll()
+        canReadAll()  // mantém para admin/gerente/etc.
       );
-      allow write: if isSignedIn();
       allow create: if isSignedIn();
       allow update: if isSignedIn() && (
         request.auth.uid == resource.data.userId ||
-        request.auth.uid == resource.data.uid ||
-        canReadAll()
+        request.auth.uid == resource.data.uid
       );
     }
 
@@ -93,21 +91,15 @@ service cloud.firestore {
         resource.data.userId == request.auth.uid ||
         resource.data.uid == request.auth.uid ||
         canReadAll() ||
-        (
-          isStaff() && (
-            // Allow staff to read registrations for schedules between 14h and 18h.
-            // Try numeric hour first, otherwise fallback to matching common schedule strings ("14h", "14:00", "14").
-            ((resource.data.hour is number) && resource.data.hour >= 14 && resource.data.hour <= 18) ||
-            ((resource.data.schedule is string) && resource.data.schedule.matches('.*(\\b14\\b|\\b15\\b|\\b16\\b|\\b17\\b|\\b18\\b|14h|15h|16h|17h|18h|14:00|15:00|16:00|17:00|18:00).*'))
-          )
-        )
+        (isStaff() && (
+          ((resource.data.hour is number) && resource.data.hour >= 14 && resource.data.hour <= 18) ||
+          ((resource.data.schedule is string) && resource.data.schedule.matches('.*(\\b14\\b|\\b15\\b|\\b16\\b|\\b17\\b|\\b18\\b|14h|15h|16h|17h|18h|14:00|15:00|16:00|17:00|18:00).*'))
+        ))
       );
-      allow write: if isSignedIn();
       allow create: if isSignedIn();
       allow update: if isSignedIn() && (
         request.auth.uid == resource.data.userId ||
-        request.auth.uid == resource.data.uid ||
-        canReadAll()
+        request.auth.uid == resource.data.uid
       );
     }
 
