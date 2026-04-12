@@ -3017,90 +3017,47 @@ async function reconcilePendingPayments() {
 
 async function processSuccessfulPayment(externalRef = null) {
     const extRef = externalRef || sessionStorage.getItem('lastExternalRef');
-    console.log('🔄 processSuccessfulPayment iniciada. externalRef:', extRef);
+    console.log('🔄 processSuccessfulPayment chamando back-end. externalRef:', extRef);
 
     if (!extRef) {
         console.warn('❌ Nenhum external_reference encontrado.');
         return;
     }
 
-    if (!window.firebaseDb) {
-        console.error('❌ Firebase não inicializado. Impossível processar pagamento.');
-        return;
-    }
-
-    // Limpar dados de pagamento após processar
-    sessionStorage.removeItem('lastExternalRef');
-    sessionStorage.removeItem('lastRegId');
-    sessionStorage.removeItem('lastRegInfo');
-    try { sessionStorage.removeItem('lastCheckoutUrl'); } catch (_) { }
+    // Recuperar IDs salvos (se houver)
+    let regIds = [];
+    try {
+        const storedIds = sessionStorage.getItem('lastRegIds');
+        if (storedIds) regIds = JSON.parse(storedIds);
+    } catch(e) {}
 
     try {
-        const { collection, query, where, getDocs, doc, updateDoc, addDoc, serverTimestamp, writeBatch } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-
-        // 1) Atualizar todas as registrations com este external_reference
-        const regsRef = collection(window.firebaseDb, 'registrations');
-        const q = query(regsRef, where('external_reference', '==', extRef));
-        const snap = await getDocs(q);
-        let groupLink = null;
-
-        const batch = writeBatch(window.firebaseDb);
-        snap.forEach(d => {
-            const ref = doc(window.firebaseDb, 'registrations', d.id);
-            batch.update(ref, { status: 'paid', paidAt: serverTimestamp() });
-            const data = d.data();
-            if (!groupLink && data && data.groupLink) groupLink = data.groupLink;
+        const response = await fetch('/.netlify/functions/confirm-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                externalRef: extRef,
+                regIds: regIds 
+            })
         });
-        await batch.commit();
-
-        // 2) Garantir que exista um pedido correspondente em orders
-        if (!snap.empty) {
-            const firstReg = snap.docs[0].data();
-            const ordersRef = collection(window.firebaseDb, 'orders');
-            const orderQ = query(ordersRef, where('external_reference', '==', extRef));
-            const orderSnap = await getDocs(orderQ);
-            if (orderSnap.empty) {
-                const totalAmount = firstReg.price || 0;
-                await addDoc(ordersRef, {
-                    title: firstReg.title || firstReg.eventType || 'Evento',
-                    description: firstReg.title || firstReg.eventType || 'Evento',
-                    item: firstReg.title || firstReg.eventType || 'Evento',
-                    amount: totalAmount,
-                    total: totalAmount,
-                    quantity: 1,
-                    currency: 'BRL',
-                    status: 'paid',
-                    customer: firstReg.email || firstReg.contact || '',
-                    customerName: firstReg.teamName || '',
-                    buyerEmail: firstReg.email || '',
-                    userId: firstReg.userId || null,
-                    uid: firstReg.userId || null,
-                    external_reference: extRef,
-                    createdAt: serverTimestamp(),
-                    timestamp: Date.now(),
-                    type: 'event'
-                });
-            } else {
-                const existingOrder = orderSnap.docs[0];
-                if (existingOrder.data().status !== 'paid') {
-                    await updateDoc(doc(window.firebaseDb, 'orders', existingOrder.id), { status: 'paid', paidAt: serverTimestamp() });
-                }
-            }
-        }
-
-        // Mostrar modal ou alerta de sucesso
-        if (typeof openPaymentConfirmModal === 'function') {
-            openPaymentConfirmModal('Pagamento confirmado', 'Seu pagamento foi aprovado. Confira seus acessos na área Minha Conta.', groupLink);
-        } else {
+        const data = await response.json();
+        if (data.success) {
+            console.log('✅ Pagamento confirmado pelo servidor');
             alert('✅ Pagamento confirmado! Confira seus acessos na área Minha Conta.');
+            // Limpar dados da sessão
+            sessionStorage.removeItem('lastExternalRef');
+            sessionStorage.removeItem('lastRegIds');
+            sessionStorage.removeItem('lastRegInfo');
+            sessionStorage.removeItem('lastCheckoutUrl');
+            // Recarregar pedidos na tela
+            if (typeof loadOrders === 'function') loadOrders();
+            if (typeof loadDashboard === 'function') loadDashboard();
+        } else {
+            throw new Error(data.error || 'Falha na confirmação');
         }
     } catch (error) {
-        console.error('❌ Erro ao processar pagamento:', error);
-        if (typeof openPaymentConfirmModal === 'function') {
-            openPaymentConfirmModal('Pagamento confirmado', 'Seu pagamento foi aprovado. Confira seus acessos na área Minha Conta.');
-        } else {
-            alert('✅ Pagamento confirmado! Confira seus acessos na área Minha Conta.');
-        }
+        console.error('❌ Erro ao chamar função de confirmação:', error);
+        
     }
 }
 
