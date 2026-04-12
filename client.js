@@ -3042,8 +3042,7 @@ async function processSuccessfulPayment(externalRef = null) {
         });
         const data = await response.json();
         if (data.success) {
-            console.log('✅ Pagamento confirmado pelo servidor');
-            alert('✅ Pagamento confirmado! Confira seus acessos na área Minha Conta.');
+            console.log('✅ Pagamento confirmado pelo servidor');         
             // Limpar dados da sessão
             sessionStorage.removeItem('lastExternalRef');
             sessionStorage.removeItem('lastRegIds');
