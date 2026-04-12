@@ -6473,8 +6473,7 @@ async function getWhatsAppLink(eventType, schedule = null, date = null) {
                 );
                 const specificSnapshot = await getDocs(specificQuery);
                 if (!specificSnapshot.empty) {
-                    const link = specificSnapshot.docs[0].data().link;
-                    console.log('✅ Link específico encontrado para', t, hour, ':', link);
+                    const link = specificSnapshot.docs[0].data().link;                   
                     return link;
                 }
             }
