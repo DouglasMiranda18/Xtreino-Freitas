@@ -569,7 +569,8 @@ async function loadProducts() {
             title: d.data.title || d.data.item || 'Produto',
             status: d.data.status || 'pending',
             price: d.data.amount ?? d.data.total ?? 0,
-            eventType: d.data.eventType || ''
+            eventType: d.data.eventType || '',
+            type: d.data.type || ''
         }));
 
         // Filter only products (not events or tokens)
@@ -2978,16 +2979,12 @@ async function processSuccessfulPayment(externalRef = null) {
         return;
     }
 
-    if (!window.firebaseDb) {
-        console.error('❌ Firebase não inicializado. Impossível processar pagamento.');
-        return;
-    }
-
-    // Limpar dados de pagamento após processar
-    sessionStorage.removeItem('lastExternalRef');
-    sessionStorage.removeItem('lastRegId');
-    sessionStorage.removeItem('lastRegInfo');
-    try { sessionStorage.removeItem('lastCheckoutUrl'); } catch (_) { }
+    // Recuperar IDs salvos (se houver)
+    let regIds = [];
+    try {
+        const storedIds = sessionStorage.getItem('lastRegIds');
+        if (storedIds) regIds = JSON.parse(storedIds);
+    } catch(e) {}
 
     try {
         const { collection, query, where, getDocs, doc, updateDoc, addDoc, serverTimestamp, writeBatch } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');

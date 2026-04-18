@@ -3227,7 +3227,7 @@ function initChat() {
             },
             {
                 match: ['contato', 'falar', 'ajuda', 'suporte', 'problema'],
-                reply: 'Precisa de ajuda? Use este chat 24 horas ou WhatsApp: (11) 94983-0454. Chat sempre disponível!'
+                reply: 'Precisa de ajuda? Use este chat 24 horas ou WhatsApp: (11) 94911-3275. Chat sempre disponível!'
             },
 
             // Pagamento e cupons
@@ -3339,7 +3339,7 @@ function initChat() {
             } else if (textLower.includes('cupom') || textLower.includes('desconto') || textLower.includes('promocao') || textLower.includes('promo')) {
                 matchedReply = 'Cupons de desconto disponíveis! Digite o código na compra. Alguns são específicos para eventos ou loja.';
             } else {
-                matchedReply = `❌ Não temos essa resposta no chat.\n\nChame no WhatsApp para saber melhor:\n\n📱 (11) 94983-0454\n\n🔗 [Clique aqui para abrir o WhatsApp](${whatsLink})`;
+                matchedReply = `❌ Não temos essa resposta no chat.\n\nChame no WhatsApp para saber melhor:\n\n📱 (11) 94911-3275\n\n🔗 [Clique aqui para abrir o WhatsApp](${whatsLink})`;
             }
         }
 
@@ -6290,11 +6290,12 @@ async function processSuccessfulPayment(externalRef = null) {
         return;
     }
 
-    // Limpar dados de pagamento após processar
-    sessionStorage.removeItem('lastExternalRef');
-    sessionStorage.removeItem('lastRegId');
-    sessionStorage.removeItem('lastRegInfo');
-    try { sessionStorage.removeItem('lastCheckoutUrl'); } catch (_) { }
+    // Recuperar IDs salvos (se houver)
+    let regIds = [];
+    try {
+        const storedIds = sessionStorage.getItem('lastRegIds');
+        if (storedIds) regIds = JSON.parse(storedIds);
+    } catch(e) {}
 
     try {
         const { collection, query, where, getDocs, doc, updateDoc, addDoc, serverTimestamp, writeBatch } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
@@ -6356,29 +6357,6 @@ async function processSuccessfulPayment(externalRef = null) {
     } catch (error) {
         console.error('❌ Erro ao processar pagamento:', error);       
     }
-}
-// --- Modal de Tokens ---
-function openTokensModal() {
-    const modal = document.getElementById('tokensModal');
-    if (!modal) return;
-
-    // Atualizar saldo de tokens
-    const balanceEl = document.getElementById('tokensBalance');
-    if (balanceEl) balanceEl.textContent = String(Math.round(getTokenBalance()));
-
-    // Atualizar total ao mudar quantidade
-    const qtyInput = document.getElementById('tokensQuantity');
-    const totalEl = document.getElementById('tokensTotal');
-    if (qtyInput && totalEl) {
-        qtyInput.addEventListener('input', () => {
-            const qty = Math.max(1, Math.min(100, Number(qtyInput.value) || 1));
-            const total = qty * 1.00; // R$ 1,00 por token
-            totalEl.textContent = total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        });
-    }
-
-    modal.classList.remove('hidden');
-    if (window.innerWidth <= 767) document.body.classList.add('modal-open-mobile');
 }
 
 function closeTokensModal() {
