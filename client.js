@@ -139,31 +139,31 @@ let storage = null;
 
 // Inicializar Firebase imediatamente
 function initializeFirebase() {
-  console.log('🔍 Initializing Firebase...');
-  console.log('🔍 window.firebaseApp:', !!window.firebaseApp);
-  console.log('🔍 window.firebaseAuth:', !!window.firebaseAuth);
-  console.log('🔍 window.firebaseDb:', !!window.firebaseDb);
-  console.log('🔍 window.FIREBASE_CONFIG:', !!window.FIREBASE_CONFIG);
+  
+  
+  
+  
+  
   
   if (window.firebaseApp && window.firebaseAuth && window.firebaseDb) {
     app = window.firebaseApp;
     auth = window.firebaseAuth;
     db = window.firebaseDb;
     storage = getStorage(app);
-    console.log('✅ Firebase initialized from global instances');
-    console.log('🔍 DB after global init:', typeof db, db ? db.constructor.name : 'null');
+    
+    
     return true;
   }
   
   if (window.FIREBASE_CONFIG) {
     // Fallback: initialize here if global init hasn't run yet
-    console.log('🔍 Initializing Firebase from FIREBASE_CONFIG...');
+    
     app = initializeApp(window.FIREBASE_CONFIG);
     auth = getAuth(app);
     db = getFirestore(app);
     storage = getStorage(app);
-    console.log('✅ Firebase initialized from FIREBASE_CONFIG');
-    console.log('🔍 DB after local init:', typeof db, db ? db.constructor.name : 'null');
+    
+    
     return true;
   }
   
@@ -173,7 +173,7 @@ function initializeFirebase() {
 
 // Inicializar Firebase
 const firebaseInitialized = initializeFirebase();
-console.log('🔍 Firebase initialization result:', firebaseInitialized);
+
 
 // Ensure local persistence for auth session
 if (auth && auth.setPersistence) {
@@ -192,7 +192,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (!storage && window.firebaseApp) {
         try {
             storage = getStorage(window.firebaseApp);
-            console.log('✅ Storage inicializado no DOMContentLoaded');
+            
         } catch (error) {
             console.error('❌ Erro ao inicializar Storage:', error);
         }
@@ -213,18 +213,18 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 // Check authentication state
 async function checkAuthState() {
-    console.log('🔍 Checking auth state...');
-    console.log('🔍 Auth instance:', auth ? 'Available' : 'NULL');
+    
+    
     if (!auth) {
-        console.log('❌ Auth not available, showing login prompt');
+        
         showLoginPrompt();
         return;
     }
     onAuthStateChanged(auth, async (user) => {
-        console.log('🔍 Auth state changed:', user ? `User logged in: ${user.email} (${user.uid})` : 'User logged out');
+        
         if (user) {
             currentUser = user;
-            console.log('✅ User authenticated, loading profile and dashboard');
+            
             await loadUserProfile();
             await loadDashboard();
             await reconcilePendingPayments();
@@ -237,7 +237,7 @@ async function checkAuthState() {
             // Hide login prompt if user is logged in
             hideLoginPrompt();
         } else {
-            console.log('❌ User not authenticated, showing login prompt');
+            
             // Show login prompt instead of redirecting
             showLoginPrompt();
         }
@@ -325,12 +325,12 @@ async function loadUserProfile() {
             return;
         }
         
-        console.log('🔍 Loading user profile for:', currentUser.uid);
+        
         
         // Usar o mesmo perfil do script.js para manter consistência
         if (window.currentUserProfile && window.currentUserProfile.uid === currentUser.uid) {
             userProfile = window.currentUserProfile;
-            console.log('✅ User profile loaded from window.currentUserProfile:', userProfile);
+            
         } else {
             // Fallback: carregar do Firestore se não estiver disponível no window
             const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
@@ -338,9 +338,9 @@ async function loadUserProfile() {
                 userProfile = userDoc.data();
                 // Sincronizar com window.currentUserProfile
                 window.currentUserProfile = userProfile;
-                console.log('✅ User profile loaded from Firestore and synced:', userProfile);
+                
             } else {
-                console.log('❌ User document not found, creating default profile');
+                
                 // Create default profile
                 userProfile = {
                     name: currentUser.displayName || '',
@@ -356,7 +356,7 @@ async function loadUserProfile() {
                 await setDoc(doc(db, 'users', currentUser.uid), userProfile);
                 // Sincronizar com window.currentUserProfile
                 window.currentUserProfile = userProfile;
-                console.log('✅ Default profile created and synced:', userProfile);
+                
             }
         }
         
@@ -377,7 +377,7 @@ async function loadDashboard() {
     try {
         // Garantir que o userProfile seja carregado primeiro
         if (!userProfile && currentUser) {
-            console.log('🔍 UserProfile not loaded, loading it first...');
+            
             await loadUserProfile();
         }       
        
@@ -499,9 +499,9 @@ let allOrdersData = [];
 // Load all orders with pagination
 async function loadOrders() {
     try {
-        console.log('🔍 Carregando pedidos...');
+        
         const ordersData = await fetchUserDocs('orders', 200, true);
-        console.log('🔍 Orders raw data:', ordersData);
+        
         
         const mappedOrders = ordersData.map(d => ({
             id: d.id,
@@ -520,11 +520,11 @@ async function loadOrders() {
             tokensUsed: d.data.tokensUsed || 0,
             whatsappLink: d.data.whatsappLink || d.data.groupLink || d.data.group_link || null
         }));
-        console.log('🔍 Mapped orders:', mappedOrders);
+        
 
         // Incluir eventos das registrations: tokens e pagamentos aprovados (paid/confirmed/approved)
         const regsData = await fetchUserDocs('registrations', 200, true);
-        console.log('🔍 Registrations raw data:', regsData);
+        
         
         const mappedRegs = regsData
             .filter(d => d.data.paidWithTokens === true || d.data.status === 'paid' || d.data.status === 'confirmed' || d.data.status === 'approved')
@@ -545,12 +545,12 @@ async function loadOrders() {
                 contact: d.data.contact || d.data.phone || null,
                 whatsappLink: d.data.whatsappLink || d.data.groupLink || d.data.group_link || null
             }));
-        console.log('🔍 Mapped registrations:', mappedRegs);
+        
 
         allOrdersData = [...mappedOrders, ...mappedRegs]
           .sort((a,b)=> (b.date?.getTime?.()||0) - (a.date?.getTime?.()||0));
         
-        console.log('🔍 All orders data final:', allOrdersData);
+        
 
         await displayAllOrdersPaginated();
     } catch (error) {
@@ -605,19 +605,6 @@ async function loadProducts() {
 
 async function displayAllOrdersPaginated() {
     const container = document.getElementById('allOrders');
-    
-    console.log('🔍 Total de pedidos carregados (allOrdersData):', allOrdersData.length);
-    console.log('🔍 Todos os pedidos:', allOrdersData.map(o => ({ 
-        id: o.id, 
-        source: o.source,
-        schedule: o.schedule, 
-        hour: o.hour, 
-        eventDate: o.eventDate, 
-        externalRef: o.external_reference,
-        tokensUsed: o.tokensUsed,
-        paidWithTokens: o.paidWithTokens
-    })));
-
     // Filtra apenas eventos (source === 'registration') e que estejam pagos/confirmados
     const allOrders = allOrdersData.filter(order => {
         // Se for um produto (source === 'order'), excluir
@@ -630,17 +617,6 @@ async function displayAllOrdersPaginated() {
         return (status === 'paid' || status === 'confirmed' || status === 'approved') || paidWithTokens;
     });
     
-    console.log('🔍 Pedidos filtrados (allOrders):', allOrders.length);
-    allOrders.forEach(o => console.log('Filtrado:', { 
-        id: o.id, 
-        source: o.source,
-        schedule: o.schedule, 
-        hour: o.hour, 
-        eventDate: o.eventDate,
-        tokensUsed: o.tokensUsed,
-        paidWithTokens: o.paidWithTokens
-    }));
-
     if (allOrders.length === 0) {
         container.innerHTML = '<p class="text-gray-500 text-center">Nenhum evento encontrado</p>';
         return;
@@ -688,17 +664,6 @@ async function displayAllOrdersPaginated() {
     const groupedOrders = Object.values(groups).sort((a, b) => 
         (b.date?.getTime?.() || 0) - (a.date?.getTime?.() || 0)
     );
-
-    console.log('🔍 Grupos formados:', groupedOrders.length);
-    groupedOrders.forEach((g, idx) => {
-        console.log(`Grupo ${idx}:`, {
-            externalRef: g.externalRef,
-            eventDate: g.eventDate,
-            teamName: g.teamName,
-            totalTokens: g.totalTokens,
-            items: g.items.map(i => ({ schedule: i.schedule, tokensUsed: i.tokensUsed }))
-        });
-    });
 
     // Paginação
     const totalPages = Math.ceil(groupedOrders.length / ordersPerPage);
@@ -948,19 +913,19 @@ function generateWhatsAppPaginationHTML(currentPage, totalPages) {
 // Função para obter link do WhatsApp dinamicamente
 async function getWhatsAppLinkForOrder(order) {
     try {
-        console.log('🔍 getWhatsAppLinkForOrder - Order:', order);
-        console.log('🔍 EventType:', order.eventType);
-        console.log('🔍 Schedule:', order.schedule);
+        
+        
+        
         
         // Se o pedido já tem um link salvo e é válido, usar ele
         if (order.whatsappLink && order.whatsappLink.trim()) {
-            console.log('✅ Usando link salvo no pedido:', order.whatsappLink);
+            
             return order.whatsappLink;
         }
         
         // Se não tem link salvo, tentar buscar usando a função getWhatsAppLink do script.js
         if (window.getWhatsAppLink) {
-            console.log('🔍 Link não salvo no pedido, buscando dinamicamente...');
+            
             try {
                 const dynamicLink = await window.getWhatsAppLink(
                     order.eventType, 
@@ -968,10 +933,10 @@ async function getWhatsAppLinkForOrder(order) {
                     order.eventDate || order.date || null
                 );
                 
-                console.log('🔍 Link obtido dinamicamente:', dynamicLink);
+                
                 
                 if (dynamicLink && dynamicLink.trim()) {
-                    console.log('✅ Link dinâmico válido encontrado:', dynamicLink);
+                    
                     return dynamicLink;
                 }
             } catch (error) {
@@ -983,7 +948,7 @@ async function getWhatsAppLinkForOrder(order) {
         
         // Se ainda não tem link, tentar buscar diretamente no Firestore (fallback)
         try {
-            console.log('🔍 Tentando buscar diretamente no Firestore (fallback)...');
+            
             const { collection, getDocs, query, where } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
             
             if (window.firebaseDb) {
@@ -1011,7 +976,7 @@ async function getWhatsAppLinkForOrder(order) {
                 const type = normalizeType(rawTypeInput);
                 const hour = normalizeHour(order.schedule || order.hour || null);
                 
-                console.log('🔍 Buscando com parâmetros normalizados:', { type, hour });
+                
                 
                 // Buscar link específico para o horário
                 if (hour) {
@@ -1025,7 +990,7 @@ async function getWhatsAppLinkForOrder(order) {
                     
                     if (!specificSnapshot.empty) {
                         const link = specificSnapshot.docs[0].data().link;
-                        console.log('✅ Link específico encontrado no fallback:', link);
+                        
                         return link;
                     }
                 }
@@ -1042,19 +1007,19 @@ async function getWhatsAppLinkForOrder(order) {
                     
                     if (!generalSnapshot.empty) {
                         const link = generalSnapshot.docs[0].data().link;
-                        console.log(`✅ Link geral encontrado no fallback (schedule='${schedValue}'):`, link);
+                        
                         return link;
                     }
                 }
 
-                console.log('❌ Nenhum link encontrado no Firestore para:', { type, hour });
+                
             }
         } catch (error) {
             console.error('❌ Erro ao buscar diretamente no Firestore:', error);
         }
         
         // Se não houver link em nenhum lugar, retornar string vazia
-        console.log('⚠️ Nenhum link encontrado. Retornando string vazia.');
+        
         return '';
     } catch (error) {
         console.error('❌ Erro crítico ao obter link do WhatsApp:', error);
@@ -1083,14 +1048,14 @@ function toBrazilISOString(dateStr) {
 
 // Get appropriate action button for order (events only) - VERSÃO CORRIGIDA
 async function getOrderActionButton(order) {
-    console.log('🔍 getOrderActionButton - Order:', order);
+    
     
     // Verificar se é um evento (não produto da loja)
     const title = (order.title || '').toLowerCase();
     const item = (order.item || '').toLowerCase();
     const eventType = (order.eventType || '').toLowerCase();
     
-    console.log('🔍 Title:', title, 'Item:', item, 'EventType:', eventType);
+    
     
     // Excluir produtos da loja virtual
     if (title.includes('planilhas') || 
@@ -1103,26 +1068,26 @@ async function getOrderActionButton(order) {
         item.includes('imagens aéreas') || 
         item.includes('camisa') ||
         (item.includes('token') && eventType !== 'xtreino-tokens')) {
-        console.log('❌ Produto da loja excluído');
+        
         return '';
     }
     
     // Verificar se o pedido está confirmado
     if (!(order.status === 'paid' || order.status === 'confirmed' || order.status === 'approved')) {
-        console.log('❌ Pedido não confirmado, status:', order.status);
+        
         return '';
     }
     
-    console.log('✅ Pedido válido, obtendo link do WhatsApp...');
+    
     
     // Obter link do WhatsApp dinamicamente
     const whatsappLink = await getWhatsAppLinkForOrder(order);
-    console.log('🔍 Link obtido:', whatsappLink);
+    
     
     // Se não houver link, não exibe nada (nem botão, nem span)
     const hasLink = typeof whatsappLink === 'string' && whatsappLink.trim() && whatsappLink.startsWith('http');
     if (!hasLink) {
-        console.log('⚠️ Sem link do WhatsApp - não exibindo botão');
+        
         return '';
     }
     
@@ -1135,25 +1100,25 @@ async function getOrderActionButton(order) {
     const hasEventDate = order.eventDate && order.eventDate !== '' && order.eventDate !== 'undefined' && order.eventDate !== 'null';
     const scheduleStr = order.schedule || order.hour || '';
     
-    console.log('🔍 Dados do evento - eventDate:', order.eventDate, 'hasEventDate:', hasEventDate);
-    console.log('🔍 Schedule:', scheduleStr);
+    
+    
     
     // SE NÃO HOUVER DATA DO EVENTO, LINK SEMPRE INDISPONÍVEL
     if (!hasEventDate) {
-        console.log('❌ Sem data do evento - link indisponível');
+        
         buttonText = 'Data do evento não disponível';
         buttonClass = 'text-gray-500 bg-gray-100 cursor-not-allowed';
         isAvailable = false;
     } 
     // Se tiver data do evento, calcular disponibilidade
     else {
-        console.log('✅ Tem data do evento, calculando disponibilidade...');     
+             
         
         const eventDateTime = new Date(order.eventDate); 
-        console.log('🔍 Data/hora do evento calculada:', eventDateTime.getTime(), 'ISO STRING');
+        
         
         if (isNaN(eventDateTime.getTime())) {
-            console.log('❌ Data/hora do evento inválida');
+            
             buttonText = 'Data/hora do evento inválida';
             buttonClass = 'text-gray-500 bg-gray-100 cursor-not-allowed';
             isAvailable = false;
@@ -1171,19 +1136,19 @@ async function getOrderActionButton(order) {
                 isAvailable = true;
                 buttonText = 'Entrar no Grupo';
                 buttonClass = 'text-green-700 bg-green-100 hover:bg-green-200';
-                console.log('✅ Link disponível até o horário do evento');
+                
             } else {
                 // Já expirou - evento passou
                 buttonText = 'Link Expirado (Evento já ocorreu)';
                 buttonClass = 'text-gray-500 bg-gray-100 cursor-not-allowed';
                 isAvailable = false;
-                console.log('❌ Link expirado - evento já passou');
+                
             }
         }
     }
     
     // Debug final
-    console.log('🔍 Estado final - isAvailable:', isAvailable, 'hasLink:', hasLink, 'buttonText:', buttonText, 'buttonClass:', buttonClass);
+    
     
     // Retorna o botão (ativo ou desabilitado) apenas se houver link
     return `
@@ -1770,7 +1735,7 @@ async function getProductInfo(productId) {
         if (productDoc.exists()) {
             return productDoc.data();
         } else {
-            console.log('Produto não encontrado:', productId);
+            
             return null;
         }
     } catch (error) {
@@ -1820,7 +1785,7 @@ async function loadStats() {
         let totalSpent = paidOrders.reduce((sum, r) => sum + (r.data.total || r.data.amount || 0), 0);
         totalSpent += paidRegs.reduce((sum, r) => sum + (r.data.price || r.data.amount || r.data.total || 0), 0);
 
-        console.log('🔍 Stats data:', { totalOrders, totalSpent, userProfile });
+        
 
         const totalOrdersElement = document.getElementById('totalOrders');
         const totalSpentElement = document.getElementById('totalSpent');
@@ -1870,19 +1835,19 @@ async function fetchUserDocs(colName, max = 50, sortDesc = false){
         ];
     }
     
-    console.log(`🔍 Searching in collection '${colName}' with email: ${currentUser.email}, uid: ${currentUser.uid}`);
+    
     const resultMap = new Map();
     for (const cond of candidates){
         try{
             const qy = query(colRef, cond);
             const snap = await getDocs(qy);
-            console.log(`🔍 Query result for ${colName} (${String(cond?.fieldPath||'')}):`, snap.size, 'documents');
+            
             snap.forEach(d => {
                 const data = d.data();
                 resultMap.set(d.id, { id: d.id, data });
             });
         }catch(e){
-            console.log(`🔍 Query error for ${colName}:`, e);
+            
         }
     }
     const results = Array.from(resultMap.values());
@@ -1893,7 +1858,7 @@ async function fetchUserDocs(colName, max = 50, sortDesc = false){
             return sortDesc ? bt - at : at - bt;
         })
         .slice(0, max);
-    console.log(`🔍 Final results for ${colName}:`, limited.length, 'documents');
+    
     return limited;
 }
 
@@ -2088,7 +2053,7 @@ async function handlePhotoUpload(event) {
                 }
             } catch (error) {
                 // Ignorar erro se a foto antiga não existir
-                console.log('Foto antiga não encontrada ou já deletada:', error.message);
+                
             }
         }
         
@@ -2281,7 +2246,7 @@ async function loadMyTokens() {
     
     // Garantir que o userProfile seja carregado
     if (!userProfile) {
-        console.log('🔍 UserProfile not loaded, loading it first...');
+        
         await loadUserProfile();
     }
     
@@ -2293,9 +2258,9 @@ async function loadMyTokens() {
         if (balanceElement) {
             balanceElement.textContent = `${userProfile.tokens || 0} Tokens`;
         }
-        console.log('🔍 My tokens loaded:', userProfile.tokens);
+        
     } else {
-        console.log('❌ userProfile not available in loadMyTokens');
+        
     }
     
     // Carregar histórico de uso dos tokens
@@ -2771,11 +2736,11 @@ async function checkAffiliateRole() {
         await new Promise(resolve => setTimeout(resolve, 100));
         
         if (!currentUser || !currentUser.uid) {
-            console.log('⚠️ checkAffiliateRole: Usuário não autenticado');
+            
             return;
         }
         
-        console.log('🔍 Verificando role de afiliado para:', currentUser.uid);
+        
         
         // Verificar se o elemento existe
         const affiliateTab = document.getElementById('affiliateTab');
@@ -2787,24 +2752,24 @@ async function checkAffiliateRole() {
         }
         
         const userRole = await getUserRole(currentUser.uid);
-        console.log('🔍 Role obtido:', userRole);
+        
         
         const roleLower = userRole?.role ? String(userRole.role).toLowerCase() : '';
-        console.log('🔍 Role em lowercase:', roleLower);
+        
         const isAff = (
             (roleLower && roleLower.includes('afiliado')) ||
             userRole?.affiliate === true ||
             ['active','pending','inactive'].includes(String(userRole?.affiliateStatus || '').toLowerCase())
         );
         if (isAff) {
-            console.log('✅ Usuário é afiliado (role ou flag), mostrando aba');
+            
             affiliateTab.classList.remove('hidden');
             if (affiliateTab.classList.contains('hidden')) {
                 affiliateTab.classList.remove('hidden');
                 affiliateTab.style.display = '';
             }
         } else {
-            console.log('ℹ️ Usuário não é afiliado, role:', roleLower, 'affiliate flag:', userRole?.affiliate, 'affiliateStatus:', userRole?.affiliateStatus);
+            
             affiliateTab.classList.add('hidden');
         }
     } catch (error) {
@@ -2836,16 +2801,16 @@ async function persistUserProfile(profile) {
         const isLocal = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
         const isNetlify = /netlify\.app$/i.test(location.hostname);
         
-        console.log('🔍 Persisting profile:', { isLocal, isNetlify, firebaseReady: window.firebaseReady, hasUid: !!profile?.uid });
+        
         
         if (window.firebaseReady && !isLocal && profile?.uid) {
             const { doc, setDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
             const ref = doc(collection(db, 'users'), profile.uid);
             await setDoc(ref, profile, { merge: true });
-            console.log('✅ Profile saved to Firestore');
+            
         } else {
             localStorage.setItem('assoc_profile', JSON.stringify(profile));
-            console.log('✅ Profile saved to localStorage');
+            
         }
     } catch(error) {
         console.error('❌ Error persisting profile:', error);
@@ -2890,29 +2855,18 @@ function getStatusColor(status, orderData = null) {
     }
 }
 
-function getStatusText(status, orderData = null) {
-    // Debug detalhado
-    console.log('🔍 getStatusText called with:', { 
-        status, 
-        orderData: orderData ? {
-            title: orderData.title,
-            item: orderData.item,
-            eventType: orderData.eventType,
-            booyahConfirmed: orderData.booyahConfirmed
-        } : null
-    });
-    
+function getStatusText(status, orderData = null) {    
     // Caso especial para XTreino Tokens - verificar se é um token independente do status
     if (orderData) {
         const title = (orderData.title || '').toLowerCase();
         const item = (orderData.item || '').toLowerCase();
         const eventType = (orderData.eventType || '').toLowerCase();
         
-        console.log('🔍 Checking for XTreino Tokens:', { title, item, eventType });
+        
         
         // Se for XTreino Tokens, sempre retornar "Token"
         if (title.includes('xtreino tokens') || item.includes('xtreino tokens') || eventType === 'xtreino-tokens') {
-            console.log('✅ Found XTreino Tokens, returning "Token"');
+            
             return 'Token';
         }
         
@@ -2951,7 +2905,7 @@ async function reconcilePendingPayments() {
     if (!currentUser || !currentUser.uid) return;
 
     try {
-        console.log('🔄 Verificando pagamentos pendentes do usuário...');
+        
 
         // Buscar registrations pendentes do usuário
         const registrations = await fetchUserDocs('registrations', 100, false);
@@ -2973,14 +2927,14 @@ async function reconcilePendingPayments() {
         const uniqueRefs = [...new Set(allRefs)];
 
         if (uniqueRefs.length === 0) {
-            console.log('✅ Nenhum pagamento pendente encontrado.');
+            
             return;
         }
 
-        console.log(`🔍 ${uniqueRefs.length} pagamento(s) pendente(s) encontrado(s).`);
+        
 
         for (const ref of uniqueRefs) {
-            console.log(`📡 Verificando external_reference: ${ref}`);
+            
             try {
                 const response = await fetch('/.netlify/functions/check-payment-status', {
                     method: 'POST',
@@ -2989,10 +2943,10 @@ async function reconcilePendingPayments() {
                 });
                 const data = await response.json();
                 if (data.status === 'approved') {
-                    console.log(`✅ Pagamento ${ref} aprovado, processando...`);
+                    
                     await processSuccessfulPayment(ref);
                 } else {
-                    console.log(`⏳ Pagamento ${ref} ainda pendente (${data.status})`);
+                    
                 }
             } catch (err) {
                 console.error(`❌ Erro ao verificar ${ref}:`, err);
@@ -3017,7 +2971,7 @@ async function reconcilePendingPayments() {
 
 async function processSuccessfulPayment(externalRef = null) {
     const extRef = externalRef || sessionStorage.getItem('lastExternalRef');
-    console.log('🔄 processSuccessfulPayment iniciada. externalRef:', extRef);
+    
 
     if (!extRef) {
         console.warn('❌ Nenhum external_reference encontrado.');
@@ -3038,9 +2992,13 @@ async function processSuccessfulPayment(externalRef = null) {
     try {
         const { collection, query, where, getDocs, doc, updateDoc, addDoc, serverTimestamp, writeBatch } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
 
-        // 1) Atualizar todas as registrations com este external_reference
         const regsRef = collection(window.firebaseDb, 'registrations');
-        const q = query(regsRef, where('external_reference', '==', extRef));
+        const q = query(
+            regsRef,
+            where('external_reference', '==', extRef),
+            where('userId', '==', auth.currentUser.uid)
+        );             
+        
         const snap = await getDocs(q);
         let groupLink = null;
 
@@ -3086,21 +3044,9 @@ async function processSuccessfulPayment(externalRef = null) {
                     await updateDoc(doc(window.firebaseDb, 'orders', existingOrder.id), { status: 'paid', paidAt: serverTimestamp() });
                 }
             }
-        }
-
-        // Mostrar modal ou alerta de sucesso
-        if (typeof openPaymentConfirmModal === 'function') {
-            openPaymentConfirmModal('Pagamento confirmado', 'Seu pagamento foi aprovado. Confira seus acessos na área Minha Conta.', groupLink);
-        } else {
-            alert('✅ Pagamento confirmado! Confira seus acessos na área Minha Conta.');
-        }
+        }   
     } catch (error) {
-        console.error('❌ Erro ao processar pagamento:', error);
-        if (typeof openPaymentConfirmModal === 'function') {
-            openPaymentConfirmModal('Pagamento confirmado', 'Seu pagamento foi aprovado. Confira seus acessos na área Minha Conta.');
-        } else {
-            alert('✅ Pagamento confirmado! Confira seus acessos na área Minha Conta.');
-        }
+        console.error('❌ Erro ao processar pagamento:', error);       
     }
 }
 
@@ -3234,7 +3180,7 @@ window.purchaseTokens = async function(quantity) {
         try {
             const docRef = await addDoc(collection(db, 'orders'), orderData);
             savedOrderId = docRef.id;
-            console.log('✅ Order created in Firestore (preference step):', savedOrderId);
+            
         } catch (err) {
             console.warn('⚠️ Could not create order before preference:', err);
             // continue but ensure we have a fallback id
@@ -3242,7 +3188,7 @@ window.purchaseTokens = async function(quantity) {
         }
 
         // 2) Request server-side to create Mercado Pago preference and pass external_reference as order id
-        console.log(selectedTokensQty, 'selectedTokensQty antes do payload');
+        
         const payload = {
         title: `${baseQty} Token${baseQty > 1 ? 's' : ''} XTreino`,
         quantity: baseQty, // COMO ESTAVA ANTES quantity: 1 isso faz que a quantidade de tokens sempre seja 1 independente do selecionado
@@ -3267,7 +3213,7 @@ window.purchaseTokens = async function(quantity) {
 
         // Mark this as tokens purchase to help webhook/server-side handling
         payload.type = 'tokens_purchase';
-        console.log('🔍 Quick purchase - creating preference with payload:', payload);
+        
         const response = await fetch('/.netlify/functions/create-preference', {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
         });
@@ -3361,7 +3307,7 @@ window.purchaseTokensQuick = async function(quantity) {
             userId: currentUser.uid,
             customerEmail: currentUser.email
         };
-        console.log('🔍 Quick purchase - create-preference payload:', prefPayload);
+        
         const response = await fetch('/.netlify/functions/create-preference', {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(prefPayload)
         });
@@ -3371,11 +3317,11 @@ window.purchaseTokensQuick = async function(quantity) {
         if (data.init_point) {
             // Salvar order no Firestore ANTES de redirecionar
             try {
-                console.log('🔍 Quick purchase - Current user:', currentUser ? `${currentUser.uid} (${currentUser.email})` : 'Not authenticated');
-                console.log('🔍 Quick purchase - DB instance:', db ? 'Available' : 'NULL - Firebase not initialized');
-                console.log('🔍 Quick purchase - DB type:', typeof db);
-                console.log('🔍 Quick purchase - DB constructor:', db ? db.constructor.name : 'null');
-                console.log('🔍 Quick purchase - DB has collection method:', db && typeof db.collection === 'function' ? 'YES' : 'NO');
+                
+                
+                
+                
+                
                 
                 if (currentUser && db) {
                     const orderData = {
@@ -3397,9 +3343,9 @@ window.purchaseTokensQuick = async function(quantity) {
                     timestamp: Date.now()
                 };
                 
-                    console.log('🔍 Attempting to save quick order:', orderData);
+                    
                     const docRef = await addDoc(collection(db, 'orders'), orderData);
-                    console.log('✅ Quick order saved to Firestore with ID:', docRef.id);
+                    
                 } else {
                     console.error('❌ Cannot save quick order: User not authenticated or DB not available');
                     console.error('❌ User:', currentUser ? 'Authenticated' : 'Not authenticated');
