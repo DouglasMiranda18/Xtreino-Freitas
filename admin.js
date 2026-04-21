@@ -66,13 +66,17 @@ window.alert = function(message) {
 
 // Elegant confirmation modal
 function showConfirm(title, message, confirmText = 'Confirmar', cancelText = 'Cancelar') {
+    
     return new Promise((resolve) => {
         const modal = document.getElementById('confirmModal');
         const titleEl = document.getElementById('confirmTitle');
         const messageEl = document.getElementById('confirmMessage');
         const okBtn = document.getElementById('confirmOkBtn');
         
+        
+        
         if (!modal || !titleEl || !messageEl || !okBtn) {
+            console.error('❌ Um ou mais elementos do modal não encontrados!');
             resolve(false);
             return;
         }
@@ -82,33 +86,51 @@ function showConfirm(title, message, confirmText = 'Confirmar', cancelText = 'Ca
         okBtn.textContent = confirmText;
         
         confirmResolve = resolve;
+        
         modal.classList.remove('hidden');
         modal.classList.add('flex');
+        
     });
 }
 
 function closeConfirmModal() {
+    
     const modal = document.getElementById('confirmModal');
     if (modal) {
         modal.classList.add('hidden');
         modal.classList.remove('flex');
     }
     if (confirmResolve) {
+        
         confirmResolve(false);
         confirmResolve = null;
     }
 }
 
 function handleConfirmOk() {
-    closeConfirmModal();
-    if (confirmResolve) {
-        confirmResolve(true);
-        confirmResolve = null;
+    
+    
+    if (!confirmResolve) {
+        console.error('  ❌ confirmResolve é null! Cancelando...');
+        closeConfirmModal();
+        return;
     }
+    
+    
+    const resolve = confirmResolve;
+    confirmResolve = null; // Limpar ANTES de resolver
+    const modal = document.getElementById('confirmModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+    resolve(true); // Resolver após limpar
+    
 }
 
 // Replace confirm() with elegant modal
 window.confirm = function(message) {
+    
     return showConfirm('Confirmar', message);
 };
 
@@ -141,7 +163,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
   const waitReady = () => new Promise(res => {
     const tick = () => {
       if (window.firebaseReady && window.firebaseDb && window.firebaseAuth) {
-        console.log('✅ Firebase completamente inicializado');
+        
         res();
       } else {
         console.log('⏳ Aguardando inicialização do Firebase...', {
@@ -180,26 +202,13 @@ window.showWarningToast = function(message, title = 'Atenção') {
 
   // Security: Check if user is authorized admin
   async function isAuthorizedAdmin(user) {
-    if (!user || !user.email) return false;
-    
-    console.log('🔍 Verificando autorização para:', user.email);
-    console.log('🔍 Firebase Auth disponível:', !!window.firebaseAuth);
-    console.log('🔍 Firebase DB disponível:', !!window.firebaseDb);
-    
-    // Para socio, permitir qualquer email
-    if (user.email.toLowerCase().includes('cleitondouglass') || user.email.toLowerCase().includes('gilmario')) {
-      console.log('✅ Email autorizado (socio/admin):', user.email);
-    } else {
-      console.log('⚠️ Email não está na lista, mas continuando para verificar cargo...');
-    }
-
+    if (!user || !user.email) return false;    
+  
     // Check user role in Firestore
     try {
-      console.log('🔍 Tentando acessar documento do usuário:', user.uid);
+      
       const userDoc = await getDoc(doc(window.firebaseDb, 'users', user.uid));
-      if (!userDoc.exists()) {
-        console.log('❌ Documento de usuário não encontrado no Firestore');
-        console.log('🔧 Criando documento do usuário automaticamente...');
+      if (!userDoc.exists()) {       
         
         // Criar documento do usuário automaticamente
         const { setDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
@@ -212,21 +221,21 @@ window.showWarningToast = function(message, title = 'Atenção') {
         };
         
         await setDoc(doc(window.firebaseDb, 'users', user.uid), userData);
-        console.log('✅ Documento do usuário criado com sucesso!');
+        
         
         // Agora tentar novamente
         const newUserDoc = await getDoc(doc(window.firebaseDb, 'users', user.uid));
         if (!newUserDoc.exists()) {
-          console.log('❌ Erro ao criar documento do usuário');
+          
           return false;
         }
         
         const newUserData = newUserDoc.data();
         const role = (newUserData.role || '').toLowerCase();
-        console.log('🎭 Cargo definido:', role);
+        
         
         if (role === 'socio' || role === 'sócio' || role === 'ceo') {
-          console.log('✅ Acesso liberado para Socio (documento criado)');
+          
           return true;
         }
         
@@ -236,17 +245,17 @@ window.showWarningToast = function(message, title = 'Atenção') {
       const userData = userDoc.data();
       const role = (userData.role || '').toLowerCase();
       
-      console.log('🎭 Cargo encontrado:', userData.role, '-> normalizado:', role);
-      console.log('📊 Dados completos do usuário:', userData);
+      
+      
       
       // Para socio, permitir acesso total
       if (role === 'socio' || role === 'sócio' || role === 'ceo') {
-        console.log('✅ Acesso liberado para Socio');
+        
         return true;
       }
       
       const isAuthorized = ['admin', 'gerente', 'vendedor', 'design', 'designer', 'desgin'].includes(role);
-      console.log('🔐 Autorizado para outros cargos:', isAuthorized);
+      
       
       return isAuthorized;
     } catch (error) {
@@ -259,7 +268,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
   function startSessionTimer() {
     if (sessionTimer) clearTimeout(sessionTimer);
     sessionTimer = setTimeout(() => {
-      console.log('Session timeout - logging out');
+      
       logout();
     }, SESSION_TIMEOUT);
   }
@@ -306,11 +315,11 @@ window.showWarningToast = function(message, title = 'Atenção') {
     
     // Prevenir múltiplas chamadas conflitantes - se já foi aplicado para este role, não aplicar novamente
     if (window.lastAppliedRole === role && window.visibilityApplied) {
-      console.log('⚠️ Visibilidade já aplicada para role:', role, '- ignorando chamada duplicada');
+      
       return;
     }
     
-    console.log('🔒 Aplicando visibilidade para role:', role, '(recebido:', userRole, ')');
+    
     window.lastAppliedRole = role;
     window.visibilityApplied = true;
     
@@ -381,7 +390,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
       if (sectionNews) sectionNews.style.display = 'none';
       if (sectionAdminHistory) sectionAdminHistory.style.display = 'none';
       
-      console.log('✅ Permissões de Staff aplicadas - apenas agendamentos (14h-18h, xtreino-tokens)');
+      
       return; // Sair da função para não aplicar outras regras
     }
     
@@ -412,7 +421,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
       if (sectionNews) sectionNews.style.display = 'none';
       if (sectionAdminHistory) sectionAdminHistory.style.display = 'none';
       
-      console.log('✅ Permissões de Afiliado aplicadas - apenas painel de afiliado');
+      
 
           
       return; // Sair da função para não aplicar outras regras
@@ -451,17 +460,13 @@ window.showWarningToast = function(message, title = 'Atenção') {
       
       if (sectionPasseBooyah) {
         sectionPasseBooyah.style.display = 'block';
-        console.log('✅ Passe Booyah section displayed for Socio');
-      } else {
-        console.log('❌ sectionPasseBooyah not found');
+        
       }
       
       if (sectionSchedules) {
         sectionSchedules.style.display = 'block';
-        console.log('✅ Schedules section displayed for Socio');
-      } else {
-        console.log('❌ sectionSchedules not found');
-      }
+        
+      } 
       
       // Ocultar seções administrativas
       if (sectionUsersManagement) sectionUsersManagement.style.display = 'none';
@@ -472,11 +477,11 @@ window.showWarningToast = function(message, title = 'Atenção') {
       if (sectionNews) sectionNews.style.display = 'none';
       if (sectionAdminHistory) sectionAdminHistory.style.display = 'none';
       
-      console.log('✅ Socio permissions applied - limited access');
+      
     }
     // CEO: Can see and edit everything
     else if (role === 'ceo' || role === 'ceo') {
-      console.log('✅ Aplicando permissões de CEO - todas as seções visíveis');
+      
       // Mostrar todas as seções
       if (sectionKPIs) sectionKPIs.style.display = 'block';
       if (sectionFilters) sectionFilters.style.display = 'block';
@@ -495,7 +500,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
       if (sectionHighlights) sectionHighlights.style.display = 'block';
       if (sectionNews) sectionNews.style.display = 'block';
       if (sectionAdminHistory) sectionAdminHistory.style.display = 'block';
-      console.log('✅ Permissões de CEO aplicadas com sucesso');
+      
     }
     // Admin: Can see and edit everything
     else if (role === 'admin') {
@@ -778,11 +783,11 @@ window.showWarningToast = function(message, title = 'Atenção') {
         return;
       }
       
-      console.log('🔍 Tentando carregar usuários...');
+      
       // Buscar usuários no Firestore
       const usersRef = collection(window.firebaseDb, 'users');
       const snapshot = await getDocs(usersRef);
-      console.log('✅ Usuários carregados com sucesso:', snapshot.size);
+      
       
       // Armazenar todos os dados
       usuariosData = [];
@@ -929,11 +934,11 @@ window.showWarningToast = function(message, title = 'Atenção') {
         return;
       }
       
-      // console.log('🔍 Carregando dados de tokens...');
+      // 
       // Buscar pedidos de tokens
       const ordersRef = collection(window.firebaseDb, 'orders');
       const ordersSnapshot = await getDocs(ordersRef);
-      // console.log('📊 Total de pedidos encontrados:', ordersSnapshot.size);
+      // 
       
       tokensData = [];
       ordersSnapshot.forEach(doc => {
@@ -973,7 +978,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
       // Atualizar contador
       document.getElementById('tokensCount').textContent = `${tokensData.length} compras`;
       document.getElementById('totalTokensPurchased').textContent = tokensData.length;
-      // console.log('✅ Tokens carregados:', tokensData.length);
+      // 
       
       // Mostrar primeira página
       mostrarTokensPagina(1);
@@ -1105,11 +1110,11 @@ window.showWarningToast = function(message, title = 'Atenção') {
         return;
       }
       
-      // console.log('🔍 Carregando pedidos confirmados...');
+      
       // Buscar pedidos confirmados
       const ordersRef = collection(window.firebaseDb, 'orders');
       const ordersSnapshot = await getDocs(ordersRef);
-      // console.log('📊 Total de pedidos encontrados:', ordersSnapshot.size);
+      
       
       // Função auxiliar para obter nome do item/evento
       const getItemName = (order) => {
@@ -1156,7 +1161,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
       
       // Atualizar contador
       document.getElementById('confirmedCount').textContent = `${confirmedOrdersData.length} pedidos`;
-      // console.log('✅ Pedidos confirmados carregados:', confirmedOrdersData.length);
+      // 
       
       // Mostrar primeira página
       mostrarPedidosConfirmadosPagina(1);
@@ -1274,7 +1279,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
       if (snap.exists()) role = (snap.data().role)||'Vendedor';
     }catch(e){}
 
-    // console.log('ADMIN UID:', uid, 'ROLE:', role);
+    // 
     if (!['ceo','gerente','vendedor','design','designer','desgin','socio','sócio','afiliado','staff'].includes((role||'').toLowerCase())){
       authGate.classList.remove('hidden');
       dashboard.classList.add('hidden');
@@ -1283,7 +1288,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
     authGate.classList.add('hidden');
     dashboard.classList.remove('hidden');
     const roleLower = (role||'').toLowerCase().trim();
-    console.log('👤 Role detectado:', role, '→ normalizado:', roleLower);
+    
     const isManager = ['ceo','gerente'].includes(roleLower);
     const isCeo = roleLower==='ceo';
     const isSocio = roleLower==='socio' || roleLower==='ceo';
@@ -1382,9 +1387,6 @@ window.showWarningToast = function(message, title = 'Atenção') {
         await carregarDadosTokens();
         await carregarDadosUsoTokens();
         await carregarPedidosConfirmados();
-      } else {
-        // Vendedor: evita coleções com restrição global
-        // Mostra apenas relatórios simplificados e pedidos próprios (já feito abaixo)
       }
     } catch(e){
       console.error('❌ Erro ao carregar dados:', e);
@@ -1416,7 +1418,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
     // Usar um delay maior e garantir que seja a última chamada
     setTimeout(() => {
       const finalRole = (roleLower || '').toLowerCase().trim();
-      console.log('🔒 Aplicando controle de visibilidade para role:', finalRole, '(original:', role, ')');
+      
       // Resetar flag para permitir reaplicação se necessário
       window.visibilityApplied = false;
       controlSectionVisibility(finalRole);
@@ -1550,7 +1552,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
 
   // Funções para gerenciar tokens
   async function loadTokensData() {
-    console.log('🔍 Loading tokens data...');
+    
     try {
       await loadTokenPurchases();
       await loadTokenUsage();
@@ -1561,7 +1563,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
   }
 
   async function loadTokenPurchases() {
-    console.log('🔍 Loading token purchases...');
+    
     try {
       const ordersSnap = await getDocs(collection(window.firebaseDb, 'orders'));
       const orders = [];
@@ -1576,7 +1578,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
         }
       });
 
-      console.log('🔍 Found token orders:', orders.length);
+      
       
       // Ordenar por data mais recente
       orders.sort((a, b) => {
@@ -1612,7 +1614,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
     }
   }
   async function loadTokenUsage() {
-    console.log('🔍 Loading token usage...');
+    
     try {
       const regsSnap = await getDocs(collection(window.firebaseDb, 'registrations'));
       const usages = [];
@@ -1627,7 +1629,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
         }
       });
 
-      console.log('🔍 Found token usages:', usages.length);
+      
       
       // Ordenar por data mais recente
       usages.sort((a, b) => {
@@ -1683,7 +1685,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
   }
 
   async function updateTokenStats() {
-    console.log('🔍 Updating token stats...');
+    
     try {
       const TOKENS_PER_USE = 5; // cada uso/slot equivale a 5 tokens
       // Calcular tokens comprados
@@ -1708,7 +1710,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
         }
       });
 
-      console.log('🔍 Token stats:', { totalTokensPurchased, totalTokensUsed });
+      
 
       // Atualizar UI
       const purchasedEl = document.getElementById('totalTokensPurchased');
@@ -1744,7 +1746,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
     const kpiActiveEl = document.getElementById('kpiActiveUsers');
     if (!kpiTodayEl || !kpiMonthEl || !kpiRecEl) return;
 
-    console.log('🔍 loadKpis: Calculando vendas...');
+    
 
     // Usar a mesma lógica da loadKPIs() que está funcionando corretamente
     const { collection, query, where, getDocsFromServer } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
@@ -1786,7 +1788,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
         }
     });
     
-    console.log('📊 loadKpis - Vendas hoje:', sumToday, 'Vendas mês:', sumMonth, 'A receber:', receivable);
+    
     
     kpiTodayEl.textContent = brl(sumToday);
     kpiMonthEl.textContent = brl(sumMonth);
@@ -2180,9 +2182,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
       paymentMap[key].revenue += transaction.amount;
     });
     
-    console.log(`📊 Total de transações únicas: ${transactionsByRef.size}`);
-    console.log(`  - Tokens: ${paymentMap.tokens.count} transações | R$ ${paymentMap.tokens.revenue.toFixed(2)}`);
-    console.log(`  - QR Code/Mercado Pago: ${paymentMap.mercado_pago.count} transações | R$ ${paymentMap.mercado_pago.revenue.toFixed(2)}`);
+    
+    
+    
     
     const labels = Object.values(paymentMap).map(p => p.label);
     const countData = Object.values(paymentMap).map(p => p.count);
@@ -2336,11 +2338,11 @@ window.showWarningToast = function(message, title = 'Atenção') {
   // Nova função para carregar dados de tokens
   async function loadTokensData(){
     try {
-      console.log('=== DEBUG: Carregando dados de tokens ===');
+      
       
       // Debug: mostrar todos os orders
       const ordersSnap = await getDocs(collection(window.firebaseDb,'orders'));
-      console.log('Total orders:', ordersSnap.size);
+      
       ordersSnap.forEach(d => {
         const o = d.data();
         console.log('Order:', {
@@ -2354,7 +2356,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
       
       // Debug: mostrar todas as registrations
       const regsSnap = await getDocs(collection(window.firebaseDb,'registrations'));
-      console.log('Total registrations:', regsSnap.size);
+      
       regsSnap.forEach(d => {
         const r = d.data();
         console.log('Registration:', {
@@ -2805,6 +2807,279 @@ window.showWarningToast = function(message, title = 'Atenção') {
     charts.hours = new Chart(canvas.getContext('2d'), { type:'bar', data:{ labels: hours.map(h=>`${h}h`), datasets:[{label:'Agendamentos', data, backgroundColor:'#34d399'}] }, options:{plugins:{legend:{display:false}}} });
   }
 
+  // ===== HELPER FUNCTIONS PARA loadBoard =====
+  
+  // Mapa de tipos de eventos e suas variações
+  function getEventTypeConfig() {
+    return {
+      canonical: {
+        'modo-liga': (s) => s === 'liga' || s.includes('modo liga'),
+        'camp-final': (s) => s === 'camp-final' || s.includes('camp final') || s.includes('vaga direto'),
+        'camp-freitas': (s) => s === 'camp' || s.includes('camp freitas'),
+        'semanal-freitas': (s) => s === 'semanal' || s.includes('semanal freitas'),
+        'xtreino-tokens': (s) => s.includes('xtreino')
+      },
+      aliases: {
+        'modo-liga': ['modo-liga','liga','modo liga'],
+        'camp-freitas': ['camp-freitas','camp','camp freitas'],
+        'camp-final': ['camp-final','camp final','final','vaga direto','vaga final'],
+        'semanal-freitas': ['semanal-freitas','semanal','semanal freitas'],
+        'xtreino-tokens': ['xtreino-tokens','xtreino','xtreino tokens']
+      }
+    };
+  }
+
+  // Normaliza tipo de evento para forma canônica
+  function canonicalType(t) {
+    const s = String(t||'').toLowerCase();
+    const config = getEventTypeConfig();
+    for (const [canonical, matcher] of Object.entries(config.canonical)) {
+      if (matcher(s)) return canonical;
+    }
+    return t;
+  }
+
+  // Resolve aliases para um tipo de evento
+  function resolveAliases(t) {
+    const canon = canonicalType(t);
+    const config = getEventTypeConfig();
+    const base = config.aliases[canon] ? [...config.aliases[canon]] : [canon];
+    base.push(null, '');
+    return Array.from(new Set(base.filter(v => v !== undefined)));
+  }
+
+  // Retorna capacidade por horário
+  function getCapacityForHour(eventType, hour, isCampFinalDate, isCampSemifinalDate) {
+    const ev = String(eventType||'').toLowerCase();
+    const hourNum = parseInt(String(hour||'').match(/(\d{1,2})/)?.[1] || 0, 10);
+    
+    if (ev === 'liga' || ev.includes('modo-liga') || ev.includes('modo liga')) return 15;
+    if (ev.includes('camp-final') || canonicalType(eventType) === 'camp-final') {
+      if (isCampFinalDate && hourNum === 18) return 2;
+      return 2;
+    }
+    if (ev.includes('semanal') && hourNum === 22) return 4;
+    if (ev.includes('camp') && isCampSemifinalDate && hourNum === 17) return 3;
+    return 12;
+  }
+
+  // Retorna horários padrão para tipo de evento
+  function getDefaultHoursForEvent(eventType, isCampFinalDate) {
+    return ['14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00','23:00'];
+  }
+
+  // Busca registrations pelo dia
+  async function fetchRegistrationsByDate(date, eventType) {
+    try {
+      const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+      const regs = collection(window.firebaseDb, 'registrations');
+      const q = query(regs, where('date', '==', date), where('status', 'in', ['paid','confirmed','approved']));
+      const snap = await getDocs(q);
+      const map = {};
+      
+      snap.forEach(d => {
+        const r = d.data();
+        if (eventType && r.eventType && !String(r.eventType).toLowerCase().includes(String(eventType).toLowerCase())) return;
+        
+        const raw = String(r.schedule || r.hour || '').toLowerCase();
+        const m = raw.match(/(\d{1,2})/);
+        if (!m) return;
+        
+        const hh = String(parseInt(m[1], 10)).padStart(2, '0');
+        const key = `${hh}:00`;
+        map[key] = (map[key] || 0) + 1;
+      });
+      
+      return map;
+    } catch (e) {
+      console.error('Erro ao buscar registrations:', e);
+      return {};
+    }
+  }
+
+  // Busca e normaliza horário em string
+  function extractHour(hourStr) {
+    const match = String(hourStr || '').match(/(\d{1,2})/);
+    if (!match) return null;
+    return String(parseInt(match[1], 10)).padStart(2, '0');
+  }
+
+  // Busca overrides (travas e ocupações extras)
+  async function fetchScheduleOverrides(date, eventType) {
+    const overrides = {};
+    try {
+      const { collection: c, query: q, where: w, getDocs: g } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+      const ovRef = c(window.firebaseDb, 'schedule_overrides');
+      const variants = resolveAliases(eventType);
+      
+      // Buscar por variações de eventType
+      for (const v of variants) {
+        if (v === undefined) continue;
+        try {
+          const ovSnap = await g(q(ovRef, w('date', '==', date), w('eventType', '==', v)));
+          ovSnap.forEach(d => {
+            const raw = d.data();
+            const hh = extractHour(raw.hour || raw.hh);
+            if (!hh) return;
+            const k = `${hh}:00`;
+            const agg = overrides[k] || { lockedAny: false, extraOccupied: 0 };
+            agg.lockedAny = agg.lockedAny || (raw.locked === true);
+            if (raw.extraOccupied) agg.extraOccupied += Number(raw.extraOccupied || 0);
+            overrides[k] = agg;
+          });
+        } catch (e) {
+          console.warn(`Erro ao buscar overrides para variante '${v}':`, e);
+        }
+      }
+      
+      // Fallback: documentos sem eventType definido
+      try {
+        const allSnap = await g(q(ovRef, w('date', '==', date)));
+        allSnap.forEach(d => {
+          const raw = d.data() || {};
+          const hh = extractHour(raw.hour || raw.hh);
+          if (!hh) return;
+          const docFamily = canonicalType(raw.eventType || raw.event_type || '');
+          if (docFamily && docFamily !== canonicalType(eventType)) return;
+          if (!docFamily && !variants.includes(null) && !variants.includes('')) return;
+          const k = `${hh}:00`;
+          const agg = overrides[k] || { lockedAny: false, extraOccupied: 0 };
+          agg.lockedAny = agg.lockedAny || (raw.locked === true);
+          if (raw.extraOccupied) agg.extraOccupied += Number(raw.extraOccupied || 0);
+          overrides[k] = agg;
+        });
+      } catch (e) {
+        console.warn('Erro ao buscar overrides fallback:', e);
+      }
+    } catch (e) {
+      console.error('Erro ao buscar schedule_overrides:', e);
+    }
+    
+    return overrides;
+  }
+
+  // Filtra horários por role (staff vê apenas 14h-18h)
+  function filterEntriesByRole(entries) {
+    if (window.adminRoleLower !== 'staff') return entries;
+    return entries.filter(hour => {
+      const hourNum = parseInt(String(hour).replace(/\D/g,'')) || 0;
+      return hourNum >= 14 && hourNum <= 18;
+    });
+  }
+
+  // Aplica travas fixas do Modo Liga
+  function applyFixedModoLigaLocks(overrides, eventType) {
+    if (canonicalType(eventType) !== 'modo-liga') return overrides;
+    const fixed = { ...overrides };
+    ['16:00', '17:00'].forEach(hour => {
+      if (!fixed[hour]) {
+        fixed[hour] = { lockedAny: true, extraOccupied: 0 };
+      } else {
+        fixed[hour].lockedAny = true;
+      }
+    });
+    return fixed;
+  }
+
+  // Renderiza linha da tabela
+  function createBoardTableRow(hour, capacity, occupied, overrides, eventType) {
+    const tr = document.createElement('tr');
+    const ovData = overrides[hour] || {};
+    const isFixedLock = false; //(canonicalType(eventType) === 'modo-liga' && (hour === '16:00' || hour === '17:00'));
+    const locked = isFixedLock ? true : !!(ovData.lockedAny === undefined ? ovData.locked : ovData.lockedAny);
+    const isStaff = window.adminRoleLower === 'staff';
+    
+    const remaining = Math.max(0, capacity - occupied);
+    const occupiedText = remaining === 0 ? 'Lotado' : `Restam ${remaining}`;
+    const lockButton = isStaff ? '' : `<button class="px-2 py-1 ${locked?'bg-red-600 text-white':'bg-yellow-400 text-black'} rounded text-xs" data-toggle-lock="${hour}" ${isFixedLock ? 'title="Horário fixo - confirmação necessária para destravar"' : ''}>${locked?'Destravar':'Travar'}</button>`;
+    
+    tr.innerHTML = `<td class="py-2">${hour}</td><td class="py-2">${occupiedText}</td><td class="py-2 space-x-2">
+      <button class="px-2 py-1 bg-blue-600 text-white rounded text-xs" data-add-hour="${hour}">Adicionar</button>
+      <button class="px-2 py-1 bg-gray-200 text-gray-800 rounded text-xs" data-manage-hour="${hour}">Gerenciar</button>
+      <button class="px-2 py-1 bg-emerald-600 text-white rounded text-xs" data-export-hour="${hour}">Exportar</button>
+      ${lockButton}
+    </td>`;
+    
+    return tr;
+  }
+
+  // Busca todos os overrides para um horário (consolidado)
+  async function findAllOverridesForHour(date, eventType, hh) {
+    
+    const { collection: c, query: q, where: w, getDocs: g } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const ovRef = c(window.firebaseDb, 'schedule_overrides');
+    const toUpdate = new Map();
+    const variants = resolveAliases(eventType);
+    const canon = canonicalType(eventType);
+    
+    
+    // Query com eventType canônico e variações
+    try {
+      
+      const snap1 = await g(q(ovRef, w('date', '==', date), w('eventType', '==', canon), w('hour', '==', hh)));
+      
+      snap1.forEach(d => toUpdate.set(d.id, d));
+    } catch (e) {
+      console.warn('❌ Erro na query eventType canônico:', e.message);
+    }
+    
+    // Query com hh (formato alternativo)
+    try {
+      
+      const snap2 = await g(q(ovRef, w('date', '==', date), w('eventType', '==', canon), w('hh', '==', hh)));
+      
+      snap2.forEach(d => toUpdate.set(d.id, d));
+    } catch (e) {
+      console.warn('❌ Erro na query hh:', e.message);
+    }
+    
+    // Variações de aliases
+    for (const v of variants) {
+      if (!v) continue;
+      try {
+        
+        const snapV = await g(q(ovRef, w('date', '==', date), w('eventType', '==', v), w('hour', '==', hh)));
+        
+        snapV.forEach(d => toUpdate.set(d.id, d));
+      } catch (e) {
+        console.warn(`  ⚠️ Erro variant ${v}:`, e.message);
+      }
+    }
+    
+    // Fallback: documentos sem eventType definido (apenas se necessário)
+    try {
+      
+      const snapAll = await g(q(ovRef, w('date', '==', date)));
+      
+      snapAll.forEach(d => {
+        const raw = d.data() || {};
+        const hhDoc = extractHour(raw.hour || raw.hh);
+        
+        if (!hhDoc || hhDoc !== hh) {
+          
+          return;
+        }
+        const docFamily = canonicalType(raw.eventType || raw.event_type || '');
+        if (docFamily && docFamily !== canon) {
+          
+          return;
+        }
+        if (!docFamily && !variants.includes(null) && !variants.includes('')) {
+          
+          return;
+        }
+        
+        toUpdate.set(d.id, d);
+      });
+    } catch (e) {
+      console.warn('❌ Erro ao buscar overrides fallback:', e.message);
+    }
+    
+    const result = Array.from(toUpdate.values());
+    
+    return result;
+  }
+
   // Carrega quadro de horários por data/evento
   async function loadCampSemifinalLinks(force = false) {
     try{
@@ -2921,404 +3196,340 @@ window.showWarningToast = function(message, title = 'Atenção') {
   })();
 
   async function loadBoard(){
-    try{
+    try {
+      // Validação de elementos DOM
       const dateEl = document.getElementById('boardDate');
       const typeEl = document.getElementById('boardEventType');
       const tbody = document.getElementById('boardTbody');
-      const btnClearLocks = document.getElementById('btnClearLocks');
-      if (!dateEl || !typeEl || !tbody) return;
+      if (!dateEl || !typeEl || !tbody) {
+        console.warn('Elementos DOM não encontrados para loadBoard');
+        return;
+      }
+
       const date = dateEl.value;
       const eventType = typeEl.value;
-      const canonicalType = (t)=>{
-        const s = String(t||'').toLowerCase();
-        if (s==='liga' || s.includes('modo liga')) return 'modo-liga';
-        if (s==='camp-final' || s.includes('camp final') || s.includes('vaga direto')) return 'camp-final';
-        if (s==='camp' || s.includes('camp freitas')) return 'camp-freitas';
-        if (s==='semanal' || s.includes('semanal freitas')) return 'semanal-freitas';
-        if (s.includes('xtreino')) return 'xtreino-tokens';
-        return t;
-      };
-      const aliasMap = {
-        'modo-liga': ['modo-liga','liga','modo liga'],
-        'camp-freitas': ['camp-freitas','camp','camp freitas'],
-        'camp-final': ['camp-final','camp final','final','vaga direto','vaga final'],
-        'semanal-freitas': ['semanal-freitas','semanal','semanal freitas'],
-        'xtreino-tokens': ['xtreino-tokens','xtreino','xtreino tokens']
-      };
-      const resolveAliases = (t)=>{
-        const canon = canonicalType(t);
-        const base = aliasMap[canon] ? [...aliasMap[canon]] : [canon];
-        base.push(null,'');
-        return Array.from(new Set(base.filter(v=>v!==undefined)));
-      };
+      
+      // Validação de data
+      if (!date) {
+        renderCampSemifinalLinksPanel(null);
+        tbody.innerHTML = '';
+        return
+      }
+
       const ovEventType = canonicalType(eventType);
       const isCampSemifinalDate = CAMP_SEMIFINAL_DATES.includes(date);
       const isCampFinalDate = CAMP_FINAL_DATES.includes(date);
-      tbody.innerHTML = '';
-      if (!date) {
-        renderCampSemifinalLinksPanel(null);
-        return;
+
+      // ===== Configuração de UI por role =====
+      const btnClearLocks = document.getElementById('btnClearLocks');
+      if (window.adminRoleLower === 'staff') {
+        if (btnClearLocks) btnClearLocks.style.display = 'none';
+        if (typeEl) {
+          typeEl.value = 'xtreino-tokens';
+          typeEl.disabled = true;
+        }
+      } else {
+        if (typeEl) typeEl.disabled = false;
+        if (btnClearLocks) btnClearLocks.style.display = '';
       }
-      
+
+      // ===== Carregar dados de semifinal =====
       if (ovEventType === 'camp-freitas') {
         await loadCampSemifinalLinks();
         renderCampSemifinalLinksPanel(date);
       } else {
         renderCampSemifinalLinksPanel(null);
       }
+
+      // ===== Bind do botão de destravar tudo do dia =====
+      bindClearLocksButton(btnClearLocks, date, ovEventType);
+
+      // ===== Determinar horários e capacidade =====
+      const defaultHours = getDefaultHoursForEvent(eventType, isCampFinalDate);
       
-      // Staff: Ocultar botão "Destravar tudo do dia"
-      if (window.adminRoleLower === 'staff' && btnClearLocks) {
-        btnClearLocks.style.display = 'none';
+      if (defaultHours.length === 0) {
+        tbody.innerHTML = '';
+        return;
       }
+
+      // ===== Carregar dados de registrations =====
+      const occupancyMap = await fetchRegistrationsByDate(date, eventType);
+
+      // ===== Carregar overrides (travas e extras) =====
+      let overridesMap = await fetchScheduleOverrides(date, ovEventType);
       
-      // Staff: Forçar evento para xtreino-tokens
-      if (window.adminRoleLower === 'staff' && typeEl) {
-        typeEl.value = 'xtreino-tokens';
-        typeEl.disabled = true; // Desabilitar seleção de evento
-      }
-      
-      // Handler: destravar tudo do dia
-      if (btnClearLocks && !btnClearLocks._bound && window.adminRoleLower !== 'staff'){
-        btnClearLocks.addEventListener('click', async ()=>{
-          try{
-            if (!confirm(`Destravar todas as travas e zerar ocupações extras de ${date} (${ovEventType})?`)) return;
-            const { collection, query, where, getDocs, doc, writeBatch } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-            const ovRef = collection(window.firebaseDb, 'schedule_overrides');
-            const variants = resolveAliases(ovEventType);
-            const updates = [];
-            // Por variações de eventType: coletar documentos a atualizar
-            for (const v of variants){
-              try{
-                const snap = await getDocs(query(ovRef, where('date','==', date), where('eventType','==', v)));
-                snap.forEach(d=>{
-                  const ref = doc(window.firebaseDb, 'schedule_overrides', d.id);
-                  updates.push({ ref, data: { locked:false, extraOccupied:0, eventType: ovEventType } });
-                });
-              }catch(_){ }
-            }
-            // fallback: documentos sem eventType definido
-            try{
-              const snapAll = await getDocs(query(ovRef, where('date','==', date)));
-              snapAll.forEach(d=>{
-                const raw = d.data() || {};
-                const docFamily = canonicalType(raw.eventType || raw.event_type || '');
-                if (docFamily && docFamily !== ovEventType) return;
-                if (!docFamily && !variants.includes(null) && !variants.includes('')) return;
-                const ref = doc(window.firebaseDb, 'schedule_overrides', d.id);
-                updates.push({ ref, data: { locked:false, extraOccupied:0, eventType: ovEventType } });
-              });
-            }catch(_){ }
-            // Commit em batches (limite 500 por batch) para maior atomicidade e evitar muitas requisições paralelas
-            const CHUNK = 400;
-            for (let i=0;i<updates.length;i+=CHUNK){
-              const chunk = updates.slice(i, i+CHUNK);
-              const batch = writeBatch(window.firebaseDb);
-              chunk.forEach(u => batch.update(u.ref, u.data));
-              await batch.commit();
-            }
-            alert('Travas removidas e ocupações extras zeradas para o dia.');
-            await loadBoard();
-          }catch(e){
-            alert('Falha ao destravar tudo do dia.');
-          }
-        });
-        btnClearLocks._bound = true;
-      }
-      
-      // Definir horários corretos por tipo de evento (baseado nas descrições do site)
-      const ev = String(eventType||'').toLowerCase();
-      let defaultHours;
-      // Capacidade por evento
-      let capacity = 12; // padrão
-      // Helper: capacidade por horário (casos especiais)
-      const capFor = (hourStr)=>{
-        // Modo Liga sempre 15
-        if (ev === 'liga' || ev.includes('modo-liga') || ev.includes('modo liga')) return 15;
-        if (ovEventType === 'camp-final' || ev.includes('camp-final')) {
-          const hourOnly = String(hourStr||'').match(/(\d{1,2})/);
-          const hourNum = hourOnly ? parseInt(hourOnly[1], 10) : null;
-          if (isCampFinalDate && hourNum === 18) return 2;
-          return 2;
+      // Aplicar travas fixas do Modo Liga
+      //overridesMap = applyFixedModoLigaLocks(overridesMap, ovEventType);
+
+      // Mesclar overrides no mapa de ocupação
+      const mergedMap = {};
+      defaultHours.forEach(hour => {
+        const occupied = occupancyMap[hour] || 0;
+        const cap = getCapacityForHour(eventType, hour, isCampFinalDate, isCampSemifinalDate);
+        let final = occupied;
+        
+        const ovData = overridesMap[hour];
+        if (ovData?.extraOccupied) {
+          final += ovData.extraOccupied;
         }
-        // Semanal Freitas 22:00 = 4 vagas
-        if (ev.includes('semanal') && String(hourStr||'').startsWith('22')) return 4;
-        if (ev.includes('camp') && isCampSemifinalDate) {
-          const hourOnly = String(hourStr||'').match(/(\d{1,2})/);
-          const hourNum = hourOnly ? parseInt(hourOnly[1], 10) : null;
-          if (hourNum === 17) return 3;
+        if (ovData?.lockedAny) {
+          final = cap;
         }
-        // Demais: 12
-        return 12;
-      };
-      // "XTREINO MODO LIGA" no select usa value "liga"; aceitar variações
-      if (ev === 'liga' || ev.includes('modo-liga') || ev.includes('modo liga')) {
-        // Modo Liga: 14:00 às 23:00
-        defaultHours = ['14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00','23:00'];
-        capacity = 15; // Modo Liga: 15 vagas
-      } else if (ovEventType === 'camp-final' || ev.includes('camp-final')) {
-        if (isCampFinalDate) {
-          defaultHours = ['18:00'];
-          capacity = 2;
-        } else {
-          defaultHours = [];
-        }
-      } else if (ev.includes('camp')) {
-        // Camp Freitas: horários oficiais 19h, 20h, 21h, 22h e 23h
-        // (independente de ser data de semifinal ou não, para permitir
-        // controle manual das vagas em qualquer dia).
-        defaultHours = ['19:00','20:00','21:00','22:00','23:00'];
-      } else if (ev.includes('semanal')) {
-        // 1ª fase 20h e 21h; final às 22h
-        defaultHours = ['20:00','21:00','22:00'];
-      } else if (ev.includes('xtreino') || ev.includes('tokens') || ev.includes('freitas')) {
-        // XTreino Freitas: 14h a 23h
-        defaultHours = ['14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00','23:00'];
-      } else {
-        // Padrão geral: janela da operação do site
-        defaultHours = ['14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00','23:00'];
-      }
-      
-      const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-      const regs = collection(window.firebaseDb,'registrations');
-      // status pago/confirmado para computar ocupação
-      const q = query(regs, where('date','==', date), where('status','in',['paid','confirmed','approved']));
-      const snap = await getDocs(q);
-      const map = {};
-      snap.forEach(d=>{
-        const r = d.data();
-        // filtro por tipo (aceita contains, case-insensitive)
-        if (eventType && r.eventType && !String(r.eventType).toLowerCase().includes(String(eventType).toLowerCase())) return;
-        // Normalizar horário capturando apenas a hora e padronizando para HH:00
-        const raw = String(r.schedule || r.hour || '').toLowerCase();
-        const m = raw.match(/(\d{1,2})/);
-        if (!m) return; // sem hora identificável, ignora
-        const hh = String(parseInt(m[1],10)).padStart(2,'0');
-        const key = `${hh}:00`;
-        map[key] = (map[key]||0) + 1;
+        
+        mergedMap[hour] = final;
       });
-      
-      // Entradas restritas SOMENTE aos horários permitidos para o evento
-      let entries = defaultHours.slice().sort((a,b)=>{
-        const na = parseInt(String(a).replace(/\D/g,''))||0;
-        const nb = parseInt(String(b).replace(/\D/g,''))||0;
-        return na-nb;
+
+      // ===== Filtrar horários por role =====
+      let entries = [...defaultHours].sort((a, b) => {
+        const na = parseInt(String(a).replace(/\D/g,'')) || 0;
+        const nb = parseInt(String(b).replace(/\D/g,'')) || 0;
+        return na - nb;
       });
+      entries = filterEntriesByRole(entries);
+
+      // ===== Renderizar tabela =====
+      tbody.innerHTML = '';
       
-      // Staff: Filtrar apenas horários de 14h às 18h
-      if (window.adminRoleLower === 'staff') {
-        entries = entries.filter(hour => {
-          const hourNum = parseInt(String(hour).replace(/\D/g,'')) || 0;
-          return hourNum >= 14 && hourNum <= 18;
-        });
-      }
-      
-      // Buscar overrides (travas e extra ocupadas) para refletir na UI
-      let overrides = {};
-      try{
-        const { collection: c2, query: q2, where: w2, getDocs: g2 } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const ovRef = c2(window.firebaseDb, 'schedule_overrides');
-        const variants = resolveAliases(ovEventType);
-        for (const v of variants){
-          if (v===undefined) continue;
-          try{
-            const ovSnap = await g2(q2(ovRef, w2('date','==', date), w2('eventType','==', v)));
-            ovSnap.forEach(d=>{
-              const raw = d.data();
-                // Normalizar hora: aceitar '16', '16:00', '16h' e extrair apenas a hora (2 dígitos)
-                const hhMatch = String(raw.hour || raw.hh || '').match(/(\d{1,2})/);
-                const hh = hhMatch ? String(parseInt(hhMatch[1], 10)).padStart(2, '0') : null;
-                if (!hh) return;
-                const k = `${hh}:00`;
-              const agg = overrides[k] || { lockedAny:false, extraOccupied:0 };
-              agg.lockedAny = agg.lockedAny || (raw.locked === true);
-              if (raw.extraOccupied) agg.extraOccupied += Number(raw.extraOccupied||0);
-              overrides[k] = agg;
-              if (raw.extraOccupied) {
-                map[k] = (map[k]||0) + Number(raw.extraOccupied||0);
-              }
-              if (raw.locked) {
-                map[k] = capFor(k);
-              }
-            });
-          }catch(_){}
-        }
-        try{
-          const allSnap = await g2(q2(ovRef, w2('date','==', date)));
-          allSnap.forEach(d=>{
-            const raw = d.data() || {};
-            // Normalizar hora da mesma forma que acima
-            const hhMatch = String(raw.hour || raw.hh || '').match(/(\d{1,2})/);
-            const hh = hhMatch ? String(parseInt(hhMatch[1], 10)).padStart(2, '0') : null;
-            if (!hh) return;
-            const docFamily = canonicalType(raw.eventType || raw.event_type || '');
-            if (docFamily && docFamily !== ovEventType) return;
-            if (!docFamily && !variants.includes(null) && !variants.includes('')) return;
-            const k = `${hh}:00`;
-            const agg = overrides[k] || { lockedAny:false, extraOccupied:0 };
-            agg.lockedAny = agg.lockedAny || (raw.locked === true);
-            if (raw.extraOccupied) agg.extraOccupied += Number(raw.extraOccupied||0);
-            overrides[k] = agg;
-            if (raw.extraOccupied) {
-              map[k] = (map[k]||0) + Number(raw.extraOccupied||0);
-            }
-            if (raw.locked) {
-              map[k] = capFor(k);
-            }
-          });
-        }catch(_){}
-      }catch(_){}
-      
-      // Travar fixo os horários 16h e 17h do modo liga (apenas marcar como travado na UI, sem fazer consultas pesadas)
-      // A trava real será aplicada apenas quando o usuário tentar destravar
-      if (ovEventType === 'modo-liga') {
-        const fixedLockHours = ['16:00', '17:00'];
-        for (const fixedHour of fixedLockHours) {
-          // Apenas garantir que está marcado como travado no override (sem fazer consultas)
-          if (!overrides[fixedHour]) {
-            overrides[fixedHour] = { lockedAny: true, extraOccupied: 0 };
-          } else {
-            overrides[fixedHour].lockedAny = true;
-          }
-        }
-      }
-      
-      entries.forEach((hour)=>{
-        const cnt = map[hour] || 0;
-        const ov = overrides[hour] || {};
-        // Para modo liga 16h e 17h, sempre travado
-        const isFixedLock = (ovEventType === 'modo-liga' && (hour === '16:00' || hour === '17:00'));
-        const locked = isFixedLock ? true : !!(ov.lockedAny === undefined ? ov.locked : ov.lockedAny);
+      if (entries.length === 0) {
         const tr = document.createElement('tr');
-        const cap = capFor(hour);
-        const isStaff = window.adminRoleLower === 'staff';
-        
-        // Calcular vagas restantes
-        const remaining = Math.max(0, cap - cnt);
-        const occupiedText = remaining === 0 ? 'Lotado' : `Restam ${remaining}`;
-        
-        // Staff: Sem botão Travar
-        const lockButton = isStaff ? '' : `<button class="px-2 py-1 ${locked?'bg-red-600 text-white':'bg-yellow-400 text-black'} rounded text-xs" data-toggle-lock="${hour}" ${isFixedLock ? 'title="Horário fixo - confirmação necessária para destravar"' : ''}>${locked?'Destravar':'Travar'}</button>`;
-        
-        tr.innerHTML = `<td class="py-2">${hour}</td><td class="py-2">${occupiedText}</td><td class="py-2 space-x-2">
-          <button class="px-2 py-1 bg-blue-600 text-white rounded text-xs" data-add-hour="${hour}">Adicionar</button>
-          <button class="px-2 py-1 bg-gray-200 text-gray-800 rounded text-xs" data-manage-hour="${hour}">Gerenciar</button>
-          <button class="px-2 py-1 bg-emerald-600 text-white rounded text-xs" data-export-hour="${hour}">Exportar</button>
-          ${lockButton}
-        </td>`;
+        tr.innerHTML = '<td class="py-2" colspan="3">Sem horários disponíveis para esta data/evento.</td>';
+        tbody.appendChild(tr);
+        return;
+      }
+
+      entries.forEach(hour => {
+        const cap = getCapacityForHour(eventType, hour, isCampFinalDate, isCampSemifinalDate);
+        const occupied = mergedMap[hour] || 0;
+        const tr = createBoardTableRow(hour, cap, occupied, overridesMap, ovEventType);
         tbody.appendChild(tr);
       });
-      // Bind actions para adicionar/gerenciar
-      tbody.addEventListener('click', async (e)=>{
+
+      // ===== Bind dos botões de ação =====
+      bindBoardTableActions(tbody, date, eventType, ovEventType);
+
+    } catch (e) {
+      console.error('❌ Erro em loadBoard:', e);
+      alert('Erro ao carregar o quadro de horários. Verifique o console.');
+    }
+  }
+
+  // Binda ações dos botões da tabela
+  function bindBoardTableActions(tbody, date, eventType, ovEventType) {
+    // Remover listeners antigos para evitar duplicação
+    const newTbody = tbody.cloneNode(true);
+    tbody.parentNode.replaceChild(newTbody, tbody);
+    
+    newTbody.addEventListener('click', async (e) => {
+      try {
         const btnAdd = e.target.closest('[data-add-hour]');
         const btnManage = e.target.closest('[data-manage-hour]');
         const btnToggle = e.target.closest('[data-toggle-lock]');
         const btnExport = e.target.closest('[data-export-hour]');
-        if (btnAdd){
+
+        if (btnAdd) {
           const h = btnAdd.getAttribute('data-add-hour');
           const modal = document.getElementById('modalAddTeam');
           const hourInput = document.getElementById('addHour');
           if (hourInput) hourInput.value = h;
           if (modal) modal.classList.remove('hidden');
-        } else if (btnManage){
+        } 
+        else if (btnManage) {
           const h = btnManage.getAttribute('data-manage-hour');
           openManageHourModal(date, eventType, h);
-        } else if (btnExport){
+        } 
+        else if (btnExport) {
           const h = btnExport.getAttribute('data-export-hour');
-          try{
+          try {
             const text = await buildExportList(date, ovEventType, h);
             await navigator.clipboard.writeText(text);
             alert('Lista copiada para a área de transferência.');
-          }catch(err){
-            console.error('Falha ao exportar lista', err);
+          } catch (err) {
+            console.error('Falha ao exportar lista:', err);
             alert('Falha ao exportar lista.');
           }
-        } else if (btnToggle){
+        } 
+        else if (btnToggle) {
           const h = btnToggle.getAttribute('data-toggle-lock');
-          // Verificar se é horário fixo travado (modo liga 16h e 17h)
-          const isFixedLock = (ovEventType === 'modo-liga' && (h === '16:00' || h === '17:00'));
-          
-          // Se for horário fixo e estiver tentando destravar, pedir confirmação
-          if (isFixedLock) {
-            const currentLocked = btnToggle.textContent.trim() === 'Destravar';
-            if (currentLocked) {
-              // Tentando destravar horário fixo - pedir confirmação
-              if (!confirm(`⚠️ ATENÇÃO: Este horário (${h}) está configurado como fixo travado para o Modo Liga.\n\nDeseja realmente destravar?`)) {
-                return;
-              }
-            }
-          }
-          
-          try{
-            const hh = String(h).match(/(\d{1,2})/)?.[1];
-            const { collection: c3, query: q3, where: w3, getDocs: g3, addDoc, updateDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-            const ovRef = c3(window.firebaseDb, 'schedule_overrides');
-            const variants = resolveAliases(ovEventType);
-            const toUpdate = new Map();
-            // hour como 'hour'
-            let snap = await g3(q3(ovRef, w3('date','==', date), w3('eventType','==', ovEventType), w3('hour','==', hh)));
-            snap.forEach(d=> toUpdate.set(d.id, d));
-            // hour como 'hh'
-            snap = await g3(q3(ovRef, w3('date','==', date), w3('eventType','==', ovEventType), w3('hh','==', hh)));
-            snap.forEach(d=> toUpdate.set(d.id, d));
-            // variações de eventType
-            for (const v of variants){
-              try{
-                let s1 = await g3(q3(ovRef, w3('date','==', date), w3('eventType','==', v), w3('hour','==', hh)));
-                s1.forEach(d=> toUpdate.set(d.id, d));
-              }catch(_){}
-              try{
-                let s2 = await g3(q3(ovRef, w3('date','==', date), w3('eventType','==', v), w3('hh','==', hh)));
-                s2.forEach(d=> toUpdate.set(d.id, d));
-              }catch(_){}
-            }
-            // fallback: documentos sem eventType definido
-            try{
-              const snapAll = await g3(q3(ovRef, w3('date','==', date)));
-              snapAll.forEach(d=>{
-                const raw = d.data() || {};
-                const hhMatchDoc = String(raw.hour || raw.hh || '').match(/(\d{1,2})/);
-                const hhDoc = hhMatchDoc ? String(parseInt(hhMatchDoc[1], 10)).padStart(2, '0') : null;
-                if (!hhDoc || hhDoc !== hh) return;
-                const docFamily = canonicalType(raw.eventType || raw.event_type || '');
-                if (docFamily && docFamily !== ovEventType) return;
-                if (!docFamily && !variants.includes(null) && !variants.includes('')) return;
-                toUpdate.set(d.id, d);
-              });
-            }catch(_){}
-            const docsArr = Array.from(toUpdate.values());
-            if (docsArr.length){
-              // Verificar se algum está travado para determinar o novo estado
-              const anyLocked = docsArr.some(d => d.data()?.locked === true);
-              const newLocked = !anyLocked; // Inverter: se algum está travado, destravar; se todos estão destravados, travar
-              
-              // Atualizar todos os documentos encontrados usando batch para evitar duplicação
-              const { writeBatch } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-              const batch = writeBatch(window.firebaseDb);
-              
-              for (const d of docsArr) {
-                const ref = doc(window.firebaseDb, 'schedule_overrides', d.id);
-                batch.update(ref, { locked: newLocked, eventType: ovEventType, hour: hh, hh });
-              }
-              
-              await batch.commit();
-            } else {
-              // Se não encontrou nenhum documento, criar apenas um
-              await addDoc(ovRef, { date, eventType: ovEventType, hour: hh, hh, locked: true, extraOccupied: 0, createdAt: Date.now() });
-            }
-            
-            // Recarregar board (já limpa o tbody internamente)
-            await loadBoard();
-          }catch(err){ alert('Falha ao alternar trava.'); }
+          await handleToggleLock(h, date, eventType, ovEventType);
         }
-      });
-
-      if (entries.length===0){
-        const tr = document.createElement('tr');
-        tr.innerHTML = '<td class="py-2" colspan="3">Sem reservas para esta data.</td>';
-        tbody.appendChild(tr);
+      } catch (e) {
+        console.error('Erro ao processar ação da tabela:', e);
       }
-    }catch(e){ console.error('loadBoard error', e); }
+    });
+  }
+
+  // Handler para toggle de travamento de horário
+  async function handleToggleLock(hour, date, eventType, ovEventType) {
+    
+    const isFixedLock = false // (canonicalType(eventType) === 'modo-liga' && (hour === '16:00' || hour === '17:00'));
+    
+    
+    if (isFixedLock) {
+      // Verificar estado atual (se "Destravar" está visível)
+      const btn = document.querySelector(`[data-toggle-lock="${hour}"]`);
+      const isCurrentlyLocked = btn?.textContent.trim() === 'Destravar';
+      
+      
+      if (isCurrentlyLocked) {
+        const userConfirmed = await confirm(`⚠️ ATENÇÃO: Este horário (${hour}) está configurado como fixo travado para o Modo Liga.\n\nDeseja realmente destravar?`);
+        
+        if (!userConfirmed) {          
+          return;
+        }
+      }
+    }
+
+    try {
+      const hh = extractHour(hour);
+      
+      if (!hh) {
+        alert('Erro: horário inválido');
+        return;
+      }      
+
+      const docsArr = await findAllOverridesForHour(date, eventType, hh);       
+      if (docsArr.length > 0) {        
+        // Verificar estado atual
+        const anyLocked = docsArr.some(d => d.data()?.locked === true);
+        const newLocked = !anyLocked;
+        
+        // Atualizar em batch
+        const { writeBatch, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const batch = writeBatch(window.firebaseDb);
+        
+        docsArr.forEach(d => {
+          const ref = doc(window.firebaseDb, 'schedule_overrides', d.id);
+          
+          batch.update(ref, { locked: newLocked, eventType: ovEventType, hour: hh, hh });
+        });
+        
+        await batch.commit();
+        
+      } else {
+        
+        // Criar novo documento
+        const { addDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const ovRef = collection(window.firebaseDb, 'schedule_overrides');
+        const newDoc = await addDoc(ovRef, { 
+          date, 
+          eventType: ovEventType, 
+          hour: hh, 
+          hh, 
+          locked: true, 
+          extraOccupied: 0, 
+          createdAt: Date.now() 
+        });
+        
+      }
+
+      await loadBoard();
+      
+    } catch (e) {
+      console.error('❌ Erro ao alternar trava:', e);
+      console.error('📋 Stack:', e.stack);
+      alert('Falha ao alternar trava do horário.\n\nErro: ' + (e.message || 'Desconhecido'));
+    }
+  }
+
+
+
+  function bindClearLocksButton(btn, date, ovEventType) {
+    if (!btn || window.adminRoleLower === 'staff') return;
+
+    // Remover listener anterior se existir (permite rebinding quando evento muda)
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);    
+    
+    newBtn.addEventListener('click', async () => {
+        try {
+            const canon = canonicalType(ovEventType);
+            const variants = resolveAliases(ovEventType);                     
+            
+            const userConfirmed = await confirm(`Destravar todas as travas e zerar ocupações extras de ${date} (${ovEventType})?`);
+            
+            if (!userConfirmed) {                
+                return;
+            }
+
+            const { collection, query, where, getDocs, doc, writeBatch } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            const ovRef = collection(window.firebaseDb, 'schedule_overrides');
+            const updates = [];
+
+            // Query 1: Buscar por variantes canônicas/aliases            
+            for (const v of variants) {
+                if (!v) continue;
+                try {
+                    const snap = await getDocs(query(ovRef, where('date', '==', date), where('eventType', '==', v)));
+                    
+                    snap.forEach(d => {
+                        const data = d.data();
+
+                        updates.push({ 
+                            ref: doc(window.firebaseDb, 'schedule_overrides', d.id), 
+                            data: { locked: false, extraOccupied: 0, eventType: canon } 
+                        });
+                    });
+                } catch (e) {
+                    console.warn(`  ⚠️  Erro na variante "${v}":`, e.message);
+                }
+            }
+
+            // Query 2: Fallback - apenas documentos que AINDA não têm eventType ou que combinam com aliases            
+            try {
+                const snapAll = await getDocs(query(ovRef, where('date', '==', date)));               
+                
+                snapAll.forEach(d => {
+                    // Pular se já foi adicionado na Query 1
+                    if (updates.some(u => u.ref._key.path.segments[1] === d.id)) {                        
+                        return;
+                    }
+                    
+                    const raw = d.data();
+                    const docFamily = canonicalType(raw.eventType || raw.event_type || '');                    
+                    
+                    // Incluir APENAS se:
+                    // 1. Não tem eventType (docs antigos) OU
+                    // 2. O eventType corresponde ao canonicalType do evento selecionado
+                    if (!docFamily) {                        
+                        updates.push({ 
+                            ref: doc(window.firebaseDb, 'schedule_overrides', d.id), 
+                            data: { locked: false, extraOccupied: 0, eventType: canon } 
+                        });
+                    } else if (docFamily === canon) {                        
+                        updates.push({ 
+                            ref: doc(window.firebaseDb, 'schedule_overrides', d.id), 
+                            data: { locked: false, extraOccupied: 0, eventType: canon } 
+                        });
+                    } 
+                });
+            } catch (e) {
+                console.warn('❌ Erro no fallback:', e.message);
+            }            
+            
+            if (updates.length === 0) {                
+                showToast('info', 'Nenhuma trava encontrada para este dia', 'Info');
+                return;
+            }
+
+            // Commit em chunks de 400 (limite do Firestore é 500)
+            const CHUNK_SIZE = 400;
+            for (let i = 0; i < updates.length; i += CHUNK_SIZE) {
+                const chunk = updates.slice(i, i + CHUNK_SIZE);
+                const batch = writeBatch(window.firebaseDb);
+                chunk.forEach(u => {
+                    batch.update(u.ref, u.data);
+                });
+                const chunkNum = Math.floor(i / CHUNK_SIZE) + 1;
+                const totalChunks = Math.ceil(updates.length / CHUNK_SIZE);                
+                await batch.commit();
+            }            
+            
+            showToast('success', `trava(s) removida(s) e ocupações zeradas`, 'Sucesso');
+            await loadBoard();
+        } catch (error) {            
+            showToast('error', `Falha ao destravar tudo: ${error.message}`, 'Erro');
+        }
+    });
   }
 
   async function openManageHourModal(date, eventType, hour){
@@ -3376,7 +3587,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
       let active = 0; snap.forEach(d=>{ const u=d.data(); if (Number(u.lastLogin||0) >= thirtyDaysAgo) active++; });
   	  const kpiActiveEl = document.getElementById('kpiActiveUsers');
   	  if (kpiActiveEl) kpiActiveEl.textContent = String(active);
-    }catch(e){ console.log('Erro ativos', e); }
+    }catch(e){  }
   }
 
   // [removido duplicado]
@@ -3513,7 +3724,7 @@ async function loadKPIs() {
     const { collection, query, where, orderBy, limit, getDocsFromServer } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     const ordersCol = collection(window.firebaseDb, 'orders');
 
-    console.log('🔍 loadKPIs: Calculando vendas...');
+    
 
     // Today sales (sum) - apenas pedidos pagos
     const today = new Date();
@@ -3529,7 +3740,7 @@ async function loadKPIs() {
         }
     });
     document.getElementById('kpiToday').textContent = currencyBRL(sumToday);
-    console.log('📊 Vendas hoje:', sumToday);
+    
 
     // Month sales - apenas pedidos pagos
     const firstMonth = new Date();
@@ -3554,7 +3765,7 @@ async function loadKPIs() {
     });
     document.getElementById('kpiMonth').textContent = currencyBRL(sumMonth);
     document.getElementById('kpiReceivable').textContent = currencyBRL(receivable);
-    console.log('📊 Vendas mês:', sumMonth, 'A receber:', receivable);
+    
 }
 
 async function loadCharts() {
@@ -4856,34 +5067,23 @@ window.addEventListener('load', () => {
   // Security: Enhanced login handler
   async function handleLogin(email, password) {
     try {
-      console.log('🔍 Iniciando processo de login...');
-      console.log('🔍 Email:', email);
-      console.log('🔍 Firebase Auth disponível:', !!window.firebaseAuth);
       
       const { signInWithEmailAndPassword: signIn, signOut: signOutFn } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
       const { doc: docRef, getDoc: getDocFn } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-      
-      console.log('🔍 Tentando fazer login...');
+            
       const userCredential = await signIn(window.firebaseAuth, email, password);
-      const user = userCredential.user;
-      console.log('✅ Login bem-sucedido!', user.email);
-      
+      const user = userCredential.user;     
+
       // Check if user is authorized
       if (!user || !user.email) {
         await signOutFn(window.firebaseAuth);
         showLoginError('Erro ao fazer login.');
         return;
       }
+
+      const userDoc = await getDocFn(docRef(window.firebaseDb, 'users', user.uid));     
       
-      // Get user role from Firestore
-      console.log('🔍 Verificando documento do usuário no Firestore...');
-      console.log('🔍 UID do usuário:', user.uid);
-      const userDoc = await getDocFn(docRef(window.firebaseDb, 'users', user.uid));
-      console.log('🔍 Documento existe?', userDoc.exists());
-      
-      if (!userDoc.exists()) {
-        console.log('🔧 Criando documento do usuário automaticamente...');
-        
+      if (!userDoc.exists()) {              
         // Criar documento do usuário automaticamente
         const { setDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const userData = {
@@ -4894,8 +5094,7 @@ window.addEventListener('load', () => {
           lastLogin: Date.now()
         };
         
-        await setDoc(docRef(window.firebaseDb, 'users', user.uid), userData);
-        console.log('✅ Documento do usuário criado com sucesso!');
+        await setDoc(docRef(window.firebaseDb, 'users', user.uid), userData);       
         
         // Agora tentar novamente
         const newUserDoc = await getDocFn(docRef(window.firebaseDb, 'users', user.uid));
@@ -4906,8 +5105,7 @@ window.addEventListener('load', () => {
         }
         
         const newUserData = newUserDoc.data();
-        const role = (newUserData.role || '').toLowerCase().trim();
-        console.log('🎭 Cargo definido:', role);
+        const role = (newUserData.role || '').toLowerCase().trim();        
         
         // Continuar com o processo de login
         const authorizedRoles = ['admin', 'gerente', 'vendedor', 'design', 'designer', 'desgin', 'socio', 'sócio'];
@@ -4920,8 +5118,7 @@ window.addEventListener('load', () => {
         }
         
         // Para socio, permitir qualquer email
-        if (role === 'socio' || role === 'sócio' || role === 'ceo') {
-          console.log('✅ Acesso liberado para Socio (documento criado)');
+        if (role === 'socio' || role === 'sócio' || role === 'ceo') {   
           
           // Save session
           const sessionData = {
@@ -4938,8 +5135,7 @@ window.addEventListener('load', () => {
           if (authGate && dashboard) {
             authGate.classList.add('hidden');
             dashboard.classList.remove('hidden');
-            console.log('✅ Dashboard mostrado com sucesso');
-            
+
             // Inicializar dashboard
             setTimeout(() => {
               if (typeof setView === 'function') {
@@ -4961,92 +5157,58 @@ window.addEventListener('load', () => {
       const userData = userDoc.data();
       const role = (userData.role || '').toLowerCase();
       
-      console.log('🔍 Documento encontrado!');
-      console.log('🔍 Dados do usuário:', userData);
-      console.log('🔍 Cargo encontrado no Firestore:', userData.role, '-> normalizado:', role);
-      
       // Limpar espaços em branco e caracteres especiais do cargo
-      const cleanRole = role.trim();
-      console.log('🔍 Cargo limpo:', `"${cleanRole}"`);
+      const cleanRole = role.trim();     
       
       // Check if role is authorized (including variations and typos)
       const authorizedRoles = ['admin', 'gerente', 'vendedor', 'design', 'designer', 'desgin', 'socio', 'sócio'];
       const isAuthorized = authorizedRoles.includes(cleanRole);
-      
-      console.log('🔍 Cargos autorizados:', authorizedRoles);
-      console.log('🔍 Cargo do usuário (original):', `"${role}"`);
-      console.log('🔍 Cargo do usuário (limpo):', `"${cleanRole}"`);
-      console.log('🔍 Está autorizado?', isAuthorized);
-      
-      if (!isAuthorized) {
-        console.log('❌ Cargo não autorizado, negando acesso');
+            
+      if (!isAuthorized) {        
         await signOutFn(window.firebaseAuth);
         showLoginError('Acesso negado. Você não tem permissão para acessar o painel administrativo.');
         return;
-      }
-      
-      console.log('✅ Cargo autorizado, continuando...');
-      
-      // For admin/vendedor/ceo, check email whitelist
-      // For gerente/design/designer/socio/sócio, allow any email with the correct role
-      console.log('🔍 Verificando se precisa validar email...');
-      console.log('🔍 Cargo é admin/vendedor/ceo?', ['admin', 'vendedor', 'ceo'].includes(cleanRole));
-      
+      }      
+    
       // Gerente não precisa estar na whitelist - apenas precisa ter o role correto
       if (['admin', 'vendedor', 'ceo'].includes(cleanRole)) {
-        console.log('🔍 Validando email para cargo:', role);
+        
         const ADMIN_EMAILS = [
           'cleitondouglass@gmail.com',
           'cleitondouglass123@hotmail.com',
           'gilmariofreitas378@gmail.com',
           'gilmariofreitas387@gmail.com',
           'flavetyr@gmail.com'
-        ];
-        
-        console.log('🔍 Verificando email:', user.email, 'na lista:', ADMIN_EMAILS);
-        console.log('🔍 Email em minúsculas:', user.email.toLowerCase());
-        console.log('🔍 Está na lista?', ADMIN_EMAILS.includes(user.email.toLowerCase()));
+        ];                
         
         if (!ADMIN_EMAILS.includes(user.email.toLowerCase())) {
-          console.log('❌ Email não autorizado:', user.email);
+          
           await signOutFn(window.firebaseAuth);
           showLoginError('Acesso negado. Email não autorizado para administração.');
           return;
-        }
-        
-        console.log('✅ Email autorizado:', user.email);
-      } else {
-        console.log('✅ Cargo é gerente/socio/design, não precisa validar email');
-      }
+        }               
+      } 
 
-      // Save session
-      console.log('🔍 Salvando sessão...');
       const sessionData = {
         uid: user.uid,
         email: user.email,
         role: cleanRole,
         timestamp: Date.now()
       };
-      sessionStorage.setItem('adminSession', JSON.stringify(sessionData));
-      console.log('✅ Sessão salva:', sessionData);
+      sessionStorage.setItem('adminSession', JSON.stringify(sessionData));     
 
-      // Show dashboard
-      console.log('🔍 Tentando mostrar dashboard...');
-      if (typeof showDashboard === 'function') {
-        console.log('✅ Usando função showDashboard');
+      // Show dashboard      
+      if (typeof showDashboard === 'function') {        
         showDashboard(role);
       } else {
-        console.log('⚠️ showDashboard não está disponível, usando fallback');
+        
         // Fallback: mostrar dashboard manualmente
         const authGate = document.getElementById('authGate');
-        const dashboard = document.getElementById('dashboard');
-        console.log('🔍 authGate encontrado:', !!authGate);
-        console.log('🔍 dashboard encontrado:', !!dashboard);
+        const dashboard = document.getElementById('dashboard');       
         
         if (authGate && dashboard) {
           authGate.classList.add('hidden');
-          dashboard.classList.remove('hidden');
-          console.log('✅ Dashboard mostrado com sucesso!');
+          dashboard.classList.remove('hidden');          
           
           if (typeof setView === 'function') {
             setView(cleanRole);
@@ -5072,7 +5234,7 @@ window.addEventListener('load', () => {
       } else if (error.code === 'auth/too-many-requests') {
         errorMessage = 'Muitas tentativas. Tente novamente mais tarde.';
       }
-      
+
       showLoginError(errorMessage);
     }
   }
@@ -5198,25 +5360,25 @@ window.addEventListener('load', () => {
   // Função de teste para verificar permissões
   async function testFirestorePermissions() {
     try {
-      console.log('🧪 Testando permissões do Firestore...');
+      
       const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
       
       // Testar leitura de usuários
       const usersRef = collection(window.firebaseDb, 'users');
       const usersSnapshot = await getDocs(usersRef);
-      console.log('✅ Teste de usuários: OK -', usersSnapshot.size, 'documentos');
+      
       
       // Testar leitura de pedidos
       const ordersRef = collection(window.firebaseDb, 'orders');
       const ordersSnapshot = await getDocs(ordersRef);
-      console.log('✅ Teste de pedidos: OK -', ordersSnapshot.size, 'documentos');
+      
       
       // Testar leitura de registros
       const regsRef = collection(window.firebaseDb, 'registrations');
       const regsSnapshot = await getDocs(regsRef);
-      console.log('✅ Teste de registros: OK -', regsSnapshot.size, 'documentos');
       
-      console.log('🎉 Todos os testes de permissão passaram!');
+      
+      
       return true;
     } catch (error) {
       console.error('❌ Erro no teste de permissões:', error);
@@ -5252,7 +5414,7 @@ let currentUserFilter = 'all'; // 'all', '30days', '7days', '1day'
 // Carregar usuários do Firestore
 async function loadUsers() {
   try {
-    console.log('🔄 Carregando usuários...');
+    
     const { collection, getDocs, query, orderBy, limit } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     // 1) Carrega usuários
     const usersRef = collection(window.firebaseDb, 'users');
@@ -5284,7 +5446,7 @@ async function loadUsers() {
     });
 
     // 2) Usa atividade recente de pedidos como fallback de "último login"
-    console.log('🔎 Buscando atividade recente em pedidos...');
+    
     const ordersRef = collection(window.firebaseDb, 'orders');
     // Pega os mais recentes para manter leve
     const ordersSnap = await getDocs(query(ordersRef, orderBy('createdAt', 'desc'), limit(500)));
@@ -5317,7 +5479,7 @@ async function loadUsers() {
       return u;
     });
     
-    console.log(`✅ ${allUsers.length} usuários carregados`);
+    
     applyUserFilter();
     updateUsersStats();
     displayUsers();
@@ -5631,7 +5793,7 @@ function setupFilterEventListeners() {
 // Esta função não é mais usada - foi substituída por renderPermissionsTable
 // Mantida apenas para compatibilidade, mas não deve ser chamada
 function renderUsersTable(users) {
-  console.log('⚠️ renderUsersTable está obsoleta - use renderPermissionsTable');
+  
   // Não fazer nada - a tabela de permissões é gerenciada separadamente
 }
 
@@ -5842,7 +6004,7 @@ async function updateUserRole(userId, newRole) {
       newTablesUsers[activeUserIndex].role = newRole;
     }
     
-    console.log('✅ Função do usuário atualizada com sucesso!');
+    
   } catch (error) {
     console.error('Erro ao atualizar função do usuário:', error);
     alert('Erro ao atualizar função do usuário');
@@ -5969,7 +6131,7 @@ const permissionsPerPage = 10;
 // Carregar usuários especificamente para o card de permissões
 async function loadPermissionsUsers() {
   try {
-    console.log('🔄 Carregando usuários para permissões...');
+    
     const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     
     const usersRef = collection(window.firebaseDb, 'users');
@@ -5987,7 +6149,7 @@ async function loadPermissionsUsers() {
       });
     });
     
-    console.log(`✅ ${permissionsUsersData.length} usuários carregados para permissões`);
+    
     renderPermissionsTable();
     updatePermissionsPagination();
   } catch (error) {
@@ -5999,7 +6161,7 @@ async function loadPermissionsUsers() {
 function renderPermissionsTable() {
   const tbody = document.getElementById('permissionsTableBody');
   if (!tbody) {
-    console.log('❌ permissionsTableBody não encontrado');
+    
     return;
   }
   
@@ -6122,7 +6284,7 @@ async function updatePermissionsUserRole(userId) {
     const currentRole = selectElement.getAttribute('data-current-role');
     
     if (newRole === currentRole) {
-      console.log('ℹ️ Função não alterada para o usuário:', userId);
+      
       return;
     }
     
@@ -6152,7 +6314,7 @@ async function updatePermissionsUserRole(userId) {
       await logAdminAction('change_role', `Alterou cargo de ${user.email} para ${getRoleDisplayName(newRole)}`);
     }
     
-    console.log('✅ Função do usuário atualizada com sucesso!');
+    
     
     // Mostrar feedback visual
     const button = selectElement.parentElement.nextElementSibling.querySelector('button');
@@ -6236,7 +6398,7 @@ const tokensPerPage = 5;
 // Carregar usuários para gerenciamento de tokens
 async function loadTokensUsers() {
   try {
-    console.log('🔄 Carregando usuários para tokens...');
+    
     const { collection, getDocsFromServer } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     const usersCol = collection(window.firebaseDb, 'users');
     const snapUsers = await getDocsFromServer(usersCol);
@@ -6259,7 +6421,7 @@ async function loadTokensUsers() {
       return tokensB - tokensA; // Decrescente
     });
     
-    console.log(`✅ ${tokensUsersData.length} usuários carregados para tokens`);
+    
     tokensFilteredData = [...tokensUsersData]; // Inicializar dados filtrados (já ordenado)
     renderTokensTable();
     updateTokensPagination();
@@ -6467,7 +6629,7 @@ let couponUsageFilters = { period: '7d', context: 'all', couponCode: 'all', prod
 // Carregar cupons
 async function loadCoupons() {
     try {
-        console.log('🔄 Carregando cupons...');
+        
         const { collection, getDocs, orderBy, query } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const couponsRef = collection(window.firebaseDb, 'coupons');
         const q = query(couponsRef, orderBy('createdAt', 'desc'));
@@ -6484,7 +6646,7 @@ async function loadCoupons() {
             });
         });
         
-        console.log(`✅ ${couponsData.length} cupons carregados`);
+        
         // Garantir que afiliados estejam carregados antes de renderizar
         if (affiliatesData.length === 0) {
             try {
@@ -6598,7 +6760,7 @@ function renderCouponsTable() {
 // Carregar histórico de uso de cupons
 async function loadCouponUsage() {
     try {
-        console.log('🔄 Carregando histórico de uso de cupons...');
+        
         const { collection, getDocs, orderBy, query } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const usageRef = collection(window.firebaseDb, 'couponUsage');
         const q = query(usageRef, orderBy('usedAt', 'desc'));
@@ -6614,7 +6776,7 @@ async function loadCouponUsage() {
             });
         });
         
-        console.log(`✅ ${couponUsageData.length} usos de cupons carregados`);
+        
         
         // Popular select de cupons
         populateCouponCodeFilter();
@@ -6734,8 +6896,8 @@ function updateCouponStats(data) {
 // Aplicar filtros de período e contexto ao histórico de cupons
 function applyCouponUsageFilters() {
     try {
-        console.log('🔍 Aplicando filtros de cupons...', couponUsageFilters);
-        console.log('📊 Dados totais:', couponUsageData.length);
+        
+        
         
         const now = new Date();
         let fromDate = null;
@@ -6774,7 +6936,7 @@ function applyCouponUsageFilters() {
             return inPeriod && inContext && matchesCoupon && matchesProduct;
         });
         
-        console.log('✅ Dados filtrados:', filteredCouponUsageData.length);
+        
         
         // Atualizar contador visível
         try {
@@ -6845,7 +7007,7 @@ function exportCouponUsageData() {
         link.click();
         document.body.removeChild(link);
         
-        console.log('✅ Dados exportados com sucesso');
+        
     } catch (error) {
         console.error('❌ Erro ao exportar dados:', error);
         alert('Erro ao exportar dados: ' + error.message);
@@ -7024,7 +7186,7 @@ async function createCoupon(event) {
     try {
         if (isEditing) {
             // Atualizar cupom existente
-            console.log('🔄 Atualizando cupom:', editId);
+            
             
             const { doc, updateDoc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
             const couponRef = doc(window.firebaseDb, 'coupons', editId);
@@ -7055,15 +7217,13 @@ async function createCoupon(event) {
             couponData.updatedBy = window.adminRoleLower || 'admin';
             
             await updateDoc(couponRef, couponData);
-            console.log('✅ Cupom atualizado:', editId);
+            
             
             // Log da ação
             await logAdminAction('update_coupon', `Atualizou cupom ${couponData.code} (${couponData.discountType === 'percentage' ? couponData.discountValue + '%' : 'R$ ' + couponData.discountValue})`);
             
             alert('Cupom atualizado com sucesso!');
-        } else {
-            // Criar novo cupom
-            console.log('🔄 Criando cupom:', couponData.code);
+        } else {           
             
             // Verificar se o código já existe
             const existingCoupon = couponsData.find(c => c.code === couponData.code);
@@ -7081,7 +7241,7 @@ async function createCoupon(event) {
             // Salvar no Firestore
             const { collection, addDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
             const docRef = await addDoc(collection(window.firebaseDb, 'coupons'), couponData);
-            console.log('✅ Cupom criado com ID:', docRef.id);
+            
             
             // Log da ação
             await logAdminAction('create_coupon', `Criou cupom ${couponData.code} (${couponData.discountType === 'percentage' ? couponData.discountValue + '%' : 'R$ ' + couponData.discountValue})`);
@@ -7104,7 +7264,7 @@ async function createCoupon(event) {
 // Alternar status do cupom
 async function toggleCouponStatus(couponId, newStatus) {
     try {
-        console.log(`🔄 ${newStatus ? 'Ativando' : 'Desativando'} cupom:`, couponId);
+        
         
         const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         await updateDoc(doc(window.firebaseDb, 'coupons', couponId), {
@@ -7134,7 +7294,7 @@ async function deleteCoupon(couponId) {
     }
     
     try {
-        console.log('🔄 Excluindo cupom:', couponId);
+        
         
         const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         await deleteDoc(doc(window.firebaseDb, 'coupons', couponId));
@@ -7164,7 +7324,7 @@ const adminHistoryPerPage = 5;
 // Carregar histórico do admin
 async function loadAdminHistory() {
   try {
-    console.log('🔄 Carregando histórico do admin...');
+    
     const { collection, getDocsFromServer, orderBy, limit, query } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     const historyCol = collection(window.firebaseDb, 'adminHistory');
     const q = query(historyCol, orderBy('timestamp', 'desc'), limit(50));
@@ -7179,7 +7339,7 @@ async function loadAdminHistory() {
       });
     });
     
-    console.log(`✅ ${adminHistoryData.length} ações carregadas do histórico`);
+    
     adminHistoryFilteredData = [...adminHistoryData]; // Inicializar dados filtrados
     renderAdminHistoryTable();
     updateAdminHistoryPagination();
@@ -7242,7 +7402,7 @@ function renderAdminHistoryTable() {
 // Log de ação do admin
 async function logAdminAction(action, details) {
   try {
-    console.log('🔄 Registrando ação do admin:', action, details);
+    
     const { collection, addDoc, serverTimestamp, doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     const historyCol = collection(window.firebaseDb, 'adminHistory');
     
@@ -7252,21 +7412,21 @@ async function logAdminAction(action, details) {
     const uid = sessionUser.uid || authUser?.uid || null;
     let adminEmail = sessionUser.email || authUser?.email || 'N/A';
     let adminRole = sessionUser.role || (window.adminRoleLower || '').toLowerCase() || 'N/A';
-    console.log('👤 Session user:', sessionUser);
-    console.log('👤 Auth user:', { uid: authUser?.uid, email: authUser?.email });
+    
+    
     
     // Buscar dados completos do usuário para obter o nome
     let adminName = 'N/A';
     if (uid) {
       try {
-        console.log('🔍 Buscando dados do usuário no Firebase...');
+        
         const userRef = doc(window.firebaseDb, 'users', uid);
         const userSnap = await getDoc(userRef);
-        console.log('📄 Documento do usuário existe:', userSnap.exists());
+        
         
         if (userSnap.exists()) {
           const userData = userSnap.data();
-          console.log('📊 Dados do usuário:', userData);
+          
           
           // Tentar diferentes campos para o nome
           if (userData.name && userData.name.trim() !== '') {
@@ -7284,7 +7444,7 @@ async function logAdminAction(action, details) {
           if (adminEmail === 'N/A' && userData.email) adminEmail = userData.email;
           if (!adminRole || adminRole === 'N/A') adminRole = (userData.role || '').toLowerCase() || 'N/A';
           
-          console.log('👤 Nome extraído:', adminName);
+          
         } else {
           console.warn('⚠️ Documento do usuário não existe no Firebase');
           // Usar parte do email como nome
@@ -7320,10 +7480,10 @@ async function logAdminAction(action, details) {
       timestamp: serverTimestamp()
     };
     
-    console.log('📝 Dados do log:', logData);
+    
     
     await addDoc(historyCol, logData);
-    console.log('✅ Ação registrada com sucesso no histórico');
+    
     
     // Recarregar histórico
     loadAdminHistory();
@@ -7453,7 +7613,7 @@ let affiliateSalesData = [];
 // Carregar afiliados
 async function loadAffiliates() {
     try {
-        console.log('🔄 Carregando afiliados...');
+        
         const { collection, getDocs, query, where, orderBy } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         
         // Buscar usuários com role 'Afiliado'
@@ -7501,7 +7661,7 @@ async function loadAffiliates() {
             });
         });
         
-        console.log(`✅ ${affiliatesData.length} afiliados carregados`);
+        
         
         // Carregar vendas e comissões para cada afiliado
         await loadAffiliateSales();
@@ -7569,7 +7729,7 @@ async function loadAffiliateSales() {
             });
         });
         
-        console.log(`✅ ${affiliateSalesData.length} vendas de afiliados carregadas`);
+        
         renderAffiliateSalesTable();
     } catch (error) {
         console.error('❌ Erro ao carregar vendas de afiliados:', error);
@@ -7958,7 +8118,7 @@ function setupCouponUsageFilters() {
         couponUsageFilters.context = (ctxSel?.value || 'all');
         couponUsageFilters.couponCode = (codeSel?.value || 'all');
         couponUsageFilters.productName = (productInput?.value || '').trim();
-        console.log('🔍 Aplicando filtros:', couponUsageFilters);
+        
         applyCouponUsageFilters();
       };
       
@@ -7973,7 +8133,7 @@ function setupCouponUsageFilters() {
         if (codeSel) codeSel.value = 'all';
         if (productInput) productInput.value = '';
         couponUsageFilters = { period: '7d', context: 'all', couponCode: 'all', productName: '' };
-        console.log('🔄 Resetando filtros');
+        
         applyCouponUsageFilters();
       };
       
@@ -8023,7 +8183,7 @@ function setupCouponUsageFilters() {
         });
       }
       
-      console.log('✅ Filtros de cupons configurados com sucesso');
+      
     } catch (error) {
       console.error('❌ Erro ao configurar filtros de cupons:', error);
     }
@@ -8350,7 +8510,7 @@ async function recomputeTokenTotals(){
     const countEl = document.getElementById('tokensCount');
     if (countEl) countEl.textContent = `${totalPurchased} compras`;
 
-    console.log('✅ Tokens recomputed:', { totalPurchased, totalUsed });
+    
   }catch(err){
     console.error('❌ Error recomputing tokens:', err);
   }
@@ -8596,7 +8756,7 @@ async function saveWhatsAppLink() {
     
     // Limpar cache para forçar atualização
     whatsappLinksCache.clear();
-    console.log('🔍 Cache de links limpo após salvar');
+    
     
     clearWhatsAppLinkForm();
     loadAdminWhatsAppLinks();
@@ -8610,7 +8770,7 @@ async function saveWhatsAppLink() {
 // Editar link do WhatsApp
 async function editWhatsAppLink(linkId) {
   try {
-    console.log('🔍 Editando link:', linkId);
+    
     
     if (!window.firebaseDb) {
       showNotification('Firebase não inicializado ainda', 'error');
@@ -8624,7 +8784,7 @@ async function editWhatsAppLink(linkId) {
     
     if (linkSnap.exists()) {
       const linkData = linkSnap.data();
-      console.log('🔍 Dados do link:', linkData);
+      
       
       currentEditingWhatsAppLink = linkId;
       
@@ -8639,9 +8799,8 @@ async function editWhatsAppLink(linkId) {
       // Abrir o modal
       openWhatsAppLinksModal();
       
-      console.log('✅ Formulário preenchido e modal aberto');
-    } else {
-      console.log('❌ Link não encontrado');
+      
+    } else {      
       showNotification('Link não encontrado', 'error');
     }
     
@@ -8684,7 +8843,7 @@ const CACHE_TTL = 30000; // 30 segundos
 // Função para obter link do WhatsApp dinamicamente
 async function getWhatsAppLink(eventType, schedule = null) {
   try {
-    console.log('🔍 getWhatsAppLink - EventType:', eventType, 'Schedule:', schedule);
+    
 
     if (!window.firebaseDb) {
       console.warn('⚠️ Firebase não inicializado ainda');
@@ -8716,7 +8875,7 @@ async function getWhatsAppLink(eventType, schedule = null) {
     const cacheKey = `${type}_${hour || 'general'}`;
     const cached = whatsappLinksCache.get(cacheKey);
     if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
-      console.log('🔍 Link encontrado no cache:', cached.link);
+      
       return cached.link;
     }
 
@@ -8726,7 +8885,7 @@ async function getWhatsAppLink(eventType, schedule = null) {
 
     // 1) Tenta link específico para o horário (schedule = '18h')
     if (hour) {
-      console.log('🔍 Buscando link específico para horário normalizado:', hour);
+      
       const specificQuery = query(
         whatsappLinksRef,
         where('eventType', '==', type),
@@ -8735,11 +8894,11 @@ async function getWhatsAppLink(eventType, schedule = null) {
       );
       const specificSnapshot = await getDocs(specificQuery);
 
-      console.log('🔍 Resultado busca específica:', specificSnapshot.docs.length, 'documentos');
+      
 
       if (!specificSnapshot.empty) {
         const link = specificSnapshot.docs[0].data().link;
-        console.log('✅ Link específico encontrado:', link);
+        
 
         whatsappLinksCache.set(cacheKey, { link, timestamp: Date.now() });
         return link;
@@ -8747,7 +8906,7 @@ async function getWhatsAppLink(eventType, schedule = null) {
     }
 
     // 2) Tenta link geral eventType + schedule = null
-    console.log('🔍 Buscando link geral (schedule null) para evento:', type);
+    
     const generalQuery = query(
       whatsappLinksRef,
       where('eventType', '==', type),
@@ -8758,13 +8917,13 @@ async function getWhatsAppLink(eventType, schedule = null) {
 
     if (!generalSnapshot.empty) {
       const link = generalSnapshot.docs[0].data().link;
-      console.log('✅ Link geral (null) encontrado:', link);
+      
       whatsappLinksCache.set(cacheKey, { link, timestamp: Date.now() });
       return link;
     }
 
     // 3) Alguns cadastros podem usar string vazia em vez de null para "sem horário"
-    console.log('🔍 Buscando link geral (schedule vazio) para evento:', type);
+    
     const generalEmptyQuery = query(
       whatsappLinksRef,
       where('eventType', '==', type),
@@ -8775,7 +8934,7 @@ async function getWhatsAppLink(eventType, schedule = null) {
 
     if (!generalEmptySnapshot.empty) {
       const link = generalEmptySnapshot.docs[0].data().link;
-      console.log('✅ Link geral (vazio) encontrado:', link);
+      
       whatsappLinksCache.set(cacheKey, { link, timestamp: Date.now() });
       return link;
     }
@@ -8791,7 +8950,7 @@ async function getWhatsAppLink(eventType, schedule = null) {
     };
 
     const fallbackLink = defaultLinks[type] || 'https://chat.whatsapp.com/SEU_GRUPO_PADRAO';
-    console.log('🔍 Usando link padrão:', fallbackLink);
+    
 
     whatsappLinksCache.set(cacheKey, { link: fallbackLink, timestamp: Date.now() });
     return fallbackLink;
@@ -8859,10 +9018,10 @@ async function createAllWhatsAppLinks() {
           createdBy: 'system'
         });
         createdCount++;
-        console.log(`✅ Link geral criado para ${config.name}`);
+        
       } else {
         skippedCount++;
-        console.log(`⏭️ Link geral já existe para ${config.name}`);
+        
       }
 
       // Criar links específicos para cada horário
@@ -8885,10 +9044,10 @@ async function createAllWhatsAppLinks() {
             createdBy: 'system'
           });
           createdCount++;
-          console.log(`✅ Link criado para ${config.name} - ${schedule}`);
+          
         } else {
           skippedCount++;
-          console.log(`⏭️ Link já existe para ${config.name} - ${schedule}`);
+          
         }
       }
     }
@@ -8913,7 +9072,7 @@ function filterWhatsAppLinks() {
   const statusFilter = document.getElementById('whatsappStatusFilter')?.value || '';
   const searchFilter = document.getElementById('whatsappSearchFilter')?.value.toLowerCase() || '';
   
-  console.log('🔍 Filtros aplicados:', { eventFilter, statusFilter, searchFilter });
+  
   
   let filteredLinks = allWhatsAppLinks.filter(link => {
     // Filtro por evento
@@ -8937,7 +9096,7 @@ function filterWhatsAppLinks() {
     return true;
   });
   
-  console.log('🔍 Links filtrados:', filteredLinks.length);
+  
   
   // Renderizar apenas os links filtrados
   renderWhatsAppLinksTable(filteredLinks);
@@ -8979,7 +9138,7 @@ window.filterWhatsAppLinks = filterWhatsAppLinks;
 // Carregar dados do painel de afiliado
 async function loadAffiliatePanelData(affiliateId) {
   try {
-    console.log('🔄 Carregando dados do painel de afiliado:', affiliateId);
+    
     
     // Carregar vendas do afiliado
     const { collection, query, where, getDocs, orderBy } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
@@ -9018,7 +9177,7 @@ async function loadAffiliatePanelData(affiliateId) {
       });
     }
     
-    console.log('✅ Dados do painel de afiliado carregados:', sales.length, 'vendas');
+    
   } catch (error) {
     console.error('❌ Erro ao carregar dados do painel de afiliado:', error);
     const tbody = document.getElementById('affiliatePanelSalesTableBody');
