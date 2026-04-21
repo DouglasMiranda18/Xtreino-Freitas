@@ -620,8 +620,6 @@ async function checkAdminAccess() {
                 
                 return true;
             }
-        } else {
-            
         }
     } catch (error) {
         console.error('❌ Erro ao verificar acesso admin:', error);
@@ -1301,8 +1299,6 @@ async function syncUserTokens() {
             if (localTokens === 0 || currentTokens > localTokens + 5) {
                 window.currentUserProfile.tokens = currentTokens;
                 
-            } else {
-                
             }
 
             // Dar token inicial apenas se o usuário realmente não tem tokens (não é 0, mas undefined/null)
@@ -1727,8 +1723,6 @@ function showProductModal(productId) {
         cupomWrap.className = 'mt-3';
         cupomWrap.innerHTML = '<label class="block text-sm font-medium mb-2">Cupom de desconto</label><input id="couponCode" type="text" placeholder="ADMFALL" class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-black placeholder-gray-400 focus:border-blue-matte focus:outline-none">\n<p class="text-xs text-gray-500 mt-1">Use <strong>ADMFALL</strong> para 5% de desconto.</p>';
         optContainer.appendChild(cupomWrap);
-    } else {
-        
     }
 
     // Preço inicial e atualização dinâmica
@@ -4870,34 +4864,9 @@ async function renderScheduleTimes() {
     const day = dayNames[d.getDay()];
 
     // Definir horários baseados no tipo de evento
-    let slots = [];
+    let slots = ['14h', '15h', '16h', '17h', '18h', '19h', '20h', '21h', '22h', '23h'];
     const cfg = scheduleConfig[eventType] || {};
-    // Se a configuração explicitou slots, usar isso (exceto caso de semifinais que tem prioridade)
-    const isSemifinal = CAMP_SEMIFINAL_DATES.includes(date);
-    if (eventType === 'camp-freitas' && isSemifinal) {
-        slots = ['17h'];
-    } else if (Array.isArray(cfg.slots) && cfg.slots.length > 0) {
-        slots = cfg.slots.slice();
-    } else if (eventType === 'xtreino-tokens') {
-        // XTreino Tokens: 14h às 23h
-        slots = ['14h', '15h', '16h', '17h', '18h', '19h', '20h', '21h', '22h', '23h'];
-    } else if (eventType === 'modo-liga') {
-        // XTreino Modo Liga: horários oficiais (4 horários)
-        slots = ['14h', '15h', '17h', '18h'];
-    } else if (eventType === 'camp-freitas') {
-        // Camp Freitas: handled above (semifinal priority) or by cfg.slots
-        slots = slots || [];
-    } else if (eventType === 'camp-final') {
-        const isFinal = CAMP_FINAL_DATES.includes(date);
-        slots = isFinal ? ['18h'] : [];
-    } else if (eventType === 'semanal-freitas') {
-        // Semanal Freitas: 19h, 20h, 21h, 22h
-        slots = ['19h', '20h', '21h', '22h'];
-    } else {
-        // Fallback padrão
-        slots = ['19h', '20h', '21h', '22h', '23h'];
-    }
-
+       
     // NÃO filtrar horários travados - eles devem aparecer como "Lotado"
     const now = new Date();
     const selectedDate = new Date(date + 'T00:00:00');
@@ -5339,29 +5308,21 @@ async function updateOccupiedAndRefreshButtons(day, date, eventType, container) 
 
         // Verificar travamento primeiro (prioridade máxima)
         if (isLocked) {
-            // Horário travado pelo admin - mostrar como LOTADO
-            btn.className = 'slot-btn bg-red-100 text-red-600 cursor-not-allowed';
-            btn.disabled = true;
-            btn.textContent = `${time} (Lotado ${takenClamped}/${capacity})`;
-            btn.onclick = null;
+            // Horário travado pelo admin - OCULTAR
+            btn.style.display = 'none';
         } else if (eventType === 'semanal-freitas' && time === '19h') {
-            // Semanal Freitas: 19h sempre esgotado
-            btn.className = 'slot-btn bg-red-100 text-red-600 cursor-not-allowed';
-            btn.disabled = true;
-            btn.textContent = `${time} (Lotado ${takenClamped}/${capacity})`;
-            btn.onclick = null;
+            // Semanal Freitas: 19h sempre esgotado - OCULTAR
+            btn.style.display = 'none';
         } else if (available === 0) {
-            // Horário lotado - prioridade sobre verificação de tempo
-            btn.className = 'slot-btn bg-red-100 text-red-600 cursor-not-allowed';
-            btn.disabled = true;
-            btn.textContent = `${time} (Lotado ${takenClamped}/${capacity})`;
-            btn.onclick = null;
+            // Horário lotado - OCULTAR
+            btn.style.display = 'none';
         } else if (!isTimeAvailable) {
             // Verificar disponibilidade de tempo (12 minutos antes)
             btn.className = 'slot-btn bg-gray-300 text-gray-500 cursor-not-allowed';
             btn.disabled = true;
             btn.textContent = `${time} (${timeMessage}) (${available}/${capacity})`;
             btn.onclick = null;
+            btn.style.display = 'block'; // Garantir que está visível
         } else {
             // Horário disponível - mostrar "Restam X"
             btn.className = 'slot-btn';
@@ -5370,18 +5331,13 @@ async function updateOccupiedAndRefreshButtons(day, date, eventType, container) 
             btn.onclick = () => {
                 selectTime(schedule, btn);
             };
+            btn.style.display = 'block'; // Garantir que está visível
             // Destaque se já estiver selecionado para esta data
             if (isTimeSelected(date, schedule)) {
                 btn.classList.add('bg-blue-600', 'text-white');
                 btn.classList.remove('bg-white', 'text-gray-700', 'border-gray-300');
             }
-        }
-        // Diagnostic log for debugging remaining seats issues (only for camp/camp-final)
-        try {
-            if (eventType === 'camp-freitas' || eventType === 'camp-final') {
-                
-            }
-        } catch (_) { }
+        }       
     });
 }
 
