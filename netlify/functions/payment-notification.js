@@ -222,7 +222,7 @@ async function getWhatsAppLinkForRegistration(eventType, schedule, date = null) 
     }
 }
 
-// Função para calcular e criar venda de afiliado
+// Função para calcular e criar/atualizar venda de afiliado com deduplicação
 async function createAffiliateSale(db, orderData, saleType) {
     try {
         // Verificar se há código de afiliado no pedido
@@ -288,6 +288,20 @@ async function createAffiliateSale(db, orderData, saleType) {
             return;
         }
         
+        // ✅ DEDUPLICAÇÃO: Verificar se já existe affiliate_sale para este orderId
+        const existingSalesQuery = await db.collection('affiliate_sales')
+            .where('orderId', '==', orderData.id || null)
+            .where('affiliateId', '==', affiliateId)
+            .limit(1)
+            .get();
+        
+        if (!existingSalesQuery.empty) {
+            console.log(`ℹ️ Affiliate sale already exists for order ${orderData.id}, updating status if needed`);
+            const existingSale = existingSalesQuery.docs[0];
+            // Se a venda já existe, apenas atualizar status se necessário (será feito pela função separada)
+            return existingSale.id;
+        }
+        
         // Criar registro de venda de afiliado
         const affiliateSaleData = {
             affiliateId: affiliateId,
@@ -302,15 +316,50 @@ async function createAffiliateSale(db, orderData, saleType) {
             commissionAmount: commissionAmount,
             saleType: isEvent ? 'event' : 'product',
             status: 'pending',
-            createdAt: admin.firestore.FieldValue.serverTimestamp()
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
         };
         
-        await db.collection('affiliate_sales').add(affiliateSaleData);
+        const newSaleRef = await db.collection('affiliate_sales').add(affiliateSaleData);
         console.log(`✅ Affiliate sale created: ${affiliateId}, Commission: R$ ${commissionAmount.toFixed(2)} (${commissionRate}%)`);
+        return newSaleRef.id;
         
     } catch (error) {
         console.error('❌ Error creating affiliate sale:', error);
         // Não falhar o processamento do pagamento por causa de erro na comissão
+    }
+}
+
+// ✅ NOVA FUNÇÃO: Atualizar status de affiliate_sales quando order é marcada como paid
+async function updateAffiliateSaleStatus(db, orderId, newStatus = 'paid') {
+    try {
+        if (!orderId) {
+            console.log('No orderId provided to updateAffiliateSaleStatus');
+            return;
+        }
+        
+        // Buscar affiliate_sales tanto por orderId quanto por doc.id (para registrations)
+        const salesQuery = await db.collection('affiliate_sales')
+            .where('orderId', '==', orderId)
+            .get();
+        
+        if (salesQuery.empty) {
+            console.log(`No affiliate sales found for orderId ${orderId}`);
+            return;
+        }
+        
+        const batch = db.batch();
+        for (const doc of salesQuery.docs) {
+            batch.update(doc.ref, {
+                status: newStatus,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                paidAt: newStatus === 'paid' ? admin.firestore.FieldValue.serverTimestamp() : null
+            });
+        }
+        await batch.commit();
+        console.log(`✅ Updated ${salesQuery.size} affiliate sale(s) to status '${newStatus}' for orderId ${orderId}`);
+    } catch (error) {
+        console.error('❌ Error updating affiliate sale status:', error);
     }
 }
 
@@ -594,6 +643,9 @@ exports.handler = async (event, context) => {
                             });
 
                             console.log('Order updated to paid:', orderDoc.id);
+                            
+                            // ✅ NOVO: Atualizar status de affiliate_sales quando order é paid
+                            await updateAffiliateSaleStatus(db, orderDoc.id, 'paid');
 
                             // Processar o tipo de compra
                             if (orderData.type === 'tokens_purchase' || (payment.description && /token/i.test(payment.description))) {
@@ -686,8 +738,9 @@ exports.handler = async (event, context) => {
                         // Atualizar status para 'paid' (com link se encontrado)
                         await orderDoc.ref.update(updateData);
 
-                        console.log('✅ Order updated to paid:', orderDoc.id);
-
+                        console.log('✅ Order updated to paid:', orderDoc.id);                            
+                            // ✅ NOVO: Atualizar status de affiliate_sales quando order é paid
+                            await updateAffiliateSaleStatus(db, orderDoc.id, 'paid');
                         // Verificar tipo de compra
                         console.log('🔍 Checking purchase type...');
                         console.log('📦 Order type:', orderData.type, '| userId:', orderData.userId, '| customer:', orderData.customer, '| quantity:', orderData.quantity);
@@ -724,6 +777,9 @@ exports.handler = async (event, context) => {
 
                             await db.collection('digital_deliveries').add(deliveryData);
                             console.log('✅ Digital delivery created for product:', orderData.productId);
+                            
+                            // ✅ NOVO: Criar venda de afiliado para produto digital
+                            await createAffiliateSale(db, { ...orderData, id: orderDoc.id }, 'product');
                         }
 
                     } else {
@@ -769,6 +825,11 @@ exports.handler = async (event, context) => {
                             
                             await batch.commit();
                             console.log('✅ Registrations updated to paid:', registrationsSnapshot.size);
+                            
+                            // ✅ NOVO: Atualizar status de affiliate_sales para todos os registrations paid
+                            for (const doc of registrationsSnapshot.docs) {
+                                await updateAffiliateSaleStatus(db, doc.id, 'paid');
+                            }
                             
                             // Criar vendas de afiliados para cada registro
                             for (const doc of registrationsSnapshot.docs) {
