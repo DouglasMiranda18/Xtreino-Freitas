@@ -167,7 +167,7 @@ function initializeFirebase() {
     return true;
   }
   
-  console.error('❌ FIREBASE_CONFIG not found');
+  
   return false;
 }
 
@@ -194,7 +194,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             storage = getStorage(window.firebaseApp);
             
         } catch (error) {
-            console.error('❌ Erro ao inicializar Storage:', error);
+            
         }
     }
     
@@ -321,7 +321,7 @@ async function loadUserProfile() {
     try {
         // Verificar se o usuário está autenticado
         if (!currentUser || !currentUser.uid) {
-            console.warn('Usuário não autenticado, não é possível carregar perfil');
+            
             return;
         }
         
@@ -368,7 +368,7 @@ async function loadUserProfile() {
             welcomeMessageElement.textContent = `Bem-vindo à sua conta, ${firstName}!`;
         }
     } catch (error) {
-        console.error('Error loading user profile:', error);
+        
     }
 }
 
@@ -390,7 +390,7 @@ async function loadDashboard() {
         // Load stats
         await loadStats();
     } catch (error) {
-        console.error('Error loading dashboard:', error);
+        
     }
 }
 
@@ -399,7 +399,7 @@ async function loadRecentOrders() {
     try {
         // Verificar se o usuário está autenticado
         if (!currentUser || !currentUser.uid) {
-            console.warn('Usuário não autenticado, mostrando pedidos vazios');
+            
             displayRecentOrders([]);
             return;
         }
@@ -447,7 +447,7 @@ async function loadRecentOrders() {
 
         displayRecentOrders(merged);
     } catch (error) {
-        console.error('Error loading recent orders:', error);
+        
         const recentOrdersElement = document.getElementById('recentOrders');
         if (recentOrdersElement) {
             recentOrdersElement.innerHTML = '<p class="text-gray-500 text-center">Erro ao carregar pedidos</p>';
@@ -554,7 +554,7 @@ async function loadOrders() {
 
         await displayAllOrdersPaginated();
     } catch (error) {
-        console.error('Error loading orders:', error);
+        
         document.getElementById('allOrders').innerHTML = '<p class="text-gray-500 text-center">Erro ao carregar pedidos</p>';
     }
 }
@@ -599,7 +599,7 @@ async function loadProducts() {
 
         displayAllProductsPaginated(productsOnly);
     } catch (error) {
-        console.error('Error loading products:', error);
+        
         document.getElementById('allProducts').innerHTML = '<p class="text-gray-500 text-center">Erro ao carregar produtos</p>';
     }
 }
@@ -941,10 +941,10 @@ async function getWhatsAppLinkForOrder(order) {
                     return dynamicLink;
                 }
             } catch (error) {
-                console.error('❌ Erro ao buscar link dinamicamente:', error);
+                
             }
         } else {
-            console.warn('⚠️ Função getWhatsAppLink não disponível');
+            
         }
         
         // Se ainda não tem link, tentar buscar diretamente no Firestore (fallback)
@@ -1016,14 +1016,14 @@ async function getWhatsAppLinkForOrder(order) {
                 
             }
         } catch (error) {
-            console.error('❌ Erro ao buscar diretamente no Firestore:', error);
+            
         }
         
         // Se não houver link em nenhum lugar, retornar string vazia
         
         return '';
     } catch (error) {
-        console.error('❌ Erro crítico ao obter link do WhatsApp:', error);
+        
         return '';
     }
 }
@@ -1420,7 +1420,7 @@ function downloadSensibilidades(orderId) {
         }
       })
       .catch((error) => {
-        console.error('Erro ao buscar links de download:', error);
+        
         // fallback para primeiro arquivo
         window.location.href = `/.netlify/functions/download?orderId=${encodeURIComponent(orderId)}&i=0`;
       });
@@ -1740,7 +1740,7 @@ async function getProductInfo(productId) {
             return null;
         }
     } catch (error) {
-        console.error('Erro ao buscar produto:', error);
+        
         return null;
     }
 }
@@ -1750,7 +1750,7 @@ async function loadStats() {
     try {
         // Verificar se o usuário está autenticado
         if (!currentUser || !currentUser.uid) {
-            console.warn('Usuário não autenticado, carregando stats padrão');
+            
             // Mostrar stats padrão se não autenticado
             const totalOrdersElement = document.getElementById('totalOrders');
             const totalSpentElement = document.getElementById('totalSpent');
@@ -1798,7 +1798,7 @@ async function loadStats() {
         if (availableTokensElement) availableTokensElement.textContent = userProfile?.tokens || 0;
         if (myTokenBalanceElement) myTokenBalanceElement.textContent = userProfile?.tokens || 0;
     } catch (error) {
-        console.error('Error loading stats:', error);
+        
     }
 }
 
@@ -1806,7 +1806,7 @@ async function loadStats() {
 async function fetchUserDocs(colName, max = 50, sortDesc = false){
     // Verificar se o usuário está autenticado
     if (!currentUser || !currentUser.uid) {
-        console.warn('Usuário não autenticado, não é possível buscar documentos');
+        
         return [];
     }
     
@@ -1977,7 +1977,7 @@ async function loadProfileStats() {
             document.getElementById('profileMemberSince').textContent = '-';
         }
     } catch (error) {
-        console.error('Error loading profile stats:', error);
+        
     }
 }
 
@@ -1997,7 +1997,7 @@ function resetProfileForm() {
 async function handlePhotoUpload(event) {
     // Verificar se storage está inicializado
     if (!storage) {
-        console.error('Storage não inicializado');
+        
         alert('Erro: Storage não inicializado. Recarregue a página.');
         return;
     }
@@ -2099,7 +2099,7 @@ async function handlePhotoUpload(event) {
         }, 3000);
         
     } catch (error) {
-        console.error('Error uploading photo:', error);
+        
         alert('Erro ao fazer upload da foto. Tente novamente.');
         
         // Esconder progresso
@@ -2185,7 +2185,7 @@ async function saveProfile(e) {
             }, 3000);
         }, 500);
     } catch (error) {
-        console.error('Error saving profile:', error);
+        
         alert('Erro ao salvar perfil. Tente novamente.');
     }
 }
@@ -2227,7 +2227,7 @@ async function loadTokensHistory() {
         
         container.innerHTML = historyHTML;
     } catch (error) {
-        console.error('Error loading tokens history:', error);
+        
         document.getElementById('tokensHistory').innerHTML = '<p class="text-gray-500 text-center">Erro ao carregar histórico</p>';
     }
 }
@@ -2236,7 +2236,7 @@ async function loadTokensHistory() {
 async function loadMyTokens() {
     // Verificar se o usuário está autenticado
     if (!currentUser || !currentUser.uid) {
-        console.warn('Usuário não autenticado, não é possível carregar tokens');
+        
         // Mostrar 0 tokens se não autenticado
         const balanceElement = document.getElementById('myTokenBalance');
         if (balanceElement) {
@@ -2276,7 +2276,7 @@ async function loadTokenUsageHistory() {
     try {
         // Verificar se o usuário está autenticado
         if (!currentUser || !currentUser.uid) {
-            console.warn('Usuário não autenticado, não é possível carregar histórico de tokens');
+            
             return;
         }
         
@@ -2360,7 +2360,7 @@ async function loadTokenUsageHistory() {
         
         container.innerHTML = historyHTML;
     } catch (error) {
-        console.error('Error loading token usage history:', error);
+        
         document.getElementById('tokenUsageHistory').innerHTML = `
             <div class="text-center py-8 text-gray-500">
                 <p>Erro ao carregar histórico</p>
@@ -2376,7 +2376,7 @@ async function logout() {
         // Show login prompt instead of redirecting
         showLoginPrompt();
     } catch (error) {
-        console.error('Error logging out:', error);
+        
     }
 }
 
@@ -2410,63 +2410,71 @@ function showLoginPrompt() {
 
 // ==================== SISTEMA DE AFILIADOS ====================
 
-// Carregar dados do afiliado
 async function loadAffiliateData() {
     try {
         if (!currentUser || !currentUser.uid) {
-            console.warn('Usuário não autenticado');
+            
             return;
         }
 
-        // Verificar se o usuário é afiliado — pode ser cargo principal ou flag/estado secundário
-        const userRole = await getUserRole(currentUser.uid);
-        const isAffiliate = (userRole && (
+        // 1. Buscar role (para informações adicionais, mas não bloquear)
+        const userRole = await getUserRole(currentUser.uid).catch(() => null);
+        const hasAffiliateRole = userRole && (
             (userRole.role && String(userRole.role).toLowerCase().includes('afiliado')) ||
             userRole.affiliate === true ||
             ['active','pending','inactive'].includes(String(userRole.affiliateStatus || '').toLowerCase())
-        ));
-        if (!isAffiliate) {
-            // Esconder aba de afiliados se não for afiliado
-            const affiliateTab = document.getElementById('affiliateTab');
-            if (affiliateTab) affiliateTab.classList.add('hidden');
+        );
+
+        // 2. Sempre carregar vendas do afiliado (se houver)
+        await Promise.all([
+            loadAffiliateSales(),      // busca affiliate_sales por currentUser.uid
+            loadAffiliateCommissions() // busca affiliate_commissions por currentUser.uid
+        ]);
+
+        // 3. Se existir ao menos uma venda OU o cargo autorizar, mostrar a aba
+        const temVendas = (window.affiliateSales && window.affiliateSales.length > 0) || 
+                         (window.affiliateCommissions && window.affiliateCommissions.length > 0);
+        
+        const mostrarAba = hasAffiliateRole || temVendas;
+
+        const affiliateTab = document.getElementById('affiliateTab');
+        if (!affiliateTab) return;
+
+        if (!mostrarAba) {
+            affiliateTab.classList.add('hidden');
             return;
         }
 
-        // Mostrar aba de afiliados
-        const affiliateTab = document.getElementById('affiliateTab');
-        if (affiliateTab) affiliateTab.classList.remove('hidden');
+        // 4. Mostrar aba e preencher dados
+        affiliateTab.classList.remove('hidden');
 
         // Gerar link de afiliado
         const affiliateLink = `${window.location.origin}?ref=${currentUser.uid}`;
         const linkInput = document.getElementById('affiliateLink');
         if (linkInput) linkInput.value = affiliateLink;
 
-        // Carregar vendas e comissões
-        await Promise.all([
-            loadAffiliateSales(),
-            loadAffiliateCommissions()
-        ]);
-
         // Atualizar estatísticas
         updateAffiliateStats();
-        
-        // Adicionar listener ao filtro de vendas
+
+        // Listeners
         const salesFilter = document.getElementById('affiliateSalesFilter');
         if (salesFilter) {
             salesFilter.addEventListener('change', () => {
                 renderAffiliateSales(window.affiliateSales || []);
             });
         }
-        
-        // Adicionar listener ao botão de copiar link
         const copyLinkBtn = document.getElementById('copyAffiliateLinkBtn');
         if (copyLinkBtn) {
             copyLinkBtn.addEventListener('click', copyAffiliateLink);
         }
+
+        
+
     } catch (error) {
-        console.error('Erro ao carregar dados de afiliado:', error);
+        
     }
 }
+
 
 // Carregar vendas do afiliado
 async function loadAffiliateSales() {
@@ -2475,20 +2483,22 @@ async function loadAffiliateSales() {
         const salesRef = collection(db, 'affiliate_sales');
         const q = query(
             salesRef,
-            where('affiliateId', '==', currentUser.uid),
-            orderBy('createdAt', 'desc')
+            where('affiliateId', '==', currentUser.uid)           
         );
+
         const snapshot = await getDocs(q);
 
         const sales = [];
         snapshot.forEach(doc => {
-            const data = doc.data();
+        const data = doc.data();
             sales.push({
-                id: doc.id,
-                ...data,
-                createdAt: data.createdAt?.toDate() || new Date()
+            id: doc.id,
+            ...data,
+            createdAt: data.createdAt?.toDate() || new Date()
             });
         });
+
+        sales.sort((a, b) => b.createdAt - a.createdAt);
 
         renderAffiliateSales(sales);
         window.affiliateSales = sales;
@@ -2496,7 +2506,7 @@ async function loadAffiliateSales() {
         // Atualizar estatísticas após carregar vendas
         updateAffiliateStats();
     } catch (error) {
-        console.error('Erro ao carregar vendas:', error);
+        
         const tbody = document.getElementById('affiliateSalesTableBody');
         if (tbody) {
             tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-red-500">Erro ao carregar vendas</td></tr>';
@@ -2564,8 +2574,7 @@ async function loadAffiliateCommissions() {
         const commissionsRef = collection(db, 'affiliate_commissions');
         const q = query(
             commissionsRef,
-            where('affiliateId', '==', currentUser.uid),
-            orderBy('createdAt', 'desc')
+            where('affiliateId', '==', currentUser.uid)           
         );
         const snapshot = await getDocs(q);
 
@@ -2579,10 +2588,12 @@ async function loadAffiliateCommissions() {
             });
         });
 
+        commissions.sort((a, b) => b.createdAt - a.createdAt);
+
         renderAffiliateCommissions(commissions);
         window.affiliateCommissions = commissions;
     } catch (error) {
-        console.error('Erro ao carregar comissões:', error);
+        
         const tbody = document.getElementById('affiliateCommissionsTableBody');
         if (tbody) {
             tbody.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-red-500">Erro ao carregar comissões</td></tr>';
@@ -2690,7 +2701,7 @@ async function copyAffiliateLink(event) {
             alert('Link copiado para a área de transferência!');
         }
     } catch (err) {
-        console.error('Erro ao copiar:', err);
+        
         // Fallback manual
         linkInput.select();
         linkInput.setSelectionRange(0, 99999);
@@ -2713,7 +2724,7 @@ async function getUserRole(uid) {
         }
         return null;
     } catch (error) {
-        console.error('Erro ao obter role:', error);
+        
         return null;
     }
 }
@@ -2746,7 +2757,7 @@ async function checkAffiliateRole() {
         // Verificar se o elemento existe
         const affiliateTab = document.getElementById('affiliateTab');
         if (!affiliateTab) {
-            console.error('❌ Elemento affiliateTab não encontrado no DOM');
+            
             // Tentar novamente após um delay
             setTimeout(() => checkAffiliateRole(), 500);
             return;
@@ -2774,8 +2785,8 @@ async function checkAffiliateRole() {
             affiliateTab.classList.add('hidden');
         }
     } catch (error) {
-        console.error('❌ Erro ao verificar role de afiliado:', error);
-        console.error('❌ Stack trace:', error.stack);
+        
+        
     }
 }
 
@@ -2814,7 +2825,7 @@ async function persistUserProfile(profile) {
             
         }
     } catch(error) {
-        console.error('❌ Error persisting profile:', error);
+        
         localStorage.setItem('assoc_profile', JSON.stringify(profile));
     }
 }
@@ -2950,8 +2961,8 @@ async function reconcilePendingPayments() {
                     
                 }
             } catch (err) {
-                console.error(`❌ Erro ao verificar ${ref}:`, err);
-                console.error(err.stack); // Add stack trace
+                
+                 // Add stack trace
             }
             // Pequena pausa para evitar sobrecarga
             await new Promise(r => setTimeout(r, 300));
@@ -2966,7 +2977,7 @@ async function reconcilePendingPayments() {
         }
 
     } catch (error) {
-        console.error('❌ Erro na reconciliação:', error);
+        
     }
 }
 
@@ -2975,7 +2986,7 @@ async function processSuccessfulPayment(externalRef = null) {
     
 
     if (!extRef) {
-        console.warn('❌ Nenhum external_reference encontrado.');
+        
         return;
     }
 
@@ -3043,7 +3054,7 @@ async function processSuccessfulPayment(externalRef = null) {
             }
         }   
     } catch (error) {
-        console.error('❌ Erro ao processar pagamento:', error);       
+               
     }
 }
 
@@ -3135,7 +3146,7 @@ window.purchaseTokens = async function(quantity) {
     try {
         // Re-initialize Firebase if needed
         if (!db) {
-            console.warn('Firebase DB not initialized, attempting initializeFirebase()');
+            
             initializeFirebase();
             if (!db) { alert('Erro: Firebase não foi inicializado. Recarregue a página.'); return; }
         }
@@ -3155,6 +3166,8 @@ window.purchaseTokens = async function(quantity) {
         const currentUser = auth?.currentUser;
         if (!currentUser) { alert('Você precisa estar logado para comprar tokens'); return; }
 
+        const activeAffiliateCode = getActiveAffiliateCode(); // sem parâmetro, usa stored ou null       
+
         // 1) Create order in Firestore before requesting preference
         const orderData = {
             title: `${baseQty} Token${baseQty > 1 ? 's' : ''} XTreino`,
@@ -3170,7 +3183,8 @@ window.purchaseTokens = async function(quantity) {
             userId: currentUser.uid,
             uid: currentUser.uid,
             createdAt: new Date(),
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            affiliateCode: activeAffiliateCode || null
         };
 
         let savedOrderId = null;
@@ -3179,7 +3193,7 @@ window.purchaseTokens = async function(quantity) {
             savedOrderId = docRef.id;
             
         } catch (err) {
-            console.warn('⚠️ Could not create order before preference:', err);
+            
             // continue but ensure we have a fallback id
             savedOrderId = `tokens_${currentUser.uid}_${Date.now()}`;
         }
@@ -3234,7 +3248,7 @@ window.purchaseTokens = async function(quantity) {
                 await updateDoc(ordRef, { external_reference: data.external_reference || savedOrderId, preference_id: data.id, paymentUrl: data.init_point });
             }
         } catch (updErr) {
-            console.warn('⚠️ Could not update order with preference info:', updErr);
+            
         }
 
         closeTokensPurchaseModal();
@@ -3243,13 +3257,22 @@ window.purchaseTokens = async function(quantity) {
             window.open(data.init_point, '_blank');
             showToast('success', 'Checkout aberto em nova aba. Finalize o pagamento no Mercado Pago.', 'Checkout');
         } catch (openErr) {
-            console.warn('⚠️ Falha ao abrir nova aba, redirecionando como fallback:', openErr);
+            
             window.location.href = data.init_point;
         }
     } catch (error) {
-        console.error('Error purchasing tokens:', error);
+        
         showToast('error', `Erro ao processar compra de tokens: ${error && error.message ? error.message : String(error)}`, 'Erro');
     }
+}
+
+function getActiveAffiliateCode(preferredAffiliateId = null) {
+    if (preferredAffiliateId) return preferredAffiliateId;
+    const storedRef = getStoredAffiliateRef();
+    if (!storedRef) return null;
+    const currentUid = window.currentUserProfile?.uid || window.firebaseAuth?.currentUser?.uid || null;
+    if (currentUid && storedRef === currentUid) return null; // evita auto-comissão
+    return storedRef;
 }
 
 // Funções de paginação expostas globalmente
@@ -3273,7 +3296,7 @@ window.purchaseTokensQuick = async function(quantity) {
     try {
         // Verificar se Firebase está inicializado
         if (!db) {
-            console.error('❌ Firebase not initialized, attempting to reinitialize...');
+            
             initializeFirebase();
             if (!db) {
                 alert('Erro: Firebase não foi inicializado. Recarregue a página.');
@@ -3314,13 +3337,10 @@ window.purchaseTokensQuick = async function(quantity) {
         if (data.init_point) {
             // Salvar order no Firestore ANTES de redirecionar
             try {
-                
-                
-                
-                
-                
-                
+                     
                 if (currentUser && db) {
+                    const activeAffiliateCode = getActiveAffiliateCode(); // sem parâmetro, usa stored ou null
+
                     const orderData = {
                     title: `${quantity} Token${quantity > 1 ? 's' : ''} XTreino`,
                     description: `${quantity} Token${quantity > 1 ? 's' : ''} XTreino`,
@@ -3337,19 +3357,20 @@ window.purchaseTokensQuick = async function(quantity) {
                     userId: currentUser.uid,
                     uid: currentUser.uid,
                     createdAt: new Date(),
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    affiliateCode: activeAffiliateCode || null
                 };
                 
                     
                     const docRef = await addDoc(collection(db, 'orders'), orderData);
                     
                 } else {
-                    console.error('❌ Cannot save quick order: User not authenticated or DB not available');
-                    console.error('❌ User:', currentUser ? 'Authenticated' : 'Not authenticated');
-                    console.error('❌ DB:', db ? 'Available' : 'Not available');
+                    
+                    
+                    
                 }
             } catch (firestoreError) {
-                console.error('❌ Error saving quick order to Firestore:', firestoreError);
+                
                 console.error('❌ Error details:', {
                     message: firestoreError.message,
                     code: firestoreError.code,
@@ -3365,14 +3386,14 @@ window.purchaseTokensQuick = async function(quantity) {
                 window.open(data.init_point, '_blank');
                 showToast('success', 'Checkout aberto em nova aba. Finalize o pagamento no Mercado Pago.', 'Checkout');
             } catch (openErr) {
-                console.warn('⚠️ Falha ao abrir nova aba, redirecionando como fallback:', openErr);
+                
                 window.location.href = data.init_point;
             }
         } else {
             showToast('error', 'Erro ao iniciar pagamento. Tente novamente.', 'Erro');
         }
     } catch (error) {
-        console.error('Error in quick purchase:', error);
+        
         showToast('error', `Erro ao processar compra rápida: ${error && error.message ? error.message : String(error)}`, 'Erro');
     }
 }

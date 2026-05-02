@@ -37,7 +37,7 @@ async function getCampSemifinalLinkByDate(date) {
             return data.link || data.url || null;
         }
     } catch (error) {
-        console.error('Erro ao buscar link da semifinal do Camp:', error);
+        
     }
     return null;
 }
@@ -45,13 +45,13 @@ async function getCampSemifinalLinkByDate(date) {
 // Creditar tokens de forma atômica (increment + marca de controle)
 async function creditTokensToUser(db, orderData, tokensToAdd, externalRef) {
     if (!orderData) {
-        console.log('❌ creditTokensToUser: orderData is null/undefined');
+        
         return;
     }
     const usersRef = db.collection('users');
     const userId = orderData.userId || orderData.uid || null;
     const customerEmail = orderData.customer || orderData.buyerEmail || orderData.email || null;
-    console.log('📝 creditTokensToUser called:', { userId, customerEmail, tokensToAdd, externalRef });
+    
 
     try {
         if (userId) {
@@ -68,7 +68,7 @@ async function creditTokensToUser(db, orderData, tokensToAdd, externalRef) {
                 if (orderSnap.exists) {
                     const od = orderSnap.data() || {};
                     if (od.tokensCredited) {
-                        console.log('Tokens já creditados para order', orderRef.id);
+                        
                         return;
                     }
                 }
@@ -77,7 +77,7 @@ async function creditTokensToUser(db, orderData, tokensToAdd, externalRef) {
                 tx.update(userDocRef, { tokens: newTokens });
                 if (orderSnap.exists) tx.update(orderRef, { tokensCredited: true });
             });
-            console.log('✅ Tokens credited via userId:', userId, 'amount:', tokensToAdd);
+            
             return;
         }
 
@@ -85,7 +85,7 @@ async function creditTokensToUser(db, orderData, tokensToAdd, externalRef) {
             // Buscar usuário por email e creditar atomically
             const q = await usersRef.where('email', '==', customerEmail).limit(1).get();
             if (q.empty) {
-                console.log('No user found by email to credit tokens:', customerEmail);
+                
                 return;
             }
             const userDoc = q.docs[0];
@@ -98,7 +98,7 @@ async function creditTokensToUser(db, orderData, tokensToAdd, externalRef) {
                 if (orderSnap.exists) {
                     const od = orderSnap.data() || {};
                     if (od.tokensCredited) {
-                        console.log('Tokens já creditados para order', orderRef.id);
+                        
                         return;
                     }
                 }
@@ -107,13 +107,13 @@ async function creditTokensToUser(db, orderData, tokensToAdd, externalRef) {
                 tx.update(userDocRef, { tokens: newTokens });
                 if (orderSnap.exists) tx.update(orderRef, { tokensCredited: true });
             });
-            console.log('✅ Tokens credited via email:', customerEmail, 'amount:', tokensToAdd);
+            
             return;
         }
 
-        console.log('No identifier to credit tokens (userId/email)');
+        
     } catch (err) {
-        console.error('Error crediting tokens:', err);
+        
     }
 }
 
@@ -145,16 +145,16 @@ async function getWhatsAppLinkForRegistration(eventType, schedule, date = null) 
         const hour = normalizeHour(schedule);
         const normalizedDate = (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) ? date : null;
 
-        console.log('🔎 getWhatsAppLinkForRegistration:', { type, hour, normalizedDate });
+        
 
         // Prioridade: link específico para semifinal do camp
         if (type === 'camp-freitas' && normalizedDate && CAMP_SEMIFINAL_DATES.includes(normalizedDate)) {
             const semifinalLink = await getCampSemifinalLinkByDate(normalizedDate);
             if (semifinalLink) {
-                console.log('🔗 Found semifinal link for camp:', normalizedDate);
+                
                 return semifinalLink;
             }
-            console.log('⚠️ No semifinal link found for date:', normalizedDate);
+            
         }
 
         // 1) Buscar link específico para o horário (eventType + schedule)
@@ -165,10 +165,10 @@ async function getWhatsAppLinkForRegistration(eventType, schedule, date = null) 
                 .where('status', '==', 'active')
                 .limit(1);
             const specificSnapshot = await specificQuery.get();
-            console.log('specificSnapshot size for', type, hour, specificSnapshot.size || 0);
+            
             if (!specificSnapshot.empty) {
                 const link = specificSnapshot.docs[0].data().link;
-                console.log('🔗 Specific schedule link found:', link);
+                
                 return link;
             }
         }
@@ -180,10 +180,10 @@ async function getWhatsAppLinkForRegistration(eventType, schedule, date = null) 
             .where('status', '==', 'active')
             .limit(1);
         const generalSnapshot = await generalQuery.get();
-        console.log('generalSnapshot size for', type, generalSnapshot.size || 0);
+        
         if (!generalSnapshot.empty) {
             const link = generalSnapshot.docs[0].data().link;
-            console.log('🔗 General (null) schedule link found:', link);
+            
             return link;
         }
 
@@ -194,10 +194,10 @@ async function getWhatsAppLinkForRegistration(eventType, schedule, date = null) 
             .where('status', '==', 'active')
             .limit(1);
         const emptySnapshot = await emptyQuery.get();
-        console.log('emptySnapshot size for', type, emptySnapshot.size || 0);
+        
         if (!emptySnapshot.empty) {
             const link = emptySnapshot.docs[0].data().link;
-            console.log('🔗 Empty-string schedule link found:', link);
+            
             return link;
         }
 
@@ -207,17 +207,17 @@ async function getWhatsAppLinkForRegistration(eventType, schedule, date = null) 
             .where('status', '==', 'active')
             .limit(1);
         const anySnapshot = await anyQuery.get();
-        console.log('anySnapshot size for', type, anySnapshot.size || 0);
+        
         if (!anySnapshot.empty) {
             const link = anySnapshot.docs[0].data().link;
-            console.log('🔗 Fallback any active link found for', type, link);
+            
             return link;
         }
 
-        console.log('⚠️ No whatsapp link found for', { type, hour, normalizedDate });
+        
         return null;
     } catch (error) {
-        console.error('Erro ao buscar link do WhatsApp:', error);
+        
         return null;
     }
 }
@@ -228,7 +228,7 @@ async function createAffiliateSale(db, orderData, saleType) {
         // Verificar se há código de afiliado no pedido
         const affiliateCode = orderData.affiliateCode || orderData.affiliate_id || null;
         if (!affiliateCode) {
-            console.log('No affiliate code found in order');
+            
             return;
         }
         
@@ -250,7 +250,7 @@ async function createAffiliateSale(db, orderData, saleType) {
         }
         
         if (!affiliateDoc || !affiliateDoc.exists) {
-            console.log('Affiliate not found for code:', affiliateCode);
+            
             return;
         }
         
@@ -259,7 +259,7 @@ async function createAffiliateSale(db, orderData, saleType) {
         
         // Verificar se afiliado está ativo
         if (affiliateData.affiliateStatus !== 'active') {
-            console.log('Affiliate is not active:', affiliateId);
+            
             return;
         }
         
@@ -284,7 +284,7 @@ async function createAffiliateSale(db, orderData, saleType) {
         const commissionAmount = (saleValue * commissionRate) / 100;
         
         if (commissionAmount <= 0) {
-            console.log('Commission amount is zero or negative');
+            
             return;
         }
         
@@ -296,7 +296,7 @@ async function createAffiliateSale(db, orderData, saleType) {
             .get();
         
         if (!existingSalesQuery.empty) {
-            console.log(`ℹ️ Affiliate sale already exists for order ${orderData.id}, updating status if needed`);
+            
             const existingSale = existingSalesQuery.docs[0];
             // Se a venda já existe, apenas atualizar status se necessário (será feito pela função separada)
             return existingSale.id;
@@ -321,11 +321,11 @@ async function createAffiliateSale(db, orderData, saleType) {
         };
         
         const newSaleRef = await db.collection('affiliate_sales').add(affiliateSaleData);
-        console.log(`✅ Affiliate sale created: ${affiliateId}, Commission: R$ ${commissionAmount.toFixed(2)} (${commissionRate}%)`);
+        
         return newSaleRef.id;
         
     } catch (error) {
-        console.error('❌ Error creating affiliate sale:', error);
+        
         // Não falhar o processamento do pagamento por causa de erro na comissão
     }
 }
@@ -334,7 +334,7 @@ async function createAffiliateSale(db, orderData, saleType) {
 async function updateAffiliateSaleStatus(db, orderId, newStatus = 'paid') {
     try {
         if (!orderId) {
-            console.log('No orderId provided to updateAffiliateSaleStatus');
+            
             return;
         }
         
@@ -344,7 +344,7 @@ async function updateAffiliateSaleStatus(db, orderId, newStatus = 'paid') {
             .get();
         
         if (salesQuery.empty) {
-            console.log(`No affiliate sales found for orderId ${orderId}`);
+            
             return;
         }
         
@@ -357,9 +357,9 @@ async function updateAffiliateSaleStatus(db, orderId, newStatus = 'paid') {
             });
         }
         await batch.commit();
-        console.log(`✅ Updated ${salesQuery.size} affiliate sale(s) to status '${newStatus}' for orderId ${orderId}`);
+        
     } catch (error) {
-        console.error('❌ Error updating affiliate sale status:', error);
+        
     }
 }
 
@@ -415,7 +415,7 @@ async function generateDownloadLinks(productId, productOptions = {}) {
             }
         }
     } catch (error) {
-        console.error('Erro ao buscar produto no Firestore:', error);
+        
     }
     
     // Fallback para comportamento padrão
@@ -544,7 +544,7 @@ if (!admin.apps.length) {
             })
         });
     } catch (error) {
-        console.error('Firebase Admin initialization error:', error);
+        
     }
 }
 
@@ -567,14 +567,14 @@ exports.handler = async (event, context) => {
     try {
         const { type, data } = JSON.parse(event.body);
         
-        console.log('=== PAYMENT NOTIFICATION RECEIVED ===');
-        console.log('Type:', type);
-        console.log('Data:', JSON.stringify(data, null, 2));
-        console.log('Full body:', event.body);
+        
+        
+        
+        
 
         if (type === 'payment') {
             const paymentId = data.id;
-            console.log('Processing payment ID:', paymentId);
+            
             
             // Buscar detalhes do pagamento
             const accessToken = process.env.MP_ACCESS_TOKEN;
@@ -599,7 +599,7 @@ exports.handler = async (event, context) => {
 
             // Se o pagamento foi aprovado, atualizar o Firestore
             if (payment.status === 'approved') {
-                console.log('Payment approved, updating database...');
+                
 
                 try {
                     const db = admin.firestore();
@@ -607,29 +607,30 @@ exports.handler = async (event, context) => {
                     const externalRef = payment.external_reference || payment.preference_id || (payment.metadata && payment.metadata.external_reference) || null;
 
                     // Primeiro, tentar buscar na coleção 'orders' (para compras de tokens e produtos)
-                    console.log('Searching for order with external_reference/preference_id:', externalRef);
+                    
                     const ordersRef = db.collection('orders');
                     let ordersSnapshot = { empty: true };
                     if (externalRef) {
                       try {
                         ordersSnapshot = await ordersRef.where('external_reference', '==', externalRef).get();
                       } catch(e) {
-                        console.warn('Error querying orders by external_reference:', e);
+                        
                         ordersSnapshot = { empty: true };
                       }
                     }
 
-                    console.log('Orders found:', (ordersSnapshot && ordersSnapshot.size) || 0);
+                    
 
                     // Se não encontrou, tentar buscar por ID do documento (caso o external_reference seja digital_<docId>)
                     if (ordersSnapshot.empty && externalRef && externalRef.startsWith('digital_')) {
                         const docId = externalRef.replace('digital_', '');
-                        console.log('Trying to find order by document ID:', docId);
+                        
                         const orderDoc = await ordersRef.doc(docId).get();
                         if (orderDoc.exists) {
-                            console.log('Found order by document ID:', docId);
+                            
                             // Atualizar o external_reference no documento
                             await orderDoc.ref.update({ external_reference: externalRef });
+                            await updateAffiliateSaleStatus(db, orderDoc.id, 'paid');
                             // Usar o documento encontrado
                             const orderData = orderDoc.data();
                             const orderDocRef = orderDoc.ref;
@@ -642,14 +643,14 @@ exports.handler = async (event, context) => {
                                 paidAt: admin.firestore.FieldValue.serverTimestamp()
                             });
 
-                            console.log('Order updated to paid:', orderDoc.id);
+                            
                             
                             // ✅ NOVO: Atualizar status de affiliate_sales quando order é paid
                             await updateAffiliateSaleStatus(db, orderDoc.id, 'paid');
 
                             // Processar o tipo de compra
                             if (orderData.type === 'tokens_purchase' || (payment.description && /token/i.test(payment.description))) {
-                                console.log('This is a token purchase! Processing...');
+                                
                                 // Robust token quantity calculation: prefer explicit quantity, else derive from total/amount
                                 let tokensToAdd = 0;
                                 if (orderData && !isNaN(Number(orderData.quantity))) tokensToAdd = parseInt(Number(orderData.quantity), 10);
@@ -657,10 +658,10 @@ exports.handler = async (event, context) => {
                                 else if (!isNaN(Number(orderData.amount)) && Number(orderData.amount) > 0) tokensToAdd = Math.round(Number(orderData.amount));
                                 else tokensToAdd = parseInt((payment.description && payment.description.match(/(\d+)/)?.[0]) || '1', 10) || 1;
                                 if (isNaN(tokensToAdd) || tokensToAdd <= 0) tokensToAdd = 1;
-                                console.log('💰 Tokens to add (computed):', tokensToAdd);
+                                
                                 await creditTokensToUser(db, { ...orderData, id: orderDoc.id }, tokensToAdd, externalRef);
                             } else if (orderData.type === 'digital_product') {
-                                console.log('This is a digital product purchase! Processing delivery...');
+                                
 
                                 const deliveryData = {
                                     orderId: orderDoc.id,
@@ -676,7 +677,7 @@ exports.handler = async (event, context) => {
                                 };
 
                                 await db.collection('digital_deliveries').add(deliveryData);
-                                console.log('✅ Digital delivery created for product:', orderData.productId);
+                                
                             }
 
                             return {
@@ -690,11 +691,12 @@ exports.handler = async (event, context) => {
                     // Se external_reference foi gerado no formato tokens_<docId>, tentar buscar pelo ID do documento
                     if (ordersSnapshot.empty && externalRef && externalRef.startsWith('tokens_')) {
                         const docId = externalRef.replace('tokens_', '');
-                        console.log('Trying to find order by tokens document ID:', docId);
+                        
                         const orderDoc = await ordersRef.doc(docId).get();
                         if (orderDoc.exists) {
-                            console.log('Found tokens order by document ID:', docId);
+                            
                             await orderDoc.ref.update({ external_reference: externalRef });
+                            await updateAffiliateSaleStatus(db, orderDoc.id, 'paid');
                             // Construir um snapshot-like object para prosseguir abaixo
                             ordersSnapshot = { empty: false, docs: [orderDoc], size: 1 };
                         }
@@ -703,7 +705,7 @@ exports.handler = async (event, context) => {
                     if (!ordersSnapshot.empty) {
                         const orderDoc = ordersSnapshot.docs[0];
                         const orderData = orderDoc.data();
-                        console.log('✅ Order found by external_reference:', { orderDocId: orderDoc.id, orderDataKeys: Object.keys(orderData) });
+                        
 
                         const updateData = {
                             status: 'paid',
@@ -714,7 +716,7 @@ exports.handler = async (event, context) => {
 
                         // 🔥 IMPORTANTE: Buscar e adicionar link do WhatsApp se não existir
                         if (!orderData.whatsappLink || orderData.whatsappLink === '' || orderData.whatsappLink === null) {
-                            console.log('🔍 Link do WhatsApp não encontrado no pedido, buscando...');
+                            
                             try {
                                 const whatsappLink = await getWhatsAppLinkForRegistration(
                                     orderData.eventType || orderData.event_type,
@@ -724,30 +726,30 @@ exports.handler = async (event, context) => {
                                 if (whatsappLink) {
                                     updateData.whatsappLink = whatsappLink;
                                     updateData.groupLink = whatsappLink;
-                                    console.log(`✅ Link do WhatsApp adicionado ao pedido ${orderDoc.id}:`, whatsappLink);
+                                    
                                 } else {
-                                    console.log(`⚠️ Nenhum link do WhatsApp encontrado para o pedido ${orderDoc.id}. Deixando vazio.`);
+                                    
                                 }
                             } catch (linkError) {
-                                console.error('❌ Erro ao buscar link do WhatsApp para o pedido:', linkError);
+                                
                             }
                         } else {
-                            console.log('✅ Link do WhatsApp já existe no pedido:', orderData.whatsappLink);
+                            
                         }
 
                         // Atualizar status para 'paid' (com link se encontrado)
                         await orderDoc.ref.update(updateData);
 
-                        console.log('✅ Order updated to paid:', orderDoc.id);                            
+                                                    
                             // ✅ NOVO: Atualizar status de affiliate_sales quando order é paid
                             await updateAffiliateSaleStatus(db, orderDoc.id, 'paid');
                         // Verificar tipo de compra
-                        console.log('🔍 Checking purchase type...');
-                        console.log('📦 Order type:', orderData.type, '| userId:', orderData.userId, '| customer:', orderData.customer, '| quantity:', orderData.quantity);
+                        
+                        
 
                         // Se for compra de tokens, atualizar saldo do usuário via transação
                         if (orderData.type === 'tokens_purchase' || (payment.description && /token/i.test(payment.description))) {
-                            console.log('🎯 This is a token purchase! Processing...');
+                            
                             // Robust token quantity calculation for non-id path
                             let tokensToAdd = 0;
                             if (orderData && !isNaN(Number(orderData.quantity))) tokensToAdd = parseInt(Number(orderData.quantity), 10);
@@ -755,12 +757,12 @@ exports.handler = async (event, context) => {
                             else if (!isNaN(Number(orderData.amount)) && Number(orderData.amount) > 0) tokensToAdd = Math.round(Number(orderData.amount));
                             else tokensToAdd = parseInt((payment.description && payment.description.match(/(\d+)/)?.[0]) || '1', 10) || 1;
                             if (isNaN(tokensToAdd) || tokensToAdd <= 0) tokensToAdd = 1;
-                            console.log('💰 Tokens to add (computed):', tokensToAdd);
+                            
                             await creditTokensToUser(db, { ...orderData, id: orderDoc.id }, tokensToAdd, externalRef);
                         }
                         // Se for produto digital, criar entrega digital
                         else if (orderData.type === 'digital_product') {
-                            console.log('This is a digital product purchase! Processing delivery...');
+                            
 
                             const deliveryData = {
                                 orderId: orderDoc.id,
@@ -776,20 +778,20 @@ exports.handler = async (event, context) => {
                             };
 
                             await db.collection('digital_deliveries').add(deliveryData);
-                            console.log('✅ Digital delivery created for product:', orderData.productId);
+                            
                             
                             // ✅ NOVO: Criar venda de afiliado para produto digital
                             await createAffiliateSale(db, { ...orderData, id: orderDoc.id }, 'product');
                         }
 
                     } else {
-                        console.log('❌ Order NOT found by external_reference:', externalRef);
+                        
                         // Se não encontrou em orders, tentar em registrations (para agendamentos)
                         const registrationsRef = db.collection('registrations');
                         const registrationsSnapshot = await registrationsRef.where('external_reference', '==', externalRef).get();
                         
                         if (!registrationsSnapshot.empty) {
-                            console.log('✅ Registrations found:', registrationsSnapshot.size);
+                            
                             // Atualizar TODOS os registros associados a este pagamento
                             const batch = db.batch();
                             
@@ -813,10 +815,10 @@ exports.handler = async (event, context) => {
                                         if (whatsappLink) {
                                             updateData.groupLink = whatsappLink;
                                             updateData.whatsappLink = whatsappLink;
-                                            console.log(`✅ Link do WhatsApp adicionado ao registro ${doc.id}:`, whatsappLink);
+                                            
                                         }
                                     } catch (linkError) {
-                                        console.error('Erro ao buscar link do WhatsApp:', linkError);
+                                        
                                     }
                                 }
                                 
@@ -824,7 +826,7 @@ exports.handler = async (event, context) => {
                             }
                             
                             await batch.commit();
-                            console.log('✅ Registrations updated to paid:', registrationsSnapshot.size);
+                            
                             
                             // ✅ NOVO: Atualizar status de affiliate_sales para todos os registrations paid
                             for (const doc of registrationsSnapshot.docs) {
@@ -837,16 +839,16 @@ exports.handler = async (event, context) => {
                                 await createAffiliateSale(db, regData, 'event');
                             }
                         } else {
-                            console.log('❌ No order or registration found for external_reference:', externalRef);
-                            console.log('🔍 DEBUG: Payment details:', { paymentId: payment.id, paymentStatus: payment.status, externalRef: payment.external_reference, preferenceId: payment.preference_id });
+                            
+                            
                         }
                     }
                 } catch (firebaseError) {
-                    console.error('❌ Firebase update error:', firebaseError);
+                    
                     // Não falhar a notificação por causa de erro no Firebase
                 }
                 
-                console.log('=== PAYMENT PROCESSING COMPLETED ===');
+                
             }
 
             return {
@@ -863,7 +865,7 @@ exports.handler = async (event, context) => {
         };
 
     } catch (error) {
-        console.error('Error processing payment notification:', error);
+        
         return {
             statusCode: 500,
             headers,
