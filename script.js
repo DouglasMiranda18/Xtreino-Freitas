@@ -142,7 +142,7 @@ function captureAffiliateRefFromUrl() {
             storeAffiliateRef(ref.trim());          
         }
     } catch (error) {
-        console.warn('⚠️ Não foi possível capturar referência de afiliado:', error);
+        
     }
 }
 
@@ -269,9 +269,9 @@ function showTokenPaymentError(errorCode, errorMessage, details = null) {
     }, 8000);
 
     // Também logar no console para debug
-    console.error(`❌ ${errorCode}: ${errorMessage}`);
+    
     if (details) {
-        console.error(`   Detalhes: ${details}`);
+        
     }
 
     return toast;
@@ -399,7 +399,7 @@ async function registerWithEmailPassword() {
                 }, { merge: true });
             }
         } catch (e) {
-            console.error('Erro ao salvar perfil:', e);
+            
         }
         onAuthLogged(cred.user);
     } catch (e) { document.getElementById('authMsg').textContent = e.message || 'Não foi possível criar a conta.'; }
@@ -514,7 +514,7 @@ function onAuthLogged(user) {
     //             await syncUserTokens();
     //         }
     //     } catch (error) {
-    //         console.error('Erro ao sincronizar tokens:', error);
+    //         
     //     }
     // }, 1000);
 
@@ -622,7 +622,7 @@ async function checkAdminAccess() {
             }
         }
     } catch (error) {
-        console.error('❌ Erro ao verificar acesso admin:', error);
+        
     }
 
     
@@ -880,7 +880,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                     
                                     openPaymentConfirmModal('Pagamento confirmado', 'Seu pagamento foi aprovado. Confira seus acessos na área Minha Conta.', groupLink);
                                 }).catch((e) => {
-                                    console.error('Error updating registration:', e);
+                                    
                                     openPaymentConfirmModal('Pagamento confirmado', 'Seu pagamento foi aprovado. Confira seus acessos na área Minha Conta.');
                                 });
                         } else {
@@ -892,7 +892,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                 orders.unshift({ title: info.title || 'Reserva', amount: info.price || 0, status: 'paid', date: new Date().toISOString() });
                                 localStorage.setItem('localOrders', JSON.stringify(orders));
                                 
-                            } catch (e) { console.error('Error creating local order:', e); }
+                            } catch (e) {  }
                             openPaymentConfirmModal('Pagamento confirmado', 'Seu pagamento foi aprovado. Confira seus acessos na área Minha Conta.');
                         }
                     }
@@ -955,7 +955,7 @@ async function checkAuthState() {
             });
         }
     } catch (e) {
-        console.error('Erro ao verificar estado de autenticação:', e);
+        
     }
 }
 
@@ -989,7 +989,7 @@ async function loadUserProfile(uid) {
                 }
                 updateHeaderTokenBadges();
             }, (err) => {
-                console.error('Erro no listener onSnapshot do perfil:', err);
+                
             });
         } else {
             // Fallback: cria perfil básico se Firebase não estiver pronto (em memória)
@@ -1004,7 +1004,7 @@ async function loadUserProfile(uid) {
             
         }
     } catch (e) {
-        console.error('Erro ao carregar perfil:', e);
+        
         // Fallback final: perfil básico
         window.currentUserProfile = {
             uid: uid,
@@ -1121,7 +1121,7 @@ function updateHeaderProfilePhoto() {
             }
         }
     } catch (error) {
-        console.error('Erro ao atualizar foto de perfil no header:', error);
+        
     }
 }
 
@@ -1203,7 +1203,7 @@ function canSpendTokens(amountBRL) {
         
         return canSpend;
     } catch (error) {
-        console.error('❌ Error in canSpendTokens:', error);
+        
         return false;
     }
 }
@@ -1255,7 +1255,7 @@ async function spendTokens(amountBRL) {
         return true;
 
     } catch (error) {
-        console.error('❌ Erro ao gastar tokens (Rede/Banco):', error);
+        
         
         // --- ROLLBACK (Devolve o token visualmente) ---
         
@@ -1318,7 +1318,7 @@ async function syncUserTokens() {
             updateHeaderTokenBadges();
         }
     } catch (error) {
-        console.error('❌ Error syncing tokens:', error);
+        
     }
 }
 
@@ -1373,7 +1373,7 @@ async function ensureUserProfile(user) {
         } else {
             logError(err, 'AUTH_005');
         }
-        console.warn('Perfil: erro ao carregar, usando perfil em memória.', err);
+        
         window.currentUserProfile = baseProfile;
     }
 }
@@ -1397,7 +1397,7 @@ async function persistUserProfile(profile) {
             await setDoc(ref, profile, { merge: true });
             
         } else {
-            console.warn('⚠️ Firebase unavailable when persisting profile; keeping in memory only');
+            
         }
     } catch (error) {
         // Tratamento de erro com código padronizado
@@ -1406,7 +1406,7 @@ async function persistUserProfile(profile) {
         } else {
             logError(error, 'SYS_005');
         }
-        console.error('❌ Error persisting profile:', error);
+        
     }
 }
 
@@ -1547,7 +1547,7 @@ function handleContactForm(event) {
                 showSuccessToast('Mensagem enviada com sucesso!', 'Sucesso');
                 form.reset();
             } catch (err) {
-                console.error('Erro ao salvar contato:', err);
+                
                 showErrorToast('Não foi possível enviar agora. Tente novamente mais tarde.', 'Erro');
             }
         })();
@@ -1923,7 +1923,7 @@ async function payCurrentProductWithTokens() {
         }, 4500);
         
     } catch (e) {
-        console.error('Erro ao pagar com tokens:', e);
+        
         showErrorToast('Erro ao pagar com tokens. Por favor, tente novamente.', 'Erro');
     }
 }
@@ -2012,7 +2012,7 @@ async function applyCoupon() {
         
 
     } catch (error) {
-        console.error('❌ Erro ao validar cupom:', error);
+        
         showErrorToast('Erro ao validar cupom. Tente novamente.', 'COUPON_006');
         showCouponMessage('Erro ao validar cupom. Tente novamente.', 'error');
     }
@@ -2085,7 +2085,7 @@ function updatePriceWithCoupon() {
         }
         // Se ainda assim não tiver preço, não pode aplicar desconto
         if (!originalPrice || originalPrice <= 0) {
-            console.warn('⚠️ Não é possível aplicar cupom: preço original inválido');
+            
             return;
         }
     }
@@ -2358,7 +2358,7 @@ async function handlePurchase(event) {
                 submitBtn.textContent = originalBtnText;
             }
             showError('PAYMENT_002', 'PAYMENT_002');
-            console.error('❌ Preço inválido:', totalNum);
+            
             return;
         }
 
@@ -2410,13 +2410,16 @@ async function handlePurchase(event) {
 
                 
                 docRef = await addDoc(collection(window.firebaseDb, 'orders'), orderData);
-                
+                // Dentro de handlePurchase, após orderData ser montado e docRef salvo
+                try {
+                await createPendingAffiliateSale(docRef.id, activeAffiliateCode, orderData, 'product');
+                } catch (e) { /* log, não quebrar fluxo */ }
 
                 // Salvar external_reference para o webhook
                 externalRef = `digital_${docRef.id}`;
                 await updateDoc(docRef, { external_reference: externalRef });
             } catch (firebaseError) {
-                console.error('⚠️ ERRO CRÍTICO: Falha ao salvar no Firestore:', firebaseError);
+                
                 // --- PROTEÇÃO CONTRA PAGAMENTO FANTASMA ---
                 alert('Erro de conexão ao salvar seu pedido. Por favor, verifique sua internet e tente novamente. Nenhuma cobrança foi gerada.');
                 if (submitBtn) {
@@ -2455,7 +2458,7 @@ async function handlePurchase(event) {
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('❌ Erro na resposta do create-preference:', response.status, errorText);
+            
             if (submitBtn) {
                 submitBtn.disabled = false;
                 submitBtn.textContent = originalBtnText;
@@ -2469,7 +2472,7 @@ async function handlePurchase(event) {
         // Verificar se tem init_point ou sandbox_init_point
         const checkoutUrl = data.init_point || data.sandbox_init_point;
         if (!checkoutUrl) {
-            console.error('❌ Resposta inválida do create-preference:', data);
+            
             if (submitBtn) {
                 submitBtn.disabled = false;
                 submitBtn.textContent = originalBtnText;
@@ -2496,7 +2499,7 @@ async function handlePurchase(event) {
                     }
                 );
             } catch (couponError) {
-                console.error('⚠️ Erro ao registrar uso do cupom:', couponError);
+                
                 // Não falhar a compra por causa de erro no cupom
             }
         }
@@ -2512,11 +2515,11 @@ async function handlePurchase(event) {
             window.open(checkoutUrl, '_blank');
             showToast('success', 'Checkout aberto em nova aba. Finalize o pagamento no Mercado Pago.', 'Checkout');
         } catch (openErr) {
-            console.warn('⚠️ Falha ao abrir nova aba, redirecionando como fallback:', openErr);
+            
             window.location.href = checkoutUrl;
         }
     } catch (error) {
-        console.error('❌ Erro no checkout:', error);
+        
         if (submitBtn) {
             submitBtn.disabled = false;
             submitBtn.textContent = originalBtnText;
@@ -2533,6 +2536,78 @@ async function handlePurchase(event) {
         } else {
             showToast('error', error.message || 'Erro ao processar pagamento. Tente novamente.', 'Erro');
         }
+    }
+}
+
+async function createPendingAffiliateSale(orderId, affiliateCode, orderData, saleType) {
+    
+
+    if (!affiliateCode || !orderId) {
+        
+        return;
+    }
+
+    try {
+        const { doc, getDoc, collection, query, where, getDocs, addDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const db = window.firebaseDb;
+        
+
+        const usersRef = collection(db, 'users');
+
+        // Busca por UID
+        const affDocById = await getDoc(doc(usersRef, affiliateCode));
+        
+
+        let affDoc = affDocById;
+        if (!affDoc.exists()) {
+            // Busca por email
+            
+            const q = query(usersRef, where('email', '==', affiliateCode));
+            const snap = await getDocs(q);
+            affDoc = snap.empty ? null : snap.docs[0];
+            
+        }
+
+        if (!affDoc || !affDoc.exists()) {
+            
+            return;
+        }
+
+        const affData = affDoc.data();
+        const affId = affDoc.id;
+        const commissionRate = affData.commissionRate || 10;
+        const saleValue = Number(orderData.amount || 0);
+        const commissionAmount = (saleValue * commissionRate) / 100;
+        
+
+        // Verificação de duplicata
+        const salesRef = collection(db, 'affiliate_sales');
+        const dupQ = query(salesRef, where('orderId', '==', orderId), where('affiliateId', '==', affId));
+        const dupSnap = await getDocs(dupQ);
+        
+
+        if (!dupSnap.empty) {
+            
+            return;
+        }
+
+        // Criação do documento
+        await addDoc(salesRef, {
+            affiliateId: affId,
+            orderId,
+            customerEmail: orderData.customer || null,
+            customerName: orderData.customerName || null,
+            productName: orderData.title || '',
+            saleValue,
+            commissionRate,
+            commissionAmount,
+            saleType,
+            status: 'pending',
+            createdAt: new Date()
+        });
+        
+    } catch (error) {
+        
     }
 }
 
@@ -2685,7 +2760,7 @@ async function loadHighlightsFromFirestore() {
         initCarousel();
 
     } catch (error) {
-        console.error('Erro ao carregar destaques:', error);
+        
     }
 }
 
@@ -2791,6 +2866,7 @@ async function heroPurchaseTokens() {
         let externalRef;
         try {
             const { addDoc, updateDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            const activeAffiliateCode = getActiveAffiliateCode();
             const orderData = {
                 title: `${qty} Token${qty > 1 ? 's' : ''} XTreino`,
                 amount: price,
@@ -2801,14 +2877,15 @@ async function heroPurchaseTokens() {
                 uid: window.firebaseAuth.currentUser?.uid || null,
                 type: 'tokens_purchase',
                 createdAt: new Date(),
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                affiliateCode: activeAffiliateCode || null
             };
             const docRef = await addDoc(collection(window.firebaseDb, 'orders'), orderData);
             externalRef = `tokens_${docRef.id}`;
             await updateDoc(docRef, { external_reference: externalRef });
             try { sessionStorage.setItem('lastExternalRef', externalRef); } catch (_) { }
         } catch (e) {
-            console.warn('ERRO CRÍTICO: Não foi possível criar ordem para tokens:', e);
+            
             // --- PROTEÇÃO CONTRA PAGAMENTO FANTASMA ---
             alert('Erro de conexão ao iniciar pedido. Verifique sua internet e tente novamente.');
             return; // INTERROMPE O FLUXO
@@ -2837,11 +2914,11 @@ async function heroPurchaseTokens() {
                 window.open(data.init_point, '_blank');
                 showToast('success', 'Checkout aberto em nova aba. Finalize o pagamento no Mercado Pago.', 'Checkout');
             } catch (e) {
-                console.warn('⚠️ Falha ao abrir nova aba para tokens, redirecionando:', e);
+                
                 window.location.href = data.init_point;
             }
         } else { showToast('error', 'Erro ao iniciar pagamento. Tente novamente.', 'Erro'); }
-    } catch (e) { console.error('Erro em heroPurchaseTokens:', e); showToast('error', `Erro ao comprar tokens: ${e && e.message ? e.message : String(e)}`, 'Erro'); }
+    } catch (e) {  showToast('error', `Erro ao comprar tokens: ${e && e.message ? e.message : String(e)}`, 'Erro'); }
 }
 function updateHeroTokensSummary() {
     const subtotalEl = document.getElementById('heroTokensSubtotal');
@@ -2924,7 +3001,7 @@ async function heroApplyTokenCoupon() {
         
 
     } catch (error) {
-        console.error('❌ Erro ao validar cupom de tokens:', error);
+        
         showToast('error', 'Erro ao validar cupom. Tente novamente.', 'Cupom');
     }
 }
@@ -3453,7 +3530,7 @@ function saveMessageToHistory(text, sender, timestamp) {
         }
         localStorage.setItem('chatHistory', JSON.stringify(history));
     } catch (e) {
-        console.error('Erro ao salvar histórico:', e);
+        
     }
 }
 
@@ -3509,7 +3586,7 @@ function loadChatHistory() {
 
         chatMessages.scrollTop = chatMessages.scrollHeight;
     } catch (e) {
-        console.error('Erro ao carregar histórico:', e);
+        
     }
 }
 
@@ -3669,7 +3746,7 @@ async function loadNewsFromFirestore() {
         });
 
     } catch (error) {
-        console.error('Erro ao carregar notícias:', error);
+        
         const container = document.getElementById('newsContainer');
         if (container) {
             container.innerHTML = `
@@ -5005,7 +5082,7 @@ async function fetchOccupiedForDate(day, date, eventType) {
             // CRÍTICO: Garantir que a data está normalizada (YYYY-MM-DD)
             const normalizedDate = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
             if (!normalizedDate) {
-                console.warn('⚠️ Data inválida em fetchOccupiedForDate:', date);
+                
                 return map;
             }
 
@@ -5018,7 +5095,7 @@ async function fetchOccupiedForDate(day, date, eventType) {
                 // VALIDAÇÃO CRÍTICA: Garantir que o override é realmente para esta data
                 const ovDate = ov.date || '';
                 if (ovDate !== normalizedDate) {
-                    console.warn(`⚠️ Override com data inconsistente em fetchOccupiedForDate: esperado ${normalizedDate}, encontrado ${ovDate}. Ignorando.`);
+                    
                     return; // Ignorar override de data diferente
                 }
 
@@ -5042,7 +5119,7 @@ async function fetchOccupiedForDate(day, date, eventType) {
                 }
             });
         } catch (err) {
-            console.error('Erro ao verificar overrides em fetchOccupiedForDate:', err);
+            
         }
     } catch (_) { }
     return map;
@@ -5080,7 +5157,7 @@ async function checkSlotAvailability(date, schedule, eventType) {
             // CRÍTICO: Garantir que a data está normalizada (YYYY-MM-DD)
             const normalizedDate = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
             if (!normalizedDate) {
-                console.warn('⚠️ Data inválida em checkSlotAvailability:', date);
+                
                 return occupied < getEventCapacity(eventType, `${wantedHour}h`, date);
             }
 
@@ -5093,7 +5170,7 @@ async function checkSlotAvailability(date, schedule, eventType) {
                 // VALIDAÇÃO CRÍTICA: Garantir que o override é realmente para esta data
                 const ovDate = ov.date || '';
                 if (ovDate !== normalizedDate) {
-                    console.warn(`⚠️ Override com data inconsistente em checkSlotAvailability: esperado ${normalizedDate}, encontrado ${ovDate}. Ignorando.`);
+                    
                     return; // Ignorar override de data diferente
                 }
 
@@ -5122,7 +5199,7 @@ async function checkSlotAvailability(date, schedule, eventType) {
                 }
             });
         } catch (err) {
-            console.error('Erro ao verificar overrides:', err);
+            
         }
         const capacity = getEventCapacity(eventType, `${wantedHour}h`, date);
         // Não permitir compra se ocupado >= capacidade (não pode ultrapassar)
@@ -5145,7 +5222,7 @@ async function checkMultipleSlotAvailability(date, selectedTimes, eventType, num
         : null;
 
     if (!normalizedDate) {
-      console.warn('⚠️ Data inválida em checkMultipleSlotAvailability:', date);
+      
       return { available: true };
     }
 
@@ -5162,7 +5239,7 @@ async function checkMultipleSlotAvailability(date, selectedTimes, eventType, num
     });
 
     if (!response.ok) {
-      console.error('⚠️ check-availability retornou erro HTTP:', response.status);
+      
       return { available: true }; // fail-safe
     }
 
@@ -5170,7 +5247,7 @@ async function checkMultipleSlotAvailability(date, selectedTimes, eventType, num
 
     // Garantia mínima de contrato
     if (typeof result !== 'object' || result === null) {
-      console.warn('⚠️ Resposta inválida do check-availability:', result);
+      
       return { available: true };
     }
 
@@ -5178,7 +5255,7 @@ async function checkMultipleSlotAvailability(date, selectedTimes, eventType, num
 
   } catch (error) {
     // 🔒 Nunca bloquear compra por erro técnico
-    console.error('Erro ao verificar disponibilidade:', error);
+    
 
     try {
       logError(
@@ -5199,7 +5276,7 @@ async function updateOccupiedAndRefreshButtons(day, date, eventType, container) 
     // Garantir que a data está no formato correto (YYYY-MM-DD)
     const normalizedDate = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
     if (!normalizedDate) {
-        console.warn('⚠️ Data inválida em updateOccupiedAndRefreshButtons:', date);
+        
         return;
     }
 
@@ -5243,7 +5320,7 @@ async function updateOccupiedAndRefreshButtons(day, date, eventType, container) 
             // VALIDAÇÃO: Garantir que o override é realmente para esta data
             const ovDate = ov.date || '';
             if (ovDate !== normalizedDate) {
-                console.warn(`⚠️ Override com data inconsistente: esperado ${normalizedDate}, encontrado ${ovDate}`);
+                
                 return; // Ignorar override de data diferente
             }
 
@@ -5262,7 +5339,7 @@ async function updateOccupiedAndRefreshButtons(day, date, eventType, container) 
             }
         });
     } catch (err) {
-        console.error('Erro ao verificar horários travados:', err);
+        
     }
 
     const now = new Date();
@@ -5452,7 +5529,7 @@ async function updateReservationsSummary() {
                 }
             }
         } catch (error) {
-            console.error('Erro ao verificar disponibilidade:', error);
+            
         }
     }
 
@@ -5553,8 +5630,8 @@ function storeCheckoutFailure(info) {
         const out = { timestamp: Date.now(), ...info };
         // manter apenas o último registro
         sessionStorage.setItem('lastCheckoutFailure', JSON.stringify(out));
-        console.warn('📦 Stored checkout failure for diagnosis', out);
-    } catch (e) { console.warn('Could not store checkout failure:', e); }
+        
+    } catch (e) {  }
 }
 
 // Helper to wrap fetch with timeout
@@ -5644,7 +5721,7 @@ async function handleProductPurchase(productId, cfg) {
         // Validar preço final
         if (!finalPrice || finalPrice <= 0 || isNaN(finalPrice)) {
             alert('Preço inválido. Por favor, verifique os dados do produto.');
-            console.error('❌ Preço inválido:', finalPrice);
+            
             return;
         }
 
@@ -5688,7 +5765,7 @@ async function handleProductPurchase(productId, cfg) {
                 await updateDoc(docRef, { external_reference: externalRef });
                 try { sessionStorage.setItem('lastExternalRef', externalRef); } catch (_) { }
             } catch (firebaseError) {
-                console.error('⚠️ Erro ao salvar no Firestore, continuando com externalRef temporário:', firebaseError);
+                
                 // Continua com externalRef gerado acima
             }
         }
@@ -5712,14 +5789,14 @@ async function handleProductPurchase(productId, cfg) {
                 body: JSON.stringify(preferencePayload)
             }, 15000);
         } catch (fetchErr) {
-            console.error('❌ Erro no fetch create-preference (produto):', fetchErr);
+            
             storeCheckoutFailure({ location: 'product', payload: preferencePayload, errorMessage: String(fetchErr) });
             throw fetchErr;
         }
 
         if (!response.ok) {
             const errorText = await response.text().catch(() => null);
-            console.error('❌ Erro na resposta do create-preference:', response.status, errorText);
+            
             storeCheckoutFailure({ location: 'product', payload: preferencePayload, responseStatus: response.status, responseText: errorText });
             // Detect common server-side misconfiguration and show actionable message
             if (String(errorText || '').includes('Missing MP_ACCESS_TOKEN') || String(errorText || '').toLowerCase().includes('mercado pago')) {
@@ -5734,7 +5811,7 @@ async function handleProductPurchase(productId, cfg) {
         // Verificar se tem init_point ou sandbox_init_point
         const checkoutUrl = data.init_point || data.sandbox_init_point;
         if (!checkoutUrl) {
-            console.error('❌ Resposta inválida do create-preference:', data);
+            
             storeCheckoutFailure({ location: 'product', payload: preferencePayload, responseStatus: response.status, responseJson: data, errorMessage: 'No checkout URL in response' });
             throw new Error('Não foi possível obter o link de pagamento. Verifique se o Mercado Pago está configurado corretamente.');
         }
@@ -5749,11 +5826,11 @@ async function handleProductPurchase(productId, cfg) {
             window.open(checkoutUrl, '_blank');
             showToast('success', 'Checkout aberto em nova aba. Finalize o pagamento no Mercado Pago.', 'Checkout');
         } catch (openErr) {
-            console.warn('⚠️ Falha ao abrir nova aba, redirecionando como fallback:', openErr);
+            
             window.location.href = checkoutUrl;
         }
     } catch (error) {
-        console.error('❌ Erro na compra do produto:', error);
+        
         const errorMessage = error.message || 'Falha ao processar compra.';
         alert(`Falha ao processar compra.\n\n${errorMessage}\n\nPor favor, tente novamente ou entre em contato com o suporte.`);
     }
@@ -5867,7 +5944,7 @@ async function handleProductPurchaseWithTokens(productId, cfg) {
             alert('Pagamento confirmado com tokens!');
         }
     } catch (e) {
-        console.error('Erro ao comprar com tokens (produto loja):', e);
+        
         showError(e, 'TOKEN_002');
     }
 }
@@ -6062,7 +6139,7 @@ async function submitSchedule(e, useTokens = false) {
             }
 
         } catch (dbError) {
-            console.error('❌ ERRO CRÍTICO: Falha ao salvar reservas no banco:', dbError);
+            
             alert('Erro de conexão ao salvar sua reserva. Por favor, verifique sua internet e tente novamente. Nenhuma cobrança foi gerada.');
             if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
             return;
@@ -6103,13 +6180,13 @@ async function submitSchedule(e, useTokens = false) {
             }
 
         } catch (paymentError) {
-            console.error('Erro no pagamento:', paymentError);
+            
             alert('Erro ao iniciar pagamento no Mercado Pago. Tente novamente.');
             if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
         }
 
     } catch (error) {
-        console.error('Erro geral no submitSchedule:', error);
+        
         alert('Ocorreu um erro inesperado. Atualize a página e tente novamente.');
         if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
     }
@@ -6150,7 +6227,7 @@ function openPaymentConfirmModal(title, msg, groupLink) {
     const acctBtn = document.getElementById('paymentGoAccountBtn');
 
     if (!m) {
-        console.error('Payment confirmation modal not found');
+        
         return;
     }
 
@@ -6232,7 +6309,7 @@ async function checkPaymentStatus(preferenceId) {
         }
 
     } catch (error) {
-        console.error('Error checking payment status:', error);
+        
         // Fallback: apenas logar o erro, não mostrar modal
         // O usuário pode verificar o status na área do cliente
     }
@@ -6242,7 +6319,7 @@ async function processSuccessfulPayment(externalRef = null) {
     const extRef = externalRef || sessionStorage.getItem('lastExternalRef');
   
     if (!extRef) {
-        console.warn('❌ Nenhum external_reference encontrado.');
+        
         return;
     }
 
@@ -6311,7 +6388,7 @@ async function processSuccessfulPayment(externalRef = null) {
             }
         }       
     } catch (error) {
-        console.error('❌ Erro ao processar pagamento:', error);       
+               
     }
 }
 
@@ -6365,7 +6442,7 @@ async function useTokensForEvent(eventType, totalReservations, finalPrice, teams
             window.location.href = 'client.html?tab=orders';
         }, 2000);
     } catch (error) {
-        console.error('❌ Erro ao criar registros após debitar tokens:', error);
+        
         // Reembolsar tokens
         await grantTokens(finalPrice);
         showErrorToast('Erro ao criar agendamento. Tokens devolvidos.', 'ERRO');
@@ -6385,7 +6462,7 @@ async function loadCampSemifinalLinksFromFirestore() {
         campSemifinalLinksCache = { data, timestamp: Date.now() };
         return data;
     } catch (error) {
-        console.error('❌ Erro ao carregar links das semifinais do Camp:', error);
+        
         return campSemifinalLinksCache.data || {};
     }
 }
@@ -6493,8 +6570,8 @@ async function getWhatsAppLink(eventType, schedule = null, date = null) {
         return '';
 
     } catch (error) {
-        console.error('❌ Erro ao obter link do WhatsApp:', error);
-        console.error('🔍 Stack:', error.stack);
+        
+        
         return '';
     }
 }
@@ -6515,7 +6592,7 @@ async function createRegistrationsForEvent(eventType, datesToUse, teamsData, tim
                 const hour = (schedule.split(' - ')[1] || '').trim();
                 const normalizedHour = normalizeHour(hour);
                 const price = getEventPrice(eventType, hour, d);
-                const whatsappLink = await getWhatsAppLink(eventType, normalizedHour, d);
+                const whatsappLink = await getWhatsAppLink(eventType, normalizedHour, d);            
 
                 const docRef = await addDoc(collection(window.firebaseDb, 'registrations'), {
                     userId: window.firebaseAuth.currentUser.uid,
@@ -6541,6 +6618,14 @@ async function createRegistrationsForEvent(eventType, datesToUse, teamsData, tim
                     } : {})
                 });
                 regIds.push(docRef.id);
+
+                
+                await createPendingAffiliateSale(docRef.id, getActiveAffiliateCode(couponInfo?.affiliateId || null), {
+                amount: price, // preço unitário
+                title: `${cfg.label} - ${schedule}`,
+                customer: team.email,
+                customerName: team.name                
+                }, 'event');
             }
         }
     }
@@ -6753,7 +6838,7 @@ async function applyScheduleCoupon() {
         
 
     } catch (error) {
-        console.error('❌ Erro ao validar cupom:', error);
+        
         showScheduleCouponMessage('Erro ao validar cupom. Tente novamente.', 'error');
     }
 }
@@ -6890,7 +6975,7 @@ async function recordCouponUsage(couponId, couponCode, orderValue, discountAmoun
 
         
     } catch (error) {
-        console.error('❌ Erro ao registrar uso de cupom:', error);
+        
     }
 }
 
@@ -6906,7 +6991,7 @@ async function updateCouponUsageCount(couponId) {
 
         
     } catch (error) {
-        console.error('❌ Erro ao atualizar contador de uso:', error);
+        
     }
 }
 
@@ -6966,7 +7051,7 @@ function setProducts(productId, product){
 async function loadProductsFromFirestore() {
     try {
         if (!window.firebaseDb) {
-            console.warn('Firebase não disponível para carregar produtos');
+            
             return;
         }
 
@@ -7042,7 +7127,7 @@ async function loadProductsFromFirestore() {
         }
 
     } catch (error) {
-        console.error('Erro ao carregar produtos:', error);
+        
         const container = document.getElementById('productsContainer');
         if (container) {
             container.innerHTML = '<p class="col-span-full text-center text-red-500">Erro ao carregar produtos. Tente novamente mais tarde.</p>';
@@ -7059,8 +7144,9 @@ window.openLoginModal = openLoginModal;
 window.closeLoginModal = closeLoginModal;
 window.openPurchaseModal = openPurchaseModal;
 window.closePurchaseModal = closePurchaseModal;
-window.openTokensModal = openTokensModal;
+//window.openTokensModal = openTokensModal;
 window.closeTokensModal = closeTokensModal;
 window.openFreeWhatsModal = openFreeWhatsModal;
 window.closeFreeWhatsModal = closeFreeWhatsModal;
 window.processSuccessfulPayment = processSuccessfulPayment;
+window.getActiveAffiliateCode = getActiveAffiliateCode;
