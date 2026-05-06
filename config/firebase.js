@@ -23,9 +23,13 @@ async function initializeIfConfigured() {
         try { setLogLevel('error'); } catch (_) {}
         providers.google = new GoogleAuthProvider();
 
+        const { getStorage } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js');
+        const storage = getStorage(app);
+
         window.firebaseApp = app;
         window.firebaseAuth = auth;
         window.firebaseDb = db;
+        window.firebaseStorage = storage;
         window.firebaseProviders = providers;
         window.firebaseReady = true;
     } catch (err) {

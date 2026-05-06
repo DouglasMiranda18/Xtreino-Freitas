@@ -7150,3 +7150,156 @@ window.openFreeWhatsModal = openFreeWhatsModal;
 window.closeFreeWhatsModal = closeFreeWhatsModal;
 window.processSuccessfulPayment = processSuccessfulPayment;
 window.getActiveAffiliateCode = getActiveAffiliateCode;
+
+// ==================== EVENTOS DINÂMICOS (adminEvents) ====================
+
+async function loadDynamicEvents() {
+    const grid = document.getElementById('dynamicEventsGrid');
+    const fallback = document.getElementById('staticEventsGrid');
+    if (!grid) return;
+
+    const waitForFirebase = () => new Promise(resolve => {
+        if (window.firebaseDb) { resolve(); return; }
+        const t = setInterval(() => { if (window.firebaseDb) { clearInterval(t); resolve(); } }, 200);
+        setTimeout(() => { clearInterval(t); resolve(); }, 8000);
+    });
+    await waitForFirebase();
+
+    if (!window.firebaseDb) {
+        grid.classList.add('hidden');
+        if (fallback) { fallback.classList.remove('hidden'); fallback.classList.add('grid'); }
+        return;
+    }
+
+    try {
+        const { collection, query, where, getDocs, orderBy } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const colRef = collection(window.firebaseDb, 'adminEvents');
+        let snap;
+        try {
+            snap = await getDocs(query(colRef, where('status', '==', 'Aberto'), orderBy('createdAt', 'desc')));
+        } catch (_) {
+            snap = await getDocs(query(colRef, where('status', '==', 'Aberto')));
+        }
+
+        if (snap.empty) {
+            grid.classList.add('hidden');
+            if (fallback) { fallback.classList.remove('hidden'); fallback.classList.add('grid'); }
+            return;
+        }
+
+        const placeholderImg = 'assets/images/events/CAMP.jpeg';
+        const categoryLabels = { camp: 'CAMP', xtreino: 'XTREINO', diario: 'DIÁRIO' };
+
+        const cards = snap.docs.map(d => {
+            const ev = d.data();
+            const imgSrc = ev.imageUrl || placeholderImg;
+            const isPago = ev.entrada === 'PAGO';
+            const preco = ev.preco ? `R$ ${Number(ev.preco).toFixed(2)}` : 'GRÁTIS';
+            const catLabel = categoryLabels[ev.category] || ev.category || '';
+            const descLines = ev.descricao ? ev.descricao.split('\n').slice(0, 3).map(l => `<div>${l}</div>`).join('') : '';
+            const btnHtml = isPago && ev.preco
+                ? `<button onclick="openEventPayment('${d.id}', '${(ev.name || '').replace(/'/g, "\\'")}', ${ev.preco})" class="w-full btn-primary py-2 rounded-lg font-semibold">INSCREVER — ${preco}</button>`
+                : `<button onclick="openScheduleModal('${d.id}')" class="w-full btn-primary py-2 rounded-lg font-semibold">RESERVAR VAGA</button>`;
+
+            return `<article class="product-card">
+                <div class="product-media">
+                    ${catLabel ? `<span class="absolute top-2 left-2 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded">${catLabel}</span>` : ''}
+                    ${ev.premiado === 'SIM' ? `<span class="absolute top-2 right-2 bg-yellow-400 text-black text-xs font-bold px-2 py-1 rounded">Premiado</span>` : ''}
+                    <img src="${imgSrc}" alt="${ev.name || 'Evento'}" loading="lazy" referrerpolicy="no-referrer" onerror="this.src='${placeholderImg}'">
+                </div>
+                <div class="product-title">${ev.name || 'Evento'}</div>
+                <div class="product-desc">
+                    <div class="space-y-1">
+                        <div><strong>Entrada:</strong> ${preco}</div>
+                        <div><strong>Vagas:</strong> ${ev.vagas || '—'}</div>
+                        <div><strong>Modalidade:</strong> ${ev.tipo || ''} | ${ev.modo || ''}</div>
+                        ${descLines ? `<div class="text-xs text-gray-500 mt-1">${descLines}</div>` : ''}
+                    </div>
+                </div>
+                ${btnHtml}
+            </article>`;
+        });
+
+        grid.innerHTML = cards.join('');
+        grid.classList.add('grid');
+
+    } catch (err) {
+        console.error('Erro ao carregar eventos dinâmicos:', err);
+        grid.classList.add('hidden');
+        if (fallback) { fallback.classList.remove('hidden'); fallback.classList.add('grid'); }
+    }
+}
+
+async function openEventPayment(eventId, eventName, preco) {
+    const user = window.firebaseAuth?.currentUser;
+    if (!user) {
+        showToast('info', 'Faça login para se inscrever no evento.', 'Login necessário');
+        if (typeof openLoginModal === 'function') openLoginModal();
+        return;
+    }
+
+    const btn = event?.target;
+    const originalText = btn ? btn.textContent : null;
+    if (btn) { btn.disabled = true; btn.textContent = 'Aguarde...'; }
+
+    try {
+        const externalRef = `event_${eventId}_${user.uid}_${Date.now()}`;
+        const payload = {
+            title: eventName,
+            quantity: 1,
+            currency_id: 'BRL',
+            unit_price: Number(preco),
+            userId: user.uid,
+            customerEmail: user.email,
+            external_reference: externalRef,
+            type: 'event_registration',
+            back_url: window.location.origin
+        };
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+        const response = await fetch('/.netlify/functions/create-preference', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(errText || `Erro ${response.status}`);
+        }
+
+        const data = await response.json();
+        const checkoutUrl = data.init_point || data.sandbox_init_point;
+        if (!checkoutUrl) throw new Error('Não foi possível obter o link de pagamento.');
+
+        try { sessionStorage.setItem('lastCheckoutUrl', checkoutUrl); } catch (_) {}
+        try {
+            window.open(checkoutUrl, '_blank');
+            showToast('success', 'Checkout aberto em nova aba. Finalize o pagamento no Mercado Pago.', 'Pagamento');
+        } catch (_) {
+            window.location.href = checkoutUrl;
+        }
+    } catch (err) {
+        console.error('Erro ao criar preferência de pagamento:', err);
+        if (err.name === 'AbortError') {
+            showToast('error', 'Conexão expirou. Verifique sua internet e tente novamente.', 'Timeout');
+        } else {
+            showToast('error', err.message || 'Erro ao processar pagamento.', 'Erro');
+        }
+    } finally {
+        if (btn) { btn.disabled = false; if (originalText) btn.textContent = originalText; }
+    }
+}
+
+window.openEventPayment = openEventPayment;
+
+// Inicializa eventos dinâmicos quando a página carrega
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadDynamicEvents);
+} else {
+    loadDynamicEvents();
+}

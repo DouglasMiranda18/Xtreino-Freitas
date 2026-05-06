@@ -223,30 +223,32 @@
                 <p class="text-sm text-gray-500">Participa e concorra a um PC Gamer + Kit Periféricos + Troféu!</p>
             </div>
 
-            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                 <!-- Camp Freitas (old-style card layout) -->
+            <!-- Eventos dinâmicos do Firestore (adminEvents) -->
+            <div id="dynamicEventsGrid" class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="col-span-full text-center py-12 text-gray-400">
+                    <i class="fas fa-spinner fa-spin text-2xl"></i>
+                    <p class="mt-2 text-sm">Carregando eventos...</p>
+                </div>
+            </div>
+
+            <!-- Fallback estático (exibido somente se não houver eventos dinâmicos) -->
+            <div id="staticEventsGrid" class="hidden grid md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <article class="product-card">
                     <div class="product-media">
                         <div class="absolute top-4 right-4 bg-[var(--brand-yellow)] text-[var(--brand-black)] text-xs font-bold px-2 py-1 rounded">Novidade!</div>
-                        <img src="assets/images/events/CAMP.jpeg" alt="Camp Freitas - Premiação R$ 4.000,00" referrerpolicy="no-referrer">
+                        <img src="assets/images/events/CAMP.jpeg" alt="Camp Freitas" referrerpolicy="no-referrer">
                     </div>
                     <div class="product-title">CAMPEONATO FREITAS SEASON⁴</div>
                     <div class="product-desc">
                         <div class="space-y-1">
                             <div><strong>Valor:</strong> R$ 8,00</div>
                             <div><strong>Horários:</strong> Segunda a Sexta • 19h - 20h - 21h - 22h - 23h</div>
-                            <div><strong>Início:</strong> A partir do dia 12/01</div>
                             <div><strong>Formato:</strong> Misto | Squad | 2 quedas por fase</div>
-                            <div><strong>Vagas por horário:</strong> Limitadas</div>
                             <div><strong>Premiação:</strong> R$ 4.000,00</div>
-                        <div><strong>Diferencial:</strong> Transmissão modo liga ao vivo a partir das Semifinais + Troféu</div>
                         </div>
-                    </div>
-                    <div class="text-sm text-gray-600 border-t border-gray-200 pt-4 mt-4">
                     </div>
                     <button onclick="openScheduleModal('camp-freitas')" class="w-full btn-primary py-2 rounded-lg font-semibold">RESERVAR VAGA</button>
                 </article>
-                <!-- XTreino Tokens -->
                 <article class="product-card">
                     <div class="product-media relative">
                         <span class="absolute top-2 left-2 bg-yellow-400 text-black text-xs font-bold px-2 py-1 rounded">TOKENS</span>
@@ -256,36 +258,26 @@
                     <div class="product-desc">
                         <div class="space-y-1">
                             <div><strong>Valor:</strong> R$ 1,00 (1 token)</div>
-                            <div><strong>Horários:</strong> 14h - 15h - 16h - 17h - 18h - 19h - 20h - 21h - 22h - 23h</div>
+                            <div><strong>Horários:</strong> 14h às 23h</div>
                             <div><strong>Modalidade:</strong> Misto | Squad | 2 quedas</div>
-                            <div><strong>Premiação:</strong> Vaga em Campeonato pro top¹ da tabela</div>
-                            <div><strong>Funcionamento:</strong> De Segunda-feira a Sexta-feira</div>
-                            <div><strong>Diferencial:</strong> 10 horários diários, montagem de cronograma e Troféu</div>
                         </div>
                     </div>
                     <button onclick="openScheduleModal('xtreino-tokens')" class="w-full btn-primary py-2 rounded-lg font-semibold">USAR TOKENS</button>
                 </article>
-
-                <!-- Modo Liga -->
                 <article class="product-card">
                     <div class="product-media">
-                        <img src="assets/images/events/MODO LIGA FREITAS FORMATO YOUTUBE.jpg.jpeg" alt="XTREINO FREITAS Modo Liga" loading="lazy" referrerpolicy="no-referrer">
+                        <img src="assets/images/events/MODO LIGA FREITAS FORMATO YOUTUBE.jpg.jpeg" alt="Modo Liga" loading="lazy" referrerpolicy="no-referrer">
                     </div>
                     <div class="product-title">XTREINO FREITAS MODO LIGA</div>
                     <div class="product-desc">
                         <div class="space-y-1">
                             <div><strong>Valor:</strong> R$ 3,00</div>
-                            <div><strong>Horários:</strong> 14h - 15h - 16h - 17h - 18h - 19h - 20h - 21h - 22h - 23h</div>
+                            <div><strong>Horários:</strong> 14h às 23h</div>
                             <div><strong>Modalidade:</strong> Misto | Squad | 2 quedas | 15 slots</div>
-                            <div><strong>Premiação:</strong> Vaga em campeonato pro top¹ da tabela</div>
-                            <div><strong>Funcionamento:</strong> De Segunda-feira a Sexta-feira</div>
-                            <div><strong>Diferencial:</strong> Transmissão modo liga ao vivo, montagem de cronograma, 15 slots e Troféu</div>
                         </div>
                     </div>
                     <button onclick="openScheduleModal('modo-liga')" class="w-full btn-primary py-2 rounded-lg font-semibold">RESERVAR VAGA</button>
                 </article>
-
-                <!-- Semanal Freitas -->
                 <article class="product-card">
                     <div class="product-media">
                         <img src="assets/images/events/SEMANAL FREITAS FORMATO YOUTUBE.png" alt="Semanal Freitas" loading="lazy" referrerpolicy="no-referrer">
@@ -294,12 +286,8 @@
                     <div class="product-desc">
                         <div class="space-y-1">
                             <div><strong>Valor:</strong> R$ 3,50</div>
-                            <div><strong>Horários:</strong> 1ª Fase às 20h e 21h | Final às 22h</div>
-                            <div><strong>Bônus:</strong> Vaga direto na Final por apenas R$ 7,00</div>
                             <div><strong>Modalidade:</strong> Misto | Squad | 2 quedas</div>
                             <div><strong>Premiação:</strong> R$ 65,00</div>
-                            <div><strong>Funcionamento:</strong> De Segunda-feira a Sexta-feira</div>
-                            <div><strong>Diferencial:</strong> Termina no mesmo dia + premiação em dinheiro pro top¹</div>
                         </div>
                     </div>
                     <button onclick="openScheduleModal('semanal-freitas')" class="w-full btn-primary py-2 rounded-lg font-semibold">INSCREVER</button>

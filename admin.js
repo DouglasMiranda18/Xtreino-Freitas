@@ -9788,6 +9788,14 @@ function cancelEventForm() {
     document.getElementById('evtData').value = '';
     document.getElementById('evtDescricao').value = '';
     document.getElementById('evtFormError').classList.add('hidden');
+    // Limpar campos novos
+    const precoInput = document.getElementById('evtPreco');
+    if (precoInput) precoInput.value = '';
+    const precoWrapper = document.getElementById('evtPrecoWrapper');
+    if (precoWrapper) precoWrapper.style.display = 'none';
+    clearEvtImage();
+    const firstSize = document.querySelector('input[name="evtBannerSize"][value="1920x1080"]');
+    if (firstSize) firstSize.checked = true;
 }
 
 function validateEventForm(category) {
@@ -9814,6 +9822,52 @@ function validateEventForm(category) {
 
 let _isSavingEvent = false;
 
+// ---- Helpers de upload de imagem do evento ----
+function onEvtEntradaChange() {
+    const isPago = document.getElementById('evtEntrada').value === 'PAGO';
+    const wrapper = document.getElementById('evtPrecoWrapper');
+    if (wrapper) wrapper.style.display = isPago ? '' : 'none';
+}
+
+function onEvtImageSelected(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+        showToast('error', 'Imagem muito grande. Máximo: 5 MB.', 'Imagem');
+        input.value = '';
+        return;
+    }
+    const preview = document.getElementById('evtImagePreview');
+    const previewImg = document.getElementById('evtImagePreviewImg');
+    const previewName = document.getElementById('evtImagePreviewName');
+    if (preview && previewImg) {
+        previewImg.src = URL.createObjectURL(file);
+        if (previewName) previewName.textContent = file.name;
+        preview.classList.remove('hidden');
+    }
+    document.getElementById('evtImageUrl').value = '';
+}
+
+function clearEvtImage() {
+    const input = document.getElementById('evtImageInput');
+    const preview = document.getElementById('evtImagePreview');
+    const previewImg = document.getElementById('evtImagePreviewImg');
+    if (input) input.value = '';
+    if (previewImg) previewImg.src = '';
+    if (preview) preview.classList.add('hidden');
+    const urlField = document.getElementById('evtImageUrl');
+    if (urlField) urlField.value = '';
+}
+
+async function uploadEvtImage(file, eventId) {
+    const { ref, uploadBytes, getDownloadURL } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js');
+    const path = `events/${eventId || ('new_' + Date.now())}_${file.name}`;
+    const storageRef = ref(window.firebaseStorage, path);
+    await uploadBytes(storageRef, file);
+    return await getDownloadURL(storageRef);
+}
+// ---- Fim helpers ----
+
 async function saveEventForm() {
     if (_isSavingEvent) return;
 
@@ -9838,6 +9892,9 @@ async function saveEventForm() {
     }
 
     const editId = document.getElementById('evtEditId').value;
+    const bannerSizeEl = document.querySelector('input[name="evtBannerSize"]:checked');
+    const entrada = document.getElementById('evtEntrada').value;
+
     const data = {
         category,
         name: document.getElementById('evtName').value.trim(),
@@ -9845,11 +9902,19 @@ async function saveEventForm() {
         modo: document.getElementById('evtModo').value,
         status: document.getElementById('evtStatus').value,
         premiado: document.getElementById('evtPremiado').value,
-        entrada: document.getElementById('evtEntrada').value,
+        entrada,
         vagas: parseInt(document.getElementById('evtVagas').value, 10),
         descricao: document.getElementById('evtDescricao').value.trim(),
+        bannerSize: bannerSizeEl ? bannerSizeEl.value : '1920x1080',
         updatedAt: new Date().toISOString()
     };
+
+    if (entrada === 'PAGO') {
+        const preco = parseFloat(document.getElementById('evtPreco').value);
+        if (preco > 0) data.preco = preco;
+    } else {
+        data.preco = null;
+    }
 
     const dataVal = document.getElementById('evtData').value;
     if (dataVal) data.eventDate = new Date(dataVal).toISOString();
@@ -9860,7 +9925,19 @@ async function saveEventForm() {
 
     if (!editId) data.createdAt = new Date().toISOString();
 
+    // Manter imageUrl existente como default
+    const existingImageUrl = document.getElementById('evtImageUrl').value;
+    if (existingImageUrl) data.imageUrl = existingImageUrl;
+
     try {
+        // Fazer upload da imagem se uma nova foi selecionada
+        const imageFile = document.getElementById('evtImageInput').files?.[0];
+        if (imageFile && window.firebaseStorage) {
+            if (saveBtn) saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Enviando imagem...';
+            const tempId = editId || ('tmp_' + Date.now());
+            data.imageUrl = await uploadEvtImage(imageFile, tempId);
+        }
+
         const { collection, doc, addDoc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         if (editId) {
             await updateDoc(doc(window.firebaseDb, 'adminEvents', editId), data);
@@ -9980,6 +10057,31 @@ async function editEventItem(eventId) {
             document.getElementById('evtData').value = '';
         }
         document.getElementById('evtDescricao').value = ev.descricao || '';
+
+        // Preço
+        const precoInput = document.getElementById('evtPreco');
+        if (precoInput) precoInput.value = ev.preco || '';
+        onEvtEntradaChange();
+
+        // Banner size
+        if (ev.bannerSize) {
+            const sizeRadio = document.querySelector(`input[name="evtBannerSize"][value="${ev.bannerSize}"]`);
+            if (sizeRadio) sizeRadio.checked = true;
+        }
+
+        // Imagem existente
+        clearEvtImage();
+        if (ev.imageUrl) {
+            const preview = document.getElementById('evtImagePreview');
+            const previewImg = document.getElementById('evtImagePreviewImg');
+            const previewName = document.getElementById('evtImagePreviewName');
+            const urlField = document.getElementById('evtImageUrl');
+            if (previewImg) previewImg.src = ev.imageUrl;
+            if (previewName) previewName.textContent = 'Imagem atual';
+            if (preview) preview.classList.remove('hidden');
+            if (urlField) urlField.value = ev.imageUrl;
+        }
+
         document.getElementById('evtFormError').classList.add('hidden');
         onEvtModoChange();
         document.getElementById('evtFormArea').scrollIntoView({ behavior: 'smooth' });
