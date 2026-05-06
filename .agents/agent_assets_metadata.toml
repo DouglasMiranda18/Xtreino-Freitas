@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "f8OWt9htdzTifU0jnDr1x"
+uri = "file://firestore-rules.txt"
+type = "text"
+title = "Regras do Firestore (copie tudo daqui)"
