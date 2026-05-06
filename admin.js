@@ -9930,7 +9930,13 @@ async function saveEventForm() {
         if (imageFile && window.firebaseStorage) {
             if (saveBtn) saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Enviando imagem...';
             const tempId = editId || ('tmp_' + Date.now());
-            data.imageUrl = await uploadEvtImage(imageFile, tempId);
+            try {
+                data.imageUrl = await uploadEvtImage(imageFile, tempId);
+            } catch (uploadErr) {
+                console.error('Erro no upload da imagem:', uploadErr);
+                showToast('warning', 'Imagem não enviada (permissão negada). O evento será salvo sem imagem. Verifique as regras do Firebase Storage.', 'Atenção');
+                // Continua sem imageUrl — o evento é salvo mesmo assim
+            }
         }
 
         const { collection, doc, addDoc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
