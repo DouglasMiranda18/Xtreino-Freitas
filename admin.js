@@ -9832,11 +9832,6 @@ function onEvtEntradaChange() {
 function onEvtImageSelected(input) {
     const file = input.files && input.files[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-        showToast('error', 'Imagem muito grande. Máximo: 5 MB.', 'Imagem');
-        input.value = '';
-        return;
-    }
     const preview = document.getElementById('evtImagePreview');
     const previewImg = document.getElementById('evtImagePreviewImg');
     const previewName = document.getElementById('evtImagePreviewName');
