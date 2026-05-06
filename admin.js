@@ -1208,55 +1208,55 @@ window.showWarningToast = function(message, title = 'Atenção') {
   async function submitAddTeam(e){
     try{
       e?.preventDefault();
-  	  const hourEl = document.getElementById('addHour');
-  	  const teamEl = document.getElementById('addTeamName');
-  	  const contactEl = document.getElementById('addContact');
-  	  const personEl = document.getElementById('addPerson');
-  	  const notesEl = document.getElementById('addNotes');
-  	  const msgEl = document.getElementById('addTeamMsg');
-  	  const dateEl = document.getElementById('boardDate');
-  	  const typeEl = document.getElementById('boardEventType');
-  	  const schedule = (hourEl?.value || '').trim();
-  	  const teamName = (teamEl?.value || '').trim();
-  	  const contact = (contactEl?.value || '').trim();
-  	  const person = (personEl?.value || '').trim();
-  	  const notes = (notesEl?.value || '').trim();
-  	  const date = (dateEl?.value || '').trim();
-  	  const eventType = (typeEl?.value || '').trim();
-  	  if (!teamName || !contact){
-  	    alert('Informe ao menos Time/Org e Contato.');
-  	    return;
-  	  }
-  	  if (!date){
-  	    alert('Selecione uma data no painel de horários.');
-  	    return;
-  	  }
-  	  // Se horário não estiver definido, cria sem horário específico
-  	  const payload = {
-  	    teamName,
-  	    contact,
-  	    person: person || null,
-  	    notes: notes || null,
-  	    date,
-  	    schedule: schedule || '—',
-  	    eventType: eventType || null,
-  	    status: 'confirmed'
-  	  };
-  	  try{
-  	    const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-  	    await addDoc(collection(window.firebaseDb,'registrations'), { ...payload, createdAt: serverTimestamp() });
-  	    if (msgEl) msgEl.textContent = 'Time adicionado com sucesso!';
-  	    // limpar campos
-  	    if (teamEl) teamEl.value = '';
-  	    if (contactEl) contactEl.value = '';
-  	    if (personEl) personEl.value = '';
-  	    if (notesEl) notesEl.value = '';
-  	    // Atualiza quadro e pendências
-  	    try { await loadBoard(); } catch(_){}
-  	    try { await loadPending(true); } catch(_){}
-  	  }catch(err){
-  	    alert('Falha ao salvar time.');
-  	  }
+          const hourEl = document.getElementById('addHour');
+          const teamEl = document.getElementById('addTeamName');
+          const contactEl = document.getElementById('addContact');
+          const personEl = document.getElementById('addPerson');
+          const notesEl = document.getElementById('addNotes');
+          const msgEl = document.getElementById('addTeamMsg');
+          const dateEl = document.getElementById('boardDate');
+          const typeEl = document.getElementById('boardEventType');
+          const schedule = (hourEl?.value || '').trim();
+          const teamName = (teamEl?.value || '').trim();
+          const contact = (contactEl?.value || '').trim();
+          const person = (personEl?.value || '').trim();
+          const notes = (notesEl?.value || '').trim();
+          const date = (dateEl?.value || '').trim();
+          const eventType = (typeEl?.value || '').trim();
+          if (!teamName || !contact){
+            alert('Informe ao menos Time/Org e Contato.');
+            return;
+          }
+          if (!date){
+            alert('Selecione uma data no painel de horários.');
+            return;
+          }
+          // Se horário não estiver definido, cria sem horário específico
+          const payload = {
+            teamName,
+            contact,
+            person: person || null,
+            notes: notes || null,
+            date,
+            schedule: schedule || '—',
+            eventType: eventType || null,
+            status: 'confirmed'
+          };
+          try{
+            const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            await addDoc(collection(window.firebaseDb,'registrations'), { ...payload, createdAt: serverTimestamp() });
+            if (msgEl) msgEl.textContent = 'Time adicionado com sucesso!';
+            // limpar campos
+            if (teamEl) teamEl.value = '';
+            if (contactEl) contactEl.value = '';
+            if (personEl) personEl.value = '';
+            if (notesEl) notesEl.value = '';
+            // Atualiza quadro e pendências
+            try { await loadBoard(); } catch(_){}
+            try { await loadPending(true); } catch(_){}
+          }catch(err){
+            alert('Falha ao salvar time.');
+          }
     }catch(_){ }
   }
   // Expor submitAddTeam globalmente
@@ -1280,7 +1280,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
     }catch(e){}
 
     // 
-    if (!['ceo','gerente','vendedor','design','designer','desgin','socio','sócio','afiliado','staff'].includes((role||'').toLowerCase())){
+    if (!['admin','ceo','gerente','vendedor','design','designer','desgin','socio','sócio','afiliado','staff'].includes((role||'').toLowerCase())){
       authGate.classList.remove('hidden');
       dashboard.classList.add('hidden');
       return;
@@ -3581,12 +3581,12 @@ window.showWarningToast = function(message, title = 'Atenção') {
   // Usuários ativos nos últimos 30 dias (baseado em lastLogin em users)
   async function renderActiveUsers(){
     try{
-  	  const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+          const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
       const snap = await getDocs(collection(window.firebaseDb,'users'));
       const thirtyDaysAgo = Date.now() - 30*24*60*60*1000;
       let active = 0; snap.forEach(d=>{ const u=d.data(); if (Number(u.lastLogin||0) >= thirtyDaysAgo) active++; });
-  	  const kpiActiveEl = document.getElementById('kpiActiveUsers');
-  	  if (kpiActiveEl) kpiActiveEl.textContent = String(active);
+          const kpiActiveEl = document.getElementById('kpiActiveUsers');
+          if (kpiActiveEl) kpiActiveEl.textContent = String(active);
     }catch(e){  }
   }
 
@@ -5108,7 +5108,7 @@ window.addEventListener('load', () => {
         const role = (newUserData.role || '').toLowerCase().trim();        
         
         // Continuar com o processo de login
-        const authorizedRoles = ['admin', 'gerente', 'vendedor', 'design', 'designer', 'desgin', 'socio', 'sócio'];
+        const authorizedRoles = ['admin', 'ceo', 'gerente', 'vendedor', 'design', 'designer', 'desgin', 'socio', 'sócio'];
         const isAuthorized = authorizedRoles.includes(role);
         
         if (!isAuthorized) {
@@ -5117,7 +5117,7 @@ window.addEventListener('load', () => {
           return;
         }
         
-        // Para socio, permitir qualquer email
+        // Para socio/ceo, permitir qualquer email
         if (role === 'socio' || role === 'sócio' || role === 'ceo') {   
           
           // Save session
@@ -5161,7 +5161,7 @@ window.addEventListener('load', () => {
       const cleanRole = role.trim();     
       
       // Check if role is authorized (including variations and typos)
-      const authorizedRoles = ['admin', 'gerente', 'vendedor', 'design', 'designer', 'desgin', 'socio', 'sócio'];
+      const authorizedRoles = ['admin', 'ceo', 'gerente', 'vendedor', 'design', 'designer', 'desgin', 'socio', 'sócio'];
       const isAuthorized = authorizedRoles.includes(cleanRole);
             
       if (!isAuthorized) {        
@@ -5170,15 +5170,16 @@ window.addEventListener('load', () => {
         return;
       }      
     
-      // Gerente não precisa estar na whitelist - apenas precisa ter o role correto
-      if (['admin', 'vendedor', 'ceo'].includes(cleanRole)) {
+      // Gerente/design/socio/ceo não precisam estar na whitelist - apenas precisam ter o role correto
+      if (['admin', 'vendedor'].includes(cleanRole)) {
         
         const ADMIN_EMAILS = [
           'cleitondouglass@gmail.com',
           'cleitondouglass123@hotmail.com',
           'gilmariofreitas378@gmail.com',
           'gilmariofreitas387@gmail.com',
-          'flavetyr@gmail.com'
+          'flavetyr@gmail.com',
+          'admin@xtreino.dev'
         ];                
         
         if (!ADMIN_EMAILS.includes(user.email.toLowerCase())) {

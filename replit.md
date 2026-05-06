@@ -4,7 +4,7 @@ A digital platform for eSports training and products focused on the Free Fire co
 
 ## Run & Operate
 
-- **Start**: `serve -s . -l 5000` (static file server on port 5000)
+- **Start**: `serve . -l 5000` (static file server on port 5000)
 - No build step required — pure HTML/CSS/JS served directly
 - Required env vars: Firebase config is embedded in `/config/firebase.js`; Mercado Pago token in `netlify.toml`
 
