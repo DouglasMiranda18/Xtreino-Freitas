@@ -3212,7 +3212,10 @@ window.showWarningToast = function(message, title = 'Atenção') {
     }
   })();
 
+  let _isLoadingBoard = false;
   async function loadBoard(){
+    if (_isLoadingBoard) return;
+    _isLoadingBoard = true;
     try {
       // Validação de elementos DOM
       const dateEl = document.getElementById('boardDate');
@@ -3325,14 +3328,16 @@ window.showWarningToast = function(message, title = 'Atenção') {
       bindBoardTableActions(tbody, date, eventType, ovEventType);
 
     } catch (e) {
-      console.error('❌ Erro em loadBoard:', e);
-      alert('Erro ao carregar o quadro de horários. Verifique o console.');
+      console.error('❌ Erro em loadBoard:', e.message || e);
+    } finally {
+      _isLoadingBoard = false;
     }
   }
 
   // Binda ações dos botões da tabela
   function bindBoardTableActions(tbody, date, eventType, ovEventType) {
     // Remover listeners antigos para evitar duplicação
+    if (!tbody || !tbody.parentNode) return;
     const newTbody = tbody.cloneNode(true);
     tbody.parentNode.replaceChild(newTbody, tbody);
     
