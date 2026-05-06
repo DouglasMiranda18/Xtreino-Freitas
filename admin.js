@@ -339,6 +339,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
     const sectionHighlights = document.getElementById('sectionHighlights');
     const sectionNews = document.getElementById('sectionNews');
     const sectionProducts = document.getElementById('sectionProducts');
+    const sectionEventsSection = document.getElementById('sectionEvents');
     const sectionSchedules = document.getElementById('sectionSchedules');
     const sectionAdminHistory = document.getElementById('sectionAdminHistory');
     const sectionAffiliatePanel = document.getElementById('sectionAffiliatePanel');
@@ -357,6 +358,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
     if (sectionAffiliateSales) sectionAffiliateSales.style.display = 'none';
     if (sectionPasseBooyah) sectionPasseBooyah.style.display = 'none';
     if (sectionProducts) sectionProducts.style.display = 'none';
+    if (sectionEventsSection) sectionEventsSection.style.display = 'none';
     if (sectionSchedules) sectionSchedules.style.display = 'none';
     if (sectionHighlights) sectionHighlights.style.display = 'none';
     if (sectionNews) sectionNews.style.display = 'none';
@@ -473,6 +475,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
       if (sectionTokens) sectionTokens.style.display = 'none';
       if (sectionCoupons) sectionCoupons.style.display = 'none';
       if (sectionProducts) sectionProducts.style.display = 'none';
+      if (sectionEventsSection) sectionEventsSection.style.display = 'none';
       if (sectionHighlights) sectionHighlights.style.display = 'none';
       if (sectionNews) sectionNews.style.display = 'none';
       if (sectionAdminHistory) sectionAdminHistory.style.display = 'none';
@@ -496,6 +499,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
       if (sectionAffiliateSales) sectionAffiliateSales.style.display = 'block';
       if (sectionPasseBooyah) sectionPasseBooyah.style.display = 'block';
       if (sectionProducts) sectionProducts.style.display = 'block';
+      if (sectionEventsSection) { sectionEventsSection.style.display = 'block'; loadEventsPreview(); }
       if (sectionSchedules) sectionSchedules.style.display = 'block';
       if (sectionHighlights) sectionHighlights.style.display = 'block';
       if (sectionNews) sectionNews.style.display = 'block';
@@ -518,6 +522,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
       if (sectionAffiliateSales) sectionAffiliateSales.style.display = 'block';
       if (sectionPasseBooyah) sectionPasseBooyah.style.display = 'block';
       if (sectionProducts) sectionProducts.style.display = 'block';
+      if (sectionEventsSection) { sectionEventsSection.style.display = 'block'; loadEventsPreview(); }
       if (sectionSchedules) sectionSchedules.style.display = 'block';
       if (sectionHighlights) sectionHighlights.style.display = 'block';
       if (sectionNews) sectionNews.style.display = 'block';
@@ -540,6 +545,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
       if (sectionCouponUsage) sectionCouponUsage.style.display = 'none';
       if (sectionPasseBooyah) sectionPasseBooyah.style.display = 'none';
       if (sectionProducts) sectionProducts.style.display = 'none';
+      if (sectionEventsSection) sectionEventsSection.style.display = 'none';
       // Gerente também pode ver e operar o controle de horários
       if (sectionSchedules) sectionSchedules.style.display = 'block';
       // Exibir Notícias e Destaques para leitura (edições já são limitadas por permissões)
@@ -562,6 +568,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
       if (sectionFilters) sectionFilters.style.display = 'none';
       if (sectionUsersManagement) sectionUsersManagement.style.display = 'none';
       if (sectionProducts) sectionProducts.style.display = 'none';
+      if (sectionEventsSection) sectionEventsSection.style.display = 'none';
       if (sectionSchedules) sectionSchedules.style.display = 'none';
       if (sectionHighlights) sectionHighlights.style.display = 'none';
       if (sectionNews) sectionNews.style.display = 'none';
@@ -9974,6 +9981,48 @@ async function deleteEventItem(eventId) {
     }
 }
 
+async function loadEventsPreview() {
+    const previewEl = document.getElementById('eventsPreview');
+    if (!previewEl || !window.firebaseDb) return;
+
+    try {
+        const { collection, getDocs, query, orderBy, limit } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        let q;
+        try {
+            q = query(collection(window.firebaseDb, 'adminEvents'), orderBy('createdAt', 'desc'), limit(6));
+        } catch {
+            q = query(collection(window.firebaseDb, 'adminEvents'), limit(6));
+        }
+        const snap = await getDocs(q);
+
+        if (snap.empty) {
+            previewEl.innerHTML = '<p class="text-sm text-gray-400 text-center py-3">Nenhum evento cadastrado. Clique em "Criar / Gerenciar" para começar.</p>';
+            return;
+        }
+
+        const catLabel = { camp: '🏆 Campeonato', xtreino: '🎮 X-Treino', diario: '📅 Diário' };
+        const statusColors = { 'Aberto': 'bg-green-100 text-green-700', 'Em andamento': 'bg-blue-100 text-blue-700', 'Fechado': 'bg-red-100 text-red-700' };
+
+        previewEl.innerHTML = snap.docs.map(d => {
+            const ev = d.data();
+            const statusCls = statusColors[ev.status] || 'bg-gray-100 text-gray-600';
+            const catStr = catLabel[ev.category] || ev.category;
+            return `<div class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="text-xs text-gray-500 whitespace-nowrap">${catStr}</span>
+                    <span class="font-medium text-sm truncate">${escapeAdminHtml(ev.name)}</span>
+                    <span class="text-xs px-1.5 py-0.5 rounded-full ${statusCls} whitespace-nowrap">${ev.status || 'Aberto'}</span>
+                </div>
+                <span class="text-xs text-gray-400 whitespace-nowrap ml-2">${ev.tipo} · ${ev.modo} · ${ev.vagas} vagas</span>
+            </div>`;
+        }).join('');
+    } catch (err) {
+        const previewEl2 = document.getElementById('eventsPreview');
+        if (previewEl2) previewEl2.innerHTML = '<p class="text-sm text-gray-400 text-center py-3">Não foi possível carregar eventos.</p>';
+    }
+}
+
+window.loadEventsPreview = loadEventsPreview;
 window.openEventsModal = openEventsModal;
 window.closeEventsModal = closeEventsModal;
 window.switchEventTab = switchEventTab;
