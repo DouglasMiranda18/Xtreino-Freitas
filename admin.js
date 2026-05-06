@@ -1212,7 +1212,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
   }
 
   // Submissão manual de equipe/cadastro rápido (confirma vaga sem pagamento)
+  let _isSavingTeam = false;
   async function submitAddTeam(e){
+    if (_isSavingTeam) { e?.preventDefault(); return; }
     try{
       e?.preventDefault();
           const hourEl = document.getElementById('addHour');
@@ -1238,6 +1240,11 @@ window.showWarningToast = function(message, title = 'Atenção') {
             alert('Selecione uma data no painel de horários.');
             return;
           }
+          const submitBtn = document.querySelector('#formAddTeam button[type="submit"], #formAddTeam button:not([type="button"])');
+          const originalBtnText = submitBtn ? submitBtn.textContent : null;
+          _isSavingTeam = true;
+          if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Salvando...'; }
+          if (msgEl) msgEl.textContent = '';
           // Se horário não estiver definido, cria sem horário específico
           const payload = {
             teamName,
@@ -1263,8 +1270,11 @@ window.showWarningToast = function(message, title = 'Atenção') {
             try { await loadPending(true); } catch(_){}
           }catch(err){
             alert('Falha ao salvar time.');
+          } finally {
+            _isSavingTeam = false;
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = originalBtnText || 'Adicionar'; }
           }
-    }catch(_){ }
+    }catch(_){ _isSavingTeam = false; }
   }
   // Expor submitAddTeam globalmente
   window.submitAddTeam = submitAddTeam;
@@ -9814,7 +9824,11 @@ function validateEventForm(category) {
     return null;
 }
 
+let _isSavingEvent = false;
+
 async function saveEventForm() {
+    if (_isSavingEvent) return;
+
     const category = currentEventTab;
     const error = validateEventForm(category);
     const errorEl = document.getElementById('evtFormError');
@@ -9825,6 +9839,15 @@ async function saveEventForm() {
         return;
     }
     errorEl.classList.add('hidden');
+
+    const saveBtn = document.querySelector('#evtFormArea button[onclick="saveEventForm()"]');
+    const originalHtml = saveBtn ? saveBtn.innerHTML : null;
+
+    _isSavingEvent = true;
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Salvando...';
+    }
 
     const editId = document.getElementById('evtEditId').value;
     const data = {
@@ -9864,6 +9887,12 @@ async function saveEventForm() {
         console.error('Erro ao salvar evento:', err);
         errorEl.textContent = 'Erro ao salvar evento: ' + (err.message || err);
         errorEl.classList.remove('hidden');
+    } finally {
+        _isSavingEvent = false;
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalHtml || '<i class="fas fa-save mr-1"></i>Salvar Evento';
+        }
     }
 }
 
