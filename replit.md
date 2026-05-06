@@ -50,6 +50,7 @@ A digital platform for eSports training and products focused on the Free Fire co
 ## User preferences
 
 - Admin credentials: `admin@xtreino.dev` / `Admin@2025!` (role: ceo)
+- Sempre gerar os dois arquivos de regras completos (`firestore-rules.txt` + `storage-rules.txt`) como download antes de qualquer alteração no Firebase, para evitar perda de regras ao colar no Console
 
 ## Gotchas
 
