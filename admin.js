@@ -9841,6 +9841,26 @@ function onEvtImageSelected(input) {
         preview.classList.remove('hidden');
     }
     document.getElementById('evtImageUrl').value = '';
+    const urlDirect = document.getElementById('evtImageUrlDirect');
+    if (urlDirect) urlDirect.value = '';
+}
+
+function onEvtImageUrlInput(input) {
+    const url = input.value.trim();
+    const preview = document.getElementById('evtImagePreview');
+    const previewImg = document.getElementById('evtImagePreviewImg');
+    const previewName = document.getElementById('evtImagePreviewName');
+    const fileInput = document.getElementById('evtImageInput');
+    if (url) {
+        if (fileInput) fileInput.value = '';
+        document.getElementById('evtImageUrl').value = url;
+        if (previewImg) previewImg.src = url;
+        if (previewName) previewName.textContent = 'Link direto';
+        if (preview) preview.classList.remove('hidden');
+    } else {
+        document.getElementById('evtImageUrl').value = '';
+        if (preview) preview.classList.add('hidden');
+    }
 }
 
 function clearEvtImage() {
@@ -9852,14 +9872,33 @@ function clearEvtImage() {
     if (preview) preview.classList.add('hidden');
     const urlField = document.getElementById('evtImageUrl');
     if (urlField) urlField.value = '';
+    const urlDirect = document.getElementById('evtImageUrlDirect');
+    if (urlDirect) urlDirect.value = '';
 }
 
 async function uploadEvtImage(file, eventId) {
     const { ref, uploadBytes, getDownloadURL } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js');
+    const { getAuth } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
+
+    // Diagnóstico: verificar auth e bucket
+    const auth = getAuth(window.firebaseApp);
+    const currentUser = auth.currentUser;
+    const bucketUrl = window.firebaseStorage?._url || window.firebaseStorage?.app?.options?.storageBucket || 'desconhecido';
+    console.log('[Storage Upload] Auth user:', currentUser ? currentUser.email : 'NÃO AUTENTICADO');
+    console.log('[Storage Upload] Bucket:', bucketUrl);
+    console.log('[Storage Upload] File:', file.name, file.size, 'bytes');
+
+    if (!currentUser) {
+        throw new Error('Usuário não autenticado. Faça login novamente.');
+    }
+
     const path = `events/${eventId || ('new_' + Date.now())}_${file.name}`;
+    console.log('[Storage Upload] Path:', path);
     const storageRef = ref(window.firebaseStorage, path);
     await uploadBytes(storageRef, file);
-    return await getDownloadURL(storageRef);
+    const url = await getDownloadURL(storageRef);
+    console.log('[Storage Upload] Sucesso! URL:', url);
+    return url;
 }
 // ---- Fim helpers ----
 
@@ -10160,3 +10199,7 @@ window.cancelEventForm = cancelEventForm;
 window.saveEventForm = saveEventForm;
 window.editEventItem = editEventItem;
 window.deleteEventItem = deleteEventItem;
+window.onEvtImageSelected = onEvtImageSelected;
+window.onEvtImageUrlInput = onEvtImageUrlInput;
+window.clearEvtImage = clearEvtImage;
+window.onEvtEntradaChange = onEvtEntradaChange;

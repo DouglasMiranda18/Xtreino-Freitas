@@ -1854,6 +1854,12 @@
                         </label>
                         <input id="evtImageInput" type="file" accept="image/*" class="hidden" onchange="onEvtImageSelected(this)">
                         <input id="evtImageUrl" type="hidden" value="">
+                        <div class="flex items-center gap-2 mt-1">
+                            <div class="flex-1 h-px bg-gray-200"></div>
+                            <span class="text-xs text-gray-400 px-2">ou cole um link direto</span>
+                            <div class="flex-1 h-px bg-gray-200"></div>
+                        </div>
+                        <input id="evtImageUrlDirect" type="url" placeholder="https://... (URL de imagem já hospedada)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" oninput="onEvtImageUrlInput(this)">
                     </div>
                 </div>
             </div>

@@ -24,7 +24,7 @@ async function initializeIfConfigured() {
         providers.google = new GoogleAuthProvider();
 
         const { getStorage } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js');
-        const storage = getStorage(app);
+        const storage = getStorage(app, 'gs://orgfreitas-ofc.firebasestorage.app');
 
         window.firebaseApp = app;
         window.firebaseAuth = auth;
