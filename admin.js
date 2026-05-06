@@ -4152,16 +4152,20 @@ async function main() {
 
     const { onAuthStateChanged, signInWithEmailAndPassword, signOut } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
 
-    emailForm?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const email = document.getElementById('adminEmail').value;
-        const password = document.getElementById('adminPassword').value;
-        try {
-            await signInWithEmailAndPassword(window.firebaseAuth, email, password);
-        } catch (err) {
-            alert('Credenciais inválidas.');
-        }
-    });
+    if (emailForm && !emailForm.dataset.listenerAttached) {
+        emailForm.dataset.listenerAttached = '1';
+        emailForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('adminEmail').value;
+            const password = document.getElementById('adminPassword').value;
+            const errEl = document.getElementById('loginError');
+            try {
+                await signInWithEmailAndPassword(window.firebaseAuth, email, password);
+            } catch (err) {
+                if (errEl) { errEl.textContent = 'E-mail ou senha inválidos.'; errEl.classList.remove('hidden'); }
+            }
+        });
+    }
 
     btnLogout?.addEventListener('click', async () => {
         try { await signOut(window.firebaseAuth); } catch {}
@@ -8292,18 +8296,24 @@ window.deleteCoupon = deleteCoupon;
 
 // Carregar usuários quando o admin for inicializado
 document.addEventListener('DOMContentLoaded', function() {
-  // Aguardar o Firebase estar pronto
-  const waitForFirebase = () => {
-    if (window.firebaseReady && window.firebaseDb) {
-      loadUsersForTables();
-      // Carregar links do WhatsApp automaticamente
-      loadAdminWhatsAppLinks();
-      // loadPermissionsUsers será chamada depois do login via setView
+  // Aguardar Firebase E usuário autenticado antes de carregar dados protegidos
+  const waitForFirebaseAndAuth = () => {
+    if (window.firebaseReady && window.firebaseDb && window.firebaseAuth) {
+      const { onAuthStateChanged } = window.firebaseAuthModule || {};
+      // Usar import dinâmico para aguardar auth state
+      import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js').then(({ onAuthStateChanged }) => {
+        onAuthStateChanged(window.firebaseAuth, (user) => {
+          if (user) {
+            loadUsersForTables();
+            loadAdminWhatsAppLinks();
+          }
+        });
+      }).catch(() => {});
     } else {
-      setTimeout(waitForFirebase, 100);
+      setTimeout(waitForFirebaseAndAuth, 150);
     }
   };
-  waitForFirebase();
+  waitForFirebaseAndAuth();
   
   // Event listener para formulário de criação de cupons
   const createCouponForm = document.getElementById('createCouponForm');
@@ -9545,4 +9555,131 @@ window.openProductsModal = openProductsModal;
 window.closeProductsModal = closeProductsModal;
 window.addProduct = addProduct;
 window.deleteProduct = deleteProduct;
+
+// ==================== ADMIN NOTIFICATION SYSTEM ====================
+
+function toggleNotifUserField() {
+    const target = document.getElementById('notifTarget');
+    const row = document.getElementById('notifUserIdRow');
+    if (!target || !row) return;
+    if (target.value === 'user') {
+        row.classList.remove('hidden');
+    } else {
+        row.classList.add('hidden');
+    }
+}
+
+async function sendAdminNotification() {
+    const titleEl = document.getElementById('notifTitle');
+    const messageEl = document.getElementById('notifMessage');
+    const targetEl = document.getElementById('notifTarget');
+    const userIdEl = document.getElementById('notifUserId');
+
+    if (!titleEl || !messageEl || !targetEl) return;
+
+    const title = titleEl.value.trim();
+    const message = messageEl.value.trim();
+    const target = targetEl.value;
+    const targetUserId = (target === 'user' && userIdEl) ? userIdEl.value.trim() : null;
+
+    if (!title) { showToast('warning', 'Informe o título da notificação.', 'Atenção'); return; }
+    if (!message) { showToast('warning', 'Informe a mensagem da notificação.', 'Atenção'); return; }
+    if (target === 'user' && !targetUserId) { showToast('warning', 'Informe o UID do usuário destinatário.', 'Atenção'); return; }
+
+    if (!window.firebaseDb) { showToast('error', 'Firebase não inicializado.', 'Erro'); return; }
+
+    const btn = document.querySelector('[onclick="sendAdminNotification()"]');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Enviando...'; }
+
+    try {
+        const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const user = window.firebaseAuth?.currentUser;
+
+        await addDoc(collection(window.firebaseDb, 'notifications'), {
+            title,
+            message,
+            type: target,
+            targetUserId: targetUserId || null,
+            createdAt: serverTimestamp(),
+            createdBy: user ? (user.displayName || user.email || user.uid) : 'Admin',
+            createdByUid: user ? user.uid : null
+        });
+
+        showToast('success', `Notificação enviada para ${target === 'all' ? 'todos os usuários' : 'usuário específico'}.`, 'Sucesso');
+        titleEl.value = '';
+        messageEl.value = '';
+        if (userIdEl) userIdEl.value = '';
+        await loadAdminNotifications();
+    } catch (err) {
+        console.error('Erro ao enviar notificação:', err);
+        showToast('error', 'Erro ao enviar notificação: ' + (err.message || err), 'Erro');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Enviar Notificação'; }
+    }
+}
+
+async function loadAdminNotifications() {
+    const listEl = document.getElementById('adminNotifList');
+    if (!listEl) return;
+    if (!window.firebaseDb) { listEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Firebase não disponível.</p>'; return; }
+
+    listEl.innerHTML = '<div class="text-center text-gray-400 py-4 text-sm"><i class="fas fa-spinner fa-spin mr-2"></i>Carregando...</div>';
+
+    try {
+        const { collection, getDocs, query, orderBy, limit, deleteDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const q = query(collection(window.firebaseDb, 'notifications'), orderBy('createdAt', 'desc'), limit(30));
+        const snap = await getDocs(q);
+
+        if (snap.empty) {
+            listEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-6">Nenhuma notificação enviada ainda.</p>';
+            return;
+        }
+
+        listEl.innerHTML = snap.docs.map(d => {
+            const n = d.data();
+            const dateStr = n.createdAt ? new Date(n.createdAt.toDate ? n.createdAt.toDate() : n.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
+            const targetLabel = n.type === 'all' ? '<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Todos</span>' : `<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-mono">${n.targetUserId || 'Específico'}</span>`;
+            return `<div class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <div class="flex-1 min-w-0">
+                    <div class="flex flex-wrap items-center gap-2 mb-1">
+                        <span class="font-semibold text-sm text-gray-900">${escapeAdminHtml(n.title || '-')}</span>
+                        ${targetLabel}
+                    </div>
+                    <p class="text-xs text-gray-600 leading-relaxed">${escapeAdminHtml(n.message || '')}</p>
+                    <div class="text-xs text-gray-400 mt-1">Enviado em ${dateStr} por ${escapeAdminHtml(n.createdBy || 'Admin')}</div>
+                </div>
+                <button onclick="deleteAdminNotification('${d.id}')" title="Excluir" class="flex-shrink-0 text-red-400 hover:text-red-600 p-1">
+                    <i class="fas fa-trash text-xs"></i>
+                </button>
+            </div>`;
+        }).join('');
+    } catch (err) {
+        console.error('Erro ao carregar notificações:', err);
+        listEl.innerHTML = '<p class="text-red-400 text-sm text-center py-4">Erro ao carregar notificações.</p>';
+    }
+}
+
+async function deleteAdminNotification(notifId) {
+    if (!notifId || !window.firebaseDb) return;
+    if (!confirm('Tem certeza que deseja excluir esta notificação?')) return;
+    try {
+        const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        await deleteDoc(doc(window.firebaseDb, 'notifications', notifId));
+        showToast('success', 'Notificação excluída.', 'Sucesso');
+        await loadAdminNotifications();
+    } catch (err) {
+        console.error('Erro ao excluir notificação:', err);
+        showToast('error', 'Erro ao excluir notificação.', 'Erro');
+    }
+}
+
+function escapeAdminHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+window.toggleNotifUserField = toggleNotifUserField;
+window.sendAdminNotification = sendAdminNotification;
+window.loadAdminNotifications = loadAdminNotifications;
+window.deleteAdminNotification = deleteAdminNotification;
 window.saveProducts = saveProducts;

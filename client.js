@@ -128,7 +128,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
 // Client Area JavaScript
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import { getAuth, onAuthStateChanged, signOut, browserLocalPersistence, setPersistence } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
-import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, orderBy, limit, addDoc } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, orderBy, limit, addDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js';
 
 // Reuse global Firebase app/auth/db initialized in firebase.js
@@ -230,6 +230,8 @@ async function checkAuthState() {
             await reconcilePendingPayments();
             // Verificar role de afiliado após carregar perfil (já é chamado no loadDashboard, mas garantir)
             await checkAffiliateRole();
+            // Iniciar contador de notificações não lidas
+            initNotificationCounter().catch(() => {});
             // Verificar novamente após um delay para garantir que o DOM está pronto
             setTimeout(async () => {
                 await checkAffiliateRole();
@@ -259,6 +261,8 @@ function setupEventListeners() {
     if (tokensTab) tokensTab.addEventListener('click', async () => await switchTab('tokens'));
     if (profileTab) profileTab.addEventListener('click', async () => await switchTab('profile'));
     if (affiliateTab) affiliateTab.addEventListener('click', async () => await switchTab('affiliate'));
+    const notificationsTab = document.getElementById('notificationsTab');
+    if (notificationsTab) notificationsTab.addEventListener('click', async () => await switchTab('notifications'));
 
     // Logout button
     const logoutBtn = document.getElementById('logoutBtn');
@@ -312,6 +316,9 @@ async function switchTab(tabName) {
             // Verificar novamente se é afiliado antes de carregar
             await checkAffiliateRole();
             await loadAffiliateData();
+            break;
+        case 'notifications':
+            await loadNotifications();
             break;
     }
 }
@@ -3397,3 +3404,171 @@ window.purchaseTokensQuick = async function(quantity) {
         showToast('error', `Erro ao processar compra rápida: ${error && error.message ? error.message : String(error)}`, 'Erro');
     }
 }
+
+// ==================== NOTIFICATION SYSTEM ====================
+let _notifUnsubscribe = null;
+
+async function loadNotifications() {
+    if (!currentUser || !db) return;
+    const listEl = document.getElementById('notificationsList');
+    if (!listEl) return;
+
+    listEl.innerHTML = `<div class="flex items-center justify-center py-12 text-gray-400">
+        <div class="text-center"><i class="fas fa-spinner fa-spin text-3xl mb-3 block"></i><p class="text-sm">Carregando...</p></div>
+    </div>`;
+
+    try {
+        const notifRef = collection(db, 'notifications');
+        const q = query(notifRef, orderBy('createdAt', 'desc'), limit(50));
+        const snap = await getDocs(q);
+
+        const readsRef = collection(db, 'notificationReads');
+        const readsQ = query(readsRef, where('userId', '==', currentUser.uid));
+        const readsSnap = await getDocs(readsQ);
+        const readIds = new Set(readsSnap.docs.map(d => d.data().notifId));
+
+        const notifs = [];
+        snap.forEach(d => {
+            const data = d.data();
+            if (data.type === 'all' || data.targetUserId === currentUser.uid) {
+                notifs.push({ id: d.id, ...data, isRead: readIds.has(d.id) });
+            }
+        });
+
+        renderNotifications(notifs, readIds);
+        updateBellCounter(notifs.filter(n => !n.isRead).length);
+    } catch (err) {
+        console.error('Erro ao carregar notificações:', err);
+        listEl.innerHTML = `<div class="flex items-center justify-center py-12 text-gray-400">
+            <p class="text-sm">Não foi possível carregar notificações.</p>
+        </div>`;
+    }
+}
+
+function renderNotifications(notifs, readIds) {
+    const listEl = document.getElementById('notificationsList');
+    if (!listEl) return;
+
+    if (notifs.length === 0) {
+        listEl.innerHTML = `<div class="flex items-center justify-center py-16 text-gray-400">
+            <div class="text-center">
+                <i class="fas fa-bell-slash text-4xl mb-3 block"></i>
+                <p class="text-sm font-medium">Nenhuma notificação</p>
+                <p class="text-xs mt-1">Você será notificado sobre novidades e eventos aqui</p>
+            </div>
+        </div>`;
+        return;
+    }
+
+    listEl.innerHTML = notifs.map(n => {
+        const isRead = n.isRead || readIds.has(n.id);
+        const dateStr = n.createdAt ? new Date(n.createdAt.toDate ? n.createdAt.toDate() : n.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+        return `<div class="flex items-start gap-4 px-6 py-4 ${isRead ? 'bg-white' : 'bg-blue-50 border-l-4 border-l-blue-500'} hover:bg-gray-50 transition-colors" data-notif-id="${n.id}">
+            <div class="flex-shrink-0 mt-1">
+                <div class="w-9 h-9 rounded-full flex items-center justify-center ${isRead ? 'bg-gray-100 text-gray-400' : 'bg-blue-100 text-blue-600'}">
+                    <i class="fas fa-bell text-sm"></i>
+                </div>
+            </div>
+            <div class="flex-1 min-w-0">
+                <div class="flex items-start justify-between gap-2">
+                    <p class="font-semibold text-sm text-gray-900 ${isRead ? '' : 'text-blue-900'}">${escapeHtml(n.title || 'Notificação')}</p>
+                    <span class="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">${dateStr}</span>
+                </div>
+                <p class="text-sm text-gray-600 mt-1 leading-relaxed">${escapeHtml(n.message || '')}</p>
+                ${!isRead ? `<button onclick="markNotificationRead('${n.id}')" class="mt-2 text-xs text-blue-600 hover:text-blue-800 font-medium">Marcar como lida</button>` : `<span class="text-xs text-gray-400 mt-1 inline-block">Lida</span>`}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+async function markNotificationRead(notifId) {
+    if (!currentUser || !db || !notifId) return;
+    try {
+        const readDocId = `${currentUser.uid}_${notifId}`;
+        const readRef = doc(db, 'notificationReads', readDocId);
+        await setDoc(readRef, {
+            userId: currentUser.uid,
+            notifId: notifId,
+            readAt: new Date()
+        }, { merge: true });
+        await loadNotifications();
+    } catch (err) {
+        console.error('Erro ao marcar notificação como lida:', err);
+    }
+}
+
+async function markAllNotificationsRead() {
+    if (!currentUser || !db) return;
+    const items = document.querySelectorAll('[data-notif-id]');
+    if (items.length === 0) { showToast('info', 'Nenhuma notificação para marcar.', 'Notificações'); return; }
+    try {
+        const promises = [];
+        items.forEach(el => {
+            const notifId = el.getAttribute('data-notif-id');
+            if (notifId) {
+                const readDocId = `${currentUser.uid}_${notifId}`;
+                const readRef = doc(db, 'notificationReads', readDocId);
+                promises.push(setDoc(readRef, { userId: currentUser.uid, notifId, readAt: new Date() }, { merge: true }));
+            }
+        });
+        await Promise.all(promises);
+        await loadNotifications();
+        showToast('success', 'Todas as notificações foram marcadas como lidas.', 'Notificações');
+    } catch (err) {
+        console.error('Erro ao marcar todas como lidas:', err);
+        showToast('error', 'Erro ao marcar notificações.', 'Erro');
+    }
+}
+
+function updateBellCounter(count) {
+    const badge = document.getElementById('notifBadge');
+    const tabBadge = document.getElementById('notifTabBadge');
+    if (badge) {
+        if (count > 0) {
+            badge.textContent = count > 99 ? '99+' : count;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+    if (tabBadge) {
+        if (count > 0) {
+            tabBadge.textContent = count > 99 ? '99+' : count;
+            tabBadge.classList.remove('hidden');
+        } else {
+            tabBadge.classList.add('hidden');
+        }
+    }
+}
+
+async function initNotificationCounter() {
+    if (!currentUser || !db) return;
+    try {
+        const notifRef = collection(db, 'notifications');
+        const q = query(notifRef, orderBy('createdAt', 'desc'), limit(50));
+        const snap = await getDocs(q);
+
+        const readsRef = collection(db, 'notificationReads');
+        const readsQ = query(readsRef, where('userId', '==', currentUser.uid));
+        const readsSnap = await getDocs(readsQ);
+        const readIds = new Set(readsSnap.docs.map(d => d.data().notifId));
+
+        let unread = 0;
+        snap.forEach(d => {
+            const data = d.data();
+            if ((data.type === 'all' || data.targetUserId === currentUser.uid) && !readIds.has(d.id)) {
+                unread++;
+            }
+        });
+        updateBellCounter(unread);
+    } catch (_) {}
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+window.markNotificationRead = markNotificationRead;
+window.markAllNotificationsRead = markAllNotificationsRead;
+window.switchTab = switchTab;
