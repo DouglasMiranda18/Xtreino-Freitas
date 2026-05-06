@@ -9891,13 +9891,17 @@ async function loadEventsList(category) {
 
     try {
         const { collection, query, where, orderBy, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        let q;
+        const colRef = collection(window.firebaseDb, 'adminEvents');
+        let snap;
         try {
-            q = query(collection(window.firebaseDb, 'adminEvents'), where('category', '==', category), orderBy('createdAt', 'desc'));
-        } catch {
-            q = query(collection(window.firebaseDb, 'adminEvents'), where('category', '==', category));
+            snap = await getDocs(query(colRef, where('category', '==', category), orderBy('createdAt', 'desc')));
+        } catch (indexErr) {
+            if (indexErr?.code === 'failed-precondition') {
+                snap = await getDocs(query(colRef, where('category', '==', category)));
+            } else {
+                throw indexErr;
+            }
         }
-        const snap = await getDocs(q);
 
         if (snap.empty) {
             listEl.innerHTML = '<div class="text-center py-10 text-gray-400"><i class="fas fa-calendar-times text-3xl mb-2 block"></i>Nenhum evento cadastrado ainda.</div>';
@@ -10004,13 +10008,17 @@ async function loadEventsPreview() {
 
     try {
         const { collection, getDocs, query, orderBy, limit } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        let q;
+        const colRef = collection(window.firebaseDb, 'adminEvents');
+        let snap;
         try {
-            q = query(collection(window.firebaseDb, 'adminEvents'), orderBy('createdAt', 'desc'), limit(6));
-        } catch {
-            q = query(collection(window.firebaseDb, 'adminEvents'), limit(6));
+            snap = await getDocs(query(colRef, orderBy('createdAt', 'desc'), limit(6)));
+        } catch (indexErr) {
+            if (indexErr?.code === 'failed-precondition') {
+                snap = await getDocs(query(colRef, limit(6)));
+            } else {
+                throw indexErr;
+            }
         }
-        const snap = await getDocs(q);
 
         if (snap.empty) {
             previewEl.innerHTML = '<p class="text-sm text-gray-400 text-center py-3">Nenhum evento cadastrado. Clique em "Criar / Gerenciar" para começar.</p>';
