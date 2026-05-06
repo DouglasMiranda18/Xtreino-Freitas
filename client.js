@@ -2011,13 +2011,6 @@ async function handlePhotoUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
     
-    // Validar tamanho (máximo 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-        alert('A imagem deve ter no máximo 5MB');
-        event.target.value = '';
-        return;
-    }
-    
     // Validar tipo
     if (!file.type.startsWith('image/')) {
         alert('Por favor, selecione uma imagem válida');
