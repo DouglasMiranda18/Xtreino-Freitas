@@ -275,5 +275,11 @@ service cloud.firestore {
       );
       allow create, update: if isSignedIn() && request.resource.data.userId == request.auth.uid;
     }
+
+    // adminEvents: leitura pública (para exibir eventos no site); escrita apenas para admins autorizados
+    match /adminEvents/{eventId} {
+      allow read: if true;
+      allow create, update, delete: if isAuthorizedAdmin();
+    }
   }
 }

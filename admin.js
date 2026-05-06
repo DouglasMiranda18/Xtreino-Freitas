@@ -9683,3 +9683,303 @@ window.sendAdminNotification = sendAdminNotification;
 window.loadAdminNotifications = loadAdminNotifications;
 window.deleteAdminNotification = deleteAdminNotification;
 window.saveProducts = saveProducts;
+
+// ============================================================
+// GERENCIAR EVENTOS
+// ============================================================
+
+let currentEventTab = 'camp';
+
+function openEventsModal() {
+    const modal = document.getElementById('modalEvents');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    switchEventTab('camp');
+}
+
+function closeEventsModal() {
+    const modal = document.getElementById('modalEvents');
+    if (modal) modal.classList.add('hidden');
+    cancelEventForm();
+}
+
+function switchEventTab(tab) {
+    currentEventTab = tab;
+    const tabs = ['camp', 'xtreino', 'diario'];
+    const titles = { camp: 'Campeonatos Criados', xtreino: 'X-Treinos Criados', diario: 'Diário Criados' };
+    const activeClass = 'bg-white shadow text-orange-600';
+    const inactiveClass = 'text-gray-600 hover:bg-white';
+
+    tabs.forEach(t => {
+        const btn = document.getElementById('evtTab-' + t);
+        if (!btn) return;
+        btn.className = 'flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all ' + (t === tab ? activeClass : inactiveClass);
+    });
+
+    const listTitle = document.getElementById('evtListTitle');
+    if (listTitle) listTitle.textContent = titles[tab];
+
+    // SOLO só disponível em CAMP
+    const tipoWrapper = document.getElementById('evtTipoWrapper');
+    const tipoSelect = document.getElementById('evtTipo');
+    if (tab === 'camp') {
+        if (tipoWrapper) tipoWrapper.style.display = '';
+        if (tipoSelect) {
+            tipoSelect.innerHTML = '<option value="SOLO">SOLO</option><option value="DUO">DUO</option><option value="SQUAD">SQUAD</option>';
+        }
+        const gruposWrapper = document.getElementById('evtGruposWrapper');
+        if (gruposWrapper) gruposWrapper.style.display = '';
+    } else {
+        if (tipoWrapper) tipoWrapper.style.display = '';
+        if (tipoSelect) {
+            tipoSelect.innerHTML = '<option value="DUO">DUO</option><option value="SQUAD">SQUAD</option>';
+        }
+        const gruposWrapper = document.getElementById('evtGruposWrapper');
+        if (gruposWrapper) gruposWrapper.style.display = 'none';
+    }
+
+    cancelEventForm();
+    loadEventsList(tab);
+}
+
+function onEvtModoChange() {
+    const modo = document.getElementById('evtModo')?.value;
+    const hint = document.getElementById('evtVagasHint');
+    if (!hint) return;
+    if (modo === 'LIGA') {
+        hint.textContent = 'Modo LIGA: deve ser 12 ou 15';
+    } else {
+        hint.textContent = 'Modo NORMAL: múltiplos de 12';
+    }
+}
+
+function openNewEventForm() {
+    document.getElementById('evtEditId').value = '';
+    document.getElementById('evtEditCategory').value = currentEventTab;
+    document.getElementById('evtFormTitle').textContent = 'Novo Evento';
+    document.getElementById('evtName').value = '';
+    document.getElementById('evtTipo').value = currentEventTab === 'camp' ? 'SOLO' : 'DUO';
+    document.getElementById('evtModo').value = 'NORMAL';
+    document.getElementById('evtStatus').value = 'Aberto';
+    document.getElementById('evtPremiado').value = 'NÃO';
+    document.getElementById('evtEntrada').value = 'GRÁTIS';
+    document.getElementById('evtVagas').value = '';
+    const gruposEl = document.getElementById('evtGrupos');
+    if (gruposEl) gruposEl.value = '';
+    document.getElementById('evtData').value = '';
+    document.getElementById('evtDescricao').value = '';
+    document.getElementById('evtFormError').classList.add('hidden');
+    onEvtModoChange();
+    document.getElementById('evtFormArea').scrollIntoView({ behavior: 'smooth' });
+}
+
+function cancelEventForm() {
+    document.getElementById('evtEditId').value = '';
+    document.getElementById('evtFormTitle').textContent = 'Novo Evento';
+    document.getElementById('evtName').value = '';
+    document.getElementById('evtVagas').value = '';
+    const gruposEl = document.getElementById('evtGrupos');
+    if (gruposEl) gruposEl.value = '';
+    document.getElementById('evtData').value = '';
+    document.getElementById('evtDescricao').value = '';
+    document.getElementById('evtFormError').classList.add('hidden');
+}
+
+function validateEventForm(category) {
+    const name = document.getElementById('evtName').value.trim();
+    const modo = document.getElementById('evtModo').value;
+    const vagas = parseInt(document.getElementById('evtVagas').value, 10);
+
+    if (!name) return 'Informe o nome do evento.';
+    if (!vagas || vagas < 1) return 'Informe a quantidade de vagas.';
+
+    if (modo === 'NORMAL') {
+        if (vagas % 12 !== 0) return `Modo NORMAL: a quantidade de vagas deve ser múltiplo de 12. Você informou ${vagas}.`;
+    } else if (modo === 'LIGA') {
+        if (vagas !== 12 && vagas !== 15) return `Modo LIGA: a quantidade de vagas deve ser 12 ou 15. Você informou ${vagas}.`;
+    }
+
+    if (category === 'camp') {
+        const grupos = parseInt(document.getElementById('evtGrupos')?.value, 10);
+        if (!grupos || grupos < 1) return 'Informe a quantidade de grupos para o Campeonato.';
+    }
+
+    return null;
+}
+
+async function saveEventForm() {
+    const category = currentEventTab;
+    const error = validateEventForm(category);
+    const errorEl = document.getElementById('evtFormError');
+
+    if (error) {
+        errorEl.textContent = error;
+        errorEl.classList.remove('hidden');
+        return;
+    }
+    errorEl.classList.add('hidden');
+
+    const editId = document.getElementById('evtEditId').value;
+    const data = {
+        category,
+        name: document.getElementById('evtName').value.trim(),
+        tipo: document.getElementById('evtTipo').value,
+        modo: document.getElementById('evtModo').value,
+        status: document.getElementById('evtStatus').value,
+        premiado: document.getElementById('evtPremiado').value,
+        entrada: document.getElementById('evtEntrada').value,
+        vagas: parseInt(document.getElementById('evtVagas').value, 10),
+        descricao: document.getElementById('evtDescricao').value.trim(),
+        updatedAt: new Date().toISOString()
+    };
+
+    const dataVal = document.getElementById('evtData').value;
+    if (dataVal) data.eventDate = new Date(dataVal).toISOString();
+
+    if (category === 'camp') {
+        data.grupos = parseInt(document.getElementById('evtGrupos')?.value, 10) || 0;
+    }
+
+    if (!editId) data.createdAt = new Date().toISOString();
+
+    try {
+        const { collection, doc, addDoc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        if (editId) {
+            await updateDoc(doc(window.firebaseDb, 'adminEvents', editId), data);
+            showToast('success', 'Evento atualizado com sucesso.', 'Salvo');
+        } else {
+            await addDoc(collection(window.firebaseDb, 'adminEvents'), data);
+            showToast('success', 'Evento criado com sucesso.', 'Criado');
+        }
+        cancelEventForm();
+        await loadEventsList(category);
+    } catch (err) {
+        console.error('Erro ao salvar evento:', err);
+        errorEl.textContent = 'Erro ao salvar evento: ' + (err.message || err);
+        errorEl.classList.remove('hidden');
+    }
+}
+
+async function loadEventsList(category) {
+    const listEl = document.getElementById('evtList');
+    if (!listEl || !window.firebaseDb) return;
+    listEl.innerHTML = '<div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl"></i></div>';
+
+    try {
+        const { collection, query, where, orderBy, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        let q;
+        try {
+            q = query(collection(window.firebaseDb, 'adminEvents'), where('category', '==', category), orderBy('createdAt', 'desc'));
+        } catch {
+            q = query(collection(window.firebaseDb, 'adminEvents'), where('category', '==', category));
+        }
+        const snap = await getDocs(q);
+
+        if (snap.empty) {
+            listEl.innerHTML = '<div class="text-center py-10 text-gray-400"><i class="fas fa-calendar-times text-3xl mb-2 block"></i>Nenhum evento cadastrado ainda.</div>';
+            return;
+        }
+
+        const categoryLabels = { camp: 'CAMP', xtreino: 'XTREINO', diario: 'DIÁRIO' };
+        const statusColors = {
+            'Aberto': 'bg-green-100 text-green-700',
+            'Em andamento': 'bg-blue-100 text-blue-700',
+            'Fechado': 'bg-red-100 text-red-700'
+        };
+
+        listEl.innerHTML = snap.docs.map(d => {
+            const ev = d.data();
+            const statusCls = statusColors[ev.status] || 'bg-gray-100 text-gray-600';
+            const dateStr = ev.eventDate ? new Date(ev.eventDate).toLocaleString('pt-BR') : '—';
+            const gruposStr = category === 'camp' && ev.grupos ? `<span class="text-xs text-gray-500">Grupos: <b>${ev.grupos}</b></span>` : '';
+            return `<div class="bg-white border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                <div class="flex-1 min-w-0">
+                    <div class="flex flex-wrap items-center gap-2 mb-1">
+                        <span class="font-bold text-sm text-gray-800 truncate">${escapeAdminHtml(ev.name)}</span>
+                        <span class="text-xs px-2 py-0.5 rounded-full font-semibold ${statusCls}">${ev.status || 'Aberto'}</span>
+                        <span class="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-semibold">${ev.tipo}</span>
+                        <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">${ev.modo}</span>
+                    </div>
+                    <div class="flex flex-wrap gap-3 text-xs text-gray-500">
+                        <span>Vagas: <b>${ev.vagas}</b></span>
+                        ${gruposStr}
+                        <span>Premiado: <b>${ev.premiado}</b></span>
+                        <span>Entrada: <b>${ev.entrada}</b></span>
+                        <span>Data: <b>${dateStr}</b></span>
+                    </div>
+                    ${ev.descricao ? `<p class="text-xs text-gray-400 mt-1 truncate">${escapeAdminHtml(ev.descricao)}</p>` : ''}
+                </div>
+                <div class="flex gap-2 flex-shrink-0">
+                    <button onclick="editEventItem('${d.id}')" title="Editar" class="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-100">
+                        <i class="fas fa-pen mr-1"></i>Editar
+                    </button>
+                    <button onclick="deleteEventItem('${d.id}')" title="Excluir" class="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-100">
+                        <i class="fas fa-trash mr-1"></i>Excluir
+                    </button>
+                </div>
+            </div>`;
+        }).join('');
+    } catch (err) {
+        console.error('Erro ao carregar eventos:', err);
+        listEl.innerHTML = '<div class="text-center py-8 text-red-400">Erro ao carregar eventos.</div>';
+    }
+}
+
+async function editEventItem(eventId) {
+    if (!window.firebaseDb) return;
+    try {
+        const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const snap = await getDoc(doc(window.firebaseDb, 'adminEvents', eventId));
+        if (!snap.exists()) { showToast('error', 'Evento não encontrado.', 'Erro'); return; }
+        const ev = snap.data();
+
+        document.getElementById('evtEditId').value = eventId;
+        document.getElementById('evtFormTitle').textContent = 'Editar Evento';
+        document.getElementById('evtName').value = ev.name || '';
+        document.getElementById('evtTipo').value = ev.tipo || 'SOLO';
+        document.getElementById('evtModo').value = ev.modo || 'NORMAL';
+        document.getElementById('evtStatus').value = ev.status || 'Aberto';
+        document.getElementById('evtPremiado').value = ev.premiado || 'NÃO';
+        document.getElementById('evtEntrada').value = ev.entrada || 'GRÁTIS';
+        document.getElementById('evtVagas').value = ev.vagas || '';
+        const gruposEl = document.getElementById('evtGrupos');
+        if (gruposEl) gruposEl.value = ev.grupos || '';
+        if (ev.eventDate) {
+            const dt = new Date(ev.eventDate);
+            const pad = n => String(n).padStart(2, '0');
+            document.getElementById('evtData').value = `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+        } else {
+            document.getElementById('evtData').value = '';
+        }
+        document.getElementById('evtDescricao').value = ev.descricao || '';
+        document.getElementById('evtFormError').classList.add('hidden');
+        onEvtModoChange();
+        document.getElementById('evtFormArea').scrollIntoView({ behavior: 'smooth' });
+    } catch (err) {
+        console.error('Erro ao carregar evento para edição:', err);
+        showToast('error', 'Erro ao carregar evento.', 'Erro');
+    }
+}
+
+async function deleteEventItem(eventId) {
+    if (!confirm('Tem certeza que deseja excluir este evento?')) return;
+    try {
+        const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        await deleteDoc(doc(window.firebaseDb, 'adminEvents', eventId));
+        showToast('success', 'Evento excluído.', 'Excluído');
+        await loadEventsList(currentEventTab);
+    } catch (err) {
+        console.error('Erro ao excluir evento:', err);
+        showToast('error', 'Erro ao excluir evento.', 'Erro');
+    }
+}
+
+window.openEventsModal = openEventsModal;
+window.closeEventsModal = closeEventsModal;
+window.switchEventTab = switchEventTab;
+window.onEvtModoChange = onEvtModoChange;
+window.openNewEventForm = openNewEventForm;
+window.cancelEventForm = cancelEventForm;
+window.saveEventForm = saveEventForm;
+window.editEventItem = editEventItem;
+window.deleteEventItem = deleteEventItem;

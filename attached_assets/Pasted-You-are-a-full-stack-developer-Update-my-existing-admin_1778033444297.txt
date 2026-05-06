@@ -1,0 +1,88 @@
+You are a full-stack developer. Update my existing admin dashboard by adding a new section called "Events Management" placed directly below the "Manage Products" option in the admin panel menu.
+
+IMPORTANT:
+
+* The entire interface (labels, buttons, messages) must be in Brazilian Portuguese (PT-BR).
+* Keep the new section completely separate from product management.
+
+FEATURE REQUIREMENTS:
+
+Create a new "Events Management" page with 3 categories:
+
+1. Campeonatos (CAMP)
+2. X-Treinos
+3. Diário
+
+Each category must have its own form and logic.
+
+---
+
+CAMP (Campeonatos):
+Fields required:
+
+* Tipo: SOLO, DUO, SQUAD
+* Modo: NORMAL or LIGA
+* Premiado: SIM ou NÃO
+* Tipo de entrada: PAGO ou GRÁTIS
+* Quantidade de vagas
+* Quantidade de grupos
+
+Rules:
+
+* If Modo = NORMAL → vagas must be multiples of 12
+* If Modo = LIGA → vagas must be either 12 or 15
+
+---
+
+XTREINO:
+Fields required:
+
+* Tipo: DUO, SQUAD
+* Modo: NORMAL or LIGA
+* Premiado: SIM ou NÃO
+* Tipo de entrada: PAGO ou GRÁTIS
+* Quantidade de vagas
+
+Rules:
+
+* If Modo = NORMAL → vagas must be multiples of 12
+* If Modo = LIGA → vagas must be either 12 or 15
+
+---
+
+DIÁRIO:
+Fields required:
+
+* Tipo: DUO, SQUAD
+* Modo: NORMAL or LIGA
+* Premiado: SIM ou NÃO
+* Tipo de entrada: PAGO ou GRÁTIS
+* Quantidade de vagas
+
+Rules:
+
+* If Modo = NORMAL → vagas must be multiples of 12
+* If Modo = LIGA → vagas must be either 12 or 15
+
+---
+
+FUNCTIONALITY:
+
+* Allow admin to CREATE, EDIT, DELETE events
+* Store events in database (reuse existing DB structure if possible)
+* Display a list of created events grouped by category
+* Add validation for all rules (especially vagas constraints)
+* Show clear error messages in PT-BR if validation fails
+
+UI/UX:
+
+* Keep same design style as existing admin panel
+* Use clean cards or tables for each category
+* Add tabs or sections to switch between CAMP, XTREINO, and DIÁRIO
+
+OPTIONAL (if possible):
+
+* Add status field (Aberto, Fechado, Em andamento)
+* Add date/time for events
+
+Make sure the feature is fully functional and integrated into the current system.
