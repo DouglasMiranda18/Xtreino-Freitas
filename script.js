@@ -7204,8 +7204,8 @@ async function loadDynamicEvents() {
 
             return `<article class="product-card" data-category="${ev.category || ''}">
                 <div class="product-media">
-                    ${catLabel ? `<span class="absolute top-2 left-2 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded">${catLabel}</span>` : ''}
-                    ${ev.premiado === 'SIM' ? `<span class="absolute top-2 right-2 bg-yellow-400 text-black text-xs font-bold px-2 py-1 rounded">Premiado</span>` : ''}
+                    ${catLabel ? `<span class="badge top-2 left-2 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded">${catLabel}</span>` : ''}
+                    ${ev.premiado === 'SIM' ? `<span class="badge top-2 right-2 bg-yellow-400 text-black text-xs font-bold px-2 py-1 rounded">🏆 Premiado</span>` : ''}
                     <img src="${imgSrc}" alt="${ev.name || 'Evento'}" loading="lazy" referrerpolicy="no-referrer" onerror="this.src='${placeholderImg}'">
                 </div>
                 <div class="product-title">${ev.name || 'Evento'}</div>
