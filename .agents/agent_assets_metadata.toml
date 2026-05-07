@@ -5,10 +5,16 @@ generated = []
 id = "f8OWt9htdzTifU0jnDr1x"
 uri = "file://firestore-rules.txt"
 type = "text"
-title = "Firestore Rules COMPLETO — cole no Firebase Console → Firestore → Rules"
+title = "Firestore Rules (txt para copiar)"
 
 [[outputs]]
 id = "gjvTQoqdXQDTG8X17jqBo"
 uri = "file://storage-rules.txt"
 type = "text"
-title = "Regras do Storage (cole no Firebase Console → Storage → Rules)"
+title = "Storage Rules (txt para copiar)"
+
+[[outputs]]
+id = "OPuyyWKe2p3lRpKci1Agm"
+uri = "file://xtreino-admin-update.tar.gz"
+type = "unspecified"
+title = "xtreino-admin-update.tar.gz — todos os arquivos atualizados"
