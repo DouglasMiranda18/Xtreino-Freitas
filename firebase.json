@@ -2,6 +2,44 @@
   "firestore": {
     "rules": "config/firestore.rules"
   },
+  "storage": {
+    "rules": "config/storage.rules"
+  },
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "netlify/**",
+      "netlify.toml",
+      "config/firestore.rules",
+      "config/storage.rules",
+      "firestore-rules.txt",
+      "storage-rules.txt",
+      "xtreino-admin-update.tar.gz",
+      ".local/**",
+      "replit.md"
+    ],
+    "rewrites": [
+      {
+        "source": "/admin",
+        "destination": "/admin.html"
+      },
+      {
+        "source": "/client",
+        "destination": "/client.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "**/*.@(js|css)",
+        "headers": [
+          { "key": "Cache-Control", "value": "max-age=3600" }
+        ]
+      }
+    ]
+  },
   "emulators": {
     "auth": {
       "port": 9099
