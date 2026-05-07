@@ -92,11 +92,11 @@
                 
                 <!-- Desktop Menu -->
                 <div class="hidden md:flex items-center space-x-8">
-                    <a href="#home" class="text-black hover:text-blue-matte transition-colors">HOME</a>
-                    <a href="#xtreinos" class="text-black hover:text-blue-matte transition-colors">TREINO/CAMP</a>
-                    <a href="#loja" class="text-black hover:text-blue-matte transition-colors">LOJA</a>
-                    <a href="#sobre" class="text-black hover:text-blue-matte transition-colors">SOBRE NÓS</a>
-                    <a href="#contato" class="text-black hover:text-blue-matte transition-colors">CONTATO</a>
+                    <a href="#" onclick="switchMainTab('home');return false;" class="tab-main-link text-black hover:text-blue-matte transition-colors" data-tab="home">HOME</a>
+                    <a href="#" onclick="switchMainTab('eventos');return false;" class="tab-main-link text-black hover:text-blue-matte transition-colors" data-tab="eventos">EVENTOS</a>
+                    <a href="#" onclick="switchMainTab('loja');return false;" class="tab-main-link text-black hover:text-blue-matte transition-colors" data-tab="loja">LOJA</a>
+                    <a href="#" onclick="switchMainTab('sobre');return false;" class="tab-main-link text-black hover:text-blue-matte transition-colors" data-tab="sobre">SOBRE NÓS</a>
+                    <a href="#" onclick="switchMainTab('contato');return false;" class="tab-main-link text-black hover:text-blue-matte transition-colors" data-tab="contato">CONTATO</a>
                     <a href="#" onclick="requestAdminAccess()" id="adminLink" class="text-black hover:text-blue-matte transition-colors hidden">ADMIN</a>
                     <button id="loginBtnDesktop" onclick="openLoginModal()" class="bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold transition-colors">
                         LOGIN
@@ -117,8 +117,8 @@
                 
                 <!-- Mobile Menu - Always Visible -->
                 <div class="md:hidden flex items-center space-x-2 overflow-x-auto flex-1 ml-4">
-                    <a href="#xtreinos" class="text-black hover:text-blue-matte transition-colors whitespace-nowrap text-sm font-medium px-2">TREINO/CAMP</a>
-                    <a href="#loja" class="text-black hover:text-blue-matte transition-colors whitespace-nowrap text-sm font-medium px-2">LOJA</a>
+                    <a href="#" onclick="switchMainTab('eventos');return false;" class="text-black hover:text-blue-matte transition-colors whitespace-nowrap text-sm font-medium px-2">EVENTOS</a>
+                    <a href="#" onclick="switchMainTab('loja');return false;" class="text-black hover:text-blue-matte transition-colors whitespace-nowrap text-sm font-medium px-2">LOJA</a>
                     <a href="#" onclick="requestAdminAccess()" id="adminLinkMobile" class="text-black hover:text-blue-matte transition-colors whitespace-nowrap text-sm font-medium px-2 hidden">ADMIN</a>
                     <button id="loginBtnMobile" onclick="openLoginModal()" class="bg-blue-matte hover-blue-matte px-3 py-1.5 rounded-lg text-white text-xs font-semibold transition-colors whitespace-nowrap flex-shrink-0">
                         LOGIN
@@ -146,6 +146,8 @@
         </nav>
     </header>
 
+    <!-- ====== PAINEL: HOME ====== -->
+    <div class="main-tab-panel tab-active" id="panel-home">
     <!-- Hero Section -->
     <section id="home" class="pt-24 md:pt-24 h-[calc(100vh-5rem)] md:h-[calc(100vh-6rem)] bg-white flex items-center">
         <div class="container mx-auto px-6">
@@ -162,10 +164,10 @@
                         Desenvolva suas habilidades com os melhores coaches do cenário.
                     </p>
                     <div class="flex flex-col sm:flex-row gap-4">
-                        <button onclick="scrollToSection('eventos')" class="btn-primary px-8 py-4 rounded-lg font-bold text-lg transition-colors neon-glow">
+                        <button onclick="switchMainTab('eventos')" class="btn-primary px-8 py-4 rounded-lg font-bold text-lg transition-colors neon-glow">
                             COMEÇAR AGORA
                         </button>
-                        <button onclick="scrollToSection('sobre')" class="border-2 border-[var(--brand-yellow)] text-[var(--brand-black)] hover:bg-brand-yellow px-8 py-4 rounded-lg font-bold text-lg transition-colors">
+                        <button onclick="switchMainTab('sobre')" class="border-2 border-[var(--brand-yellow)] text-[var(--brand-black)] hover:bg-brand-yellow px-8 py-4 rounded-lg font-bold text-lg transition-colors">
                             SAIBA MAIS
                         </button>
                     </div>
@@ -214,13 +216,25 @@
         </div>
     </section>
 
-    <!-- Treino e Campeonatos -->
+    </div><!-- /panel-home -->
+
+    <!-- ====== PAINEL: EVENTOS ====== -->
+    <div class="main-tab-panel" id="panel-eventos">
+    <!-- Eventos -->
     <section id="xtreinos" class="py-20 bg-white">
         <div class="container mx-auto px-6">
-            <div class="text-center mb-12">
-                <h2 class="text-4xl md:text-5xl font-bold mb-4 text-blue-matte">Treino e Campeonatos</h2>
+            <div class="text-center mb-8">
+                <h2 class="text-4xl md:text-5xl font-bold mb-4 text-blue-matte">EVENTOS</h2>
                 <p class="text-lg text-gray-700">Eventos de Segunda a Sexta</p>
                 <p class="text-sm text-gray-500">Participa e concorra a um PC Gamer + Kit Periféricos + Troféu!</p>
+            </div>
+
+            <!-- Sub-tabs de categoria -->
+            <div class="flex flex-wrap gap-3 justify-center mb-8" id="eventSubTabs">
+                <button class="event-sub-tab active" data-cat="all" onclick="filterEventsByCategory('all')">TODOS</button>
+                <button class="event-sub-tab" data-cat="camp" onclick="filterEventsByCategory('camp')">CAMP</button>
+                <button class="event-sub-tab" data-cat="xtreino" onclick="filterEventsByCategory('xtreino')">XTREINO</button>
+                <button class="event-sub-tab" data-cat="diario" onclick="filterEventsByCategory('diario')">DIÁRIO</button>
             </div>
 
             <!-- Eventos dinâmicos do Firestore (adminEvents) -->
@@ -296,6 +310,10 @@
         </div>
     </section>
 
+    </div><!-- /panel-eventos -->
+
+    <!-- ====== PAINEL: LOJA ====== -->
+    <div class="main-tab-panel" id="panel-loja">
     <!-- Loja Section -->
     <section id="loja" class="py-20 bg-white">
         <div class="container mx-auto px-6">
@@ -313,6 +331,10 @@
         </div>
     </section>
 
+    </div><!-- /panel-loja -->
+
+    <!-- ====== PAINEL: SOBRE NÓS ====== -->
+    <div class="main-tab-panel" id="panel-sobre">
     <!-- Sobre Nós Section -->
     <section id="sobre" class="py-24 bg-gradient-to-br from-gray-50 to-white">
         <div class="container mx-auto px-6">
@@ -562,6 +584,10 @@
         </div>
     </section>
 
+    </div><!-- /panel-sobre -->
+
+    <!-- ====== PAINEL: CONTATO ====== -->
+    <div class="main-tab-panel" id="panel-contato">
     <!-- Contato Section -->
     <section id="contato" class="py-20" style="background-color: #f1f1f1;">
         <div class="container mx-auto px-6">
@@ -648,6 +674,8 @@
             </div>
         </div>
     </section>
+
+    </div><!-- /panel-contato -->
 
     <!-- Footer -->
     <footer class="bg-white py-16">
@@ -1411,6 +1439,37 @@
             }
         }
     </style>
+
+    <!-- ===== SISTEMA DE ABAS JS ===== -->
+    <script>
+    function switchMainTab(tabId) {
+        // Esconde todos os painéis
+        document.querySelectorAll('.main-tab-panel').forEach(function(p) {
+            p.classList.remove('tab-active');
+        });
+        // Mostra o painel correto
+        var panel = document.getElementById('panel-' + tabId);
+        if (panel) panel.classList.add('tab-active');
+
+        // Atualiza visual dos links de nav (desktop)
+        document.querySelectorAll('.tab-main-link').forEach(function(a) {
+            a.classList.toggle('tab-nav-active', a.dataset.tab === tabId);
+        });
+
+        // Scroll para o topo
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        // Se abriu eventos, redefine sub-tab para TODOS
+        if (tabId === 'eventos') {
+            filterEventsByCategory('all');
+        }
+    }
+
+    // Garante que a aba HOME fica ativa ao carregar
+    document.addEventListener('DOMContentLoaded', function() {
+        switchMainTab('home');
+    });
+    </script>
 </body>
 </html>
 <!-- Modal Confirmação de Pagamento -->

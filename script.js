@@ -7202,7 +7202,7 @@ async function loadDynamicEvents() {
                 ? `<button onclick="openEventPayment('${d.id}', '${(ev.name || '').replace(/'/g, "\\'")}', ${ev.preco})" class="w-full btn-primary py-2 rounded-lg font-semibold">INSCREVER — ${preco}</button>`
                 : `<button onclick="openScheduleModal('${d.id}')" class="w-full btn-primary py-2 rounded-lg font-semibold">RESERVAR VAGA</button>`;
 
-            return `<article class="product-card">
+            return `<article class="product-card" data-category="${ev.category || ''}">
                 <div class="product-media">
                     ${catLabel ? `<span class="absolute top-2 left-2 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded">${catLabel}</span>` : ''}
                     ${ev.premiado === 'SIM' ? `<span class="absolute top-2 right-2 bg-yellow-400 text-black text-xs font-bold px-2 py-1 rounded">Premiado</span>` : ''}
@@ -7228,6 +7228,29 @@ async function loadDynamicEvents() {
         console.error('Erro ao carregar eventos dinâmicos:', err);
         grid.classList.add('hidden');
         if (fallback) { fallback.classList.remove('hidden'); fallback.classList.add('grid'); }
+    }
+}
+
+function filterEventsByCategory(cat) {
+    const grid = document.getElementById('dynamicEventsGrid');
+    if (!grid) return;
+    const tabs = document.querySelectorAll('#eventSubTabs .event-sub-tab');
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.cat === cat));
+    const cards = grid.querySelectorAll('article[data-category]');
+    let visible = 0;
+    cards.forEach(card => {
+        const show = cat === 'all' || card.dataset.category === cat;
+        card.style.display = show ? '' : 'none';
+        if (show) visible++;
+    });
+    const empty = document.getElementById('eventsEmptyMsg');
+    if (empty) empty.remove();
+    if (visible === 0) {
+        const msg = document.createElement('p');
+        msg.id = 'eventsEmptyMsg';
+        msg.className = 'col-span-full text-center text-gray-400 py-8';
+        msg.textContent = 'Nenhum evento nesta categoria no momento.';
+        grid.appendChild(msg);
     }
 }
 
