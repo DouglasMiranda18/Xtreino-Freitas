@@ -1,15 +1,21 @@
 /* ===== SISTEMA DE ABAS - PÁGINA PRINCIPAL ===== */
 .main-tab-panel { display: none; }
-.main-tab-panel.tab-active { display: block; }
+.main-tab-panel.tab-active {
+    display: block;
+    animation: tabFadeIn .22s ease;
+}
+@keyframes tabFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
 
 .tab-main-link {
     position: relative;
     padding-bottom: 4px;
     font-weight: 600;
+    transition: color .15s;
 }
-.tab-main-link.tab-nav-active {
-    color: #07b7b4 !important;
-}
+.tab-main-link.tab-nav-active { color: #07b7b4 !important; }
 .tab-main-link.tab-nav-active::after {
     content: '';
     position: absolute;
@@ -21,20 +27,78 @@
 
 /* Sub-tabs de eventos */
 .event-sub-tab {
-    padding: 8px 22px;
-    border-radius: 20px;
+    padding: 10px 20px;
+    border-radius: 50px;
     border: 2px solid #07b7b4;
     font-size: 13px;
     font-weight: 700;
     cursor: pointer;
     background: transparent;
     color: #07b7b4;
-    transition: background .15s, color .15s;
+    transition: background .18s, color .18s, transform .1s;
     letter-spacing: .4px;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
 }
-.event-sub-tab.active {
-    background: #07b7b4;
-    color: #fff;
+.event-sub-tab:active { transform: scale(.95); }
+.event-sub-tab.active { background: #07b7b4; color: #fff; }
+
+/* Sub-tabs scroll horizontal no mobile */
+#eventSubTabs {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+    justify-content: flex-start !important;
+}
+#eventSubTabs::-webkit-scrollbar { display: none; }
+@media (min-width: 640px) {
+    #eventSubTabs { flex-wrap: wrap !important; justify-content: center !important; }
+}
+
+/* ===== BARRA DE NAVEGAÇÃO INFERIOR MOBILE ===== */
+.mobile-bottom-nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 100;
+    background: #fff;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    align-items: stretch;
+    justify-content: space-around;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-shadow: 0 -4px 20px rgba(0,0,0,.08);
+}
+.mobile-nav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 10px 4px;
+    border: none;
+    background: transparent;
+    color: #9ca3af;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .3px;
+    cursor: pointer;
+    transition: color .15s, background .15s;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 60px;
+}
+.mobile-nav-btn i { font-size: 20px; line-height: 1; }
+.mobile-nav-btn span { font-size: 9px; }
+.mobile-nav-btn.active { color: #07b7b4; }
+.mobile-nav-btn.active i { transform: scale(1.1); }
+.mobile-nav-btn:active { background: #f3f4f6; }
+
+/* Padding inferior do conteúdo no mobile para não esconder atrás da nav */
+@media (max-width: 767px) {
+    body { padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
+    footer { padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px)) !important; }
 }
 /* ============================================ */
 

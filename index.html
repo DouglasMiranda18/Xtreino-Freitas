@@ -115,32 +115,17 @@
                     </div>
                 </div>
                 
-                <!-- Mobile Menu - Always Visible -->
-                <div class="md:hidden flex items-center space-x-2 overflow-x-auto flex-1 ml-4">
-                    <a href="#" onclick="switchMainTab('eventos');return false;" class="text-black hover:text-blue-matte transition-colors whitespace-nowrap text-sm font-medium px-2">EVENTOS</a>
-                    <a href="#" onclick="switchMainTab('loja');return false;" class="text-black hover:text-blue-matte transition-colors whitespace-nowrap text-sm font-medium px-2">LOJA</a>
-                    <a href="#" onclick="requestAdminAccess()" id="adminLinkMobile" class="text-black hover:text-blue-matte transition-colors whitespace-nowrap text-sm font-medium px-2 hidden">ADMIN</a>
-                    <button id="loginBtnMobile" onclick="openLoginModal()" class="bg-blue-matte hover-blue-matte px-3 py-1.5 rounded-lg text-white text-xs font-semibold transition-colors whitespace-nowrap flex-shrink-0">
+                <!-- Mobile: só login/avatar no header -->
+                <div class="md:hidden flex items-center gap-2 ml-auto">
+                    <a href="#" onclick="requestAdminAccess()" id="adminLinkMobile" class="text-black text-xs font-semibold px-2 py-1 hidden">ADMIN</a>
+                    <span id="tokenBadgeMobile" class="hidden bg-yellow-400 text-[var(--brand-black)] px-2 py-1 rounded-full text-xs font-bold shadow-sm">💎 0</span>
+                    <button id="loginBtnMobile" onclick="openLoginModal()" class="bg-blue-matte px-4 py-2 rounded-xl text-white text-xs font-bold transition-colors">
                         LOGIN
                     </button>
-                    <span id="tokenBadgeMobile" class="hidden bg-yellow-400 text-[var(--brand-black)] px-2 py-1 rounded-full text-xs font-bold shadow-sm whitespace-nowrap flex-shrink-0">💎 0</span>
-                    <!-- Avatar apenas - sem botão CONTA -->
-                    <button onclick="window.location.href='client.html'" class="relative w-8 h-8 rounded-full overflow-hidden border-2 border-blue-matte hover:border-blue-600 transition-all cursor-pointer shadow-md hover:shadow-lg flex-shrink-0 bg-gradient-to-br from-blue-500 to-purple-600" id="profileAvatarMobile" title="Meu Perfil" style="aspect-ratio: 1/1; border-radius: 50%;">
-                        <img id="profileAvatarImageMobile" src="" alt="Foto de perfil" class="absolute inset-0 w-full h-full object-cover hidden" style="aspect-ratio: 1/1; border-radius: 50%;">
-                        <div id="profileAvatarInitialsMobile" class="w-full h-full flex items-center justify-center text-white font-bold text-xs">
-                            U
-                        </div>
+                    <button onclick="window.location.href='client.html'" class="relative w-9 h-9 rounded-full overflow-hidden border-2 border-blue-matte flex-shrink-0 bg-gradient-to-br from-blue-500 to-purple-600" id="profileAvatarMobile" title="Meu Perfil">
+                        <img id="profileAvatarImageMobile" src="" alt="Foto de perfil" class="absolute inset-0 w-full h-full object-cover hidden">
+                        <div id="profileAvatarInitialsMobile" class="w-full h-full flex items-center justify-center text-white font-bold text-xs">U</div>
                     </button>
-                </div>
-                
-                <!-- Mobile Menu Expandido (aparece ao rolar para baixo) -->
-                <div id="mobileMenuExpanded" class="md:hidden hidden border-t border-gray-200 mt-2 pt-3 pb-2">
-                    <div class="flex flex-col space-y-2">
-                        <button id="accountBtnMobileExpanded" onclick="window.location.href='client.html'" class="bg-blue-matte hover-blue-matte px-4 py-2 rounded-lg text-white text-sm font-semibold transition-colors w-full text-left hidden">
-                            MINHA CONTA
-                        </button>
-                        <a href="#" onclick="requestAdminAccess()" id="adminLinkMobileExpanded" class="text-black hover:text-blue-matte transition-colors text-sm font-medium px-2 hidden">ADMIN</a>
-                    </div>
                 </div>
             </div>
         </nav>
@@ -1443,33 +1428,57 @@
     <!-- ===== SISTEMA DE ABAS JS ===== -->
     <script>
     function switchMainTab(tabId) {
-        // Esconde todos os painéis
         document.querySelectorAll('.main-tab-panel').forEach(function(p) {
             p.classList.remove('tab-active');
         });
-        // Mostra o painel correto
         var panel = document.getElementById('panel-' + tabId);
         if (panel) panel.classList.add('tab-active');
 
-        // Atualiza visual dos links de nav (desktop)
+        // Desktop nav
         document.querySelectorAll('.tab-main-link').forEach(function(a) {
             a.classList.toggle('tab-nav-active', a.dataset.tab === tabId);
         });
 
-        // Scroll para o topo
+        // Mobile bottom nav
+        document.querySelectorAll('.mobile-nav-btn').forEach(function(b) {
+            b.classList.toggle('active', b.dataset.tab === tabId);
+        });
+
         window.scrollTo({ top: 0, behavior: 'smooth' });
 
-        // Se abriu eventos, redefine sub-tab para TODOS
         if (tabId === 'eventos') {
             filterEventsByCategory('all');
         }
     }
 
-    // Garante que a aba HOME fica ativa ao carregar
     document.addEventListener('DOMContentLoaded', function() {
         switchMainTab('home');
     });
     </script>
+
+    <!-- ===== BARRA DE NAVEGAÇÃO INFERIOR MOBILE ===== -->
+    <nav class="mobile-bottom-nav md:hidden">
+        <button class="mobile-nav-btn active" data-tab="home" onclick="switchMainTab('home')">
+            <i class="fas fa-home"></i>
+            <span>HOME</span>
+        </button>
+        <button class="mobile-nav-btn" data-tab="eventos" onclick="switchMainTab('eventos')">
+            <i class="fas fa-trophy"></i>
+            <span>EVENTOS</span>
+        </button>
+        <button class="mobile-nav-btn" data-tab="loja" onclick="switchMainTab('loja')">
+            <i class="fas fa-store"></i>
+            <span>LOJA</span>
+        </button>
+        <button class="mobile-nav-btn" data-tab="sobre" onclick="switchMainTab('sobre')">
+            <i class="fas fa-users"></i>
+            <span>SOBRE</span>
+        </button>
+        <button class="mobile-nav-btn" data-tab="contato" onclick="switchMainTab('contato')">
+            <i class="fas fa-envelope"></i>
+            <span>CONTATO</span>
+        </button>
+    </nav>
 </body>
 </html>
 <!-- Modal Confirmação de Pagamento -->
