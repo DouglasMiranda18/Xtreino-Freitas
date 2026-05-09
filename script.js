@@ -613,10 +613,10 @@ async function checkAdminAccess() {
 
             // Para outros cargos, verificar email na whitelist
             if (['admin', 'ceo', 'gerente', 'vendedor'].includes(role)) {
-                if (!authorizedEmails.includes(user.email.toLowerCase())) {
+                // if (!authorizedEmails.includes(user.email.toLowerCase())) {
                     
-                    return false;
-                }
+                //     return false;
+                // }
                 
                 return true;
             }

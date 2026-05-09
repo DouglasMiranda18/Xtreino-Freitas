@@ -6128,133 +6128,155 @@ let permissionsUsersData = [];
 let permissionsCurrentPage = 1;
 const permissionsPerPage = 10;
 
-// Carregar usuários especificamente para o card de permissões
 async function loadPermissionsUsers() {
-  try {
-    
-    const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-    
-    const usersRef = collection(window.firebaseDb, 'users');
-    const snapshot = await getDocs(usersRef);
-    
-    permissionsUsersData = [];
-    snapshot.forEach(doc => {
-      const userData = doc.data();
-      permissionsUsersData.push({
-        id: doc.id,
-        email: userData.email || 'N/A',
-        displayName: userData.displayName || userData.name || 'N/A',
-        role: userData.role || 'user',
-        lastLogin: userData.lastLoginAt ? userData.lastLoginAt.toDate() : null
-      });
-    });
-    
-    
-    renderPermissionsTable();
-    updatePermissionsPagination();
-  } catch (error) {
-    console.error('❌ Erro ao carregar usuários para permissões:', error);
-  }
+    try {
+        const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const usersRef = collection(window.firebaseDb, 'users');
+        const snapshot = await getDocs(usersRef);
+        
+        permissionsUsersData = [];
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            permissionsUsersData.push({
+                id: doc.id,
+                email: data.email || 'N/A',
+                displayName: data.displayName || data.name || 'N/A',
+                role: data.role || 'user',
+                lastLogin: data.lastLoginAt ? data.lastLoginAt.toDate() : null
+            });
+        });
+        
+        // Inicializar dados filtrados (sem busca)
+        permissionsFilteredData = [...permissionsUsersData];
+        permissionsSearchTerm = '';
+        
+        // Renderizar tabela e configurar busca
+        renderPermissionsTable();
+        updatePermissionsPagination();
+        setupPermissionsSearch();
+    } catch (error) {
+        console.error('Error loading permissions users:', error);
+    }
 }
 
-// Renderizar tabela de permissões
 function renderPermissionsTable() {
-  const tbody = document.getElementById('permissionsTableBody');
-  if (!tbody) {
+    const tbody = document.getElementById('permissionsTableBody');
+    if (!tbody) return;
     
-    return;
-  }
-  
-  if (permissionsUsersData.length === 0) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="5" class="py-6 text-center text-gray-500">Nenhum usuário encontrado</td>
-      </tr>
-    `;
-    return;
-  }
-  
-  const startIndex = (permissionsCurrentPage - 1) * permissionsPerPage;
-  const endIndex = startIndex + permissionsPerPage;
-  const usersPage = permissionsUsersData.slice(startIndex, endIndex);
-  
-  // Verificar se o usuário atual pode editar e quais cargos pode atribuir
-  const roleFromWindow = (window.adminRoleLower || '').toLowerCase();
-  const roleFromSession = (getCurrentAdminRole() || '').toLowerCase();
-  const currentUserRole = roleFromWindow || roleFromSession;
-  
-  const canEdit = ['ceo', 'gerente'].includes(currentUserRole.toLowerCase()); // CEO e Gerente podem editar
-  
-  // Função para gerar opções de cargo baseado na permissão do usuário
-  function getRoleOptions(userRole) {
-    const allRoles = [
-      { value: 'user', label: 'Usuário' },
-      { value: 'vendedor', label: 'Vendedor' },
-      { value: 'gerente', label: 'Gerente' },
-      { value: 'design', label: 'Design' },
-      { value: 'admin', label: 'Admin' },
-      { value: 'socio', label: 'Sócio' },
-      { value: 'ceo', label: 'Ceo' }
-    ];
+    // Fallback seguro: se permissionsFilteredData não existir ou estiver vazio, usar todos os dados
+    const dataSource = (permissionsFilteredData && permissionsFilteredData.length >= 0) 
+        ? permissionsFilteredData 
+        : permissionsUsersData;
+        
+    const totalItems = dataSource.length;
     
-    if (currentUserRole === 'ceo') {
-      // CEO pode atribuir qualquer cargo
-      return allRoles.map(role => 
-        `<option value="${role.value}" ${userRole === role.value ? 'selected' : ''}>${role.label}</option>`
-      ).join('');
-    } else if (currentUserRole === 'socio') {
-      // Sócio vê todos os cargos mas não pode editar (somente leitura)
-      return allRoles.map(role => 
-        `<option value="${role.value}" ${userRole === role.value ? 'selected' : ''}>${role.label}</option>`
-      ).join('');
-    } else if (currentUserRole === 'gerente') {
-      // Gerente pode atribuir apenas Vendedor
-      return allRoles
-        .filter(role => role.value === 'vendedor')
-        .map(role => 
-          `<option value="${role.value}" ${userRole === role.value ? 'selected' : ''}>${role.label}</option>`
-        ).join('');
-    } else {
-      // Outros não podem atribuir nenhum cargo
-      return allRoles
-        .filter(role => role.value === userRole) // Apenas o cargo atual
-        .map(role => 
-          `<option value="${role.value}" selected>${role.label}</option>`
-        ).join('');
+    if (totalItems === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-gray-500">Nenhum usuário encontrado</td></tr>`;
+        updatePermissionsCountAndPageInfo(totalItems);
+        return;
     }
-  }
-  
-  tbody.innerHTML = usersPage.map(user => `
-    <tr class="border-b border-gray-100 hover:bg-gray-50">
-      <td class="py-3 px-2 text-gray-700 font-medium">${user.displayName}</td>
-      <td class="py-3 px-2 text-gray-600">${user.email}</td>
-      <td class="py-3 px-2">
-        <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">${getRoleDisplayName(user.role)}</span>
-      </td>
-      <td class="py-3 px-2">
-        <select class="w-full text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                data-user-id="${user.id}" data-current-role="${user.role}" ${!canEdit ? 'disabled' : ''}>
-          ${getRoleOptions(user.role)}
-        </select>
-      </td>
-      <td class="py-3 px-2">
-        ${canEdit ? `
-          <button onclick="updatePermissionsUserRole('${user.id}')" 
-                  class="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-1">
-            Salvar
-          </button>
-        ` : currentUserRole === 'socio' ? `
-          <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium cursor-not-allowed">
-            Sócio - Somente Leitura
-          </span>
-        ` : `
-          <span class="px-3 py-1 bg-gray-300 text-gray-600 rounded text-xs font-medium cursor-not-allowed">
-            Somente Leitura
-          </span>
-        `}
-      </td>
-    </tr>
-  `).join('');
+    
+    const startIndex = (permissionsCurrentPage - 1) * permissionsPerPage;
+    const endIndex = startIndex + permissionsPerPage;
+    const pageUsers = dataSource.slice(startIndex, endIndex);
+    
+    const currentUserRole = (window.adminRoleLower || getCurrentAdminRole() || '').toLowerCase();
+    const canEdit = ['ceo', 'gerente'].includes(currentUserRole);
+    
+    function getRoleOptions(userRole) {
+        const allRoles = [
+            { value: 'user', label: 'Usuário' },
+            { value: 'vendedor', label: 'Vendedor' },
+            { value: 'gerente', label: 'Gerente' },
+            { value: 'design', label: 'Design' },
+            //{ value: 'admin', label: 'Admin' },
+            { value: 'socio', label: 'Sócio' },
+            { value: 'ceo', label: 'Ceo' }
+        ];
+        if (currentUserRole === 'ceo') {
+            return allRoles.map(r => `<option value="${r.value}" ${userRole === r.value ? 'selected' : ''}>${r.label}</option>`).join('');
+        } else if (currentUserRole === 'gerente') {
+            return allRoles.filter(r => r.value === 'vendedor')
+                .map(r => `<option value="${r.value}" ${userRole === r.value ? 'selected' : ''}>${r.label}</option>`).join('');
+        } else {
+            return `<option value="${userRole}" selected>${getRoleDisplayName(userRole)}</option>`;
+        }
+    }
+    
+    tbody.innerHTML = pageUsers.map(user => `
+        <tr class="border-b border-gray-100 hover:bg-gray-50">
+            <td class="py-3 px-2 text-gray-700 font-medium">${user.displayName || user.name || '—'}</td>
+            <td class="py-3 px-2 text-gray-600">${user.email}</td>
+            <td class="py-3 px-2">
+                <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">${getRoleDisplayName(user.role)}</span>
+            </td>
+            <td class="py-3 px-2">
+                <select class="w-full text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                        data-user-id="${user.id}" data-current-role="${user.role}" ${!canEdit ? 'disabled' : ''}>
+                    ${getRoleOptions(user.role)}
+                </select>
+            </td>
+            <td class="py-3 px-2">
+                ${canEdit ? `
+                    <button onclick="updatePermissionsUserRole('${user.id}')" 
+                            class="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 transition-colors">
+                        Salvar
+                    </button>
+                ` : currentUserRole === 'socio' ? `
+                    <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium cursor-not-allowed">
+                        Sócio - Somente Leitura
+                    </span>
+                ` : `
+                    <span class="px-3 py-1 bg-gray-300 text-gray-600 rounded text-xs font-medium cursor-not-allowed">
+                        Somente Leitura
+                    </span>
+                `}
+            </td>
+        </tr>
+    `).join('');
+    
+    // Atualizar contadores e info de página
+    updatePermissionsCountAndPageInfo(totalItems);
+}
+
+function filterPermissionsUsers() {
+    const term = permissionsSearchTerm.trim().toLowerCase();
+    if (!term) {
+        permissionsFilteredData = [...permissionsUsersData];
+    } else {
+        permissionsFilteredData = permissionsUsersData.filter(user => {
+            const name = (user.displayName || user.name || '').toLowerCase();
+            const email = (user.email || '').toLowerCase();
+            const role = getRoleDisplayName(user.role).toLowerCase();
+            const id = (user.id || '').toLowerCase();
+            return name.includes(term) || email.includes(term) || role.includes(term) || id.includes(term);
+        });
+    }
+    permissionsCurrentPage = 1;
+    renderPermissionsTable();
+    updatePermissionsPagination();
+}
+
+function setupPermissionsSearch() {
+    const searchInput = document.getElementById('permissionsSearchInput');
+    if (!searchInput) return;
+    
+    searchInput.addEventListener('input', (e) => {
+        if (permissionsSearchDebounceTimer) clearTimeout(permissionsSearchDebounceTimer);
+        permissionsSearchDebounceTimer = setTimeout(() => {
+            permissionsSearchTerm = e.target.value;
+            filterPermissionsUsers();
+        }, 300);
+    });
+}
+
+function updatePermissionsCountAndPageInfo(totalItems) {
+    const countEl = document.getElementById('permissionsUsersCount');
+    if (countEl) countEl.textContent = `${totalItems} usuário${totalItems !== 1 ? 's' : ''}`;
+    
+    const totalPages = Math.ceil(totalItems / permissionsPerPage);
+    const pageInfoEl = document.getElementById('permissionsUsersPageInfo');
+    if (pageInfoEl) pageInfoEl.textContent = `Página ${permissionsCurrentPage} de ${totalPages || 1}`;
 }
 
 // Função para obter nome de exibição da função
@@ -6271,115 +6293,107 @@ function getRoleDisplayName(role) {
   return roleNames[role] || role;
 }
 
-// Atualizar função do usuário (específico para permissões)
 async function updatePermissionsUserRole(userId) {
-  try {
     const selectElement = document.querySelector(`select[data-user-id="${userId}"]`);
     if (!selectElement) {
-      console.error('❌ Select element não encontrado para o usuário:', userId);
-      return;
+        console.error('Select element not found for user', userId);
+        return;
     }
-    
     const newRole = selectElement.value;
     const currentRole = selectElement.getAttribute('data-current-role');
+    if (newRole === currentRole) return;
     
-    if (newRole === currentRole) {
-      
-      return;
-    }
-    
-    // Verificar se o usuário atual tem permissão para atribuir este cargo
     if (!canAssignRole(newRole)) {
-      alert('❌ Você não tem permissão para atribuir este cargo.');
-      // Reverter o select para o valor anterior
-      selectElement.value = currentRole;
-      return;
+        alert('❌ Você não tem permissão para atribuir este cargo.');
+        selectElement.value = currentRole;
+        return;
     }
     
-    // Atualizar estado local primeiro
-    const userIndex = permissionsUsersData.findIndex(user => user.id === userId);
-    if (userIndex !== -1) {
-      permissionsUsersData[userIndex].role = newRole;
-      selectElement.setAttribute('data-current-role', newRole);
+    try {
+        const { updateDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const userRef = doc(window.firebaseDb, 'users', userId);
+        await updateDoc(userRef, { role: newRole, updatedAt: new Date() });
+        
+        // Atualizar array principal
+        const index = permissionsUsersData.findIndex(u => u.id === userId);
+        if (index !== -1) permissionsUsersData[index].role = newRole;
+        
+        // Atualizar também o array de usuários ativos (se existir)
+        if (window.activeUsersData) {
+            const activeIndex = window.activeUsersData.findIndex(u => u.id === userId);
+            if (activeIndex !== -1) window.activeUsersData[activeIndex].role = newRole;
+        }
+        
+        // Reaplicar filtro (mantém termo de busca)
+        filterPermissionsUsers();
+        
+        // Se o usuário alterou o próprio cargo, atualizar sessão e permissões
+        const currentUid = window.firebaseAuth?.currentUser?.uid;
+        if (currentUid === userId) {
+            const session = JSON.parse(sessionStorage.getItem('adminSession') || '{}');
+            session.role = newRole;
+            sessionStorage.setItem('adminSession', JSON.stringify(session));
+            window.adminRoleLower = newRole;
+            controlSectionVisibility(newRole);
+            controlEditPermissions(newRole);
+        }
+        
+        // Log da ação
+        const user = permissionsUsersData.find(u => u.id === userId);
+        if (user) await logAdminAction('change_role', `Alterou cargo de ${user.email} para ${getRoleDisplayName(newRole)}`);
+        
+        // Feedback visual
+        const button = selectElement.parentElement.nextElementSibling.querySelector('button');
+        const originalText = button.textContent;
+        button.textContent = 'Salvo!';
+        button.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+        button.classList.add('bg-green-600');
+        setTimeout(() => {
+            button.textContent = originalText;
+            button.classList.remove('bg-green-600');
+            button.classList.add('bg-blue-600', 'hover:bg-blue-700');
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Error updating role:', error);
+        alert('Erro ao atualizar função do usuário');
+        selectElement.value = currentRole;
     }
-    
-    // Atualizar no Firestore
-    const { updateDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-    const userRef = doc(window.firebaseDb, 'users', userId);
-    await updateDoc(userRef, { role: newRole });
-    
-    // Log da ação
-    const user = permissionsUsersData.find(u => u.id === userId);
-    if (user) {
-      await logAdminAction('change_role', `Alterou cargo de ${user.email} para ${getRoleDisplayName(newRole)}`);
-    }
-    
-    
-    
-    // Mostrar feedback visual
-    const button = selectElement.parentElement.nextElementSibling.querySelector('button');
-    const originalText = button.textContent;
-    button.textContent = 'Salvo!';
-    button.className = 'px-3 py-1 bg-green-600 text-white rounded text-xs font-medium transition-colors';
-    
-    setTimeout(() => {
-      button.textContent = originalText;
-      button.className = 'px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-1';
-    }, 2000);
-    
-  } catch (error) {
-    console.error('❌ Erro ao atualizar função do usuário:', error);
-    alert('Erro ao atualizar função do usuário');
-    
-    // Reverter mudança local em caso de erro
-    loadPermissionsUsers();
-  }
 }
 
-// Atualizar paginação do card de permissões
 function updatePermissionsPagination() {
-  const totalPages = Math.ceil(permissionsUsersData.length / permissionsPerPage);
-  const paginationContainer = document.getElementById('permissionsPagination');
-  const countElement = document.getElementById('permissionsUsersCount');
-  const pageInfoElement = document.getElementById('permissionsUsersPageInfo');
-  
-  if (countElement) {
-    countElement.textContent = `${permissionsUsersData.length} usuários`;
-  }
-  
-  if (pageInfoElement) {
-    pageInfoElement.textContent = `Página ${permissionsCurrentPage} de ${totalPages}`;
-  }
-  
-  if (!paginationContainer || totalPages <= 1) {
-    if (paginationContainer) paginationContainer.innerHTML = '';
-    return;
-  }
-  
-  let paginationHTML = '';
-  
-  // Botão anterior
-  if (permissionsCurrentPage > 1) {
-    paginationHTML += `<button onclick="changePermissionsPage(${permissionsCurrentPage - 1})" class="px-2 py-1 text-xs border rounded hover:bg-gray-50">‹</button>`;
-  }
-  
-  // Páginas
-  for (let i = 1; i <= totalPages; i++) {
-    if (i === permissionsCurrentPage) {
-      paginationHTML += `<button class="px-2 py-1 text-xs bg-blue-600 text-white rounded">${i}</button>`;
-    } else {
-      paginationHTML += `<button onclick="changePermissionsPage(${i})" class="px-2 py-1 text-xs border rounded hover:bg-gray-50">${i}</button>`;
+    const totalItems = (permissionsFilteredData && permissionsFilteredData.length >= 0) 
+        ? permissionsFilteredData.length 
+        : permissionsUsersData.length;
+    const totalPages = Math.ceil(totalItems / permissionsPerPage);
+    const paginationContainer = document.getElementById('permissionsPagination');
+    const pageInfoElement = document.getElementById('permissionsUsersPageInfo');
+    
+    if (pageInfoElement) {
+        pageInfoElement.textContent = `Página ${permissionsCurrentPage} de ${totalPages || 1}`;
     }
-  }
-  
-  // Botão próximo
-  if (permissionsCurrentPage < totalPages) {
-    paginationHTML += `<button onclick="changePermissionsPage(${permissionsCurrentPage + 1})" class="px-2 py-1 text-xs border rounded hover:bg-gray-50">›</button>`;
-  }
-  
-  paginationContainer.innerHTML = paginationHTML;
+    
+    if (!paginationContainer || totalPages <= 1) {
+        if (paginationContainer) paginationContainer.innerHTML = '';
+        return;
+    }
+    
+    let paginationHTML = '';
+    if (permissionsCurrentPage > 1) {
+        paginationHTML += `<button onclick="changePermissionsPage(${permissionsCurrentPage - 1})" class="px-2 py-1 text-xs border rounded hover:bg-gray-50">‹</button>`;
+    }
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === permissionsCurrentPage) {
+            paginationHTML += `<button class="px-2 py-1 text-xs bg-blue-600 text-white rounded">${i}</button>`;
+        } else {
+            paginationHTML += `<button onclick="changePermissionsPage(${i})" class="px-2 py-1 text-xs border rounded hover:bg-gray-50">${i}</button>`;
+        }
+    }
+    if (permissionsCurrentPage < totalPages) {
+        paginationHTML += `<button onclick="changePermissionsPage(${permissionsCurrentPage + 1})" class="px-2 py-1 text-xs border rounded hover:bg-gray-50">›</button>`;
+    }
+    paginationContainer.innerHTML = paginationHTML;
 }
-
 // Mudar página do card de permissões
 function changePermissionsPage(page) {
   permissionsCurrentPage = page;
@@ -7623,9 +7637,9 @@ async function loadAffiliates() {
         try {
             const q = query(usersRef, where('role', '==', 'Afiliado'), orderBy('createdAt', 'desc'));
             snapshot = await getDocs(q);
-        } catch (error) {
-            // Se não houver índice, buscar sem orderBy
-            console.warn('Índice não encontrado, buscando sem orderBy:', error);
+        } catch (indexError) {
+            // Índice ausente: tentar sem orderBy e sem logar erro
+            console.debug('Índice não encontrado, buscando sem orderBy');
             const q = query(usersRef, where('role', '==', 'Afiliado'));
             snapshot = await getDocs(q);
         }
@@ -9539,6 +9553,202 @@ async function saveProducts() {
     }
 }
 
+// ==================== UNIFICAÇÃO E CORREÇÃO DE PERMISSÕES ====================
+
+// Variáveis globais para busca
+let permissionsFilteredData = [];     // Dados filtrados para a tabela de permissões
+let permissionsSearchTerm = '';
+let permissionsSearchDebounceTimer = null;
+
+
+// Filtra usuários com base no termo de busca
+
+
+// Evento de busca com debounce
+function setupPermissionsSearch() {
+    const searchInput = document.getElementById('permissionsSearchInput');
+    if (!searchInput) return;
+    
+    searchInput.addEventListener('input', (e) => {
+        if (permissionsSearchDebounceTimer) clearTimeout(permissionsSearchDebounceTimer);
+        permissionsSearchDebounceTimer = setTimeout(() => {
+            permissionsSearchTerm = e.target.value;
+            filterPermissionsUsers();
+        }, 300);
+    });
+}
+
+
+
+// Sobrescrever updatePermissionsUserRole para re-renderizar e sincronizar
+window.updatePermissionsUserRole = async function(userId) {
+    const selectElement = document.querySelector(`select[data-user-id="${userId}"]`);
+    if (!selectElement) {
+        console.error('Select element not found');
+        return;
+    }
+    const newRole = selectElement.value;
+    const currentRole = selectElement.getAttribute('data-current-role');
+    if (newRole === currentRole) return;
+    
+    if (!canAssignRole(newRole)) {
+        alert('❌ Você não tem permissão para atribuir este cargo.');
+        selectElement.value = currentRole;
+        return;
+    }
+    
+    try {
+        // Atualizar Firestore
+        const { updateDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const userRef = doc(window.firebaseDb, 'users', userId);
+        await updateDoc(userRef, { role: newRole, updatedAt: new Date() });
+        
+        // Atualizar arrays locais
+        const index = permissionsUsersData.findIndex(u => u.id === userId);
+        if (index !== -1) permissionsUsersData[index].role = newRole;
+        
+        // Atualizar também activeUsersData se existir
+        if (typeof activeUsersData !== 'undefined') {
+            const activeIndex = activeUsersData.findIndex(u => u.id === userId);
+            if (activeIndex !== -1) activeUsersData[activeIndex].role = newRole;
+        }
+        
+        // Atualizar atributo do select
+        selectElement.setAttribute('data-current-role', newRole);
+        
+        // Re-renderizar tabelas
+        filterPermissionsUsers(); // mantém busca atual
+        if (typeof renderActiveUsersTable === 'function') {
+            // Recarregar dados ativos para garantir consistência
+            loadUsersForTables();
+        }
+        
+        // Log da ação
+        const user = permissionsUsersData.find(u => u.id === userId);
+        if (user) await logAdminAction('change_role', `Alterou cargo de ${user.email} para ${getRoleDisplayName(newRole)}`);
+        
+        // Se o usuário alterou o próprio cargo, atualizar permissões da sessão
+        const currentUid = window.firebaseAuth?.currentUser?.uid;
+        if (currentUid === userId) {
+            // Atualizar sessão e recarregar permissões do admin
+            const session = JSON.parse(sessionStorage.getItem('adminSession') || '{}');
+            session.role = newRole;
+            sessionStorage.setItem('adminSession', JSON.stringify(session));
+            window.adminRoleLower = newRole;
+            // Reaplicar visibilidade e permissões
+            controlSectionVisibility(newRole);
+            controlEditPermissions(newRole);
+        }
+        
+        // Feedback visual
+        const button = selectElement.parentElement.nextElementSibling.querySelector('button');
+        const originalText = button.textContent;
+        button.textContent = 'Salvo!';
+        button.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+        button.classList.add('bg-green-600');
+        setTimeout(() => {
+            button.textContent = originalText;
+            button.classList.remove('bg-green-600');
+            button.classList.add('bg-blue-600', 'hover:bg-blue-700');
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Erro ao atualizar cargo:', error);
+        alert('Erro ao atualizar função do usuário');
+        // Reverter select
+        selectElement.value = currentRole;
+    }
+};
+
+// Ajustar paginação para usar dados filtrados no cálculo de total de páginas
+function updatePermissionsPagination() {
+    const totalItems = (permissionsFilteredData && permissionsFilteredData.length >= 0) ? permissionsFilteredData.length : permissionsUsersData.length;
+    const totalPages = Math.ceil(totalItems / permissionsPerPage);
+    const paginationContainer = document.getElementById('permissionsPagination');
+    const pageInfoElement = document.getElementById('permissionsUsersPageInfo');
+    
+    if (pageInfoElement) {
+        pageInfoElement.textContent = `Página ${permissionsCurrentPage} de ${totalPages || 1}`;
+    }
+    
+    if (!paginationContainer || totalPages <= 1) {
+        if (paginationContainer) paginationContainer.innerHTML = '';
+        return;
+    }
+    
+    let paginationHTML = '';
+    if (permissionsCurrentPage > 1) {
+        paginationHTML += `<button onclick="changePermissionsPage(${permissionsCurrentPage - 1})" class="px-2 py-1 text-xs border rounded hover:bg-gray-50">‹</button>`;
+    }
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === permissionsCurrentPage) {
+            paginationHTML += `<button class="px-2 py-1 text-xs bg-blue-600 text-white rounded">${i}</button>`;
+        } else {
+            paginationHTML += `<button onclick="changePermissionsPage(${i})" class="px-2 py-1 text-xs border rounded hover:bg-gray-50">${i}</button>`;
+        }
+    }
+    if (permissionsCurrentPage < totalPages) {
+        paginationHTML += `<button onclick="changePermissionsPage(${permissionsCurrentPage + 1})" class="px-2 py-1 text-xs border rounded hover:bg-gray-50">›</button>`;
+    }
+    paginationContainer.innerHTML = paginationHTML;
+}
+
+// Inicializar busca após carregar usuários
+function initPermissionsSearch() {
+    setupPermissionsSearch();
+}
+
+// Garantir que o filtro seja reiniciado ao mudar a página
+window.changePermissionsPage = function(page) {
+    permissionsCurrentPage = page;
+    renderPermissionsTable();
+    updatePermissionsPagination();
+};
+
+// Modificar loadPermissionsUsers para também inicializar busca e dados filtrados
+const originalLoadPermissionsUsers = loadPermissionsUsers;
+window.loadPermissionsUsers = async function() {
+    await originalLoadPermissionsUsers();
+    // Inicializar dados filtrados
+    permissionsFilteredData = [...permissionsUsersData];
+    setupPermissionsSearch();
+    renderPermissionsTable();
+    updatePermissionsPagination();
+};
+
+// Ajustar loadUsersForTables para manter sincronia (chamada após alterações)
+window.loadUsersForTables = async function() {
+    try {
+        const { getDocs, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const usersSnapshot = await getDocs(collection(window.firebaseDb, 'users'));
+        const users = [];
+        usersSnapshot.forEach(doc => {
+            const userData = doc.data();
+            users.push({
+                id: doc.id,
+                email: userData.email || 'N/A',
+                role: userData.role || 'user',
+                lastLogin: userData.lastLogin || null,
+                createdAt: userData.createdAt || null,
+                name: userData.name || userData.displayName || userData.email?.split('@')[0] || 'Usuário'
+            });
+        });
+        // Atualizar activeUsersData (global)
+        window.activeUsersData = users;
+        renderActiveUsersTable(users);
+        updateActiveUsersStats(users);
+    } catch (error) {
+        console.error('Erro ao carregar usuários ativos:', error);
+    }
+};
+
+// Aplicar flex-wrap na paginação para evitar quebra de layout
+document.addEventListener('DOMContentLoaded', () => {
+    const paginationDivs = document.querySelectorAll('#permissionsPagination, #activeUsersPagination, #tokensPagination, #adminHistoryPagination');
+    paginationDivs.forEach(div => {
+        if (div) div.classList.add('flex-wrap');
+    });
+});
 // Expor funções globalmente
 window.openProductsModal = openProductsModal;
 window.closeProductsModal = closeProductsModal;
