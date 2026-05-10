@@ -62,13 +62,12 @@
     position: fixed;
     bottom: 0; left: 0; right: 0;
     z-index: 100;
-    background: #fff;
-    border-top: 1px solid #e5e7eb;
+    background: #181818;
     display: flex;
     align-items: stretch;
     justify-content: space-around;
     padding-bottom: env(safe-area-inset-bottom, 0px);
-    box-shadow: 0 -4px 20px rgba(0,0,0,.08);
+    box-shadow: 0 -2px 24px rgba(0,0,0,.45);
 }
 .mobile-nav-btn {
     flex: 1;
@@ -76,24 +75,34 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
-    padding: 10px 4px;
+    gap: 4px;
+    padding: 10px 4px 8px;
     border: none;
     background: transparent;
-    color: #9ca3af;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: .3px;
+    color: #6b7280;
+    font-weight: 800;
+    letter-spacing: .5px;
     cursor: pointer;
-    transition: color .15s, background .15s;
+    transition: color .18s, background .18s;
     -webkit-tap-highlight-color: transparent;
-    min-height: 60px;
+    min-height: 62px;
+    position: relative;
 }
-.mobile-nav-btn i { font-size: 20px; line-height: 1; }
-.mobile-nav-btn span { font-size: 9px; }
-.mobile-nav-btn.active { color: #07b7b4; }
-.mobile-nav-btn.active i { transform: scale(1.1); }
-.mobile-nav-btn:active { background: #f3f4f6; }
+.mobile-nav-btn i { font-size: 22px; line-height: 1; transition: transform .18s; }
+.mobile-nav-btn span { font-size: 9px; text-transform: uppercase; }
+
+/* Aba ativa: amarelo da marca com traço superior */
+.mobile-nav-btn.active { color: #ecd414; }
+.mobile-nav-btn.active i { transform: scale(1.18); }
+.mobile-nav-btn.active::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 16%; right: 16%;
+    height: 3px;
+    background: #ecd414;
+    border-radius: 0 0 4px 4px;
+}
+.mobile-nav-btn:active { background: rgba(255,255,255,.06); }
 
 /* Padding inferior do conteúdo no mobile para não esconder atrás da nav */
 @media (max-width: 767px) {
