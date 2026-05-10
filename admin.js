@@ -10016,3 +10016,46 @@ window.onEvtImageSelected = onEvtImageSelected;
 window.onEvtImageUrlInput = onEvtImageUrlInput;
 window.clearEvtImage = clearEvtImage;
 window.onEvtEntradaChange = onEvtEntradaChange;
+// ========== ADMIN PAGE LAZY LOADING ==========
+// Tracks which pages have had their data loaded so each page only fetches
+// Firebase data the first time it becomes visible.
+window._adminPages = { initialized: new Set() };
+
+window.loadPageData = async function(page) {
+    if (!window.firebaseDb) return;
+    if (window._adminPages.initialized.has(page)) return;
+    window._adminPages.initialized.add(page);
+
+    const role = (window.adminRoleLower || '').toLowerCase();
+
+    if (page === 'principal') {
+        try { await loadKPIs(); } catch(e) { console.warn('[page:principal] KPIs', e); }
+        try { await loadCharts(); } catch(e) { console.warn('[page:principal] Charts', e); }
+        try { await loadTables(true); } catch(e) { console.warn('[page:principal] Tables', e); }
+        try { await loadPendingOrders(); } catch(e) { console.warn('[page:principal] PendingOrders', e); }
+        try { await loadEventOptions(); } catch(e) {}
+        try { renderPopularHours(); } catch(e) {}
+        try { setupPopularHoursFilters(); } catch(e) {}
+
+    } else if (page === 'usuarios') {
+        try { await loadUsersAndRoles({ role: role || 'ceo' }); } catch(e) { console.warn('[page:usuarios] UsersAndRoles', e); }
+        try { await loadUsers(); } catch(e) { console.warn('[page:usuarios] loadUsers', e); }
+        try { setupRoleGuards(); } catch(e) {}
+        try { recomputeTokenTotals(); } catch(e) {}
+
+    } else if (page === 'financeiro') {
+        try { loadPasseBooyahControls(); } catch(e) {}
+        try { setupCouponUsageFilters(); } catch(e) {}
+
+    } else if (page === 'conteudo') {
+        try { await loadHighlights(); } catch(e) { console.warn('[page:conteudo] Highlights', e); }
+        try { await loadNews(); } catch(e) { console.warn('[page:conteudo] News', e); }
+        try { loadProducts(); } catch(e) {}
+        try { loadEventsPreview(); } catch(e) {}
+        try { loadShirtOrders(); } catch(e) {}
+
+    } else if (page === 'operacoes') {
+        try { loadWhatsAppLinks(); } catch(e) {}
+        try { loadAdminNotifications(); } catch(e) {}
+    }
+};

@@ -73,42 +73,42 @@
 
         <p class="sidebar-section-label">Principal</p>
         <ul class="sidebar-menu">
-            <li><button class="sidebar-link" onclick="sidebarScroll('sectionKPIs',this)"><i class="fas fa-chart-line"></i><span>Visão Geral</span></button></li>
-            <li><button class="sidebar-link" onclick="sidebarScroll('sectionFilters',this)"><i class="fas fa-sliders-h"></i><span>Filtros & Ações</span></button></li>
-            <li><button class="sidebar-link" onclick="sidebarScroll('sectionCharts',this)"><i class="fas fa-chart-bar"></i><span>Gráficos</span></button></li>
-            <li><button class="sidebar-link" onclick="sidebarScroll('sectionOrders',this)"><i class="fas fa-shopping-cart"></i><span>Pedidos</span></button></li>
+            <li><button class="sidebar-link" data-page="principal" onclick="adminNav('principal','sectionKPIs',this)"><i class="fas fa-chart-line"></i><span>Visão Geral</span></button></li>
+            <li><button class="sidebar-link" data-page="principal" onclick="adminNav('principal','sectionFilters',this)"><i class="fas fa-sliders-h"></i><span>Filtros & Ações</span></button></li>
+            <li><button class="sidebar-link" data-page="principal" onclick="adminNav('principal','sectionCharts',this)"><i class="fas fa-chart-bar"></i><span>Gráficos</span></button></li>
+            <li><button class="sidebar-link" data-page="principal" onclick="adminNav('principal','sectionTokenStats',this)"><i class="fas fa-shopping-cart"></i><span>Pedidos</span></button></li>
         </ul>
 
         <p class="sidebar-section-label">Usuários</p>
         <ul class="sidebar-menu">
-            <li><button class="sidebar-link" onclick="sidebarScroll('sectionUsersManagement',this)"><i class="fas fa-users"></i><span>Usuários Ativos</span></button></li>
-            <li><button class="sidebar-link" onclick="sidebarScroll('sectionTokens',this)"><i class="fas fa-coins"></i><span>Tokens</span></button></li>
+            <li><button class="sidebar-link" data-page="usuarios" onclick="adminNav('usuarios','sectionUsersManagement',this)"><i class="fas fa-users"></i><span>Usuários Ativos</span></button></li>
+            <li><button class="sidebar-link" data-page="usuarios" onclick="adminNav('usuarios','sectionTokens',this)"><i class="fas fa-coins"></i><span>Tokens</span></button></li>
         </ul>
 
         <p class="sidebar-section-label">Financeiro</p>
         <ul class="sidebar-menu">
-            <li><button class="sidebar-link" onclick="sidebarScroll('sectionCoupons',this)"><i class="fas fa-tag"></i><span>Cupons</span></button></li>
-            <li><button class="sidebar-link" onclick="sidebarScroll('sectionCouponUsage',this)"><i class="fas fa-chart-pie"></i><span>Uso de Cupons</span></button></li>
-            <li><button class="sidebar-link" onclick="sidebarScroll('sectionAffiliates',this)"><i class="fas fa-handshake"></i><span>Afiliados</span></button></li>
-            <li><button class="sidebar-link" onclick="sidebarScroll('sectionAffiliateSales',this)"><i class="fas fa-dollar-sign"></i><span>Comissões</span></button></li>
-            <li><button class="sidebar-link" onclick="sidebarScroll('sectionPasseBooyah',this)"><i class="fas fa-id-card"></i><span>Passe Booyah</span></button></li>
+            <li><button class="sidebar-link" data-page="financeiro" onclick="adminNav('financeiro','sectionCoupons',this)"><i class="fas fa-tag"></i><span>Cupons</span></button></li>
+            <li><button class="sidebar-link" data-page="financeiro" onclick="adminNav('financeiro','sectionCouponUsage',this)"><i class="fas fa-chart-pie"></i><span>Uso de Cupons</span></button></li>
+            <li><button class="sidebar-link" data-page="financeiro" onclick="adminNav('financeiro','sectionAffiliates',this)"><i class="fas fa-handshake"></i><span>Afiliados</span></button></li>
+            <li><button class="sidebar-link" data-page="financeiro" onclick="adminNav('financeiro','sectionAffiliateSales',this)"><i class="fas fa-dollar-sign"></i><span>Comissões</span></button></li>
+            <li><button class="sidebar-link" data-page="financeiro" onclick="adminNav('financeiro','sectionPasseBooyah',this)"><i class="fas fa-id-card"></i><span>Passe Booyah</span></button></li>
         </ul>
 
         <p class="sidebar-section-label">Conteúdo</p>
         <ul class="sidebar-menu">
-            <li><button class="sidebar-link" onclick="sidebarScroll('sectionHighlights',this)"><i class="fas fa-star"></i><span>Destaques</span></button></li>
-            <li><button class="sidebar-link" onclick="sidebarScroll('sectionNews',this)"><i class="fas fa-newspaper"></i><span>Notícias</span></button></li>
-            <li><button class="sidebar-link" onclick="sidebarScroll('sectionProducts',this)"><i class="fas fa-box"></i><span>Produtos</span></button></li>
-            <li><button class="sidebar-link" onclick="sidebarScroll('sectionEvents',this)"><i class="fas fa-trophy"></i><span>Eventos</span></button></li>
-            <li><button class="sidebar-link" onclick="sidebarScroll('sectionShirtOrders',this)"><i class="fas fa-tshirt"></i><span>Camisas</span></button></li>
+            <li><button class="sidebar-link" data-page="conteudo" onclick="adminNav('conteudo','sectionHighlights',this)"><i class="fas fa-star"></i><span>Destaques</span></button></li>
+            <li><button class="sidebar-link" data-page="conteudo" onclick="adminNav('conteudo','sectionNews',this)"><i class="fas fa-newspaper"></i><span>Notícias</span></button></li>
+            <li><button class="sidebar-link" data-page="conteudo" onclick="adminNav('conteudo','sectionProducts',this)"><i class="fas fa-box"></i><span>Produtos</span></button></li>
+            <li><button class="sidebar-link" data-page="conteudo" onclick="adminNav('conteudo','sectionEvents',this)"><i class="fas fa-trophy"></i><span>Eventos</span></button></li>
+            <li><button class="sidebar-link" data-page="conteudo" onclick="adminNav('conteudo','sectionShirtOrders',this)"><i class="fas fa-tshirt"></i><span>Camisas</span></button></li>
         </ul>
 
         <p class="sidebar-section-label">Operações</p>
         <ul class="sidebar-menu">
-            <li><button class="sidebar-link" onclick="sidebarScroll('sectionWhatsAppLinks',this)"><i class="fab fa-whatsapp"></i><span>WhatsApp Links</span></button></li>
-            <li><button class="sidebar-link" onclick="sidebarScroll('sectionSchedules',this)"><i class="fas fa-clock"></i><span>Horários</span></button></li>
-            <li><button class="sidebar-link" onclick="sidebarScroll('sectionNotificationsAdmin',this)"><i class="fas fa-bell"></i><span>Notificações</span></button></li>
-            <li><button class="sidebar-link sidebar-danger" onclick="sidebarScroll('sectionResetData',this)"><i class="fas fa-exclamation-triangle"></i><span>Reset Dados</span></button></li>
+            <li><button class="sidebar-link" data-page="operacoes" onclick="adminNav('operacoes','sectionWhatsAppLinks',this)"><i class="fab fa-whatsapp"></i><span>WhatsApp Links</span></button></li>
+            <li><button class="sidebar-link" data-page="operacoes" onclick="adminNav('operacoes','sectionSchedules',this)"><i class="fas fa-clock"></i><span>Horários</span></button></li>
+            <li><button class="sidebar-link" data-page="operacoes" onclick="adminNav('operacoes','sectionNotificationsAdmin',this)"><i class="fas fa-bell"></i><span>Notificações</span></button></li>
+            <li><button class="sidebar-link sidebar-danger" data-page="operacoes" onclick="adminNav('operacoes','sectionResetData',this)"><i class="fas fa-exclamation-triangle"></i><span>Reset Dados</span></button></li>
         </ul>
     </nav>
 
@@ -168,6 +168,9 @@
                     <div id="adminTimeDisplay" class="text-lg font-bold text-gray-700 tabular-nums"></div>
                 </div>
             </div>
+
+            <!-- ===== PAGE: PRINCIPAL ===== -->
+            <div id="page-principal" class="admin-page">
 
             <div id="sectionKPIs" class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8">
                 <div class="bg-gradient-to-br from-green-50 to-green-100 border-l-4 border-green-500 rounded-xl p-4 md:p-6 shadow-sm hover:shadow-md transition-shadow">
@@ -468,6 +471,11 @@
                 </div>
             </div>
 
+            </div><!-- /page-principal -->
+
+            <!-- ===== PAGE: USUÁRIOS ===== -->
+            <div id="page-usuarios" class="admin-page hidden">
+
             <!-- Cards de Usuários - Layout Responsivo -->
             <div id="sectionUsersManagement" class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
                 <!-- Novo Card: Usuários Ativos -->
@@ -676,6 +684,11 @@
                     </div>
                 </div>
             </div>
+
+            </div><!-- /page-usuarios -->
+
+            <!-- ===== PAGE: FINANCEIRO ===== -->
+            <div id="page-financeiro" class="admin-page hidden">
 
             <!-- Seção de Cupons -->
             <div id="sectionCoupons" class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
@@ -1077,6 +1090,11 @@
                 </div>
             </div>
 
+            </div><!-- /page-financeiro -->
+
+            <!-- ===== PAGE: CONTEÚDO ===== -->
+            <div id="page-conteudo" class="admin-page hidden">
+
             <!-- Gerenciar Destaques -->
             <div id="sectionHighlights" class="bg-white border border-gray-200 rounded-xl p-6 mt-6">
                 <div class="flex items-center justify-between mb-4">
@@ -1199,6 +1217,11 @@
                 </div>
               </div>
             </div>
+
+            </div><!-- /page-conteudo -->
+
+            <!-- ===== PAGE: OPERAÇÕES ===== -->
+            <div id="page-operacoes" class="admin-page hidden">
 
             <!-- Gerenciamento de Links WhatsApp -->
             <div id="sectionWhatsAppLinks" class="bg-white border border-gray-200 rounded-xl p-6 mt-6">
@@ -1352,6 +1375,7 @@
                     </div>
                 </div>
             </div>
+            </div><!-- /page-operacoes -->
         </section>
     </main>
 
@@ -1540,13 +1564,14 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="admin.js"></script>
 
-    <!-- Sidebar logic -->
+    <!-- Sidebar / Page Router -->
     <script>
     (function() {
         var sidebar = document.getElementById('adminSidebar');
         var mainEl  = document.querySelector('main');
         var dash    = document.getElementById('dashboard');
         var isMobile = function() { return window.innerWidth < 1024; };
+        var PAGES = ['principal','usuarios','financeiro','conteudo','operacoes'];
 
         /* Show/hide sidebar based on dashboard visibility */
         function syncSidebar() {
@@ -1561,32 +1586,80 @@
                 mainEl.classList.remove('with-sidebar');
             }
         }
-
-        /* Watch dashboard class changes */
         if (dash) {
             var obs = new MutationObserver(syncSidebar);
             obs.observe(dash, { attributes: true, attributeFilter: ['class'] });
         }
         syncSidebar();
 
-        /* Scroll to section + highlight active link */
-        window.sidebarScroll = function(id, btn) {
-            var el = document.getElementById(id);
-            if (!el) return;
-            var offset = 70; /* header height */
-            var top = el.getBoundingClientRect().top + window.scrollY - offset;
-            window.scrollTo({ top: top, behavior: 'smooth' });
+        /* Show a page, hide all others */
+        function showPage(page) {
+            PAGES.forEach(function(p) {
+                var el = document.getElementById('page-' + p);
+                if (!el) return;
+                if (p === page) {
+                    el.classList.remove('hidden');
+                } else {
+                    el.classList.add('hidden');
+                }
+            });
+            window.scrollTo({ top: 0, behavior: 'instant' });
+            /* Lazy-load data for this page */
+            if (typeof window.loadPageData === 'function' && window.firebaseDb) {
+                window.loadPageData(page);
+            } else {
+                /* Retry once Firebase is ready */
+                setTimeout(function() {
+                    if (typeof window.loadPageData === 'function' && window.firebaseDb) {
+                        window.loadPageData(page);
+                    }
+                }, 1500);
+            }
+        }
 
-            /* Update active state */
+        /* Navigate: update hash → triggers hashchange → showPage */
+        window.adminNav = function(page, sectionId, btn) {
+            if (PAGES.indexOf(page) === -1) page = 'principal';
+            /* Update active link */
             document.querySelectorAll('.sidebar-link').forEach(function(l) {
                 l.classList.remove('sidebar-active');
             });
             if (btn) btn.classList.add('sidebar-active');
-
-            /* Close sidebar on mobile after click */
-            if (isMobile()) {
-                sidebar.classList.remove('active');
+            /* Close sidebar on mobile */
+            if (isMobile()) sidebar.classList.remove('active');
+            /* Navigate */
+            if (window.location.hash === '#' + page) {
+                /* Already on page — just scroll to section */
+                scrollToSection(sectionId);
+            } else {
+                /* Store pending section for after hashchange */
+                window._pendingSection = sectionId;
+                window.location.hash = page;
             }
+        };
+
+        /* Scroll to a specific section within the active page */
+        function scrollToSection(id) {
+            if (!id) return;
+            setTimeout(function() {
+                var el = document.getElementById(id);
+                if (el) {
+                    var top = el.getBoundingClientRect().top + window.scrollY - 70;
+                    window.scrollTo({ top: top, behavior: 'smooth' });
+                }
+            }, 60);
+        }
+
+        /* Backward-compat: sidebarScroll now maps to adminNav */
+        window.sidebarScroll = function(id, btn) {
+            /* Detect which page owns this section */
+            var page = 'principal';
+            PAGES.forEach(function(p) {
+                var pg  = document.getElementById('page-' + p);
+                var sec = document.getElementById(id);
+                if (pg && sec && pg.contains(sec)) page = p;
+            });
+            window.adminNav(page, id, btn);
         };
 
         /* Mobile toggle */
@@ -1594,47 +1667,45 @@
             sidebar.classList.toggle('active');
         };
 
-        /* Highlight active sidebar link on scroll */
-        var sections = [
-            'sectionKPIs','sectionFilters','sectionCharts','sectionOrders',
-            'sectionUsersManagement','sectionTokens',
-            'sectionCoupons','sectionCouponUsage',
-            'sectionAffiliates','sectionAffiliateSales','sectionPasseBooyah',
-            'sectionHighlights','sectionNews','sectionProducts','sectionEvents',
-            'sectionShirtOrders','sectionWhatsAppLinks','sectionSchedules',
-            'sectionNotificationsAdmin','sectionResetData'
-        ];
-
-        function onScroll() {
-            var scrollY = window.scrollY + 80;
-            var current = '';
-            sections.forEach(function(id) {
-                var el = document.getElementById(id);
-                if (el && el.offsetTop <= scrollY) current = id;
-            });
+        /* Handle hash changes */
+        function onHashChange() {
+            var hash = (window.location.hash || '').replace('#', '').trim();
+            if (PAGES.indexOf(hash) === -1) hash = 'principal';
+            showPage(hash);
+            /* Highlight matching sidebar link */
             document.querySelectorAll('.sidebar-link').forEach(function(l) {
                 l.classList.remove('sidebar-active');
             });
-            if (current) {
-                var btn = document.querySelector('.sidebar-link[onclick*="' + current + '"]');
-                if (btn) btn.classList.add('sidebar-active');
+            var first = document.querySelector('.sidebar-link[data-page="' + hash + '"]');
+            if (first) first.classList.add('sidebar-active');
+            /* Scroll to pending section (from adminNav cross-page) */
+            if (window._pendingSection) {
+                scrollToSection(window._pendingSection);
+                window._pendingSection = null;
             }
         }
+        window.addEventListener('hashchange', onHashChange);
 
-        window.addEventListener('scroll', onScroll, { passive: true });
+        /* Init router when dashboard becomes visible */
+        function initRouter() {
+            if (dash && !dash.classList.contains('hidden')) {
+                onHashChange();
+            }
+        }
+        if (dash) {
+            var dashObs = new MutationObserver(function() { initRouter(); });
+            dashObs.observe(dash, { attributes: true, attributeFilter: ['class'] });
+        }
+        initRouter();
 
-        /* Live clock in dashboard header */
+        /* Live clock */
         (function startClock() {
             var dateEl = document.getElementById('adminDateDisplay');
             var timeEl = document.getElementById('adminTimeDisplay');
             function tick() {
                 var now = new Date();
-                if (dateEl) {
-                    dateEl.textContent = now.toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'long' });
-                }
-                if (timeEl) {
-                    timeEl.textContent = now.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-                }
+                if (dateEl) dateEl.textContent = now.toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'long' });
+                if (timeEl) timeEl.textContent = now.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
             }
             tick();
             setInterval(tick, 1000);
