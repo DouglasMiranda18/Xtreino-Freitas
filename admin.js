@@ -254,7 +254,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
         return true;
       }
       
-      const isAuthorized = ['admin', 'gerente', 'vendedor', 'design', 'designer', 'desgin'].includes(role);
+      const isAuthorized = ['admin', 'staff', 'gerente', 'vendedor', 'design', 'designer', 'desgin'].includes(role);
       
       
       return isAuthorized;
@@ -309,21 +309,95 @@ window.showWarningToast = function(message, title = 'Atenção') {
   // Expor showDashboard globalmente imediatamente
   window.showDashboard = showDashboard;
 
+  // ===== MATRIZ DE PERMISSÕES POR CARGO =====
+  const ROLE_SECTIONS = {
+    // CEO: acesso total
+    ceo: ['sectionKPIs','sectionFilters','sectionCharts','sectionUsers','sectionOrders',
+          'sectionTokenStats','sectionUsersManagement','sectionTokens','sectionCoupons',
+          'sectionCouponUsage','sectionAffiliates','sectionAffiliateSales','sectionPasseBooyah',
+          'sectionHighlights','sectionNews','sectionProducts','sectionEvents','sectionShirtOrders',
+          'sectionWhatsAppLinks','sectionSchedules','sectionNotificationsAdmin',
+          'sectionAdminHistory','sectionResetData'],
+    // SOCIO: acesso total, só visualização
+    socio: ['sectionKPIs','sectionFilters','sectionCharts','sectionUsers','sectionOrders',
+            'sectionTokenStats','sectionUsersManagement','sectionTokens','sectionCoupons',
+            'sectionCouponUsage','sectionAffiliates','sectionAffiliateSales','sectionPasseBooyah',
+            'sectionHighlights','sectionNews','sectionProducts','sectionEvents','sectionShirtOrders',
+            'sectionWhatsAppLinks','sectionSchedules','sectionNotificationsAdmin','sectionAdminHistory'],
+    // VENDEDOR: pedidos, tokens, passes, notificações
+    vendedor: ['sectionOrders','sectionTokens','sectionPasseBooyah','sectionNotificationsAdmin',
+               'sectionShirtOrders','sectionWhatsAppLinks'],
+    // GERENTE: tudo menos dashboard e pagamentos
+    gerente: ['sectionUsers','sectionOrders','sectionUsersManagement','sectionTokens',
+              'sectionAffiliates','sectionAffiliateSales','sectionPasseBooyah','sectionHighlights',
+              'sectionNews','sectionProducts','sectionEvents','sectionShirtOrders',
+              'sectionWhatsAppLinks','sectionSchedules','sectionNotificationsAdmin','sectionAdminHistory'],
+    // DESIGNER: produtos, eventos, notícias, destaques
+    designer: ['sectionProducts','sectionEvents','sectionHighlights','sectionNews'],
+    // STAFF: notificações e eventos
+    staff: ['sectionEvents','sectionNotificationsAdmin'],
+    // ADMIN (legado) → mesmo que staff
+    admin: ['sectionEvents','sectionNotificationsAdmin'],
+    // Aliases
+    'sócio': null, // tratado abaixo
+    'desgin': null,
+    'design': null,
+  };
+  window.ROLE_SECTIONS = ROLE_SECTIONS;
+
+  const ALL_SECTIONS = ['sectionKPIs','sectionFilters','sectionCharts','sectionUsers','sectionOrders',
+    'sectionTokenStats','sectionUsersManagement','sectionTokens','sectionCoupons','sectionCouponUsage',
+    'sectionAffiliates','sectionAffiliateSales','sectionAffiliatePanel','sectionPasseBooyah',
+    'sectionHighlights','sectionNews','sectionProducts','sectionEvents','sectionShirtOrders',
+    'sectionWhatsAppLinks','sectionSchedules','sectionNotificationsAdmin','sectionAdminHistory','sectionResetData'];
+
   // Control section visibility based on role
   function controlSectionVisibility(userRole) {
     const role = (userRole || '').toLowerCase().trim();
-    
-    // Prevenir múltiplas chamadas conflitantes - se já foi aplicado para este role, não aplicar novamente
-    if (window.lastAppliedRole === role && window.visibilityApplied) {
-      
-      return;
-    }
-    
-    
+
+    if (window.lastAppliedRole === role && window.visibilityApplied) return;
     window.lastAppliedRole = role;
     window.visibilityApplied = true;
     
-    // Get all section elements
+    // Resolve aliases
+    const resolvedRole = (role === 'sócio') ? 'socio'
+      : (role === 'desgin' || role === 'design') ? 'designer'
+      : role;
+
+    // Ocultar todas as seções primeiro
+    ALL_SECTIONS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+
+    // Determinar seções permitidas para o cargo
+    const allowed = ROLE_SECTIONS[resolvedRole] || [];
+
+    // Mostrar seções permitidas
+    allowed.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.style.display = 'block';
+        el.classList.remove('hidden');
+        // Carregar eventos se necessário
+        if (id === 'sectionEvents' && typeof loadEventsPreview === 'function') {
+          loadEventsPreview();
+        }
+      }
+    });
+
+    // Atualizar sidebar: ocultar links sem permissão
+    document.querySelectorAll('.sidebar-link[onclick*="sidebarScroll"]').forEach(btn => {
+      const match = btn.getAttribute('onclick').match(/sidebarScroll\('(\w+)'/);
+      if (match) {
+        const sectionId = match[1];
+        const hasAccess = allowed.includes(sectionId)
+          || sectionId === 'sectionResetData' && resolvedRole === 'ceo';
+        btn.parentElement.style.display = hasAccess ? '' : 'none';
+      }
+    });
+
+    // Para compatibilidade - manter variáveis antigas
     const sectionKPIs = document.getElementById('sectionKPIs');
     const sectionFilters = document.getElementById('sectionFilters');
     const sectionCharts = document.getElementById('sectionCharts');
@@ -344,320 +418,71 @@ window.showWarningToast = function(message, title = 'Atenção') {
     const sectionAdminHistory = document.getElementById('sectionAdminHistory');
     const sectionAffiliatePanel = document.getElementById('sectionAffiliatePanel');
     
-    // Ocultar todas as seções por padrão
-    if (sectionKPIs) sectionKPIs.style.display = 'none';
-    if (sectionFilters) sectionFilters.style.display = 'none';
-    if (sectionCharts) sectionCharts.style.display = 'none';
-    if (sectionUsers) sectionUsers.style.display = 'none';
-    if (sectionTokenStats) sectionTokenStats.style.display = 'none';
-    if (sectionUsersManagement) sectionUsersManagement.style.display = 'none';
-    if (sectionTokens) sectionTokens.style.display = 'none';
-    if (sectionCoupons) sectionCoupons.style.display = 'none';
-    if (sectionCouponUsage) sectionCouponUsage.style.display = 'none';
-    if (sectionAffiliates) sectionAffiliates.style.display = 'none';
-    if (sectionAffiliateSales) sectionAffiliateSales.style.display = 'none';
-    if (sectionPasseBooyah) sectionPasseBooyah.style.display = 'none';
-    if (sectionProducts) sectionProducts.style.display = 'none';
-    if (sectionEventsSection) sectionEventsSection.style.display = 'none';
-    if (sectionSchedules) sectionSchedules.style.display = 'none';
-    if (sectionHighlights) sectionHighlights.style.display = 'none';
-    if (sectionNews) sectionNews.style.display = 'none';
-    if (sectionAdminHistory) sectionAdminHistory.style.display = 'none';
-    if (sectionAffiliatePanel) sectionAffiliatePanel.style.display = 'none';
-    
-    // Staff: Apenas seção de agendamentos (14h às 18h, xtreino-tokens)
-    if (role === 'staff') {
-      // Mostrar apenas seção de agendamentos
-      if (sectionSchedules) {
-        sectionSchedules.style.display = 'block';
-        sectionSchedules.classList.remove('hidden');
-      }
-      
-      // Ocultar todas as outras seções
-      if (sectionKPIs) sectionKPIs.style.display = 'none';
-      if (sectionFilters) sectionFilters.style.display = 'none';
-      if (sectionCharts) sectionCharts.style.display = 'none';
-      if (sectionUsers) sectionUsers.style.display = 'none';
-      if (sectionTokenStats) sectionTokenStats.style.display = 'none';
-      if (sectionUsersManagement) sectionUsersManagement.style.display = 'none';
-      if (sectionTokens) sectionTokens.style.display = 'none';
-      if (sectionCoupons) sectionCoupons.style.display = 'none';
-      if (sectionCouponUsage) sectionCouponUsage.style.display = 'none';
-      if (sectionAffiliates) sectionAffiliates.style.display = 'none';
-      if (sectionAffiliateSales) sectionAffiliateSales.style.display = 'none';
-      if (sectionAffiliatePanel) sectionAffiliatePanel.style.display = 'none';
-      if (sectionPasseBooyah) sectionPasseBooyah.style.display = 'none';
-      if (sectionProducts) sectionProducts.style.display = 'none';
-      if (sectionHighlights) sectionHighlights.style.display = 'none';
-      if (sectionNews) sectionNews.style.display = 'none';
-      if (sectionAdminHistory) sectionAdminHistory.style.display = 'none';
-      
-      
-      return; // Sair da função para não aplicar outras regras
-    }
-    
-    // Afiliado: Apenas painel de afiliado
+    // Afiliado: Apenas painel de afiliado (mantido para compatibilidade)
     if (role === 'afiliado') {
-      // Mostrar apenas painel do afiliado
-      if (sectionAffiliatePanel) {
-        sectionAffiliatePanel.style.display = 'block';
-        sectionAffiliatePanel.classList.remove('hidden');
-      }
-      
-      // Ocultar todas as outras seções
-      if (sectionKPIs) sectionKPIs.style.display = 'none';
-      if (sectionFilters) sectionFilters.style.display = 'none';
-      if (sectionCharts) sectionCharts.style.display = 'none';
-      if (sectionUsers) sectionUsers.style.display = 'none';
-      if (sectionTokenStats) sectionTokenStats.style.display = 'none';
-      if (sectionUsersManagement) sectionUsersManagement.style.display = 'none';
-      if (sectionTokens) sectionTokens.style.display = 'none';
-      if (sectionCoupons) sectionCoupons.style.display = 'none';
-      if (sectionCouponUsage) sectionCouponUsage.style.display = 'none';
-      if (sectionAffiliates) sectionAffiliates.style.display = 'none';
-      if (sectionAffiliateSales) sectionAffiliateSales.style.display = 'none';
-      if (sectionPasseBooyah) sectionPasseBooyah.style.display = 'none';
-      if (sectionProducts) sectionProducts.style.display = 'none';
-      if (sectionSchedules) sectionSchedules.style.display = 'none';
-      if (sectionHighlights) sectionHighlights.style.display = 'none';
-      if (sectionNews) sectionNews.style.display = 'none';
-      if (sectionAdminHistory) sectionAdminHistory.style.display = 'none';
-      
-      
-
-          
-      return; // Sair da função para não aplicar outras regras
+      ALL_SECTIONS.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+      const panel = document.getElementById('sectionAffiliatePanel');
+      if (panel) { panel.style.display = 'block'; panel.classList.remove('hidden'); }
     }
-    
-    // Design: Apenas destaques e notícias
-    if (role === 'design' || role === 'desgin' || role === 'designer') {
-      // Mostrar apenas Notícias e Destaques
-      if (sectionHighlights) sectionHighlights.style.display = 'block';
-      if (sectionNews) sectionNews.style.display = 'block';
-      
-      // Ocultar todas as outras seções
-      if (sectionKPIs) sectionKPIs.style.display = 'none';
-      if (sectionFilters) sectionFilters.style.display = 'none';
-      if (sectionCharts) sectionCharts.style.display = 'none';
-      if (sectionUsers) sectionUsers.style.display = 'none';
-      if (sectionTokenStats) sectionTokenStats.style.display = 'none';
-      if (sectionUsersManagement) sectionUsersManagement.style.display = 'none';
-      if (sectionTokens) sectionTokens.style.display = 'none';
-      if (sectionCoupons) sectionCoupons.style.display = 'none';
-      if (sectionCouponUsage) sectionCouponUsage.style.display = 'none';
-      if (sectionPasseBooyah) sectionPasseBooyah.style.display = 'none';
-      if (sectionProducts) sectionProducts.style.display = 'none';
-      if (sectionSchedules) sectionSchedules.style.display = 'none';
-      if (sectionAdminHistory) sectionAdminHistory.style.display = 'none';
-    }
-    // Sócio: Limited access - only basic sections
-    else if (role === 'socio' || role === 'sócio') {
-      // Mostrar apenas seções básicas para sócio
-      if (sectionKPIs) sectionKPIs.style.display = 'block';
-      if (sectionFilters) sectionFilters.style.display = 'block';
-      if (sectionCharts) sectionCharts.style.display = 'block';
-      if (sectionUsers) sectionUsers.style.display = 'block';
-      if (sectionTokenStats) sectionTokenStats.style.display = 'block';
-      if (sectionCouponUsage) sectionCouponUsage.style.display = 'block';
-      
-      if (sectionPasseBooyah) {
-        sectionPasseBooyah.style.display = 'block';
-        
-      }
-      
-      if (sectionSchedules) {
-        sectionSchedules.style.display = 'block';
-        
-      } 
-      
-      // Ocultar seções administrativas
-      if (sectionUsersManagement) sectionUsersManagement.style.display = 'none';
-      if (sectionTokens) sectionTokens.style.display = 'none';
-      if (sectionCoupons) sectionCoupons.style.display = 'none';
-      if (sectionProducts) sectionProducts.style.display = 'none';
-      if (sectionEventsSection) sectionEventsSection.style.display = 'none';
-      if (sectionHighlights) sectionHighlights.style.display = 'none';
-      if (sectionNews) sectionNews.style.display = 'none';
-      if (sectionAdminHistory) sectionAdminHistory.style.display = 'none';
-      
-      
-    }
-    // CEO: Can see and edit everything
-    else if (role === 'ceo' || role === 'ceo') {
-      
-      // Mostrar todas as seções
-      if (sectionKPIs) sectionKPIs.style.display = 'block';
-      if (sectionFilters) sectionFilters.style.display = 'block';
-      if (sectionCharts) sectionCharts.style.display = 'block';
-      if (sectionUsers) sectionUsers.style.display = 'block';
-      if (sectionTokenStats) sectionTokenStats.style.display = 'block';
-      if (sectionUsersManagement) sectionUsersManagement.style.display = 'block';
-      if (sectionTokens) sectionTokens.style.display = 'block';
-      if (sectionCoupons) sectionCoupons.style.display = 'block';
-      if (sectionCouponUsage) sectionCouponUsage.style.display = 'block';
-      if (sectionAffiliates) sectionAffiliates.style.display = 'block';
-      if (sectionAffiliateSales) sectionAffiliateSales.style.display = 'block';
-      if (sectionPasseBooyah) sectionPasseBooyah.style.display = 'block';
-      if (sectionProducts) sectionProducts.style.display = 'block';
-      if (sectionEventsSection) { sectionEventsSection.style.display = 'block'; loadEventsPreview(); }
-      if (sectionSchedules) sectionSchedules.style.display = 'block';
-      if (sectionHighlights) sectionHighlights.style.display = 'block';
-      if (sectionNews) sectionNews.style.display = 'block';
-      if (sectionAdminHistory) sectionAdminHistory.style.display = 'block';
-      
-    }
-    // Admin: Can see and edit everything
-    else if (role === 'admin') {
-      // Mostrar todas as seções
-      if (sectionKPIs) sectionKPIs.style.display = 'block';
-      if (sectionFilters) sectionFilters.style.display = 'block';
-      if (sectionCharts) sectionCharts.style.display = 'block';
-      if (sectionUsers) sectionUsers.style.display = 'block';
-      if (sectionTokenStats) sectionTokenStats.style.display = 'block';
-      if (sectionUsersManagement) sectionUsersManagement.style.display = 'block';
-      if (sectionTokens) sectionTokens.style.display = 'block';
-      if (sectionCoupons) sectionCoupons.style.display = 'block';
-      if (sectionCouponUsage) sectionCouponUsage.style.display = 'block';
-      if (sectionAffiliates) sectionAffiliates.style.display = 'block';
-      if (sectionAffiliateSales) sectionAffiliateSales.style.display = 'block';
-      if (sectionPasseBooyah) sectionPasseBooyah.style.display = 'block';
-      if (sectionProducts) sectionProducts.style.display = 'block';
-      if (sectionEventsSection) { sectionEventsSection.style.display = 'block'; loadEventsPreview(); }
-      if (sectionSchedules) sectionSchedules.style.display = 'block';
-      if (sectionHighlights) sectionHighlights.style.display = 'block';
-      if (sectionNews) sectionNews.style.display = 'block';
-      if (sectionAdminHistory) sectionAdminHistory.style.display = 'block';
-    }
-    // Gerente: Acesso a vendas gerais do mês
-    else if (role === 'gerente') {
-      // Mostrar seções de vendas e relatórios gerais
-      if (sectionKPIs) sectionKPIs.style.display = 'block';
-      if (sectionFilters) sectionFilters.style.display = 'block';
-      if (sectionCharts) sectionCharts.style.display = 'block';
-      if (sectionTokenStats) sectionTokenStats.style.display = 'block';
-      if (sectionUsers) sectionUsers.style.display = 'block';
-      if (sectionAdminHistory) sectionAdminHistory.style.display = 'block';
-      
-      // Ocultar seções administrativas específicas
-      if (sectionUsersManagement) sectionUsersManagement.style.display = 'none';
-      if (sectionTokens) sectionTokens.style.display = 'none';
-      if (sectionCoupons) sectionCoupons.style.display = 'none';
-      if (sectionCouponUsage) sectionCouponUsage.style.display = 'none';
-      if (sectionPasseBooyah) sectionPasseBooyah.style.display = 'none';
-      if (sectionProducts) sectionProducts.style.display = 'none';
-      if (sectionEventsSection) sectionEventsSection.style.display = 'none';
-      // Gerente também pode ver e operar o controle de horários
-      if (sectionSchedules) sectionSchedules.style.display = 'block';
-      // Exibir Notícias e Destaques para leitura (edições já são limitadas por permissões)
-      if (sectionHighlights) sectionHighlights.style.display = 'block';
-      if (sectionNews) sectionNews.style.display = 'block';
-    }
-    // Vendedor: Vendas recentes, cupons, vendas para aprovação, controle de passe e gerenciamento de tokens
-    else if (role === 'vendedor') {
-      // Mostrar seções específicas para vendedor
-      if (sectionKPIs) sectionKPIs.style.display = 'block';
-      if (sectionCharts) sectionCharts.style.display = 'block';
-      if (sectionTokenStats) sectionTokenStats.style.display = 'block';
-      if (sectionTokens) sectionTokens.style.display = 'block';
-      if (sectionCoupons) sectionCoupons.style.display = 'block';
-      if (sectionCouponUsage) sectionCouponUsage.style.display = 'block';
-      if (sectionPasseBooyah) sectionPasseBooyah.style.display = 'block';
-      if (sectionUsers) sectionUsers.style.display = 'block';
-      
-      // Ocultar seções administrativas
-      if (sectionFilters) sectionFilters.style.display = 'none';
-      if (sectionUsersManagement) sectionUsersManagement.style.display = 'none';
-      if (sectionProducts) sectionProducts.style.display = 'none';
-      if (sectionEventsSection) sectionEventsSection.style.display = 'none';
-      if (sectionSchedules) sectionSchedules.style.display = 'none';
-      if (sectionHighlights) sectionHighlights.style.display = 'none';
-      if (sectionNews) sectionNews.style.display = 'none';
-      if (sectionAdminHistory) sectionAdminHistory.style.display = 'none';
-    }
-    
   }
-  // Control edit permissions based on role
+  // ===== SEÇÕES EDITÁVEIS POR CARGO =====
+  // null = readonly total | [] = todas as seções visíveis | [...] = seções específicas
+  const ROLE_EDIT_SECTIONS = {
+    ceo:      null,     // acesso total de edição (null = sem restrição)
+    socio:    [],       // somente leitura (lista vazia = nenhuma seção editável)
+    gerente:  null,     // edição total nas seções visíveis
+    vendedor: ['#sectionOrders','#sectionTokens','#sectionPasseBooyah',
+               '#sectionNotificationsAdmin','#sectionShirtOrders','#sectionWhatsAppLinks'],
+    designer: ['#sectionProducts','#sectionEvents','#sectionHighlights','#sectionNews'],
+    staff:    ['#sectionEvents','#sectionNotificationsAdmin'],
+    admin:    ['#sectionEvents','#sectionNotificationsAdmin'],
+  };
+
   function controlEditPermissions(userRole) {
-    const role = (userRole || '').toLowerCase();
-    
-    // Get all input elements, buttons, and editable elements
-    const inputs = document.querySelectorAll('input, textarea, select');
-    const buttons = document.querySelectorAll('button');
-    const editButtons = document.querySelectorAll('.edit-btn, .save-btn, .delete-btn, .add-btn, [class*="btn"]');
-    const editableElements = document.querySelectorAll('[contenteditable="true"]');
-    
-    // Combine all editable elements
-    const allEditableElements = [...inputs, ...buttons, ...editButtons, ...editableElements];
-    
-    
-    // Design: Can only edit highlights and news sections
-    if (role === 'design' || role === 'desgin' || role === 'designer') {
-      
-      allEditableElements.forEach((element, index) => {
-        // Check if element is in highlights or news sections
-        const isInHighlights = element.closest('#sectionHighlights');
-        const isInNews = element.closest('#sectionNews');
-        
-        if (isInHighlights || isInNews) {
-          // Enable editing for highlights and news
-          element.disabled = false;
-          element.readOnly = false;
-          element.style.pointerEvents = 'auto';
-          element.style.opacity = '1';
-        } else {
-          // Disable editing for all other sections
-          element.disabled = true;
-          element.readOnly = true;
-          element.style.pointerEvents = 'none';
-          element.style.opacity = '0.5';
+    const role = (userRole || '').toLowerCase()
+      .replace('sócio','socio').replace('desgin','designer').replace('design','designer');
+
+    const allEditable = [
+      ...document.querySelectorAll('input, textarea, select'),
+      ...document.querySelectorAll('button'),
+      ...document.querySelectorAll('.edit-btn,.save-btn,.delete-btn,.add-btn,[class*="btn"]'),
+      ...document.querySelectorAll('[contenteditable="true"]'),
+    ];
+
+    const editSections = ROLE_EDIT_SECTIONS[role];
+
+    if (editSections === null) {
+      // Acesso total
+      allEditable.forEach(el => {
+        if (!el.hasAttribute('data-temp-disabled')) {
+          el.disabled = false; el.readOnly = false;
+          el.style.pointerEvents = 'auto'; el.style.opacity = '1';
         }
       });
-      
+      return;
     }
-    // Sócio: acesso somente leitura (CEO NÃO entra aqui)
-    else if (role === 'socio' || role === 'sócio') {
-      
-      allEditableElements.forEach(element => {
-        element.disabled = true;
-        element.readOnly = true;
-        element.style.pointerEvents = 'none';
-        element.style.opacity = '0.5';
+
+    if (editSections.length === 0) {
+      // Somente leitura total (SOCIO)
+      allEditable.forEach(el => {
+        el.disabled = true; el.readOnly = true;
+        el.style.pointerEvents = 'none'; el.style.opacity = '0.5';
       });
-      
+      return;
     }
-    // CEO, Admin, Gerente: acesso total de edição
-    else if (role === 'ceo' || role === 'admin' || role === 'gerente') {
-      
-      allEditableElements.forEach(element => {
-        element.disabled = false;
-        element.readOnly = false;
-        element.style.pointerEvents = 'auto';
-        element.style.opacity = '1';
-      });
-      
-    }
-    // Vendedor: Limited edit access
-    else if (role === 'vendedor') {
-      
-      allEditableElements.forEach(element => {
-        // Vendedor can edit in specific sections: tokens, coupons, passe, users
-        const isInAllowedSection = element.closest('#sectionTokens, #sectionCoupons, #sectionCouponUsage, #sectionPasseBooyah, #sectionUsers, #sectionKPIs, #sectionCharts');
-        
-        if (isInAllowedSection) {
-          element.disabled = false;
-          element.readOnly = false;
-          element.style.pointerEvents = 'auto';
-          element.style.opacity = '1';
-        } else {
-          element.disabled = true;
-          element.readOnly = true;
-          element.style.pointerEvents = 'none';
-          element.style.opacity = '0.5';
-        }
-      });
-      
-    }
-    
+
+    // Edição limitada a seções específicas
+    const selectorStr = editSections.join(',');
+    allEditable.forEach(el => {
+      const inAllowed = el.closest(selectorStr);
+      if (inAllowed && !el.hasAttribute('data-temp-disabled')) {
+        el.disabled = false; el.readOnly = false;
+        el.style.pointerEvents = 'auto'; el.style.opacity = '1';
+      } else {
+        el.disabled = true; el.readOnly = true;
+        el.style.pointerEvents = 'none'; el.style.opacity = '0.5';
+      }
+    });
   }
 
   // Security: Show login error
@@ -738,26 +563,11 @@ window.showWarningToast = function(message, title = 'Atenção') {
     const salesChartCard = document.getElementById('salesChart')?.closest('.bg-white');
     const topProductsCard = document.getElementById('topProductsChart')?.closest('.bg-white');
     
-    if (role === 'vendedor'){
-      // Vendedor: vê pedidos recentes e KPIs (visibilidade controlada por controlSectionVisibility)
-      // Removido: ocultação de KPIs - agora controlado por controlSectionVisibility
+    // KPI card visibility per role
+    if (role === 'vendedor' || role === 'designer' || role === 'staff' || role === 'admin'){
       if (productsCard) productsCard.classList.add('hidden');
       if (salesChartCard) salesChartCard.classList.add('hidden');
       if (topProductsCard) topProductsCard.classList.add('hidden');
-    } else if (role === 'gerente'){
-      // Gerente: vê financeiro, exceto fluxo total mensal e gráfico de Vendas 30d
-      const kpiMonthCard = document.getElementById('kpiMonth')?.closest('.bg-white');
-      if (kpiMonthCard) kpiMonthCard.classList.add('hidden');
-      if (salesChartCard) salesChartCard.classList.add('hidden');
-    } else if (role === 'design'){
-      // Design: esconde todos os KPIs e gráficos
-      kpiCards.forEach(e => e && (e.closest('.bg-white').classList.add('hidden')));
-      if (productsCard) productsCard.classList.add('hidden');
-      if (salesChartCard) salesChartCard.classList.add('hidden');
-      if (topProductsCard) topProductsCard.classList.add('hidden');
-    } else if (role === 'socio' || role === 'ceo'){
-      // Sócio: vê tudo (read-only)
-      // Nenhuma ocultação de elementos
     }
   }
 
@@ -836,9 +646,12 @@ window.showWarningToast = function(message, title = 'Atenção') {
         <td class="py-2 px-2">${user.email || 'Email não informado'}</td>
         <td class="py-2 px-2">
           <select class="role-select border border-gray-300 rounded px-2 py-1 text-xs" data-uid="${user.id}">
-            <option value="Vendedor" ${user.role === 'Vendedor' ? 'selected' : ''}>Vendedor</option>
-            <option value="Gerente" ${user.role === 'Gerente' ? 'selected' : ''}>Gerente</option>
-            <option value="Ceo" ${user.role === 'Ceo' ? 'selected' : ''}>Ceo</option>
+            <option value="Ceo" ${(user.role||'').toLowerCase() === 'ceo' ? 'selected' : ''}>CEO – Acesso Total</option>
+            <option value="Socio" ${(user.role||'').toLowerCase() === 'socio' ? 'selected' : ''}>SOCIO – Visualização Total</option>
+            <option value="Gerente" ${(user.role||'').toLowerCase() === 'gerente' ? 'selected' : ''}>Gerente – Sem Dashboard/Pagamentos</option>
+            <option value="Vendedor" ${(user.role||'').toLowerCase() === 'vendedor' ? 'selected' : ''}>Vendedor – Pedidos/Tokens/Passes</option>
+            <option value="Designer" ${['designer','design','desgin'].includes((user.role||'').toLowerCase()) ? 'selected' : ''}>Designer – Produtos/Eventos/Conteúdo</option>
+            <option value="Staff" ${['staff','admin'].includes((user.role||'').toLowerCase()) ? 'selected' : ''}>Staff – Notificações/Eventos</option>
           </select>
         </td>
       `;
@@ -1297,7 +1110,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
     }catch(e){}
 
     // 
-    if (!['admin','ceo','gerente','vendedor','design','designer','desgin','socio','sócio','afiliado','staff'].includes((role||'').toLowerCase())){
+    if (!['admin','ceo','gerente','vendedor','design','designer','desgin','socio','sócio','afiliado','staff','Socio','Gerente','Designer','Staff','Vendedor','Ceo'].includes((role||''))){
       authGate.classList.remove('hidden');
       dashboard.classList.add('hidden');
       return;
