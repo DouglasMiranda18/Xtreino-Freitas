@@ -5968,6 +5968,45 @@ let permissionsUsersData = [];
 let permissionsCurrentPage = 1;
 const permissionsPerPage = 10;
 
+// Filter state for Usuários & Permissões
+window._permFilter = { search: '', role: '' };
+
+function getPermissionsDisplayData() {
+  const { search, role } = window._permFilter;
+  if (!search && !role) return permissionsUsersData;
+  const q = search.toLowerCase();
+  return permissionsUsersData.filter(u => {
+    const matchRole   = !role || (u.role || '').toLowerCase() === role;
+    const matchSearch = !q ||
+      (u.email || '').toLowerCase().includes(q) ||
+      (u.displayName || '').toLowerCase().includes(q);
+    return matchRole && matchSearch;
+  });
+}
+
+window.setPermissionsRoleFilter = function(role, btn) {
+  window._permFilter.role = role;
+  permissionsCurrentPage = 1;
+  document.querySelectorAll('.perm-role-btn').forEach(b => {
+    b.className = b.className.replace('bg-blue-600 text-white', 'bg-gray-200 text-gray-700');
+    if (!b.className.includes('hover:bg-gray-300')) b.className += ' hover:bg-gray-300';
+  });
+  if (btn) {
+    btn.className = btn.className.replace('bg-gray-200 text-gray-700', 'bg-blue-600 text-white');
+    btn.className = btn.className.replace(' hover:bg-gray-300', '');
+  }
+  renderPermissionsTable();
+  updatePermissionsPagination();
+};
+
+window.filterPermissionsTable = function() {
+  const input = document.getElementById('permissionsSearchInput');
+  window._permFilter.search = input ? input.value.trim() : '';
+  permissionsCurrentPage = 1;
+  renderPermissionsTable();
+  updatePermissionsPagination();
+};
+
 // Carregar usuários especificamente para o card de permissões
 async function loadPermissionsUsers() {
   try {
@@ -6005,7 +6044,8 @@ function renderPermissionsTable() {
     return;
   }
   
-  if (permissionsUsersData.length === 0) {
+  const displayData = getPermissionsDisplayData();
+  if (displayData.length === 0) {
     tbody.innerHTML = `
       <tr>
         <td colspan="5" class="py-6 text-center text-gray-500">Nenhum usuário encontrado</td>
@@ -6016,7 +6056,7 @@ function renderPermissionsTable() {
   
   const startIndex = (permissionsCurrentPage - 1) * permissionsPerPage;
   const endIndex = startIndex + permissionsPerPage;
-  const usersPage = permissionsUsersData.slice(startIndex, endIndex);
+  const usersPage = displayData.slice(startIndex, endIndex);
   
   // Verificar se o usuário atual pode editar e quais cargos pode atribuir
   const roleFromWindow = (window.adminRoleLower || '').toLowerCase();
@@ -6178,17 +6218,17 @@ async function updatePermissionsUserRole(userId) {
 
 // Atualizar paginação do card de permissões
 function updatePermissionsPagination() {
-  const totalPages = Math.ceil(permissionsUsersData.length / permissionsPerPage);
+  const displayData = getPermissionsDisplayData();
+  const totalPages = Math.ceil(displayData.length / permissionsPerPage);
   const paginationContainer = document.getElementById('permissionsPagination');
   const countElement = document.getElementById('permissionsUsersCount');
-  const pageInfoElement = document.getElementById('permissionsUsersPageInfo');
   
   if (countElement) {
-    countElement.textContent = `${permissionsUsersData.length} usuários`;
-  }
-  
-  if (pageInfoElement) {
-    pageInfoElement.textContent = `Página ${permissionsCurrentPage} de ${totalPages}`;
+    const total = permissionsUsersData.length;
+    const showing = displayData.length;
+    countElement.textContent = showing < total
+      ? `${showing} de ${total} usuários`
+      : `${total} usuários`;
   }
   
   if (!paginationContainer || totalPages <= 1) {

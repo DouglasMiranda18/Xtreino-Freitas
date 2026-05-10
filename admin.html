@@ -489,7 +489,6 @@
                         </h3>
                         <div class="flex items-center gap-2 text-xs text-gray-500">
                             <span id="activeUsersCount">0 usuários</span>
-                            <span id="activeUsersPageInfo">Página 1 de 1</span>
                         </div>
                     </div>
                     
@@ -553,7 +552,28 @@
                         </h3>
                         <div class="flex items-center gap-2 text-xs text-gray-500">
                             <span id="permissionsUsersCount">0 usuários</span>
-                            <span id="permissionsUsersPageInfo">Página 1 de 1</span>
+                        </div>
+                    </div>
+
+                    <!-- Filtros de Busca e Função -->
+                    <div class="mb-3 space-y-2">
+                        <div class="relative">
+                            <input type="text"
+                                   id="permissionsSearchInput"
+                                   placeholder="Buscar por nome ou email..."
+                                   class="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-8"
+                                   onkeyup="filterPermissionsTable()">
+                            <span class="absolute inset-y-0 right-3 flex items-center text-gray-400 text-sm">🔍</span>
+                        </div>
+                        <div class="flex flex-wrap gap-1" id="permissionsRoleFilters">
+                            <button onclick="setPermissionsRoleFilter('',this)"     class="px-2 py-1 bg-blue-600 text-white rounded text-xs perm-role-btn">Todos</button>
+                            <button onclick="setPermissionsRoleFilter('ceo',this)"  class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs perm-role-btn hover:bg-gray-300">CEO</button>
+                            <button onclick="setPermissionsRoleFilter('admin',this)" class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs perm-role-btn hover:bg-gray-300">Admin</button>
+                            <button onclick="setPermissionsRoleFilter('gerente',this)" class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs perm-role-btn hover:bg-gray-300">Gerente</button>
+                            <button onclick="setPermissionsRoleFilter('vendedor',this)" class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs perm-role-btn hover:bg-gray-300">Vendedor</button>
+                            <button onclick="setPermissionsRoleFilter('design',this)"  class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs perm-role-btn hover:bg-gray-300">Design</button>
+                            <button onclick="setPermissionsRoleFilter('socio',this)"   class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs perm-role-btn hover:bg-gray-300">Sócio</button>
+                            <button onclick="setPermissionsRoleFilter('user',this)"    class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs perm-role-btn hover:bg-gray-300">Usuário</button>
                         </div>
                     </div>
                     
