@@ -1,6 +1,18 @@
 // ==================== TOAST NOTIFICATION SYSTEM ====================
 let confirmResolve = null;
 
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+        return c;
+    });
+}
+
 function showToast(type, message, title = null, duration = 5000) {
     const container = document.getElementById('toastContainer');
     if (!container) return;

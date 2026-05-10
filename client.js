@@ -1,6 +1,18 @@
 // ==================== TOAST NOTIFICATION SYSTEM ====================
 let confirmResolve = null;
 
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+        return c;
+    });
+}
+
 function showToast(type, message, title = null, duration = 5000) {
     const container = document.getElementById('toastContainer');
     if (!container) return;
@@ -559,48 +571,98 @@ async function loadOrders() {
     }
 }
 
-// Load products (loja virtual items)
+// ========== CARREGAR PRODUTOS DO USUÁRIO COM DATA CORRETA ==========
 async function loadProducts() {
     try {
-        const ordersData = await fetchUserDocs('orders', 200, true);
-        const productsData = ordersData.map(d => ({
-            id: d.id,
-            date: d.data.createdAt?.toDate?.() || new Date(),
-            title: d.data.title || d.data.item || 'Produto',
-            status: d.data.status || 'pending',
-            price: d.data.amount ?? d.data.total ?? 0,
-            eventType: d.data.eventType || '',
-            type: d.data.type || ''
-        }));
+        if (!db || !currentUser) return;
 
-        // Filter only products (not events or tokens)
-        const productsOnly = productsData.filter(order => {
-            const title = (order.title || '').toLowerCase();
-            const item = (order.item || '').toLowerCase();
-            const eventType = (order.eventType || '').toLowerCase();
-            const type = (order.type || '').toLowerCase();
-            
-            // Include if explicitly marked as digital product
-            if (type === 'digital_product') return true;
+        const { collection, getDocs, query, where, doc, getDoc } = await 
+            import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
 
-            // Otherwise, exclude events/tokens and keep product-like titles
-            return !title.includes('xtreino') && 
-                   !title.includes('camp') && 
-                   !title.includes('semanal') && 
-                   !title.includes('modo liga') &&
-                   !title.includes('tokens') &&
-                   !item.includes('xtreino') && 
-                   !item.includes('camp') && 
-                   !item.includes('semanal') && 
-                   !item.includes('modo liga') &&
-                   !item.includes('tokens') &&
-                   eventType !== 'xtreino-tokens';
+        // 1. Buscar pedidos digitais do usuário
+        const ordersSnap = await getDocs(
+            query(collection(db, 'orders'), where('userId', '==', currentUser.uid))
+        );
+
+        const digitalOrders = [];
+        ordersSnap.forEach(docSnap => {
+            const data = docSnap.data();
+            if (data.type === 'digital_product' || data.productId) {
+                digitalOrders.push({ id: docSnap.id, ...data });
+            }
         });
 
-        displayAllProductsPaginated(productsOnly);
+        if (digitalOrders.length === 0) {
+            document.getElementById('allProducts').innerHTML = 
+                '<p class="text-gray-500 text-center">Nenhum produto adquirido ainda.</p>';
+            return;
+        }
+
+        // 2. Mapear productId → dados do produto (cache)
+        const productsMap = new Map();
+        for (const order of digitalOrders) {
+            const productId = order.productId;
+            if (!productId) continue;
+            if (!productsMap.has(productId)) {
+                const prodSnap = await getDoc(doc(db, 'products', productId));
+                if (prodSnap.exists()) {
+                    productsMap.set(productId, { id: productId, ...prodSnap.data() });
+                }
+            }
+        }
+
+        // 3. Montar lista final de produtos adquiridos com data correta
+        const productsList = [];
+        for (const order of digitalOrders) {
+            const productId = order.productId;
+            if (!productId) continue;
+            const prod = productsMap.get(productId);
+            if (!prod || prod.active === false) continue;
+
+            // EXTRAIR DATA CORRETAMENTE
+            let purchaseDate = null;
+            if (order.createdAt) {
+                if (typeof order.createdAt.toDate === 'function') {
+                    purchaseDate = order.createdAt.toDate();      // Firestore Timestamp
+                } else if (order.createdAt instanceof Date) {
+                    purchaseDate = order.createdAt;               // Já é Date
+                } else if (typeof order.createdAt === 'number') {
+                    purchaseDate = new Date(order.createdAt);     // timestamp ms
+                } else {
+                    purchaseDate = new Date(order.createdAt);     // string ISO
+                }
+            } else if (order.timestamp) {
+                purchaseDate = new Date(order.timestamp);
+            } else {
+                purchaseDate = new Date(); // fallback (nunca deve ocorrer)
+            }
+
+            // Validar se a data é válida
+            if (isNaN(purchaseDate.getTime())) {
+                console.warn('Data inválida para o pedido', order.id);
+                purchaseDate = new Date(); // fallback
+            }
+
+            productsList.push({
+                orderId: order.id,
+                product: prod,
+                purchaseDate: purchaseDate
+            });
+        }
+
+        // 4. ORDENAR: mais recente primeiro
+        productsList.sort((a, b) => b.purchaseDate - a.purchaseDate);
+
+        window.allProductsData = productsList;
+        window.currentProductsPage = 1;
+        displayProductsPaginated();
+
     } catch (error) {
-        
-        document.getElementById('allProducts').innerHTML = '<p class="text-gray-500 text-center">Erro ao carregar produtos</p>';
+        console.error('❌ Erro ao carregar produtos:', error);
+        const container = document.getElementById('allProducts');
+        if (container) {
+            container.innerHTML = '<p class="text-red-500 text-center">Erro ao carregar produtos. Tente novamente.</p>';
+        }
     }
 }
 
@@ -732,6 +794,105 @@ async function displayAllOrdersPaginated() {
     container.innerHTML = ordersHTML.join('') + paginationHTML;
 }
 
+function displayProductsPaginated() {
+    const container = document.getElementById('allProducts');
+    const products = window.allProductsData || [];
+    const perPage = 5;
+    const totalPages = Math.ceil(products.length / perPage);
+    const currentPage = window.currentProductsPage || 1;
+    const start = (currentPage - 1) * perPage;
+    const pageProducts = products.slice(start, start + perPage);
+
+    if (pageProducts.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-center">Nenhum produto encontrado.</p>';
+        return;
+    }
+
+    let html = '';
+    for (const item of pageProducts) {
+        const product = item.product;
+        const downloadUrl = normalizeDownloadUrl(product.downloadLink || '');
+        const isValid = downloadUrl && isValidUrl(downloadUrl);
+
+        const statusBadge = isValid 
+            ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Disponível</span>'
+            : '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Link indisponível</span>';
+
+        // Data formatada corretamente
+        const formattedDate = formatDate(item.purchaseDate);
+
+        html += `
+            <div class="bg-gray-50 rounded-lg p-4 mb-4 border border-gray-200">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div class="flex-1">
+                        <h4 class="font-bold text-gray-900">${escapeHtml(product.name)}</h4>
+                        <p class="text-sm text-gray-600 mt-1">${escapeHtml(product.description || '')}</p>
+                        <div class="flex gap-2 mt-2">
+                            ${statusBadge}
+                        </div>
+                    </div>
+                    <div class="flex flex-col items-end gap-2">
+                        <button 
+                            ${isValid ? `onclick="downloadProduct('${product.id}', '${escapeHtml(downloadUrl)}')"` : 'disabled'}
+                            class="px-5 py-2 rounded-lg font-semibold transition ${isValid ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}">
+                            <i class="fas fa-download mr-2"></i>
+                            Baixar
+                        </button>
+                        <span class="text-xs text-gray-400">Adquirido em: ${formattedDate}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // Paginação
+    let paginationHtml = '';
+    if (totalPages > 1) {
+        paginationHtml = '<div class="flex justify-center items-center mt-6 space-x-2">';
+        if (currentPage > 1) {
+            paginationHtml += `<button onclick="changeProductsPage(${currentPage - 1})" class="px-3 py-2 text-sm bg-white border rounded-md hover:bg-gray-50">Anterior</button>`;
+        }
+        for (let i = 1; i <= totalPages; i++) {
+            paginationHtml += `<button onclick="changeProductsPage(${i})" class="px-3 py-2 text-sm ${i === currentPage ? 'bg-blue-600 text-white' : 'bg-white border'} rounded-md">${i}</button>`;
+        }
+        if (currentPage < totalPages) {
+            paginationHtml += `<button onclick="changeProductsPage(${currentPage + 1})" class="px-3 py-2 text-sm bg-white border rounded-md hover:bg-gray-50">Próximo</button>`;
+        }
+        paginationHtml += '</div>';
+    }
+
+    container.innerHTML = html + paginationHtml;
+}
+
+window.downloadProduct = async function(productId, downloadUrl) {
+    if (!downloadUrl || !isValidUrl(downloadUrl)) {
+        showErrorToast('Link de download inválido ou não disponível. Entre em contato com o suporte.', 'Erro');
+        return;
+    }
+
+    // Normaliza novamente (por segurança)
+    const finalUrl = normalizeDownloadUrl(downloadUrl);
+    
+    // Abre em nova aba – funciona para 99% dos links (Google Drive, GitHub, arquivos diretos)
+    try {
+        const win = window.open(finalUrl, '_blank');
+        if (!win) {
+            // Fallback: criar elemento <a> e clicar
+            const a = document.createElement('a');
+            a.href = finalUrl;
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+        showSuccessToast('Download iniciado! Verifique sua nova aba.', 'Sucesso');
+    } catch (err) {
+        console.error('Erro ao tentar download:', err);
+        showErrorToast('Não foi possível iniciar o download. Tente copiar o link manualmente.', 'Erro');
+    }
+};
+
 // Generate pagination HTML
 function generatePaginationHTML(currentPage, totalPages) {
     if (totalPages <= 1) return '';
@@ -819,6 +980,60 @@ function displayAllProductsPaginated(productsData) {
     container.innerHTML = productsHTML + paginationHTML;
 }
 
+function isValidUrl(url) {
+    if (!url || typeof url !== 'string') return false;
+    const trimmed = url.trim();
+    // Suporta http://, https:// e até protocolos relativos (//)
+    const pattern = /^(https?:\/\/|ftp:\/\/|mailto:|tel:|\/\/)/i;
+    if (!pattern.test(trimmed)) return false;
+    try {
+        new URL(trimmed);
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+
+function normalizeDownloadUrl(url) {
+    if (!url || typeof url !== 'string') return '';
+    let u = url.trim();
+    
+    // 1. Corrigir links do GitHub Releases (página de tag → download direto)
+    const githubTagMatch = u.match(/github\.com\/([^\/]+)\/([^\/]+)\/releases\/tag\/([^\/]+)/i);
+    if (githubTagMatch) {
+        const [, user, repo, tag] = githubTagMatch;
+        // Tenta adivinhar o nome do arquivo (geralmente .zip)
+        const archiveUrl = `https://github.com/${user}/${repo}/archive/refs/tags/${tag}.zip`;
+        console.warn('[Normalização] Convertendo página de release para download direto:', archiveUrl);
+        return archiveUrl;
+    }
+
+    // 2. Corrigir links do GitHub que apontam para blob → raw
+    const githubBlobMatch = u.match(/github\.com\/([^\/]+)\/([^\/]+)\/blob\/([^\/]+)\/(.+)/i);
+    if (githubBlobMatch) {
+        const [, user, repo, branch, filePath] = githubBlobMatch;
+        const rawUrl = `https://raw.githubusercontent.com/${user}/${repo}/${branch}/${filePath}`;
+        console.warn('[Normalização] Convertendo blob para raw:', rawUrl);
+        return rawUrl;
+    }
+
+    // 3. Corrigir links do Google Drive compartilhado (extrair ID)
+    const driveMatch = u.match(/drive\.google\.com\/file\/d\/([^\/]+)/);
+    if (driveMatch) {
+        const fileId = driveMatch[1];
+        const directDownload = `https://drive.google.com/uc?export=download&id=${fileId}`;
+        console.warn('[Normalização] Convertendo link do Google Drive para download direto:', directDownload);
+        return directDownload;
+    }
+
+    // 4. Se for uma URL "//exemplo.com", completa com https:
+    if (u.startsWith('//')) {
+        return 'https:' + u;
+    }
+
+    return u;
+}
 
 // Generate pagination HTML for products
 function generateProductsPaginationHTML(currentPage, totalPages) {
@@ -3281,9 +3496,10 @@ window.changePage = async function(page) {
     await displayAllOrdersPaginated();
 };
 
+// ========== AJUSTE NA PAGINAÇÃO (exposta globalmente) ==========
 window.changeProductsPage = function(page) {
-    currentProductsPage = page;
-    loadProducts();
+    window.currentProductsPage = page;
+    displayProductsPaginated();
 };
 
 window.changeWhatsAppPage = function(page) {
