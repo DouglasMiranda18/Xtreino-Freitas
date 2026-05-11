@@ -10091,15 +10091,20 @@ async function loadEventsPreview() {
 }
 
 // ===== NOTIFICAR PARTICIPANTES DO EVENTO =====
+let _notifyEventDocs = []; // cache das inscrições carregadas
+
 async function openEventNotifyModal(eventId, eventName) {
     const modal = document.getElementById('eventNotifyModal');
     if (!modal) return;
+    _notifyEventDocs = [];
     document.getElementById('eventNotifyEventId').value = eventId;
     document.getElementById('eventNotifyEventName').textContent = eventName;
     document.getElementById('eventNotifyTitle').value = '';
     document.getElementById('eventNotifyMessage').value = '';
     document.getElementById('eventNotifyType').value = 'custom';
-    document.getElementById('eventNotifyCount').innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Contando participantes...';
+    document.getElementById('eventNotifyCount').innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Carregando participantes...';
+    const schedSel = document.getElementById('eventNotifySchedule');
+    if (schedSel) schedSel.innerHTML = '<option value="all">Carregando horários...</option>';
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 
@@ -10110,16 +10115,61 @@ async function openEventNotifyModal(eventId, eventName) {
             where('eventType', '==', eventId),
             where('status', 'in', ['confirmed', 'paid', 'approved', 'pending'])
         ));
-        const uniqueUsers = new Set(snap.docs.map(d => d.data().userId).filter(Boolean));
-        document.getElementById('eventNotifyCount').textContent = `${uniqueUsers.size} participante(s) inscrito(s)`;
+        _notifyEventDocs = snap.docs;
+
+        // Montar mapa de schedules → usuários únicos
+        const scheduleMap = {}; // schedule label → Set of userIds
+        for (const d of _notifyEventDocs) {
+            const r = d.data();
+            const uid = r.userId;
+            if (!uid) continue;
+            const sched = r.schedule || r.slotDisplay || '—';
+            if (!scheduleMap[sched]) scheduleMap[sched] = new Set();
+            scheduleMap[sched].add(uid);
+        }
+
+        const totalUnique = new Set(_notifyEventDocs.map(d => d.data().userId).filter(Boolean)).size;
+        document.getElementById('eventNotifyCount').textContent = `${totalUnique} participante(s) no total`;
+
+        // Popular select de horários
+        if (schedSel) {
+            const schedules = Object.keys(scheduleMap).sort();
+            if (schedules.length === 0) {
+                schedSel.innerHTML = '<option value="all">Todos os horários (sem filtro)</option>';
+            } else {
+                schedSel.innerHTML = `<option value="all">Todos os horários (${totalUnique} participante(s))</option>` +
+                    schedules.map(s => `<option value="${s.replace(/"/g, '&quot;')}">${s} — ${scheduleMap[s].size} participante(s)</option>`).join('');
+            }
+        }
     } catch(e) {
-        document.getElementById('eventNotifyCount').textContent = 'Não foi possível contar participantes';
+        document.getElementById('eventNotifyCount').textContent = 'Não foi possível carregar participantes';
+        if (schedSel) schedSel.innerHTML = '<option value="all">Todos os horários</option>';
+    }
+}
+
+function onEventNotifyScheduleChange() {
+    const schedSel = document.getElementById('eventNotifySchedule');
+    const selected = schedSel ? schedSel.value : 'all';
+    const countEl = document.getElementById('eventNotifyCount');
+    if (!countEl) return;
+
+    if (selected === 'all') {
+        const total = new Set(_notifyEventDocs.map(d => d.data().userId).filter(Boolean)).size;
+        countEl.textContent = `${total} participante(s) no total`;
+    } else {
+        const filtered = new Set(
+            _notifyEventDocs
+                .filter(d => { const r = d.data(); return (r.schedule || r.slotDisplay || '—') === selected && r.userId; })
+                .map(d => d.data().userId)
+        );
+        countEl.textContent = `${filtered.size} participante(s) neste horário`;
     }
 }
 
 function closeEventNotifyModal() {
     const modal = document.getElementById('eventNotifyModal');
     if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+    _notifyEventDocs = [];
 }
 
 function onEventNotifyTypeChange() {
@@ -10140,6 +10190,8 @@ async function sendEventNotification() {
     const eventName = document.getElementById('eventNotifyEventName').textContent;
     const title = document.getElementById('eventNotifyTitle').value.trim();
     const message = document.getElementById('eventNotifyMessage').value.trim();
+    const schedSel = document.getElementById('eventNotifySchedule');
+    const selectedSchedule = schedSel ? schedSel.value : 'all';
 
     if (!title) { showToast('warning', 'Informe o título da notificação.', 'Atenção'); return; }
     if (!message) { showToast('warning', 'Informe a mensagem.', 'Atenção'); return; }
@@ -10148,49 +10200,59 @@ async function sendEventNotification() {
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Enviando...'; }
 
     try {
-        const { collection, query, where, getDocs, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const snap = await getDocs(query(
-            collection(window.firebaseDb, 'registrations'),
-            where('eventType', '==', eventId),
-            where('status', 'in', ['confirmed', 'paid', 'approved', 'pending'])
-        ));
-        const uniqueUsers = [...new Set(snap.docs.map(d => d.data().userId).filter(Boolean))];
+        const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+        // Filtrar por horário se necessário
+        let docsToNotify = _notifyEventDocs;
+        if (selectedSchedule !== 'all') {
+            docsToNotify = _notifyEventDocs.filter(d => {
+                const r = d.data();
+                return (r.schedule || r.slotDisplay || '—') === selectedSchedule;
+            });
+        }
+
+        const uniqueUsers = [...new Set(docsToNotify.map(d => d.data().userId).filter(Boolean))];
 
         if (uniqueUsers.length === 0) {
-            showToast('warning', 'Nenhum participante encontrado para este evento.', 'Atenção');
+            showToast('warning', 'Nenhum participante encontrado para o horário selecionado.', 'Atenção');
             return;
         }
 
         const user = window.firebaseAuth?.currentUser;
         const createdBy = user ? (user.displayName || user.email || user.uid) : 'Admin';
 
+        const scheduleLabel = selectedSchedule !== 'all' ? ` [${selectedSchedule}]` : '';
+
         await Promise.all(uniqueUsers.map(uid =>
             addDoc(collection(window.firebaseDb, 'notifications'), {
-                title: `[${eventName}] ${title}`,
+                title: `[${eventName}]${scheduleLabel} ${title}`,
                 message,
                 type: 'user',
                 targetUserId: uid,
                 eventId,
                 eventName,
+                schedule: selectedSchedule !== 'all' ? selectedSchedule : null,
                 createdAt: serverTimestamp(),
                 createdBy,
                 createdByUid: user?.uid || null,
             })
         ));
 
-        showToast('success', `Notificação enviada para ${uniqueUsers.length} participante(s)!`, 'Sucesso');
+        const horarioMsg = selectedSchedule !== 'all' ? ` (horário: ${selectedSchedule})` : '';
+        showToast('success', `Notificação enviada para ${uniqueUsers.length} participante(s)${horarioMsg}!`, 'Sucesso');
         closeEventNotifyModal();
     } catch (err) {
         console.error('Erro ao enviar notificação de evento:', err);
         showToast('error', 'Erro ao enviar: ' + (err.message || err), 'Erro');
     } finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Enviar para todos'; }
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Enviar'; }
     }
 }
 
 window.openEventNotifyModal = openEventNotifyModal;
 window.closeEventNotifyModal = closeEventNotifyModal;
 window.onEventNotifyTypeChange = onEventNotifyTypeChange;
+window.onEventNotifyScheduleChange = onEventNotifyScheduleChange;
 window.sendEventNotification = sendEventNotification;
 
 window.loadEventsPreview = loadEventsPreview;
