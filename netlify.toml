@@ -1,5 +1,6 @@
 [functions]
   node_bundler = "esbuild"
+  external_node_modules = ["firebase-admin", "@google-cloud/firestore", "firebase-admin/app", "firebase-admin/firestore"]
 
 [[scheduled]]
   path = "/.netlify/functions/reconcile-payments"
