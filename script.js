@@ -7211,6 +7211,7 @@ async function loadDynamicEvents() {
                 <div class="product-desc">
                     <div class="space-y-1">
                         <div><strong>Entrada:</strong> ${preco}</div>
+                        <div><strong>Horários:</strong> Seg - Sex • 14h às 23h</div>
                         <div><strong>Vagas:</strong> ${ev.vagas || '—'}</div>
                         <div><strong>Modalidade:</strong> ${ev.tipo || ''} | ${ev.modo || ''}${ev.formato ? ' | ' + ev.formato : ''}</div>
                         ${descLines ? `<div class="text-xs text-gray-500 mt-1">${descLines}</div>` : ''}

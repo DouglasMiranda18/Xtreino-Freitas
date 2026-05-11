@@ -1230,6 +1230,14 @@ window.showWarningToast = function(message, title = 'Atenção') {
     if (btnSch) btnSch.onclick = exportSchedulesCsv;
     const btnLoadBoard = document.getElementById('btnLoadBoard');
     if (btnLoadBoard) btnLoadBoard.onclick = loadBoard;
+    // Carrega eventos dinâmicos no dropdown do board ao iniciar e quando Firebase estiver pronto
+    if (window.firebaseDb) {
+      loadDynamicEventsIntoBoard();
+    } else {
+      const _waitFb = setInterval(() => {
+        if (window.firebaseDb) { clearInterval(_waitFb); loadDynamicEventsIntoBoard(); }
+      }, 300);
+    }
     const formAddTeam = document.getElementById('formAddTeam');
     if (formAddTeam) formAddTeam.onsubmit = submitAddTeam;
     // Bind filtros do histórico de cupons - configurar após DOM estar pronto
@@ -2697,6 +2705,38 @@ window.showWarningToast = function(message, title = 'Atenção') {
   function getDefaultHoursForEvent(eventType, isCampFinalDate) {
     return ['14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00','23:00'];
   }
+
+  // Carrega eventos dinâmicos (adminEvents) no dropdown do board de horários
+  async function loadDynamicEventsIntoBoard() {
+    const typeEl = document.getElementById('boardEventType');
+    if (!typeEl || !window.firebaseDb) return;
+    // Remove opções dinâmicas anteriores
+    Array.from(typeEl.querySelectorAll('option[data-dynamic]')).forEach(o => o.remove());
+    try {
+      const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+      const snap = await getDocs(query(
+        collection(window.firebaseDb, 'adminEvents'),
+        where('status', '==', 'Aberto')
+      ));
+      if (snap.empty) return;
+      const sep = document.createElement('option');
+      sep.disabled = true;
+      sep.textContent = '── Eventos Criados ──';
+      sep.dataset.dynamic = '1';
+      typeEl.appendChild(sep);
+      snap.forEach(d => {
+        const ev = d.data();
+        const opt = document.createElement('option');
+        opt.value = d.id;
+        opt.textContent = ev.name || d.id;
+        opt.dataset.dynamic = '1';
+        typeEl.appendChild(opt);
+      });
+    } catch (err) {
+      console.warn('Erro ao carregar eventos dinâmicos no board:', err);
+    }
+  }
+  window.loadDynamicEventsIntoBoard = loadDynamicEventsIntoBoard;
 
   // Busca registrations pelo dia
   async function fetchRegistrationsByDate(date, eventType) {
