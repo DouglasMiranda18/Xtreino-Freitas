@@ -9618,6 +9618,8 @@ function openNewEventForm() {
     document.getElementById('evtName').value = '';
     document.getElementById('evtTipo').value = currentEventTab === 'camp' ? 'SOLO' : 'DUO';
     document.getElementById('evtModo').value = 'NORMAL';
+    const fmtElNew = document.getElementById('evtFormato');
+    if (fmtElNew) fmtElNew.value = 'Misto';
     document.getElementById('evtStatus').value = 'Aberto';
     document.getElementById('evtPremiado').value = 'NÃO';
     document.getElementById('evtEntrada').value = 'GRÁTIS';
@@ -9787,6 +9789,7 @@ async function saveEventForm() {
         name: document.getElementById('evtName').value.trim(),
         tipo: document.getElementById('evtTipo').value,
         modo: document.getElementById('evtModo').value,
+        formato: document.getElementById('evtFormato')?.value || 'Misto',
         status: document.getElementById('evtStatus').value,
         premiado: document.getElementById('evtPremiado').value,
         entrada,
@@ -9936,6 +9939,8 @@ async function editEventItem(eventId) {
         document.getElementById('evtName').value = ev.name || '';
         document.getElementById('evtTipo').value = ev.tipo || 'SOLO';
         document.getElementById('evtModo').value = ev.modo || 'NORMAL';
+        const fmtEl = document.getElementById('evtFormato');
+        if (fmtEl) fmtEl.value = ev.formato || 'Misto';
         document.getElementById('evtStatus').value = ev.status || 'Aberto';
         document.getElementById('evtPremiado').value = ev.premiado || 'NÃO';
         document.getElementById('evtEntrada').value = ev.entrada || 'GRÁTIS';
