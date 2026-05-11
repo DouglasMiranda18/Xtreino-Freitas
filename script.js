@@ -533,15 +533,15 @@ async function loadUserNotifications() {
 
         let allDocs = [];
         try {
-            const q1 = query(collection(db, 'notifications'), where('type', '==', 'all'), orderBy('createdAt', 'desc'), limit(20));
+            const q1 = query(collection(db, 'notifications'), where('type', '==', 'all'), limit(30));
             const s1 = await getDocs(q1);
             allDocs.push(...s1.docs);
-        } catch(_) {}
+        } catch(e) { console.warn('Notif q1:', e?.code); }
         try {
-            const q2 = query(collection(db, 'notifications'), where('targetUserId', '==', uid), orderBy('createdAt', 'desc'), limit(20));
+            const q2 = query(collection(db, 'notifications'), where('targetUserId', '==', uid), limit(30));
             const s2 = await getDocs(q2);
             allDocs.push(...s2.docs);
-        } catch(_) {}
+        } catch(e) { console.warn('Notif q2:', e?.code); }
 
         // Deduplicar e ordenar
         const seen = new Set();
