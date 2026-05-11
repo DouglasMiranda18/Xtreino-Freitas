@@ -281,5 +281,19 @@ service cloud.firestore {
       allow read: if true;
       allow create, update, delete: if isAuthorizedAdmin();
     }
+
+    // event_hour_locks: travas permanentes por horário individual (sem data)
+    // leitura pública para o site verificar; escrita apenas para admins
+    match /event_hour_locks/{lockId} {
+      allow read: if true;
+      allow create, update, delete: if isAuthorizedAdmin() || isAdmin() || isGerente();
+    }
+
+    // event_global_locks: trava geral do evento inteiro (todas as datas)
+    // leitura pública para o site verificar; escrita apenas para admins
+    match /event_global_locks/{lockId} {
+      allow read: if true;
+      allow create, update, delete: if isAuthorizedAdmin() || isAdmin() || isGerente();
+    }
   }
 }
