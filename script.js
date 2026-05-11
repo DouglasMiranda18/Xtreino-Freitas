@@ -5369,7 +5369,7 @@ async function updateOccupiedAndRefreshButtons(day, date, eventType, container) 
         const schedule = btn.dataset.schedule;
         const time = (schedule || '').split(' - ')[1] || '';
         const hour = parseInt(time.replace('h', ''));
-        const capacity = getEventCapacity(eventType, time);
+        const capacity = (scheduleConfig[eventType]?.vagas > 0 ? scheduleConfig[eventType].vagas : null) || getEventCapacity(eventType, time);
 
         // Verificar se o horário está travado (prioridade máxima)
         const isLocked = lockedHours.has(hour);
@@ -5416,14 +5416,15 @@ async function updateOccupiedAndRefreshButtons(day, date, eventType, container) 
             // Verificar disponibilidade de tempo (12 minutos antes)
             btn.className = 'slot-btn bg-gray-300 text-gray-500 cursor-not-allowed';
             btn.disabled = true;
-            btn.textContent = `${time} (${timeMessage}) (${available}/${capacity})`;
+            btn.innerHTML = `<span class="font-semibold">${time}</span><span class="block text-xs opacity-75 mt-0.5">${timeMessage} • ${taken}/${capacity}</span>`;
             btn.onclick = null;
             btn.style.display = 'block'; // Garantir que está visível
         } else {
-            // Horário disponível - mostrar "Restam X"
+            // Horário disponível - mostrar vagas e % preenchido
             btn.className = 'slot-btn';
             btn.disabled = false;
-            btn.textContent = `${time} (Restam ${available}/${capacity})`;
+            const _pct = capacity > 0 ? Math.round((taken / capacity) * 100) : 0;
+            btn.innerHTML = `<span class="font-semibold">${time}</span><span class="block text-xs opacity-75 mt-0.5">${taken}/${capacity} vagas • ${_pct}%</span><div class="mt-1 w-full bg-black/10 rounded-full h-1"><div class="bg-current h-1 rounded-full transition-all" style="width:${_pct}%"></div></div>`;
             btn.onclick = () => {
                 selectTime(schedule, btn);
             };
@@ -7384,14 +7385,6 @@ async function loadDynamicEvents() {
                         <div><strong>Modalidade:</strong> ${ev.tipo || ''} | ${ev.modo || ''}${ev.formato ? ' | ' + ev.formato : ''}</div>
                         ${descLines ? `<div class="text-xs text-gray-500 mt-1">${descLines}</div>` : ''}
                     </div>
-                    ${ev.vagas ? `<div class="mt-2 pt-2 border-t border-gray-100">
-                        <div class="flex justify-between text-xs text-gray-500 mb-1">
-                            <span class="evt-progress-text font-medium">Vagas carregando...</span>
-                        </div>
-                        <div class="w-full bg-gray-200 rounded-full h-1.5">
-                            <div class="evt-progress-bar-fill bg-orange-500 h-1.5 rounded-full transition-all duration-500" style="width:0%"></div>
-                        </div>
-                    </div>` : ''}
                 </div>
                 ${btnHtml}
             </article>`;
@@ -7399,30 +7392,6 @@ async function loadDynamicEvents() {
 
         grid.innerHTML = cards.join('');
         grid.classList.add('grid');
-
-        // Atualizar barras de progresso de vagas assincronamente
-        (async () => {
-            try {
-                const { collection: _c2, query: _q2, where: _w2, getDocs: _g2 } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-                await Promise.all(snap.docs.map(async d => {
-                    const ev = d.data();
-                    const vagas = Number(ev.vagas) || 0;
-                    if (!vagas) return;
-                    const article = grid.querySelector(`article[data-event-id="${d.id}"]`);
-                    if (!article) return;
-                    const countSnap = await _g2(_q2(_c2(window.firebaseDb, 'registrations'),
-                        _w2('eventType', '==', d.id),
-                        _w2('status', 'in', ['confirmed', 'paid', 'approved', 'pending'])
-                    ));
-                    const filled = countSnap.size;
-                    const pct = Math.min(100, Math.round((filled / vagas) * 100));
-                    const bar = article.querySelector('.evt-progress-bar-fill');
-                    const txt = article.querySelector('.evt-progress-text');
-                    if (bar) bar.style.width = `${pct}%`;
-                    if (txt) txt.textContent = `${filled}/${vagas} vagas • ${pct}% preenchido`;
-                }));
-            } catch (_) {}
-        })();
 
     } catch (err) {
         console.error('Erro ao carregar eventos dinâmicos:', err);
