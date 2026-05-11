@@ -4517,6 +4517,24 @@ function openScheduleModal(eventType) {
         submitBtn.textContent = '✅ Confirmar e Pagar';
     }
 
+    // Detectar evento grátis e ajustar UI (sem pagamento, cupom ou tokens)
+    {
+        const _isFree = cfg.price === 0 || cfg.isFree === true;
+        modal.dataset.isFree = _isFree ? '1' : '0';
+        const _couponSec = document.getElementById('scheduleCouponSection');
+        const _payTokenBtn = document.getElementById('schedPayTokens');
+        const _priceEl = document.getElementById('schedPrice');
+        if (_isFree) {
+            if (_couponSec) _couponSec.style.display = 'none';
+            if (_payTokenBtn) _payTokenBtn.style.display = 'none';
+            if (submitBtn) submitBtn.textContent = '✅ Confirmar Inscrição Grátis';
+            if (_priceEl) _priceEl.textContent = 'GRÁTIS';
+        } else {
+            if (_couponSec) _couponSec.style.display = '';
+            if (_payTokenBtn) _payTokenBtn.style.display = '';
+        }
+    }
+
     // Se havia opções de produto (ex.: seleção de mapas), remover ao abrir um evento
     const prodOpts = document.getElementById('productOptions');
     if (prodOpts && prodOpts.parentNode) {
@@ -5962,6 +5980,7 @@ async function submitSchedule(e, useTokens = false) {
         const normalizeHour = (h) => { if (!h) return null; const s = String(h).toLowerCase().trim(); const m = s.match(/(\d{1,2})/); return m ? `${parseInt(m[1], 10)}h` : s; };
         const eventType = normalizeType(rawEventType);
         const cfg = scheduleConfig[rawEventType] || scheduleConfig[eventType] || {};
+        const isFreeEvent = (cfg.price === 0 || cfg.isFree === true) && !cfg.isProduct;
 
         // Se for produto da loja, usar lógica de compra
         if (cfg.isProduct) {
@@ -5987,7 +6006,7 @@ async function submitSchedule(e, useTokens = false) {
         const date = document.getElementById('schedDate').value;
         const datesToUse = (selectedDates && selectedDates.length > 0) ? [...selectedDates] : [date];
 
-        if (selectedTimes.length === 0) {
+        if (!isFreeEvent && selectedTimes.length === 0) {
             alert('Selecione pelo menos um horário.');
             if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
             return;
@@ -6022,6 +6041,13 @@ async function submitSchedule(e, useTokens = false) {
                 if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
                 return;
             }
+        }
+
+        // Fluxo de evento grátis: confirmar diretamente sem pagamento
+        if (isFreeEvent) {
+            await handleFreeEventRegistration(rawEventType, cfg, teamsData, datesToUse, selectedTimes);
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+            return;
         }
 
         // Agrupar horários por data
@@ -6191,6 +6217,138 @@ async function submitSchedule(e, useTokens = false) {
         alert('Ocorreu um erro inesperado. Atualize a página e tente novamente.');
         if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
     }
+}
+
+// ===== EVENTO GRÁTIS: Inscrição direta com atribuição de slot =====
+async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesToUse, selectedTimesArg) {
+    try {
+        if (!window.isLoggedIn || !window.firebaseAuth?.currentUser) {
+            closeScheduleModal();
+            if (typeof openLoginModal === 'function') openLoginModal();
+            alert('Faça login para se inscrever.');
+            return;
+        }
+
+        const { collection, query, where, getDocs, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+        // Contar inscrições existentes para atribuir slot
+        const regsRef = collection(window.firebaseDb, 'registrations');
+        const existingSnap = await getDocs(query(regsRef,
+            where('eventType', '==', rawEventType),
+            where('status', 'in', ['confirmed', 'paid', 'approved', 'pending'])
+        ));
+        let slotBase = existingSnap.size;
+
+        const vagas = cfg.vagas || 0;
+        const grupos = Math.max(1, cfg.grupos || 1);
+        const slotsPerGroup = grupos > 1 ? Math.ceil(vagas / grupos) : vagas;
+
+        // Verificar se evento está lotado
+        if (vagas > 0 && slotBase >= vagas) {
+            alert('Este evento está lotado! Não há mais vagas disponíveis.');
+            return;
+        }
+
+        // Construir timesByDate a partir de selectedTimes
+        const timesByDate = {};
+        if (selectedTimesArg && selectedTimesArg.length > 0) {
+            selectedTimesArg.forEach(item => {
+                if (!timesByDate[item.date]) timesByDate[item.date] = [];
+                timesByDate[item.date].push(item.schedule);
+            });
+        }
+
+        const externalRef = `free_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+        const assignedSlots = [];
+
+        const dates = datesToUse && datesToUse.length > 0 ? datesToUse : [Object.keys(timesByDate)[0] || new Date().toISOString().slice(0, 10)];
+        const times = selectedTimesArg && selectedTimesArg.length > 0 ? null : null; // flag: usar timesByDate
+
+        for (const d of dates) {
+            const dayTimes = timesByDate[d] || ['—'];
+            for (const schedule of dayTimes) {
+                for (const team of teamsData) {
+                    slotBase++;
+                    const slotNumber = slotBase;
+
+                    if (vagas > 0 && slotNumber > vagas) {
+                        alert('Evento lotado durante o processamento. Algumas inscrições não foram concluídas.');
+                        closeScheduleModal();
+                        showSlotConfirmationModal(assignedSlots, cfg.label);
+                        return;
+                    }
+
+                    let slotDisplay;
+                    if (vagas > 0 && grupos > 1 && slotsPerGroup > 0) {
+                        const groupNum = Math.ceil(slotNumber / slotsPerGroup);
+                        const posInGroup = slotNumber - (groupNum - 1) * slotsPerGroup;
+                        slotDisplay = `Grupo ${groupNum} • Vaga ${posInGroup}`;
+                    } else {
+                        slotDisplay = `Vaga #${slotNumber}`;
+                    }
+
+                    await addDoc(collection(window.firebaseDb, 'registrations'), {
+                        userId: window.firebaseAuth.currentUser.uid,
+                        teamName: team.name,
+                        email: team.email,
+                        phone: team.phone,
+                        schedule: schedule !== '—' ? schedule : cfg.label,
+                        date: d,
+                        eventType: rawEventType,
+                        title: `${cfg.label} - ${slotDisplay}`,
+                        price: 0,
+                        slot: slotNumber,
+                        slotDisplay: slotDisplay,
+                        status: 'confirmed',
+                        createdAt: serverTimestamp(),
+                        external_reference: externalRef,
+                        isFreeEvent: true,
+                    });
+
+                    assignedSlots.push({ team: team.name, slot: slotDisplay });
+                }
+            }
+        }
+
+        closeScheduleModal();
+        showSlotConfirmationModal(assignedSlots, cfg.label);
+
+    } catch (err) {
+        console.error('Erro ao registrar inscrição gratuita:', err);
+        alert('Erro ao confirmar inscrição. Tente novamente.');
+    }
+}
+
+function showSlotConfirmationModal(slots, eventName) {
+    const existing = document.getElementById('slotConfirmModal');
+    if (existing) existing.remove();
+
+    const slotsHtml = slots.map(s => `
+        <div class="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-xl">
+            <span class="text-2xl">✅</span>
+            <div>
+                <div class="font-semibold text-gray-800">${s.team}</div>
+                <div class="text-sm font-bold text-green-700">${s.slot} confirmada!</div>
+            </div>
+        </div>`).join('');
+
+    const div = document.createElement('div');
+    div.id = 'slotConfirmModal';
+    div.className = 'fixed inset-0 bg-black bg-opacity-60 z-[200] flex items-center justify-center p-4';
+    div.innerHTML = `
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <div class="text-center mb-4">
+                <div class="text-4xl mb-2">🎉</div>
+                <h3 class="text-xl font-bold text-gray-900">Inscrição Confirmada!</h3>
+                <p class="text-gray-600 text-sm mt-1">${eventName}</p>
+            </div>
+            <div class="space-y-2 mb-6">${slotsHtml}</div>
+            <button onclick="document.getElementById('slotConfirmModal').remove()"
+                    class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold transition-colors">
+                OK, entendido!
+            </button>
+        </div>`;
+    document.body.appendChild(div);
 }
 
 
@@ -7193,14 +7351,16 @@ async function loadDynamicEvents() {
 
         const cards = snap.docs.map(d => {
             const ev = d.data();
+            const _isFreeEv = !ev.preco || ev.entrada === 'GRÁTIS' || Number(ev.preco) === 0;
             // Registrar no scheduleConfig para openScheduleModal funcionar com eventos dinâmicos
-            if (!scheduleConfig[d.id]) {
-                scheduleConfig[d.id] = {
-                    label: ev.name || 'Evento',
-                    price: Number(ev.preco) || 0,
-                    payWithToken: ev.entrada === 'TOKENS',
-                };
-            }
+            scheduleConfig[d.id] = {
+                label: ev.name || 'Evento',
+                price: Number(ev.preco) || 0,
+                payWithToken: ev.entrada === 'TOKENS',
+                vagas: Number(ev.vagas) || 0,
+                grupos: Number(ev.grupos) || 0,
+                isFree: _isFreeEv,
+            };
             const imgSrc = ev.imageUrl || placeholderImg;
             const isPago = ev.entrada === 'PAGO';
             const preco = ev.preco ? `R$ ${Number(ev.preco).toFixed(2)}` : 'GRÁTIS';
@@ -7210,7 +7370,7 @@ async function loadDynamicEvents() {
                 ? `<button onclick="openEventPayment('${d.id}', '${(ev.name || '').replace(/'/g, "\\'")}', ${ev.preco})" class="w-full btn-primary py-2 rounded-lg font-semibold">INSCREVER — ${preco}</button>`
                 : `<button onclick="openScheduleModal('${d.id}')" class="w-full btn-primary py-2 rounded-lg font-semibold">RESERVAR VAGA</button>`;
 
-            return `<article class="product-card" data-category="${ev.category || ''}">
+            return `<article class="product-card" data-category="${ev.category || ''}" data-event-id="${d.id}">
                 ${catLabel ? `<div class="px-1 pb-1"><span class="inline-block bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded">${catLabel}</span></div>` : ''}
                 <div class="product-media">
                     <img src="${imgSrc}" alt="${ev.name || 'Evento'}" loading="lazy" referrerpolicy="no-referrer" onerror="this.src='${placeholderImg}'">
@@ -7224,6 +7384,14 @@ async function loadDynamicEvents() {
                         <div><strong>Modalidade:</strong> ${ev.tipo || ''} | ${ev.modo || ''}${ev.formato ? ' | ' + ev.formato : ''}</div>
                         ${descLines ? `<div class="text-xs text-gray-500 mt-1">${descLines}</div>` : ''}
                     </div>
+                    ${ev.vagas ? `<div class="mt-2 pt-2 border-t border-gray-100">
+                        <div class="flex justify-between text-xs text-gray-500 mb-1">
+                            <span class="evt-progress-text font-medium">Vagas carregando...</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-1.5">
+                            <div class="evt-progress-bar-fill bg-orange-500 h-1.5 rounded-full transition-all duration-500" style="width:0%"></div>
+                        </div>
+                    </div>` : ''}
                 </div>
                 ${btnHtml}
             </article>`;
@@ -7231,6 +7399,30 @@ async function loadDynamicEvents() {
 
         grid.innerHTML = cards.join('');
         grid.classList.add('grid');
+
+        // Atualizar barras de progresso de vagas assincronamente
+        (async () => {
+            try {
+                const { collection: _c2, query: _q2, where: _w2, getDocs: _g2 } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+                await Promise.all(snap.docs.map(async d => {
+                    const ev = d.data();
+                    const vagas = Number(ev.vagas) || 0;
+                    if (!vagas) return;
+                    const article = grid.querySelector(`article[data-event-id="${d.id}"]`);
+                    if (!article) return;
+                    const countSnap = await _g2(_q2(_c2(window.firebaseDb, 'registrations'),
+                        _w2('eventType', '==', d.id),
+                        _w2('status', 'in', ['confirmed', 'paid', 'approved', 'pending'])
+                    ));
+                    const filled = countSnap.size;
+                    const pct = Math.min(100, Math.round((filled / vagas) * 100));
+                    const bar = article.querySelector('.evt-progress-bar-fill');
+                    const txt = article.querySelector('.evt-progress-text');
+                    if (bar) bar.style.width = `${pct}%`;
+                    if (txt) txt.textContent = `${filled}/${vagas} vagas • ${pct}% preenchido`;
+                }));
+            } catch (_) {}
+        })();
 
     } catch (err) {
         console.error('Erro ao carregar eventos dinâmicos:', err);
