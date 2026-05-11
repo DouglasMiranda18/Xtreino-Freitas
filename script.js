@@ -5084,6 +5084,23 @@ async function renderScheduleTimes() {
     const d = new Date(date + 'T00:00:00');
     const day = dayNames[d.getDay()];
 
+    // Verificar trava geral do evento (event_global_locks)
+    try {
+        if (window.firebaseDb && eventType) {
+            const { doc: _doc, getDoc: _getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            const glSnap = await _getDoc(_doc(window.firebaseDb, 'event_global_locks', eventType));
+            if (glSnap.exists() && glSnap.data().locked === true) {
+                timesWrap.innerHTML = `<div class="text-center py-6">
+                    <div class="inline-flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-5 py-4 font-bold text-base">
+                        🔴 Este evento está temporariamente suspenso pelo administrador.<br>
+                        <span class="font-normal text-sm">Novos horários serão liberados em breve.</span>
+                    </div>
+                </div>`;
+                return;
+            }
+        }
+    } catch(_) {}
+
     // Definir horários baseados no tipo de evento
     let slots = ['14h', '15h', '16h', '17h', '18h', '19h', '20h', '21h', '22h', '23h'];
     const cfg = scheduleConfig[eventType] || {};

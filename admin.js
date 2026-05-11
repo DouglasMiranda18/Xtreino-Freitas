@@ -3117,6 +3117,32 @@ window.showWarningToast = function(message, title = 'Atenção') {
       // ===== Bind do botão de destravar tudo do dia =====
       bindClearLocksButton(btnClearLocks, date, ovEventType);
 
+      // ===== Bind do botão Travar dia inteiro =====
+      const btnLockAllDay = document.getElementById('btnLockAllDay');
+      if (btnLockAllDay && window.adminRoleLower !== 'staff') {
+        btnLockAllDay.style.display = '';
+        const newBtnLock = btnLockAllDay.cloneNode(true);
+        btnLockAllDay.parentNode.replaceChild(newBtnLock, btnLockAllDay);
+        newBtnLock.addEventListener('click', () => handleLockAllDay(date, ovEventType));
+      } else if (btnLockAllDay) {
+        btnLockAllDay.style.display = 'none';
+      }
+
+      // ===== Bind e status do botão Trava Geral =====
+      const btnGlobalLock = document.getElementById('btnGlobalLock');
+      if (btnGlobalLock && window.adminRoleLower !== 'staff') {
+        await loadGlobalLockStatus(ovEventType);
+        const newBtnGlobal = btnGlobalLock.cloneNode(true);
+        // copiar dataset
+        newBtnGlobal.dataset.globalLocked = btnGlobalLock.dataset.globalLocked;
+        newBtnGlobal.textContent = btnGlobalLock.textContent;
+        newBtnGlobal.className = btnGlobalLock.className;
+        btnGlobalLock.parentNode.replaceChild(newBtnGlobal, btnGlobalLock);
+        newBtnGlobal.addEventListener('click', () => handleGlobalLock(ovEventType));
+      } else if (btnGlobalLock) {
+        btnGlobalLock.style.display = 'none';
+      }
+
       // ===== Determinar horários e capacidade =====
       const defaultHours = getDefaultHoursForEvent(eventType, isCampFinalDate);
       
@@ -3405,6 +3431,95 @@ window.showWarningToast = function(message, title = 'Atenção') {
             showToast('error', `Falha ao destravar tudo: ${error.message}`, 'Erro');
         }
     });
+  }
+
+  // ── Travar dia inteiro ─────────────────────────────────────────────────────
+  async function handleLockAllDay(date, ovEventType) {
+    if (!date || !ovEventType) { showToast('error','Selecione evento e data antes de travar.','Erro'); return; }
+    const ok = await confirm(`🔒 Travar TODOS os horários de ${date} para "${ovEventType}"?\nOs clientes não conseguirão reservar nenhum horário deste dia.`);
+    if (!ok) return;
+    try {
+      const { collection, query, where, getDocs, doc, addDoc, writeBatch } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+      const defaultHours = getDefaultHoursForEvent(ovEventType, false);
+      const ovRef = collection(window.firebaseDb, 'schedule_overrides');
+      const canon = canonicalType(ovEventType);
+
+      // Buscar docs existentes para o dia
+      const existing = {};
+      const snap = await getDocs(query(ovRef, where('date','==',date)));
+      snap.forEach(d => {
+        const r = d.data();
+        const h = String(r.hour || r.hh || '').replace(/\D/g,'');
+        if (h) existing[h] = d.id;
+      });
+
+      const batch = writeBatch(window.firebaseDb);
+      const toCreate = [];
+
+      defaultHours.forEach(hour => {
+        const hh = String(hour).replace(/\D/g,'').padStart(2,'0');
+        const h = parseInt(hh,10);
+        const hStr = String(h);
+        if (existing[hStr] || existing[hh]) {
+          const id = existing[hStr] || existing[hh];
+          batch.update(doc(window.firebaseDb,'schedule_overrides',id), { locked: true, eventType: canon });
+        } else {
+          toCreate.push({ date, eventType: canon, hour: hStr, hh: hStr, locked: true, extraOccupied: 0, createdAt: Date.now() });
+        }
+      });
+
+      await batch.commit();
+      for (const d of toCreate) await addDoc(ovRef, d);
+
+      showToast('success',`Todos os horários de ${date} foram travados.`,'Travado');
+      await loadBoard();
+    } catch (err) {
+      console.error(err);
+      showToast('error','Falha ao travar o dia: ' + (err.message||err),'Erro');
+    }
+  }
+
+  // ── Trava geral (permanente até destravar) ──────────────────────────────────
+  async function loadGlobalLockStatus(ovEventType) {
+    const btn = document.getElementById('btnGlobalLock');
+    if (!btn || window.adminRoleLower === 'staff') { if (btn) btn.style.display = 'none'; return; }
+    btn.style.display = '';
+    if (!window.firebaseDb || !ovEventType) { btn.textContent = '🔒 Trava Geral'; return; }
+    try {
+      const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+      const snap = await getDoc(doc(window.firebaseDb, 'event_global_locks', ovEventType));
+      const isLocked = snap.exists() && snap.data().locked === true;
+      btn.textContent = isLocked ? '🔴 Destavar Geral (travado)' : '🔒 Travar Geral';
+      btn.className = `px-3 py-2 rounded font-semibold text-white ${isLocked ? 'bg-red-700' : 'bg-gray-700 hover:bg-gray-900'}`;
+      btn.dataset.globalLocked = isLocked ? '1' : '0';
+    } catch(e) {
+      btn.textContent = '🔒 Travar Geral';
+    }
+  }
+
+  async function handleGlobalLock(ovEventType) {
+    const btn = document.getElementById('btnGlobalLock');
+    const isCurrentlyLocked = btn?.dataset.globalLocked === '1';
+    const action = isCurrentlyLocked ? 'DESTRAVAR' : 'TRAVAR';
+    const msg = isCurrentlyLocked
+      ? `🔓 Destravar o evento "${ovEventType}" permanentemente?\nOs clientes voltarão a ver os horários normalmente.`
+      : `🔒 TRAVAR GERAL o evento "${ovEventType}"?\n\nIsso bloqueia TODOS os horários em TODAS as datas até você destravar manualmente.`;
+    const ok = await confirm(msg);
+    if (!ok) return;
+    try {
+      const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+      await setDoc(doc(window.firebaseDb,'event_global_locks',ovEventType), {
+        locked: !isCurrentlyLocked,
+        eventType: ovEventType,
+        updatedAt: Date.now()
+      });
+      showToast('success', isCurrentlyLocked ? 'Evento destravado globalmente.' : 'Evento travado globalmente em todos os horários.', isCurrentlyLocked ? 'Destravado' : 'Travado');
+      await loadGlobalLockStatus(ovEventType);
+      await loadBoard();
+    } catch(err) {
+      console.error(err);
+      showToast('error','Falha na trava geral: ' + (err.message||err),'Erro');
+    }
   }
 
   async function openManageHourModal(date, eventType, hour){
