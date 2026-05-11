@@ -6290,42 +6290,96 @@ async function submitSchedule(e, useTokens = false) {
         }
 
         // --- CHAMAR MERCADO PAGO ---
+        const _cleanupPendingRegs = async () => {
+            if (!regIds.length) return;
+            try {
+                const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+                await Promise.all(regIds.map(id => deleteDoc(doc(window.firebaseDb, 'registrations', id))));
+            } catch (_) {}
+        };
+
         try {
-            const resp = await fetch('/.netlify/functions/create-preference', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    title: `${cfg.label} - ${totalReservations} reservas`,
-                    unit_price: Number(finalPrice.toFixed(2)),
-                    currency_id: 'BRL',
-                    quantity: 1,
-                    back_url: window.location.origin,
-                    coupon_info: couponInfo,
-                    external_reference: externalRef,
-                    multiple_reservations: {
-                        teams: teamsData.map(t => t.name),
-                        schedules: selectedTimes.map(item => item.schedule), // apenas os horários
-                        dates: datesToUse,
-                        eventType: eventType
-                    }
-                })
-            });
+            const _prefPayload = {
+                title: `${cfg.label} - ${totalReservations} reservas`,
+                unit_price: Number(finalPrice.toFixed(2)),
+                currency_id: 'BRL',
+                quantity: 1,
+                back_url: window.location.origin,
+                coupon_info: couponInfo,
+                external_reference: externalRef,
+                multiple_reservations: {
+                    teams: teamsData.map(t => t.name),
+                    schedules: selectedTimes.map(item => item.schedule),
+                    dates: datesToUse,
+                    eventType: rawEventType
+                }
+            };
 
-            if (!resp.ok) throw new Error('Erro ao gerar PIX');
+            let resp;
+            try {
+                resp = await fetch('/.netlify/functions/create-preference', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(_prefPayload)
+                });
+            } catch (fetchErr) {
+                await _cleanupPendingRegs();
+                alert('Não foi possível conectar ao servidor de pagamento. Verifique sua internet e tente novamente.');
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+                return;
+            }
+
+            if (resp.status === 404) {
+                await _cleanupPendingRegs();
+                alert('⚠️ Pagamento via Mercado Pago não está disponível neste ambiente de desenvolvimento.\n\nO checkout funciona apenas na versão publicada do site. Se você está no site oficial e viu este erro, entre em contato com o suporte.');
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+                return;
+            }
+
+            if (!resp.ok) {
+                const errText = await resp.text().catch(() => '');
+                await _cleanupPendingRegs();
+                if (errText.includes('Missing MP_ACCESS_TOKEN')) {
+                    alert('Integração com Mercado Pago não configurada. Entre em contato com o suporte.');
+                } else if (errText.includes('unit_price')) {
+                    alert('Erro no valor do pagamento. Por favor, recarregue a página e tente novamente.');
+                } else {
+                    alert(`Erro ao iniciar pagamento (${resp.status}). ${errText ? errText.slice(0, 120) : 'Tente novamente.'}`);
+                }
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+                return;
+            }
+
+            const data = await resp.json().catch(() => null);
+            if (!data) {
+                await _cleanupPendingRegs();
+                alert('Resposta inválida do servidor de pagamento. Tente novamente.');
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+                return;
+            }
+
             localStorage.setItem('pendingPaymentRefs', JSON.stringify([externalRef]));
-            const data = await resp.json();
-            closeScheduleModal();
+            const checkoutUrl = data.init_point || data.sandbox_init_point;
+            if (!checkoutUrl) {
+                await _cleanupPendingRegs();
+                alert('Não foi possível obter o link de pagamento. Tente novamente.');
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+                return;
+            }
 
-            if (data.init_point) {
-                try { sessionStorage.setItem('lastCheckoutUrl', data.init_point); } catch (_) { }
-                window.location.href = data.init_point;
-            } else {
-                throw new Error('Link de pagamento não recebido');
+            closeScheduleModal();
+            try { sessionStorage.setItem('lastCheckoutUrl', checkoutUrl); } catch (_) { }
+            try {
+                window.open(checkoutUrl, '_blank');
+                if (typeof showToast === 'function') showToast('success', 'Checkout aberto em nova aba. Finalize o pagamento no Mercado Pago.', 'Pagamento');
+            } catch (_) {
+                window.location.href = checkoutUrl;
             }
 
         } catch (paymentError) {
-            
-            alert('Erro ao iniciar pagamento no Mercado Pago. Tente novamente.');
+            console.error('Erro pagamento evento:', paymentError);
+            await _cleanupPendingRegs();
+            alert('Erro inesperado ao iniciar pagamento. Recarregue a página e tente novamente.');
             if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
         }
 
