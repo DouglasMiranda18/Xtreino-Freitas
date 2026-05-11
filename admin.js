@@ -9834,6 +9834,8 @@ async function saveEventForm() {
         premiado: document.getElementById('evtPremiado').value,
         entrada,
         vagas: parseInt(document.getElementById('evtVagas').value, 10),
+        quedas: parseInt(document.getElementById('evtQuedas')?.value, 10) || null,
+        mapas: Array.from(document.querySelectorAll('input[name="evtMapas"]:checked')).map(el => el.value),
         descricao: document.getElementById('evtDescricao').value.trim(),
         bannerSize: bannerSizeEl ? bannerSizeEl.value : '1920x1080',
         updatedAt: new Date().toISOString()
@@ -9998,6 +10000,15 @@ async function editEventItem(eventId) {
             document.getElementById('evtData').value = '';
         }
         document.getElementById('evtDescricao').value = ev.descricao || '';
+
+        // Quedas
+        const quedasEl = document.getElementById('evtQuedas');
+        if (quedasEl) quedasEl.value = ev.quedas || '';
+
+        // Mapas — desmarcar tudo e marcar os salvos
+        document.querySelectorAll('input[name="evtMapas"]').forEach(cb => {
+            cb.checked = Array.isArray(ev.mapas) && ev.mapas.includes(cb.value);
+        });
 
         // Preço
         const precoInput = document.getElementById('evtPreco');

@@ -2048,9 +2048,29 @@
 
                 <!-- Vagas -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Quantidade de Vagas</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Vagas por Horário</label>
                     <input id="evtVagas" type="number" min="1" placeholder="Ex: 12" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
                     <p id="evtVagasHint" class="text-xs text-gray-500 mt-1">Modo NORMAL: múltiplos de 12</p>
+                </div>
+
+                <!-- Quedas -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Quantidade de Quedas</label>
+                    <select id="evtQuedas" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
+                        <option value="">— Selecione —</option>
+                        <option value="1">1 queda</option>
+                        <option value="2">2 quedas</option>
+                        <option value="3">3 quedas</option>
+                        <option value="4">4 quedas</option>
+                        <option value="5">5 quedas</option>
+                        <option value="6">6 quedas</option>
+                        <option value="7">7 quedas</option>
+                        <option value="8">8 quedas</option>
+                        <option value="9">9 quedas</option>
+                        <option value="10">10 quedas</option>
+                        <option value="11">11 quedas</option>
+                        <option value="12">12 quedas</option>
+                    </select>
                 </div>
 
                 <!-- Grupos (só CAMP) -->
@@ -2061,8 +2081,39 @@
 
                 <!-- Data/Hora -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Data e Hora</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Data e Hora <span class="text-gray-400 font-normal text-xs">(opcional — evento fica ativo até travar manualmente)</span></label>
                     <input id="evtData" type="datetime-local" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
+                </div>
+
+                <!-- Mapas -->
+                <div class="lg:col-span-3">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Mapas disponíveis</label>
+                    <div class="flex flex-wrap gap-2">
+                        <label class="flex items-center gap-2 cursor-pointer border border-gray-300 rounded-lg px-3 py-2 text-sm has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 transition-colors">
+                            <input type="checkbox" name="evtMapas" value="BERMUDA" class="accent-orange-500">
+                            <span class="font-semibold">BERMUDA</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer border border-gray-300 rounded-lg px-3 py-2 text-sm has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 transition-colors">
+                            <input type="checkbox" name="evtMapas" value="PURGATORIO" class="accent-orange-500">
+                            <span class="font-semibold">PURGATÓRIO</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer border border-gray-300 rounded-lg px-3 py-2 text-sm has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 transition-colors">
+                            <input type="checkbox" name="evtMapas" value="KALAHARI" class="accent-orange-500">
+                            <span class="font-semibold">KALAHARI</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer border border-gray-300 rounded-lg px-3 py-2 text-sm has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 transition-colors">
+                            <input type="checkbox" name="evtMapas" value="SOLARA" class="accent-orange-500">
+                            <span class="font-semibold">SOLARA</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer border border-gray-300 rounded-lg px-3 py-2 text-sm has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 transition-colors">
+                            <input type="checkbox" name="evtMapas" value="NOVA TERRA" class="accent-orange-500">
+                            <span class="font-semibold">NOVA TERRA</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer border border-gray-300 rounded-lg px-3 py-2 text-sm has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 transition-colors">
+                            <input type="checkbox" name="evtMapas" value="ALPINE" class="accent-orange-500">
+                            <span class="font-semibold">ALPINE</span>
+                        </label>
+                    </div>
                 </div>
 
                 <!-- Descrição -->

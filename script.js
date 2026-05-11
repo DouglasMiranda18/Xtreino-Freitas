@@ -1049,6 +1049,11 @@ async function checkAuthState() {
                     // Usuário está logado
                     window.isLoggedIn = true;
                     toggleAccountButtons(true);
+                    // Mostrar sininho imediatamente ao logar (conteúdo carrega depois)
+                    ['notifBellDesktop','notifBellMobile'].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) el.classList.remove('hidden');
+                    });
                     // Carrega perfil do usuário
                     loadUserProfile(user.uid);
                     updateAdminLinkVisibility();
@@ -4885,6 +4890,10 @@ function clearSelectedDates() {
 function initScheduleDate() {
     const input = document.getElementById('schedDate');
     const today = new Date();
+    // Avançar para próximo dia útil se hoje é fim de semana
+    const dow = today.getDay();
+    if (dow === 0) today.setDate(today.getDate() + 1); // domingo → segunda
+    else if (dow === 6) today.setDate(today.getDate() + 2); // sábado → segunda
     const y = today.getFullYear();
     const m = String(today.getMonth() + 1).padStart(2, '0');
     const d = String(today.getDate()).padStart(2, '0');
@@ -6317,6 +6326,8 @@ async function submitSchedule(e, useTokens = false) {
                 }
             };
 
+            if (typeof showToast === 'function') showToast('info', 'Gerando link de pagamento, aguarde...', 'Mercado Pago');
+
             let resp;
             try {
                 resp = await fetch('/.netlify/functions/create-preference', {
@@ -7583,6 +7594,9 @@ async function loadDynamicEvents() {
                 grupos: Number(ev.grupos) || 0,
                 isFree: _isFreeEv,
                 modo: (ev.modo || '').toUpperCase(),
+                // Padrão: segunda a sexta, 14h-23h, sem data de corte automática
+                allowedWeekdays: [1, 2, 3, 4, 5],
+                slots: ['14h','15h','16h','17h','18h','19h','20h','21h','22h','23h'],
             };
             const imgSrc = ev.imageUrl || placeholderImg;
             const preco = ev.preco ? `R$ ${Number(ev.preco).toFixed(2)}` : 'GRÁTIS';
@@ -7594,10 +7608,13 @@ async function loadDynamicEvents() {
             const btnLabel = ev.entrada === 'PAGO' && ev.preco ? `INSCREVER — ${preco}` : 'RESERVAR VAGA';
             const btnHtml = `<button onclick="openScheduleModal('${d.id}')" class="w-full btn-primary py-2 rounded-lg font-semibold">${btnLabel}</button>`;
 
+            const quedasStr = ev.quedas ? `${ev.quedas}x` : null;
+            const mapasList = Array.isArray(ev.mapas) && ev.mapas.length ? ev.mapas.join(' • ') : null;
             return `<article class="product-card" data-category="${ev.category || ''}" data-event-id="${d.id}">
                 <div class="px-1 pb-1 flex flex-wrap gap-1">
                     ${catLabel ? `<span class="inline-block bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded">${catLabel}</span>` : ''}
                     ${formatoStr ? `<span class="inline-block bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded">${formatoStr}</span>` : ''}
+                    ${quedasStr ? `<span class="inline-block bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded">${quedasStr} QUEDAS</span>` : ''}
                 </div>
                 <div class="product-media">
                     <img src="${imgSrc}" alt="${ev.name || 'Evento'}" loading="lazy" referrerpolicy="no-referrer" onerror="this.src='${placeholderImg}'">
@@ -7608,6 +7625,7 @@ async function loadDynamicEvents() {
                         <div><strong>Entrada:</strong> ${preco}</div>
                         <div><strong>Vagas por horário:</strong> ${ev.vagas || '—'}</div>
                         <div><strong>Modalidade:</strong> ${tipoStr} | ${modoStr}${formatoStr ? ' | ' + formatoStr : ''}</div>
+                        ${mapasList ? `<div><strong>Mapas:</strong> ${mapasList}</div>` : ''}
                         ${descLines ? `<div class="text-xs text-gray-500 mt-1">${descLines}</div>` : ''}
                     </div>
                 </div>
