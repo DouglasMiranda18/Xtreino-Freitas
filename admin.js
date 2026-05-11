@@ -9951,7 +9951,7 @@ async function loadEventsList(category) {
                     ${ev.descricao ? `<p class="text-xs text-gray-400 mt-1 truncate">${escapeAdminHtml(ev.descricao)}</p>` : ''}
                 </div>
                 <div class="flex gap-2 flex-shrink-0 flex-wrap">
-                    <button onclick="openEventNotifyModal('${d.id}', ${JSON.stringify(ev.name || '')})" title="Enviar mensagem aos participantes" class="px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-semibold hover:bg-purple-100">
+                    <button onclick="openEventNotifyModal('${d.id}', this.dataset.name)" data-name="${escapeAdminHtml(ev.name || '')}" title="Enviar mensagem aos participantes" class="px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-semibold hover:bg-purple-100">
                         <i class="fas fa-paper-plane mr-1"></i>Notificar
                     </button>
                     <button onclick="editEventItem('${d.id}')" title="Editar" class="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-100">
