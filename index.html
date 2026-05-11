@@ -102,6 +102,11 @@
                         LOGIN
                     </button>
                     <span id="tokenBadgeDesktop" class="hidden bg-yellow-400 text-[var(--brand-black)] px-3 py-1 rounded-full text-xs font-bold shadow-sm">💎 0</span>
+                    <!-- Sininho de Notificações Desktop -->
+                    <button id="notifBellDesktop" onclick="toggleNotifDropdown()" title="Notificações" class="hidden relative text-gray-600 hover:text-blue-600 transition-colors p-2 rounded-full hover:bg-gray-100">
+                        <i class="fas fa-bell text-xl"></i>
+                        <span id="notifBadgeDesktop" class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 hidden"></span>
+                    </button>
                     <div id="accountSectionDesktop" class="hidden flex items-center space-x-3">
                         <button id="accountBtnDesktop" onclick="window.location.href='client.html'" class="bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold transition-colors">
                             MINHA CONTA
@@ -119,6 +124,11 @@
                 <div class="md:hidden flex items-center gap-2 ml-auto">
                     <a href="#" onclick="requestAdminAccess()" id="adminLinkMobile" class="text-black text-xs font-semibold px-2 py-1 hidden">ADMIN</a>
                     <span id="tokenBadgeMobile" class="hidden bg-yellow-400 text-[var(--brand-black)] px-2 py-1 rounded-full text-xs font-bold shadow-sm">💎 0</span>
+                    <!-- Sininho Mobile -->
+                    <button id="notifBellMobile" onclick="toggleNotifDropdown()" title="Notificações" class="hidden relative text-gray-600 p-1 rounded-full">
+                        <i class="fas fa-bell text-lg"></i>
+                        <span id="notifBadgeMobile" class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-0.5 hidden"></span>
+                    </button>
                     <button id="loginBtnMobile" onclick="openLoginModal()" class="bg-blue-matte px-4 py-2 rounded-xl text-white text-xs font-bold transition-colors">
                         LOGIN
                     </button>
@@ -1179,6 +1189,19 @@
                         </form>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dropdown de Notificações -->
+    <div id="notifDropdown" class="hidden fixed inset-0 z-[150]" onclick="closeNotifDropdown()">
+        <div class="absolute top-16 right-3 md:right-10 bg-white rounded-2xl shadow-2xl border border-gray-200 w-80 max-h-[420px] overflow-hidden flex flex-col" onclick="event.stopPropagation()">
+            <div class="p-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-blue-600 to-purple-600 rounded-t-2xl">
+                <h3 class="font-bold text-white flex items-center gap-2"><i class="fas fa-bell"></i> Notificações</h3>
+                <button onclick="closeNotifDropdown()" class="text-white/80 hover:text-white text-lg leading-none">✕</button>
+            </div>
+            <div id="notifList" class="overflow-y-auto flex-1 divide-y divide-gray-100">
+                <p class="text-center text-gray-400 text-sm py-8">Carregando...</p>
             </div>
         </div>
     </div>

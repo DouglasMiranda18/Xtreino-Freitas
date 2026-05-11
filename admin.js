@@ -9950,7 +9950,10 @@ async function loadEventsList(category) {
                     </div>
                     ${ev.descricao ? `<p class="text-xs text-gray-400 mt-1 truncate">${escapeAdminHtml(ev.descricao)}</p>` : ''}
                 </div>
-                <div class="flex gap-2 flex-shrink-0">
+                <div class="flex gap-2 flex-shrink-0 flex-wrap">
+                    <button onclick="openEventNotifyModal('${d.id}', ${JSON.stringify(ev.name || '')})" title="Enviar mensagem aos participantes" class="px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-semibold hover:bg-purple-100">
+                        <i class="fas fa-paper-plane mr-1"></i>Notificar
+                    </button>
                     <button onclick="editEventItem('${d.id}')" title="Editar" class="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-100">
                         <i class="fas fa-pen mr-1"></i>Editar
                     </button>
@@ -10086,6 +10089,109 @@ async function loadEventsPreview() {
         if (previewEl2) previewEl2.innerHTML = '<p class="text-sm text-gray-400 text-center py-3">Não foi possível carregar eventos.</p>';
     }
 }
+
+// ===== NOTIFICAR PARTICIPANTES DO EVENTO =====
+async function openEventNotifyModal(eventId, eventName) {
+    const modal = document.getElementById('eventNotifyModal');
+    if (!modal) return;
+    document.getElementById('eventNotifyEventId').value = eventId;
+    document.getElementById('eventNotifyEventName').textContent = eventName;
+    document.getElementById('eventNotifyTitle').value = '';
+    document.getElementById('eventNotifyMessage').value = '';
+    document.getElementById('eventNotifyType').value = 'custom';
+    document.getElementById('eventNotifyCount').innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Contando participantes...';
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+
+    try {
+        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const snap = await getDocs(query(
+            collection(window.firebaseDb, 'registrations'),
+            where('eventType', '==', eventId),
+            where('status', 'in', ['confirmed', 'paid', 'approved', 'pending'])
+        ));
+        const uniqueUsers = new Set(snap.docs.map(d => d.data().userId).filter(Boolean));
+        document.getElementById('eventNotifyCount').textContent = `${uniqueUsers.size} participante(s) inscrito(s)`;
+    } catch(e) {
+        document.getElementById('eventNotifyCount').textContent = 'Não foi possível contar participantes';
+    }
+}
+
+function closeEventNotifyModal() {
+    const modal = document.getElementById('eventNotifyModal');
+    if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+}
+
+function onEventNotifyTypeChange() {
+    const type = document.getElementById('eventNotifyType').value;
+    const titleEl = document.getElementById('eventNotifyTitle');
+    const msgEl = document.getElementById('eventNotifyMessage');
+    if (type === 'credentials') {
+        titleEl.value = 'Credenciais do Evento';
+        msgEl.placeholder = 'ID do evento: xxxxxx\nSenha: xxxxxx\n\nUse as credenciais acima para acessar o evento.';
+    } else {
+        titleEl.value = '';
+        msgEl.placeholder = 'Digite sua mensagem para os participantes...';
+    }
+}
+
+async function sendEventNotification() {
+    const eventId = document.getElementById('eventNotifyEventId').value;
+    const eventName = document.getElementById('eventNotifyEventName').textContent;
+    const title = document.getElementById('eventNotifyTitle').value.trim();
+    const message = document.getElementById('eventNotifyMessage').value.trim();
+
+    if (!title) { showToast('warning', 'Informe o título da notificação.', 'Atenção'); return; }
+    if (!message) { showToast('warning', 'Informe a mensagem.', 'Atenção'); return; }
+
+    const btn = document.getElementById('eventNotifySendBtn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Enviando...'; }
+
+    try {
+        const { collection, query, where, getDocs, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const snap = await getDocs(query(
+            collection(window.firebaseDb, 'registrations'),
+            where('eventType', '==', eventId),
+            where('status', 'in', ['confirmed', 'paid', 'approved', 'pending'])
+        ));
+        const uniqueUsers = [...new Set(snap.docs.map(d => d.data().userId).filter(Boolean))];
+
+        if (uniqueUsers.length === 0) {
+            showToast('warning', 'Nenhum participante encontrado para este evento.', 'Atenção');
+            return;
+        }
+
+        const user = window.firebaseAuth?.currentUser;
+        const createdBy = user ? (user.displayName || user.email || user.uid) : 'Admin';
+
+        await Promise.all(uniqueUsers.map(uid =>
+            addDoc(collection(window.firebaseDb, 'notifications'), {
+                title: `[${eventName}] ${title}`,
+                message,
+                type: 'user',
+                targetUserId: uid,
+                eventId,
+                eventName,
+                createdAt: serverTimestamp(),
+                createdBy,
+                createdByUid: user?.uid || null,
+            })
+        ));
+
+        showToast('success', `Notificação enviada para ${uniqueUsers.length} participante(s)!`, 'Sucesso');
+        closeEventNotifyModal();
+    } catch (err) {
+        console.error('Erro ao enviar notificação de evento:', err);
+        showToast('error', 'Erro ao enviar: ' + (err.message || err), 'Erro');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Enviar para todos'; }
+    }
+}
+
+window.openEventNotifyModal = openEventNotifyModal;
+window.closeEventNotifyModal = closeEventNotifyModal;
+window.onEventNotifyTypeChange = onEventNotifyTypeChange;
+window.sendEventNotification = sendEventNotification;
 
 window.loadEventsPreview = loadEventsPreview;
 window.openEventsModal = openEventsModal;

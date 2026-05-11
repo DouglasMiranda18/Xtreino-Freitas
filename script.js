@@ -521,6 +521,118 @@ function onAuthLogged(user) {
     // Não abre automaticamente a área do cliente - só quando clicar em MINHA CONTA
 }
 
+// ===== NOTIFICAÇÕES DO USUÁRIO =====
+let _notifUnreadCount = 0;
+
+async function loadUserNotifications() {
+    if (!window.isLoggedIn || !window.firebaseDb || !window.firebaseAuth?.currentUser) return;
+    try {
+        const uid = window.firebaseAuth.currentUser.uid;
+        const { collection, query, where, getDocs, orderBy, limit } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const db = window.firebaseDb;
+
+        let allDocs = [];
+        try {
+            const q1 = query(collection(db, 'notifications'), where('type', '==', 'all'), orderBy('createdAt', 'desc'), limit(20));
+            const s1 = await getDocs(q1);
+            allDocs.push(...s1.docs);
+        } catch(_) {}
+        try {
+            const q2 = query(collection(db, 'notifications'), where('targetUserId', '==', uid), orderBy('createdAt', 'desc'), limit(20));
+            const s2 = await getDocs(q2);
+            allDocs.push(...s2.docs);
+        } catch(_) {}
+
+        // Deduplicar e ordenar
+        const seen = new Set();
+        allDocs = allDocs.filter(d => { if (seen.has(d.id)) return false; seen.add(d.id); return true; });
+        allDocs.sort((a, b) => (b.data().createdAt?.toMillis?.() || 0) - (a.data().createdAt?.toMillis?.() || 0));
+
+        // Calcular não lidas usando localStorage
+        const readKey = `notifRead_${uid}`;
+        const readIds = new Set(JSON.parse(localStorage.getItem(readKey) || '[]'));
+        _notifUnreadCount = allDocs.filter(d => !readIds.has(d.id)).length;
+        updateNotifBadge(_notifUnreadCount);
+
+        // Mostrar sininho se logado
+        ['notifBellDesktop', 'notifBellMobile'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('hidden');
+        });
+
+        const listEl = document.getElementById('notifList');
+        if (!listEl) return;
+
+        if (allDocs.length === 0) {
+            listEl.innerHTML = '<p class="text-center text-gray-400 text-sm py-8">Sem notificações no momento</p>';
+            return;
+        }
+
+        listEl.innerHTML = allDocs.map(d => {
+            const n = d.data();
+            const isRead = readIds.has(d.id);
+            const dateStr = n.createdAt ? new Date(n.createdAt.toDate ? n.createdAt.toDate() : n.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+            return `<div class="p-3 hover:bg-gray-50 transition-colors cursor-default ${isRead ? '' : 'bg-blue-50 border-l-2 border-blue-400'}">
+                <div class="font-semibold text-sm text-gray-900">${n.title || ''}</div>
+                <div class="text-xs text-gray-600 mt-0.5 leading-relaxed whitespace-pre-line">${n.message || ''}</div>
+                <div class="text-xs text-gray-400 mt-1">${dateStr}</div>
+            </div>`;
+        }).join('');
+    } catch (err) {
+        console.error('Erro ao carregar notificações:', err);
+    }
+}
+
+function updateNotifBadge(count) {
+    ['notifBadgeDesktop', 'notifBadgeMobile'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = count > 99 ? '99+' : String(count);
+        count > 0 ? el.classList.remove('hidden') : el.classList.add('hidden');
+    });
+}
+
+function toggleNotifDropdown() {
+    const d = document.getElementById('notifDropdown');
+    if (!d) return;
+    if (d.classList.contains('hidden')) {
+        d.classList.remove('hidden');
+        loadUserNotifications();
+        // Marcar como lidas ao abrir
+        if (window.firebaseAuth?.currentUser) {
+            const uid = window.firebaseAuth.currentUser.uid;
+            const readKey = `notifRead_${uid}`;
+            const listEl = document.getElementById('notifList');
+            // Aguarda um tick para o DOM atualizar
+            setTimeout(() => {
+                const ids = [];
+                document.querySelectorAll('#notifList [data-notif-id]').forEach(el => ids.push(el.dataset.notifId));
+                // Re-carrega e pega os IDs da lista
+                loadUserNotifications().then(() => {
+                    const currentIds = JSON.parse(localStorage.getItem(readKey) || '[]');
+                    // Marcar todos os visíveis — simplificado: zerar badge
+                    _notifUnreadCount = 0;
+                    updateNotifBadge(0);
+                });
+            }, 600);
+        }
+    } else {
+        d.classList.add('hidden');
+    }
+}
+
+function closeNotifDropdown() {
+    const d = document.getElementById('notifDropdown');
+    if (d) d.classList.add('hidden');
+}
+
+window.loadUserNotifications = loadUserNotifications;
+window.toggleNotifDropdown = toggleNotifDropdown;
+window.closeNotifDropdown = closeNotifDropdown;
+window.updateNotifBadge = updateNotifBadge;
+
+// ===== FIM NOTIFICAÇÕES =====
+
 function toggleAccountButtons(isLogged) {
     const loginDesk = document.getElementById('loginBtnDesktop');
     const accountSectionDesktop = document.getElementById('accountSectionDesktop');
@@ -843,17 +955,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 const hasPaymentEvidence = mpStatus || preferenceId || sessionStorage.getItem('lastExternalRef') || sessionStorage.getItem('lastRegId');
 
                 if (!mpStatus && preferenceId) {
-                    
-                    // Mostrar modal de processamento enquanto verifica
-                    openPaymentConfirmModal('Pagamento em processamento', 'Estamos aguardando a confirmação do PIX. Assim que aprovado, avisaremos aqui.');
                     checkPaymentStatus(preferenceId);
                 } else if (!mpStatus && hasPaymentEvidence) {
                     // Se não tem mp_status mas há evidência de pagamento, tentar usar external_reference salvo
                     const externalRef = sessionStorage.getItem('lastExternalRef');
                     if (externalRef) {
-                        
-                        // Mostrar modal de processamento enquanto verifica
-                        openPaymentConfirmModal('Pagamento em processamento', 'Estamos aguardando a confirmação do PIX. Assim que aprovado, avisaremos aqui.');
                         checkPaymentStatus(externalRef);
                     }
                 } else if (!hasPaymentEvidence) {
@@ -940,6 +1046,7 @@ async function checkAuthState() {
                     // Carrega perfil do usuário
                     loadUserProfile(user.uid);
                     updateAdminLinkVisibility();
+                    setTimeout(() => { try { loadUserNotifications(); } catch(_) {} }, 1500);
                 } else {
                     // Usuário não está logado
                     window.isLoggedIn = false;
@@ -951,6 +1058,9 @@ async function checkAuthState() {
                     }
                     toggleAccountButtons(false);
                     updateAdminLinkVisibility();
+                    // Ocultar sininho ao deslogar
+                    ['notifBellDesktop','notifBellMobile'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+                    updateNotifBadge(0);
                 }
             });
         }
