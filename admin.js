@@ -2852,22 +2852,32 @@ window.showWarningToast = function(message, title = 'Atenção') {
   }
 
   // Renderiza linha da tabela
-  function createBoardTableRow(hour, capacity, occupied, overrides, eventType) {
+  function createBoardTableRow(hour, capacity, occupied, overrides, eventType, permLockedHours) {
     const tr = document.createElement('tr');
     const ovData = overrides[hour] || {};
-    const isFixedLock = false; //(canonicalType(eventType) === 'modo-liga' && (hour === '16:00' || hour === '17:00'));
+    const isFixedLock = false;
     const locked = isFixedLock ? true : !!(ovData.lockedAny === undefined ? ovData.locked : ovData.lockedAny);
     const isStaff = window.adminRoleLower === 'staff';
+
+    // Trava permanente deste horário
+    const hNum = parseInt(String(hour).replace(/\D/g,''), 10);
+    const permLocked = !!(permLockedHours && permLockedHours.has(hNum));
     
     const remaining = Math.max(0, capacity - occupied);
     const occupiedText = remaining === 0 ? 'Lotado' : `Restam ${remaining}`;
-    const lockButton = isStaff ? '' : `<button class="px-2 py-1 ${locked?'bg-red-600 text-white':'bg-yellow-400 text-black'} rounded text-xs" data-toggle-lock="${hour}" ${isFixedLock ? 'title="Horário fixo - confirmação necessária para destravar"' : ''}>${locked?'Destravar':'Travar'}</button>`;
+
+    // Badge de trava permanente na coluna hora
+    const permBadge = permLocked ? ' <span class="text-[10px] font-bold text-red-600 bg-red-100 rounded px-1">∞ FIXO</span>' : '';
+
+    const lockButton = isStaff ? '' : `<button class="px-2 py-1 ${locked?'bg-red-600 text-white':'bg-yellow-400 text-black'} rounded text-xs" data-toggle-lock="${hour}">${locked?'Destravar':'Travar'}</button>`;
+    const permLockButton = isStaff ? '' : `<button class="px-2 py-1 ${permLocked?'bg-purple-700 text-white':'bg-gray-400 text-white'} rounded text-xs font-bold" data-toggle-perm-lock="${hour}" title="${permLocked?'Remover trava permanente deste horário':'Travar este horário permanentemente (todas as datas)'}">∞ ${permLocked?'Destrav. Fixo':'Fixar'}</button>`;
     
-    tr.innerHTML = `<td class="py-2">${hour}</td><td class="py-2">${occupiedText}</td><td class="py-2 space-x-2">
+    tr.innerHTML = `<td class="py-2">${hour}${permBadge}</td><td class="py-2">${occupiedText}</td><td class="py-2 flex flex-wrap gap-1">
       <button class="px-2 py-1 bg-blue-600 text-white rounded text-xs" data-add-hour="${hour}">Adicionar</button>
       <button class="px-2 py-1 bg-gray-200 text-gray-800 rounded text-xs" data-manage-hour="${hour}">Gerenciar</button>
       <button class="px-2 py-1 bg-emerald-600 text-white rounded text-xs" data-export-hour="${hour}">Exportar</button>
       ${lockButton}
+      ${permLockButton}
     </td>`;
     
     return tr;
@@ -3196,10 +3206,22 @@ window.showWarningToast = function(message, title = 'Atenção') {
         return;
       }
 
+      // ===== Carregar travas permanentes por horário =====
+      let permLockedHours = new Set();
+      try {
+        const { collection: _c, query: _q, where: _w, getDocs: _g } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const hlRef = _c(window.firebaseDb, 'event_hour_locks');
+        const hlSnap = await _g(_q(hlRef, _w('eventType', '==', ovEventType), _w('locked', '==', true)));
+        hlSnap.forEach(d => {
+          const h = parseInt(String(d.data().hour || '').replace(/\D/g,''), 10);
+          if (!isNaN(h)) permLockedHours.add(h);
+        });
+      } catch(_) {}
+
       entries.forEach(hour => {
         const cap = getCapacityForHour(eventType, hour, isCampFinalDate, isCampSemifinalDate);
         const occupied = mergedMap[hour] || 0;
-        const tr = createBoardTableRow(hour, cap, occupied, overridesMap, ovEventType);
+        const tr = createBoardTableRow(hour, cap, occupied, overridesMap, ovEventType, permLockedHours);
         tbody.appendChild(tr);
       });
 
@@ -3253,10 +3275,40 @@ window.showWarningToast = function(message, title = 'Atenção') {
           const h = btnToggle.getAttribute('data-toggle-lock');
           await handleToggleLock(h, date, eventType, ovEventType);
         }
+        const btnPermLock = e.target.closest('[data-toggle-perm-lock]');
+        if (btnPermLock) {
+          const h = btnPermLock.getAttribute('data-toggle-perm-lock');
+          await handleTogglePermanentLock(h, ovEventType);
+        }
       } catch (e) {
         console.error('Erro ao processar ação da tabela:', e);
       }
     });
+  }
+
+  // Trava permanente de horário individual (sem data)
+  async function handleTogglePermanentLock(hour, ovEventType) {
+    const hNum = parseInt(String(hour).replace(/\D/g,''), 10);
+    if (isNaN(hNum)) { showToast('error','Horário inválido.','Erro'); return; }
+    const docId = `${ovEventType}__${hNum}`;
+    try {
+      const { doc, getDoc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+      const ref = doc(window.firebaseDb, 'event_hour_locks', docId);
+      const snap = await getDoc(ref);
+      const isCurrentlyLocked = snap.exists() && snap.data().locked === true;
+      const action = isCurrentlyLocked ? 'DESTRAVAR permanentemente' : 'TRAVAR permanentemente';
+      const msg = isCurrentlyLocked
+        ? `🔓 Destravar o horário ${hNum}h de "${ovEventType}" em TODAS as datas?`
+        : `🔒 Travar o horário ${hNum}h de "${ovEventType}" em TODAS as datas permanentemente?\n\nOs clientes não poderão reservar este horário em nenhuma data até você destravar.`;
+      const ok = await confirm(msg);
+      if (!ok) return;
+      await setDoc(ref, { eventType: ovEventType, hour: String(hNum), locked: !isCurrentlyLocked, updatedAt: Date.now() });
+      showToast('success', isCurrentlyLocked ? `Horário ${hNum}h destravado em todas as datas.` : `Horário ${hNum}h travado permanentemente em todas as datas.`, isCurrentlyLocked ? 'Destravado' : 'Fixado');
+      await loadBoard();
+    } catch(err) {
+      console.error(err);
+      showToast('error','Falha na trava permanente: ' + (err.message||err),'Erro');
+    }
   }
 
   // Handler para toggle de travamento de horário

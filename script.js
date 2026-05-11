@@ -5478,12 +5478,8 @@ async function updateOccupiedAndRefreshButtons(day, date, eventType, container) 
 
         ovSnap.forEach(doc => {
             const ov = doc.data();
-            // VALIDAÇÃO: Garantir que o override é realmente para esta data
             const ovDate = ov.date || '';
-            if (ovDate !== normalizedDate) {
-                
-                return; // Ignorar override de data diferente
-            }
+            if (ovDate !== normalizedDate) return;
 
             const ovHour = parseInt(String(ov.hour || ov.hh || '').replace(/\D/g, ''), 10);
             if (isNaN(ovHour)) return;
@@ -5491,17 +5487,25 @@ async function updateOccupiedAndRefreshButtons(day, date, eventType, container) 
             const ovEventType = ov.eventType || null;
             const shouldApply = !ovEventType || ovEventType === eventType || !eventType;
 
-            if (!shouldApply) return; // Skip if eventType doesn't match
+            if (!shouldApply) return;
 
-            // IMPORTANTE: Se locked=true, adicionar à lista de travados
             if (ov.locked === true) {
                 lockedHours.add(ovHour);
-                
             }
         });
-    } catch (err) {
-        
-    }
+    } catch (err) {}
+
+    // Verificar travas permanentes por horário (event_hour_locks) — sem data, valem sempre
+    try {
+        const { collection: _c, query: _q, where: _w, getDocs: _g } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        if (window.firebaseDb && eventType) {
+            const hlSnap = await _g(_q(_c(window.firebaseDb, 'event_hour_locks'), _w('eventType', '==', eventType), _w('locked', '==', true)));
+            hlSnap.forEach(doc => {
+                const h = parseInt(String(doc.data().hour || '').replace(/\D/g,''), 10);
+                if (!isNaN(h)) lockedHours.add(h);
+            });
+        }
+    } catch (_) {}
 
     const now = new Date();
     const selectedDate = new Date(date + 'T00:00:00');
