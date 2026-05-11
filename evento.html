@@ -73,7 +73,16 @@
 
         <div id="panelInfo" class="tab-panel">
             <div id="evDesc" class="text-slate-300 leading-relaxed whitespace-pre-line mb-4"></div>
-            <div id="evInfoGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+            <div id="evInfoGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6"></div>
+            <!-- Regras dentro da aba Informações -->
+            <div id="evRegrasBlock" class="hidden">
+                <div class="bg-slate-800 rounded-2xl p-5 border border-slate-700">
+                    <h3 class="text-orange-400 font-bold text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <i class="fas fa-gavel"></i> Regras do Evento
+                    </h3>
+                    <pre class="regras-text text-slate-200 text-sm leading-relaxed" id="evRegras"></pre>
+                </div>
+            </div>
         </div>
 
         <div id="panelRegras" class="tab-panel">
@@ -151,7 +160,8 @@
 
 <script type="module">
 import { initializeApp, getApps, getApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
-import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+import { getFirestore, doc, getDoc, collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
 
 const FIREBASE_CONFIG = {
     apiKey: "AIzaSyBzD0iWNIfZwuzWN-Xhjbg22OfCHv1Qwjo",
@@ -163,11 +173,13 @@ const FIREBASE_CONFIG = {
 };
 
 let _db = null;
+let _auth = null;
 
 function initFirebase() {
     const existing = getApps().find(a => a.name === 'evento-page');
     const app = existing || initializeApp(FIREBASE_CONFIG, 'evento-page');
     _db = getFirestore(app);
+    _auth = getAuth(app);
     return _db;
 }
 
@@ -187,8 +199,35 @@ function showError(msg) {
 function showContent() {
     document.getElementById('pageLoading').classList.add('hidden');
     document.getElementById('pageContent').classList.remove('hidden');
+    // CTA shown by default; checkUserRegistration() can hide it
     document.getElementById('floatingCta').classList.remove('hidden');
     document.getElementById('headerRegBtn').classList.remove('hidden');
+}
+
+function hideCtaRegistered() {
+    const cta = document.getElementById('floatingCta');
+    if (cta) cta.innerHTML = `<div class="max-w-4xl mx-auto">
+        <div class="w-full flex items-center justify-center gap-3 bg-green-700 text-white text-base font-black py-4 rounded-2xl shadow-2xl">
+            <i class="fas fa-check-circle text-xl"></i>Você já está inscrito neste evento!
+        </div>
+    </div>`;
+    const hBtn = document.getElementById('headerRegBtn');
+    if (hBtn) { hBtn.textContent = '✓ INSCRITO'; hBtn.disabled = true; hBtn.className = 'bg-green-700 text-white text-sm font-bold px-4 py-2 rounded-lg cursor-default'; }
+}
+
+async function checkUserRegistration(evId) {
+    if (!_auth || !_db) return;
+    const user = _auth.currentUser;
+    if (!user) return;
+    try {
+        const snap = await getDocs(query(
+            collection(_db, 'registrations'),
+            where('eventType', '==', evId),
+            where('userId', '==', user.uid),
+            where('status', 'in', ['confirmed', 'paid', 'approved', 'pending'])
+        ));
+        if (!snap.empty) hideCtaRegistered();
+    } catch (_) { /* sem permissão ou sem dados — manter CTA */ }
 }
 
 function setTab(tabId) {
@@ -204,7 +243,7 @@ window.setTab = setTab;
 
 function buildTabs(ev) {
     const tabs = [{ id:'info', icon:'fa-info-circle', label:'INFORMAÇÕES' }];
-    if (ev.regras) tabs.push({ id:'regras', icon:'fa-gavel', label:'REGRAS' });
+    // Regras agora ficam dentro da aba INFORMAÇÕES — não gera tab separada
     if (ev.rodadas) tabs.push({ id:'rodadas', icon:'fa-layer-group', label:'RODADAS' });
     if (ev.pontuacao) tabs.push({ id:'pontuacao', icon:'fa-trophy', label:'PONTUAÇÃO' });
     if (ev.youtubeUrl) tabs.push({ id:'live', icon:'fa-play-circle', label:'AO VIVO' });
@@ -294,7 +333,10 @@ async function loadEvent() {
 
         if (ev.descricao) document.getElementById('evDesc').textContent = ev.descricao;
         buildInfoGrid(ev);
-        if (ev.regras) document.getElementById('evRegras').textContent = ev.regras;
+        if (ev.regras) {
+            document.getElementById('evRegras').textContent = ev.regras;
+            document.getElementById('evRegrasBlock').classList.remove('hidden');
+        }
         if (ev.rodadas) document.getElementById('evRodadas').textContent = ev.rodadas;
         if (ev.pontuacao) document.getElementById('evPontuacao').textContent = ev.pontuacao;
 
@@ -313,6 +355,11 @@ async function loadEvent() {
             if (cta) cta.innerHTML = '<div class="max-w-4xl mx-auto"><div class="w-full text-center bg-slate-700 text-slate-400 text-base font-bold py-4 rounded-2xl">Inscrições Encerradas</div></div>';
             const hBtn = document.getElementById('headerRegBtn');
             if (hBtn) hBtn.classList.add('hidden');
+        } else {
+            // Verificar se usuário já está inscrito (aguarda auth resolver)
+            onAuthStateChanged(_auth, (user) => {
+                if (user) checkUserRegistration(eventId);
+            });
         }
 
         if (ev.category === 'camp') loadPublicGroups('classificatoria');

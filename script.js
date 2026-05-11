@@ -6459,18 +6459,21 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
 
         // Contar inscrições existentes por horário para atribuir slot por schedule
         const regsRef = collection(window.firebaseDb, 'registrations');
-        const existingSnap = await getDocs(query(regsRef,
-            where('eventType', '==', rawEventType),
-            where('status', 'in', ['confirmed', 'paid', 'approved', 'pending'])
-        ));
-
-        // Mapa: schedule → count de inscrições existentes
         const scheduleSlotCount = {};
-        existingSnap.docs.forEach(d => {
-            const r = d.data();
-            const sched = r.schedule || '—';
-            scheduleSlotCount[sched] = (scheduleSlotCount[sched] || 0) + 1;
-        });
+        try {
+            const existingSnap = await getDocs(query(regsRef,
+                where('eventType', '==', rawEventType),
+                where('status', 'in', ['confirmed', 'paid', 'approved', 'pending'])
+            ));
+            existingSnap.docs.forEach(d => {
+                const r = d.data();
+                const sched = r.schedule || '—';
+                scheduleSlotCount[sched] = (scheduleSlotCount[sched] || 0) + 1;
+            });
+        } catch (_readErr) {
+            // Regras de segurança podem bloquear leitura de registrations de outros usuários.
+            // Prosseguir sem contagem prévia — slot será baseado apenas no timestamp.
+        }
 
         // Construir timesByDate a partir de selectedTimes
         const timesByDate = {};

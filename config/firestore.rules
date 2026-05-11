@@ -282,6 +282,12 @@ service cloud.firestore {
       allow create, update, delete: if isAuthorizedAdmin();
     }
 
+    // camp_groups: leitura pública (grupos visíveis no site); escrita apenas para admins autorizados
+    match /camp_groups/{groupId} {
+      allow read: if true;
+      allow create, update, delete: if isAuthorizedAdmin();
+    }
+
     // event_hour_locks: travas permanentes por horário individual (sem data)
     // leitura pública para o site verificar; escrita apenas para admins
     match /event_hour_locks/{lockId} {
