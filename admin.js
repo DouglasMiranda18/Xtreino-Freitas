@@ -10135,7 +10135,7 @@ async function loadEventsList(category) {
                 </div>
                 <div class="flex gap-2 flex-shrink-0 flex-wrap">
                     ${category === 'camp' ? `<button onclick="openCampGroupsModal('${d.id}', this.dataset.name)" data-name="${escapeAdminHtml(ev.name || '')}" title="Gerenciar grupos" class="px-3 py-1.5 bg-orange-50 text-orange-600 rounded-lg text-xs font-semibold hover:bg-orange-100"><i class="fas fa-users mr-1"></i>Grupos</button>` : ''}
-                    <a href="evento.html?id=${d.id}" target="_blank" class="px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-100 inline-flex items-center" title="Ver página do evento">
+                    <a href="evento.html#${d.id}" target="_blank" class="px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-100 inline-flex items-center" title="Ver página do evento">
                         <i class="fas fa-external-link-alt mr-1"></i>Ver Página
                     </a>
                     <button onclick="openEventNotifyModal('${d.id}', this.dataset.name)" data-name="${escapeAdminHtml(ev.name || '')}" title="Enviar mensagem aos participantes" class="px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-semibold hover:bg-purple-100">
@@ -10264,12 +10264,31 @@ function setCampGroupsPhase(phase, reload = true) {
     ['classificatoria', 'semifinal', 'final'].forEach(p => {
         const btn = document.getElementById('campPhaseBtn_' + p);
         if (!btn) return;
-        if (p === phase) {
-            btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-orange-600 text-white transition-colors';
-        } else {
-            btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-100 text-gray-700 transition-colors';
-        }
+        btn.className = p === phase
+            ? 'px-3 py-1.5 rounded-lg font-bold bg-orange-600 text-white transition-colors'
+            : 'px-3 py-1.5 rounded-lg font-bold bg-gray-100 text-gray-700 transition-colors';
     });
+
+    // Atualiza descrição da fase e label do input
+    const descMap = {
+        classificatoria: 'Classificatória: 12 times por grupo, sorteados dos inscritos. Informe quantos avançam no total para a Semifinal.',
+        semifinal: 'Semifinal: 15 times por grupo. Times vêm automaticamente dos que avançaram na Classificatória. Informe quantos avançam para a Final.',
+        final: 'Final: 15 times por grupo. Times vêm automaticamente dos que avançaram na Semifinal. Nenhum avanço necessário.'
+    };
+    const labelMap = {
+        classificatoria: 'Times que avançam no total para a Semifinal',
+        semifinal: 'Times que avançam no total para a Final',
+        final: null
+    };
+    const descTextEl = document.getElementById('campPhaseDescText');
+    if (descTextEl) descTextEl.textContent = descMap[phase] || '';
+    const labelEl = document.getElementById('campAdvancingLabel');
+    if (labelEl) labelEl.textContent = labelMap[phase] || '';
+    const advWrapper = document.getElementById('campAdvancingWrapper');
+    if (advWrapper) advWrapper.style.display = phase === 'final' ? 'none' : '';
+    const infoEl = document.getElementById('campPhaseInfo');
+    if (infoEl) infoEl.classList.add('hidden');
+
     if (reload) loadCampGroups();
 }
 
@@ -10330,49 +10349,128 @@ async function generateCampGroups() {
     const eventId = _campGroupsEventId;
     const phase = _campGroupsPhase;
     if (!eventId) return;
+
+    // "totalAdvancing" = quantos times avançam NO TOTAL para a próxima fase
     const advancingInput = document.getElementById('campAdvancingInput');
-    const advancingPerGroup = parseInt(advancingInput?.value || '0', 10) || 0;
+    const totalAdvancing = parseInt(advancingInput?.value || '0', 10) || 0;
+
+    // Tamanho do grupo por fase
     const teamSize = phase === 'classificatoria' ? 12 : 15;
+
     const btn = document.getElementById('campGenerateBtn');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Gerando...'; }
+
     try {
-        const { collection, query, where, getDocs, doc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const regsSnap = await getDocs(query(
-            collection(window.firebaseDb, 'registrations'),
-            where('eventType', '==', eventId),
-            where('status', 'in', ['confirmed', 'paid', 'approved', 'pending'])
-        ));
-        const teamSet = new Set();
-        regsSnap.docs.forEach(d => { const t = d.data().teamName; if (t) teamSet.add(t); });
-        const teams = Array.from(teamSet);
+        const { collection, query, where, getDocs, doc, getDoc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+        let teams = [];
+
+        if (phase === 'classificatoria') {
+            // CLASSIFICATÓRIA: busca todos os times inscritos nas registrations
+            const regsSnap = await getDocs(query(
+                collection(window.firebaseDb, 'registrations'),
+                where('eventType', '==', eventId),
+                where('status', 'in', ['confirmed', 'paid', 'approved', 'pending'])
+            ));
+            const teamSet = new Set();
+            regsSnap.docs.forEach(d => { const t = d.data().teamName; if (t) teamSet.add(t); });
+            teams = Array.from(teamSet);
+
+        } else if (phase === 'semifinal') {
+            // SEMIFINAL: usa os times que avançaram da CLASSIFICATÓRIA
+            const prevSnap = await getDoc(doc(window.firebaseDb, 'camp_groups', `${eventId}_classificatoria`));
+            if (!prevSnap.exists()) {
+                showToast('warning', 'Gere os grupos da Classificatória primeiro.', 'Atenção');
+                return;
+            }
+            const prevData = prevSnap.data();
+            const prevGroups = prevData.groups || [];
+            const prevAdv = prevData.advancingPerGroup || 0;
+            if (!prevAdv) {
+                showToast('warning', 'Defina quantos avançam na Classificatória antes de gerar a Semifinal.', 'Atenção');
+                return;
+            }
+            prevGroups.forEach(g => {
+                g.teams.slice(0, prevAdv).forEach(t => { if (t) teams.push(t); });
+            });
+
+        } else if (phase === 'final') {
+            // FINAL: usa os times que avançaram da SEMIFINAL
+            const prevSnap = await getDoc(doc(window.firebaseDb, 'camp_groups', `${eventId}_semifinal`));
+            if (!prevSnap.exists()) {
+                showToast('warning', 'Gere os grupos da Semifinal primeiro.', 'Atenção');
+                return;
+            }
+            const prevData = prevSnap.data();
+            const prevGroups = prevData.groups || [];
+            const prevAdv = prevData.advancingPerGroup || 0;
+            if (!prevAdv) {
+                showToast('warning', 'Defina quantos avançam na Semifinal antes de gerar a Final.', 'Atenção');
+                return;
+            }
+            prevGroups.forEach(g => {
+                g.teams.slice(0, prevAdv).forEach(t => { if (t) teams.push(t); });
+            });
+        }
+
         if (!teams.length) {
-            showToast('warning', 'Nenhum time inscrito encontrado para este evento.', 'Sem inscritos');
+            showToast('warning', 'Nenhum time encontrado para esta fase.', 'Sem times');
             return;
         }
+
         // Fisher-Yates shuffle
         for (let i = teams.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [teams[i], teams[j]] = [teams[j], teams[i]];
         }
+
+        // Divide em grupos do tamanho da fase
         const groups = [];
         const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
         for (let i = 0; i < teams.length; i += teamSize) {
             const letter = letters[groups.length] || String(groups.length + 1);
             groups.push({ name: `Grupo ${letter}`, teams: teams.slice(i, i + teamSize) });
         }
+
+        // Calcula advancingPerGroup a partir do total informado
+        const advancingPerGroup = totalAdvancing > 0 && groups.length > 0
+            ? Math.ceil(totalAdvancing / groups.length)
+            : 0;
+
         const docId = `${eventId}_${phase}`;
         await setDoc(doc(window.firebaseDb, 'camp_groups', docId), {
-            eventId, phase, teamSize, advancingPerGroup,
+            eventId, phase, teamSize, advancingPerGroup, totalAdvancing,
             groups, generatedAt: serverTimestamp()
         });
+
         renderCampGroups(groups, advancingPerGroup, null);
-        showToast('success', `${groups.length} grupo(s) gerado(s) com ${teams.length} time(s).`, 'Grupos Gerados');
+
+        const phaseLabel = {classificatoria:'Classificatória',semifinal:'Semifinal',final:'Final'}[phase] || phase;
+        const advMsg = advancingPerGroup ? ` · ${advancingPerGroup} avançam por grupo` : '';
+        showToast('success', `${groups.length} grupo(s) na ${phaseLabel} com ${teams.length} time(s)${advMsg}.`, 'Grupos Gerados');
+
+        // Atualiza label informativo
+        _updatePhaseInfo(phase, groups.length, teams.length, advancingPerGroup);
+
     } catch (err) {
         console.error('Erro ao gerar grupos:', err);
         showToast('error', 'Erro ao gerar grupos: ' + (err.message || ''), 'Erro');
     } finally {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-random mr-1"></i>Sortear Grupos'; }
     }
+}
+
+function _updatePhaseInfo(phase, numGroups, numTeams, advancingPerGroup) {
+    const infoEl = document.getElementById('campPhaseInfo');
+    if (!infoEl) return;
+    if (phase === 'final') {
+        infoEl.textContent = `Final: ${numTeams} times em ${numGroups} grupo(s).`;
+    } else {
+        const nextPhase = phase === 'classificatoria' ? 'Semifinal' : 'Final';
+        const totalAdv = advancingPerGroup * numGroups;
+        infoEl.textContent = `${numGroups} grupo(s) · ${numTeams} times · ${totalAdv} avançam para a ${nextPhase}`;
+    }
+    infoEl.classList.remove('hidden');
 }
 
 async function deleteEventItem(eventId) {

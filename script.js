@@ -6352,7 +6352,7 @@ async function submitSchedule(e, useTokens = false) {
                 unit_price: Number(finalPrice.toFixed(2)),
                 currency_id: 'BRL',
                 quantity: 1,
-                back_url: `${window.location.origin}/evento.html?id=${rawEventType}`,
+                back_url: `${window.location.origin}/evento.html#${rawEventType}`,
                 coupon_info: couponInfo,
                 external_reference: externalRef,
                 multiple_reservations: {
@@ -6614,7 +6614,7 @@ function showSlotConfirmationModal(slots, eventName, isLiga, eventId) {
                 💡 Guarde o número da sua vaga — ela é a sua posição no evento!
             </div>` : ''}
             <div class="flex flex-col gap-2">
-                ${eventId ? `<button onclick="window.location.href='evento.html?id=${eventId}'"
+                ${eventId ? `<button onclick="window.location.href='evento.html#${eventId}'"
                         class="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl font-bold text-base transition-colors">
                     <i class="fas fa-external-link-alt mr-2"></i>VER PÁGINA DO EVENTO
                 </button>` : ''}
@@ -7651,7 +7651,7 @@ async function loadDynamicEvents() {
             const btnLabel = ev.entrada === 'PAGO' && ev.preco ? `INSCREVER — ${preco}` : 'RESERVAR VAGA';
             const btnHtml = `<div class="flex flex-col gap-2">
                 <button onclick="openScheduleModal('${d.id}')" class="w-full btn-primary py-2 rounded-lg font-semibold">${btnLabel}</button>
-                <a href="evento.html?id=${d.id}" class="w-full text-center border border-gray-300 hover:border-orange-400 text-gray-600 hover:text-orange-600 py-2 rounded-lg font-semibold text-sm transition-colors block">
+                <a href="evento.html#${d.id}" class="w-full text-center border border-gray-300 hover:border-orange-400 text-gray-600 hover:text-orange-600 py-2 rounded-lg font-semibold text-sm transition-colors block">
                     <i class="fas fa-info-circle mr-1"></i>Ver Detalhes
                 </a>
             </div>`;
@@ -7737,7 +7737,7 @@ async function openEventPayment(eventId, eventName, preco) {
             customerEmail: user.email,
             external_reference: externalRef,
             type: 'event_registration',
-            back_url: `${window.location.origin}/evento.html?id=${eventId}`
+            back_url: `${window.location.origin}/evento.html#${eventId}`
         };
 
         const controller = new AbortController();

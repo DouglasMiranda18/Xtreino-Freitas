@@ -2238,26 +2238,36 @@
 
         <!-- Phase tabs -->
         <div class="px-6 pt-4 pb-2 border-b border-gray-100">
-            <div class="flex gap-2 flex-wrap mb-3">
+            <!-- Fluxo visual -->
+            <div class="flex items-center gap-1 text-xs mb-3 flex-wrap">
                 <button id="campPhaseBtn_classificatoria" onclick="setCampGroupsPhase('classificatoria')"
-                    class="px-3 py-1.5 rounded-lg text-xs font-bold bg-orange-600 text-white transition-colors">
-                    CLASSIFICATÓRIA <span class="opacity-70 font-normal ml-1">(12/grupo)</span>
+                    class="px-3 py-1.5 rounded-lg font-bold bg-orange-600 text-white transition-colors">
+                    CLASSIFICATÓRIA
                 </button>
+                <i class="fas fa-arrow-right text-gray-400 text-xs"></i>
                 <button id="campPhaseBtn_semifinal" onclick="setCampGroupsPhase('semifinal')"
-                    class="px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-100 text-gray-700 transition-colors">
-                    SEMIFINAL <span class="opacity-70 font-normal ml-1">(15/grupo)</span>
+                    class="px-3 py-1.5 rounded-lg font-bold bg-gray-100 text-gray-700 transition-colors">
+                    SEMIFINAL
                 </button>
+                <i class="fas fa-arrow-right text-gray-400 text-xs"></i>
                 <button id="campPhaseBtn_final" onclick="setCampGroupsPhase('final')"
-                    class="px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-100 text-gray-700 transition-colors">
-                    FINAL <span class="opacity-70 font-normal ml-1">(15/grupo)</span>
+                    class="px-3 py-1.5 rounded-lg font-bold bg-gray-100 text-gray-700 transition-colors">
+                    FINAL 🏆
                 </button>
             </div>
+
+            <!-- Descrição da fase ativa -->
+            <div id="campPhaseDesc" class="text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 mb-3">
+                <i class="fas fa-info-circle mr-1"></i>
+                <span id="campPhaseDescText">Classificatória: 12 times por grupo. Times inscritos são sorteados automaticamente.</span>
+            </div>
+
             <!-- Controls -->
-            <div class="flex flex-wrap items-end gap-3">
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Times que avançam por grupo</label>
-                    <input id="campAdvancingInput" type="number" min="1" max="15" value="4" placeholder="Ex: 4"
-                        class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-28 focus:outline-none focus:ring-2 focus:ring-orange-400">
+            <div class="flex flex-wrap items-end gap-3 mb-2">
+                <div id="campAdvancingWrapper">
+                    <label class="block text-xs font-medium text-gray-600 mb-1" id="campAdvancingLabel">Times que avançam no total para a Semifinal</label>
+                    <input id="campAdvancingInput" type="number" min="1" max="999" value="30" placeholder="Ex: 30"
+                        class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-36 focus:outline-none focus:ring-2 focus:ring-orange-400">
                 </div>
                 <button id="campGenerateBtn" onclick="generateCampGroups()"
                     class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-bold rounded-lg flex items-center gap-2 transition-colors">
@@ -2267,7 +2277,9 @@
                     <i class="fas fa-sync-alt"></i>
                 </button>
             </div>
-            <p class="text-xs text-gray-400 mt-1.5">O sorteio embaralha aleatoriamente os times inscritos e divide pelos grupos.</p>
+
+            <!-- Resultado do último sorteio -->
+            <p id="campPhaseInfo" class="hidden text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5 mb-1 font-medium"></p>
         </div>
 
         <!-- Groups content -->
