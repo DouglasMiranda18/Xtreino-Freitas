@@ -7193,6 +7193,14 @@ async function loadDynamicEvents() {
 
         const cards = snap.docs.map(d => {
             const ev = d.data();
+            // Registrar no scheduleConfig para openScheduleModal funcionar com eventos dinâmicos
+            if (!scheduleConfig[d.id]) {
+                scheduleConfig[d.id] = {
+                    label: ev.name || 'Evento',
+                    price: Number(ev.preco) || 0,
+                    payWithToken: ev.entrada === 'TOKENS',
+                };
+            }
             const imgSrc = ev.imageUrl || placeholderImg;
             const isPago = ev.entrada === 'PAGO';
             const preco = ev.preco ? `R$ ${Number(ev.preco).toFixed(2)}` : 'GRÁTIS';
