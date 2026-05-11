@@ -6187,12 +6187,13 @@ async function submitSchedule(e, useTokens = false) {
         }
 
         // Calcular total original
+        // Usa rawEventType (ID original do Firestore, case-sensitive) para lookup correto no scheduleConfig
         let originalTotal = 0;
         for (const d of datesToUse) {
             const times = timesByDate[d] || [];
             for (const schedule of times) {
                 const hour = (schedule.split(' - ')[1] || '').trim();
-                const price = getEventPrice(eventType, hour, d);
+                const price = getEventPrice(rawEventType, hour, d);
                 originalTotal += price * teamsData.length;
             }
         }
@@ -6249,10 +6250,11 @@ async function submitSchedule(e, useTokens = false) {
                     for (let schedule of times) {
                         const hour = (schedule.split(' - ')[1] || '').trim();
                         const normalizedHour = normalizeHour(hour);
-                        const price = getEventPrice(eventType, hour, d);
+                        // rawEventType preserva o case original do ID do Firestore
+                        const price = getEventPrice(rawEventType, hour, d);
 
                         // Buscar link usando o horário normalizado
-                        const whatsappLink = await getWhatsAppLink(eventType, normalizedHour, d);
+                        const whatsappLink = await getWhatsAppLink(rawEventType, normalizedHour, d);
 
                         const docRef = await addDoc(collection(window.firebaseDb, 'registrations'), {
                             userId: window.firebaseAuth.currentUser.uid,
