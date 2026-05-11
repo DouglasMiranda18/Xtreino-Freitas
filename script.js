@@ -6352,7 +6352,7 @@ async function submitSchedule(e, useTokens = false) {
                 unit_price: Number(finalPrice.toFixed(2)),
                 currency_id: 'BRL',
                 quantity: 1,
-                back_url: window.location.origin,
+                back_url: `${window.location.origin}/evento.html?id=${rawEventType}`,
                 coupon_info: couponInfo,
                 external_reference: externalRef,
                 multiple_reservations: {
@@ -6507,7 +6507,7 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
                     if (!isLiga && vagas > 0 && slotNumber > vagas) {
                         alert('Evento lotado durante o processamento. Algumas inscrições não foram concluídas.');
                         closeScheduleModal();
-                        showSlotConfirmationModal(assignedSlots, cfg.label, isLiga);
+                        showSlotConfirmationModal(assignedSlots, cfg.label, isLiga, rawEventType);
                         return;
                     }
 
@@ -6547,7 +6547,7 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
         }
 
         closeScheduleModal();
-        showSlotConfirmationModal(assignedSlots, cfg.label, isLiga);
+        showSlotConfirmationModal(assignedSlots, cfg.label, isLiga, rawEventType);
 
     } catch (err) {
         console.error('Erro ao registrar inscrição gratuita:', err);
@@ -6555,7 +6555,7 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
     }
 }
 
-function showSlotConfirmationModal(slots, eventName, isLiga) {
+function showSlotConfirmationModal(slots, eventName, isLiga, eventId) {
     const existing = document.getElementById('slotConfirmModal');
     if (existing) existing.remove();
 
@@ -6613,10 +6613,16 @@ function showSlotConfirmationModal(slots, eventName, isLiga) {
             ${!isLiga ? `<div class="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-700 mb-4 text-center">
                 💡 Guarde o número da sua vaga — ela é a sua posição no evento!
             </div>` : ''}
-            <button onclick="document.getElementById('slotConfirmModal').remove()"
-                    class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-bold text-base transition-colors">
-                OK, entendido! 👍
-            </button>
+            <div class="flex flex-col gap-2">
+                ${eventId ? `<button onclick="window.location.href='evento.html?id=${eventId}'"
+                        class="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl font-bold text-base transition-colors">
+                    <i class="fas fa-external-link-alt mr-2"></i>VER PÁGINA DO EVENTO
+                </button>` : ''}
+                <button onclick="document.getElementById('slotConfirmModal').remove()"
+                        class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-bold text-base transition-colors">
+                    OK, entendido! 👍
+                </button>
+            </div>
         </div>`;
     document.body.appendChild(div);
 }
@@ -7643,7 +7649,12 @@ async function loadDynamicEvents() {
             const modoStr = (ev.modo || '').toUpperCase();
             const tipoStr = (ev.tipo || '').toUpperCase();
             const btnLabel = ev.entrada === 'PAGO' && ev.preco ? `INSCREVER — ${preco}` : 'RESERVAR VAGA';
-            const btnHtml = `<button onclick="openScheduleModal('${d.id}')" class="w-full btn-primary py-2 rounded-lg font-semibold">${btnLabel}</button>`;
+            const btnHtml = `<div class="flex flex-col gap-2">
+                <button onclick="openScheduleModal('${d.id}')" class="w-full btn-primary py-2 rounded-lg font-semibold">${btnLabel}</button>
+                <a href="evento.html?id=${d.id}" class="w-full text-center border border-gray-300 hover:border-orange-400 text-gray-600 hover:text-orange-600 py-2 rounded-lg font-semibold text-sm transition-colors block">
+                    <i class="fas fa-info-circle mr-1"></i>Ver Detalhes
+                </a>
+            </div>`;
 
             const quedasStr = ev.quedas ? `${ev.quedas}x` : null;
             const mapasList = Array.isArray(ev.mapas) && ev.mapas.length ? ev.mapas.join(' • ') : null;
@@ -7726,7 +7737,7 @@ async function openEventPayment(eventId, eventName, preco) {
             customerEmail: user.email,
             external_reference: externalRef,
             type: 'event_registration',
-            back_url: window.location.origin
+            back_url: `${window.location.origin}/evento.html?id=${eventId}`
         };
 
         const controller = new AbortController();
@@ -7769,6 +7780,34 @@ async function openEventPayment(eventId, eventName, preco) {
 }
 
 window.openEventPayment = openEventPayment;
+
+// Auto-abrir modal de evento via ?openEvent=ID na URL
+(function checkOpenEventParam() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const openEventId = urlParams.get('openEvent');
+    if (!openEventId) return;
+    // Remove param da URL sem recarregar
+    try {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('openEvent');
+        window.history.replaceState({}, '', url.toString());
+    } catch (_) {}
+    // Aguarda Firebase + openScheduleModal estar disponível
+    const tryOpen = (attempts = 0) => {
+        if (typeof openScheduleModal === 'function' && window.firebaseDb) {
+            // Garante que a aba de eventos está ativa
+            if (typeof switchMainTab === 'function') switchMainTab('eventos');
+            setTimeout(() => openScheduleModal(openEventId), 400);
+        } else if (attempts < 40) {
+            setTimeout(() => tryOpen(attempts + 1), 250);
+        }
+    };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => tryOpen());
+    } else {
+        tryOpen();
+    }
+})();
 
 // Inicializa eventos dinâmicos quando a página carrega
 if (document.readyState === 'loading') {

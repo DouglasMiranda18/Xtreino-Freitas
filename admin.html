@@ -2124,6 +2124,30 @@
                     <textarea id="evtDescricao" rows="2" placeholder="Detalhes adicionais do evento..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"></textarea>
                 </div>
 
+                <!-- Regras -->
+                <div class="lg:col-span-3">
+                    <label class="block text-sm font-medium text-gray-700 mb-1"><i class="fas fa-gavel text-orange-500 mr-1"></i>Regras do Evento <span class="text-gray-400 font-normal text-xs">(exibido na página do evento)</span></label>
+                    <textarea id="evtRegras" rows="4" placeholder="Digite as regras do evento. Use Enter para separar linhas..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 font-mono"></textarea>
+                </div>
+
+                <!-- Rodadas -->
+                <div class="lg:col-span-3">
+                    <label class="block text-sm font-medium text-gray-700 mb-1"><i class="fas fa-layer-group text-blue-500 mr-1"></i>Rodadas <span class="text-gray-400 font-normal text-xs">(estrutura de fases)</span></label>
+                    <textarea id="evtRodadas" rows="3" placeholder="Ex: Classificatória: 3 rodadas de 12 times&#10;Semifinal: 2 rodadas de 15 times&#10;Final: 1 rodada de 15 times" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 font-mono"></textarea>
+                </div>
+
+                <!-- Pontuação -->
+                <div class="lg:col-span-3">
+                    <label class="block text-sm font-medium text-gray-700 mb-1"><i class="fas fa-trophy text-green-500 mr-1"></i>Tabela de Pontuação <span class="text-gray-400 font-normal text-xs">(visível na página do evento)</span></label>
+                    <textarea id="evtPontuacao" rows="4" placeholder="Ex: 1º lugar: 12pts | 2º lugar: 9pts | 3º lugar: 7pts&#10;Abate: 1pt por eliminação&#10;..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 font-mono"></textarea>
+                </div>
+
+                <!-- YouTube URL -->
+                <div class="lg:col-span-3">
+                    <label class="block text-sm font-medium text-gray-700 mb-1"><i class="fab fa-youtube text-red-500 mr-1"></i>URL do YouTube Live <span class="text-gray-400 font-normal text-xs">(transmissão ao vivo — exibida na página do evento)</span></label>
+                    <input id="evtYoutubeUrl" type="url" placeholder="https://www.youtube.com/live/..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
+                </div>
+
                 <!-- Tamanho do Banner -->
                 <div class="lg:col-span-3">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Tamanho do Banner</label>
@@ -2197,6 +2221,57 @@
 
         <!-- Lista de eventos -->
         <div id="evtList" class="space-y-3">
+            <div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl"></i></div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Gerenciar Grupos do Camp -->
+<div id="campGroupsModal" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+            <h3 id="campGroupsTitle" class="font-bold text-base text-gray-900 flex items-center gap-2">
+                <i class="fas fa-users text-orange-500"></i> Grupos do Campeonato
+            </h3>
+            <button onclick="closeCampGroupsModal()" class="text-gray-400 hover:text-gray-700 text-xl"><i class="fas fa-times"></i></button>
+        </div>
+
+        <!-- Phase tabs -->
+        <div class="px-6 pt-4 pb-2 border-b border-gray-100">
+            <div class="flex gap-2 flex-wrap mb-3">
+                <button id="campPhaseBtn_classificatoria" onclick="setCampGroupsPhase('classificatoria')"
+                    class="px-3 py-1.5 rounded-lg text-xs font-bold bg-orange-600 text-white transition-colors">
+                    CLASSIFICATÓRIA <span class="opacity-70 font-normal ml-1">(12/grupo)</span>
+                </button>
+                <button id="campPhaseBtn_semifinal" onclick="setCampGroupsPhase('semifinal')"
+                    class="px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-100 text-gray-700 transition-colors">
+                    SEMIFINAL <span class="opacity-70 font-normal ml-1">(15/grupo)</span>
+                </button>
+                <button id="campPhaseBtn_final" onclick="setCampGroupsPhase('final')"
+                    class="px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-100 text-gray-700 transition-colors">
+                    FINAL <span class="opacity-70 font-normal ml-1">(15/grupo)</span>
+                </button>
+            </div>
+            <!-- Controls -->
+            <div class="flex flex-wrap items-end gap-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Times que avançam por grupo</label>
+                    <input id="campAdvancingInput" type="number" min="1" max="15" value="4" placeholder="Ex: 4"
+                        class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-28 focus:outline-none focus:ring-2 focus:ring-orange-400">
+                </div>
+                <button id="campGenerateBtn" onclick="generateCampGroups()"
+                    class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-bold rounded-lg flex items-center gap-2 transition-colors">
+                    <i class="fas fa-random"></i> Sortear Grupos
+                </button>
+                <button onclick="loadCampGroups()" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-lg transition-colors" title="Recarregar grupos salvos">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+            <p class="text-xs text-gray-400 mt-1.5">O sorteio embaralha aleatoriamente os times inscritos e divide pelos grupos.</p>
+        </div>
+
+        <!-- Groups content -->
+        <div id="campGroupsContent" class="overflow-y-auto flex-1 px-6 py-4">
             <div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl"></i></div>
         </div>
     </div>

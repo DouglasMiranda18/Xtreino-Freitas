@@ -9860,6 +9860,14 @@ function cancelEventForm() {
     clearEvtImage();
     const firstSize = document.querySelector('input[name="evtBannerSize"][value="1920x1080"]');
     if (firstSize) firstSize.checked = true;
+    const regrasEl = document.getElementById('evtRegras');
+    if (regrasEl) regrasEl.value = '';
+    const rodadasEl = document.getElementById('evtRodadas');
+    if (rodadasEl) rodadasEl.value = '';
+    const pontuacaoEl = document.getElementById('evtPontuacao');
+    if (pontuacaoEl) pontuacaoEl.value = '';
+    const youtubeEl = document.getElementById('evtYoutubeUrl');
+    if (youtubeEl) youtubeEl.value = '';
 }
 
 function validateEventForm(category) {
@@ -10006,6 +10014,10 @@ async function saveEventForm() {
         quedas: parseInt(document.getElementById('evtQuedas')?.value, 10) || null,
         mapas: Array.from(document.querySelectorAll('input[name="evtMapas"]:checked')).map(el => el.value),
         descricao: document.getElementById('evtDescricao').value.trim(),
+        regras: (document.getElementById('evtRegras')?.value || '').trim(),
+        rodadas: (document.getElementById('evtRodadas')?.value || '').trim(),
+        pontuacao: (document.getElementById('evtPontuacao')?.value || '').trim(),
+        youtubeUrl: (document.getElementById('evtYoutubeUrl')?.value || '').trim(),
         bannerSize: bannerSizeEl ? bannerSizeEl.value : '1920x1080',
         updatedAt: new Date().toISOString()
     };
@@ -10122,6 +10134,10 @@ async function loadEventsList(category) {
                     ${ev.descricao ? `<p class="text-xs text-gray-400 mt-1 truncate">${escapeAdminHtml(ev.descricao)}</p>` : ''}
                 </div>
                 <div class="flex gap-2 flex-shrink-0 flex-wrap">
+                    ${category === 'camp' ? `<button onclick="openCampGroupsModal('${d.id}', this.dataset.name)" data-name="${escapeAdminHtml(ev.name || '')}" title="Gerenciar grupos" class="px-3 py-1.5 bg-orange-50 text-orange-600 rounded-lg text-xs font-semibold hover:bg-orange-100"><i class="fas fa-users mr-1"></i>Grupos</button>` : ''}
+                    <a href="evento.html?id=${d.id}" target="_blank" class="px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-100 inline-flex items-center" title="Ver página do evento">
+                        <i class="fas fa-external-link-alt mr-1"></i>Ver Página
+                    </a>
                     <button onclick="openEventNotifyModal('${d.id}', this.dataset.name)" data-name="${escapeAdminHtml(ev.name || '')}" title="Enviar mensagem aos participantes" class="px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-semibold hover:bg-purple-100">
                         <i class="fas fa-paper-plane mr-1"></i>Notificar
                     </button>
@@ -10169,6 +10185,14 @@ async function editEventItem(eventId) {
             document.getElementById('evtData').value = '';
         }
         document.getElementById('evtDescricao').value = ev.descricao || '';
+        const regrasEl = document.getElementById('evtRegras');
+        if (regrasEl) regrasEl.value = ev.regras || '';
+        const rodadasEl = document.getElementById('evtRodadas');
+        if (rodadasEl) rodadasEl.value = ev.rodadas || '';
+        const pontuacaoEl = document.getElementById('evtPontuacao');
+        if (pontuacaoEl) pontuacaoEl.value = ev.pontuacao || '';
+        const youtubeEl = document.getElementById('evtYoutubeUrl');
+        if (youtubeEl) youtubeEl.value = ev.youtubeUrl || '';
 
         // Quedas
         const quedasEl = document.getElementById('evtQuedas');
@@ -10209,6 +10233,145 @@ async function editEventItem(eventId) {
     } catch (err) {
         console.error('Erro ao carregar evento para edição:', err);
         showToast('error', 'Erro ao carregar evento.', 'Erro');
+    }
+}
+
+// ===== CAMP GRUPOS =====
+let _campGroupsEventId = null;
+let _campGroupsPhase = 'classificatoria';
+
+function openCampGroupsModal(eventId, eventName) {
+    _campGroupsEventId = eventId;
+    _campGroupsPhase = 'classificatoria';
+    const modal = document.getElementById('campGroupsModal');
+    if (!modal) return;
+    const titleEl = document.getElementById('campGroupsTitle');
+    if (titleEl) titleEl.innerHTML = `<i class="fas fa-users text-orange-500 mr-2"></i>Grupos — ${escapeAdminHtml(eventName || 'Campeonato')}`;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    setCampGroupsPhase('classificatoria', false);
+    loadCampGroups();
+}
+
+function closeCampGroupsModal() {
+    const modal = document.getElementById('campGroupsModal');
+    if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+    _campGroupsEventId = null;
+}
+
+function setCampGroupsPhase(phase, reload = true) {
+    _campGroupsPhase = phase;
+    ['classificatoria', 'semifinal', 'final'].forEach(p => {
+        const btn = document.getElementById('campPhaseBtn_' + p);
+        if (!btn) return;
+        if (p === phase) {
+            btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-orange-600 text-white transition-colors';
+        } else {
+            btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-100 text-gray-700 transition-colors';
+        }
+    });
+    if (reload) loadCampGroups();
+}
+
+async function loadCampGroups() {
+    const container = document.getElementById('campGroupsContent');
+    if (!container || !window.firebaseDb || !_campGroupsEventId) return;
+    container.innerHTML = '<div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl"></i></div>';
+    try {
+        const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const docId = `${_campGroupsEventId}_${_campGroupsPhase}`;
+        const snap = await getDoc(doc(window.firebaseDb, 'camp_groups', docId));
+        if (!snap.exists()) {
+            container.innerHTML = '<div class="text-center py-8 text-gray-400 text-sm">Nenhum grupo gerado para esta fase ainda.<br>Use "Sortear Grupos" para gerar automaticamente.</div>';
+            return;
+        }
+        const data = snap.data();
+        renderCampGroups(data.groups || [], data.advancingPerGroup || 0, data.generatedAt);
+    } catch (err) {
+        console.error('Erro ao carregar grupos:', err);
+        container.innerHTML = '<div class="text-center py-4 text-red-400 text-sm">Erro ao carregar grupos.</div>';
+    }
+}
+
+function renderCampGroups(groups, advancingPerGroup, generatedAt) {
+    const container = document.getElementById('campGroupsContent');
+    if (!container) return;
+    if (!groups || !groups.length) {
+        container.innerHTML = '<div class="text-center py-8 text-gray-400 text-sm">Nenhum grupo gerado.</div>';
+        return;
+    }
+    const totalTeams = groups.reduce((s, g) => s + g.teams.length, 0);
+    const dateStr = generatedAt?.toDate ? generatedAt.toDate().toLocaleString('pt-BR') : (generatedAt ? new Date(generatedAt).toLocaleString('pt-BR') : '');
+    const advInfo = advancingPerGroup
+        ? `<div class="flex items-center gap-2 mb-4 p-3 bg-blue-50 border border-blue-100 rounded-xl text-sm text-blue-700">
+               <i class="fas fa-arrow-up"></i>
+               <span><b>${advancingPerGroup}</b> time(s) avançam por grupo</span>
+               <span class="ml-auto text-xs text-blue-400">${totalTeams} times · ${groups.length} grupos</span>
+           </div>` : '';
+    const dateInfo = dateStr ? `<p class="text-xs text-gray-400 mb-3">Gerado em: ${dateStr}</p>` : '';
+    container.innerHTML = advInfo + dateInfo + groups.map(g => `
+        <div class="border border-gray-200 rounded-xl overflow-hidden mb-3">
+            <div class="bg-orange-50 border-b border-orange-100 px-4 py-2 flex justify-between items-center">
+                <span class="font-bold text-orange-700 text-sm">${g.name}</span>
+                <span class="text-xs text-gray-500">${g.teams.length} time(s)</span>
+            </div>
+            <ul class="divide-y divide-gray-100">
+                ${g.teams.map((t, j) => `
+                <li class="flex items-center gap-3 px-4 py-2">
+                    <span class="w-6 h-6 rounded-full bg-gray-200 text-gray-600 text-xs font-bold flex items-center justify-center flex-shrink-0">${j + 1}</span>
+                    <span class="text-sm text-gray-800 flex-1">${escapeAdminHtml(t)}</span>
+                    ${advancingPerGroup && j < advancingPerGroup ? '<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold whitespace-nowrap">Avança ↑</span>' : ''}
+                </li>`).join('')}
+            </ul>
+        </div>`).join('');
+}
+
+async function generateCampGroups() {
+    const eventId = _campGroupsEventId;
+    const phase = _campGroupsPhase;
+    if (!eventId) return;
+    const advancingInput = document.getElementById('campAdvancingInput');
+    const advancingPerGroup = parseInt(advancingInput?.value || '0', 10) || 0;
+    const teamSize = phase === 'classificatoria' ? 12 : 15;
+    const btn = document.getElementById('campGenerateBtn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Gerando...'; }
+    try {
+        const { collection, query, where, getDocs, doc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const regsSnap = await getDocs(query(
+            collection(window.firebaseDb, 'registrations'),
+            where('eventType', '==', eventId),
+            where('status', 'in', ['confirmed', 'paid', 'approved', 'pending'])
+        ));
+        const teamSet = new Set();
+        regsSnap.docs.forEach(d => { const t = d.data().teamName; if (t) teamSet.add(t); });
+        const teams = Array.from(teamSet);
+        if (!teams.length) {
+            showToast('warning', 'Nenhum time inscrito encontrado para este evento.', 'Sem inscritos');
+            return;
+        }
+        // Fisher-Yates shuffle
+        for (let i = teams.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [teams[i], teams[j]] = [teams[j], teams[i]];
+        }
+        const groups = [];
+        const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        for (let i = 0; i < teams.length; i += teamSize) {
+            const letter = letters[groups.length] || String(groups.length + 1);
+            groups.push({ name: `Grupo ${letter}`, teams: teams.slice(i, i + teamSize) });
+        }
+        const docId = `${eventId}_${phase}`;
+        await setDoc(doc(window.firebaseDb, 'camp_groups', docId), {
+            eventId, phase, teamSize, advancingPerGroup,
+            groups, generatedAt: serverTimestamp()
+        });
+        renderCampGroups(groups, advancingPerGroup, null);
+        showToast('success', `${groups.length} grupo(s) gerado(s) com ${teams.length} time(s).`, 'Grupos Gerados');
+    } catch (err) {
+        console.error('Erro ao gerar grupos:', err);
+        showToast('error', 'Erro ao gerar grupos: ' + (err.message || ''), 'Erro');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-random mr-1"></i>Sortear Grupos'; }
     }
 }
 

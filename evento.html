@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evento - X-TREINO FREITAS</title>
+    <link rel="icon" type="image/png" href="assets/images/Logo - Xtreino Freitas.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body { background: #0f172a; }
+        .tab-btn { transition: all .2s; }
+        .tab-btn.active { background: #ea580c; color: #fff; }
+        .tab-btn:not(.active) { background: #1e293b; color: #94a3b8; }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        .badge { display:inline-block; font-size:.7rem; font-weight:700; padding:.2rem .6rem; border-radius:4px; }
+        .yt-iframe { width:100%; aspect-ratio:16/9; border-radius:12px; border:none; }
+        .pontuacao-table td, .pontuacao-table th { padding:.5rem .75rem; }
+        pre.regras-text { white-space: pre-wrap; word-break: break-word; font-family: inherit; }
+    </style>
+</head>
+<body class="min-h-screen">
+
+<!-- Header -->
+<header class="sticky top-0 z-50 bg-slate-900 border-b border-slate-700 shadow-xl">
+    <div class="max-w-4xl mx-auto px-4 py-3 flex items-center gap-4">
+        <a href="index.html" class="flex items-center gap-2 text-slate-300 hover:text-white transition-colors">
+            <i class="fas fa-arrow-left"></i>
+            <img src="assets/images/Logo - Xtreino Freitas.png" alt="Logo" class="h-9 w-9 rounded-lg object-contain">
+            <span class="font-bold text-sm hidden sm:block">X-TREINO FREITAS</span>
+        </a>
+        <div class="flex-1"></div>
+        <button onclick="goRegister()" id="headerRegBtn" class="hidden bg-orange-600 hover:bg-orange-700 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors">
+            <i class="fas fa-ticket-alt mr-1"></i> INSCREVER
+        </button>
+    </div>
+</header>
+
+<!-- Loading -->
+<div id="pageLoading" class="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+    <i class="fas fa-spinner fa-spin text-orange-500 text-4xl"></i>
+    <p class="text-slate-400">Carregando evento...</p>
+</div>
+
+<!-- Error state -->
+<div id="pageError" class="hidden flex flex-col items-center justify-center min-h-[60vh] gap-4 p-8 text-center">
+    <i class="fas fa-exclamation-triangle text-red-400 text-4xl"></i>
+    <h2 class="text-white text-xl font-bold">Evento não encontrado</h2>
+    <p class="text-slate-400">Este evento pode ter sido removido ou o link está incorreto.</p>
+    <a href="index.html" class="bg-orange-600 hover:bg-orange-700 text-white font-bold px-6 py-3 rounded-xl">Voltar ao início</a>
+</div>
+
+<!-- Event Content -->
+<div id="pageContent" class="hidden max-w-4xl mx-auto pb-24">
+
+    <!-- Banner -->
+    <div class="relative">
+        <img id="evBanner" src="" alt="" class="w-full object-cover max-h-72 md:max-h-96 bg-slate-800" style="min-height:160px;">
+        <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div>
+    </div>
+
+    <!-- Event header -->
+    <div class="px-4 md:px-6 -mt-16 relative z-10">
+        <div id="evBadges" class="flex flex-wrap gap-2 mb-3"></div>
+        <h1 id="evName" class="text-2xl md:text-3xl font-black text-white mb-2 leading-tight"></h1>
+        <div id="evMeta" class="flex flex-wrap gap-3 text-sm text-slate-400 mb-4"></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="px-4 md:px-6 mt-2">
+        <div id="tabNav" class="flex flex-wrap gap-2 mb-6"></div>
+
+        <!-- Tab panels -->
+        <div id="panelInfo" class="tab-panel">
+            <div id="evDesc" class="text-slate-300 leading-relaxed whitespace-pre-line mb-4"></div>
+            <div id="evInfoGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+        </div>
+
+        <div id="panelRegras" class="tab-panel">
+            <div class="bg-slate-800 rounded-2xl p-5 border border-slate-700">
+                <h3 class="text-orange-400 font-bold text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <i class="fas fa-gavel"></i> Regras do Evento
+                </h3>
+                <pre class="regras-text text-slate-200 text-sm leading-relaxed" id="evRegras"></pre>
+            </div>
+        </div>
+
+        <div id="panelRodadas" class="tab-panel">
+            <div class="bg-slate-800 rounded-2xl p-5 border border-slate-700">
+                <h3 class="text-blue-400 font-bold text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <i class="fas fa-layer-group"></i> Rodadas
+                </h3>
+                <pre class="regras-text text-slate-200 text-sm leading-relaxed" id="evRodadas"></pre>
+            </div>
+        </div>
+
+        <div id="panelPontuacao" class="tab-panel">
+            <div class="bg-slate-800 rounded-2xl p-5 border border-slate-700">
+                <h3 class="text-green-400 font-bold text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <i class="fas fa-trophy"></i> Tabela de Pontuação
+                </h3>
+                <pre class="regras-text text-slate-200 text-sm leading-relaxed" id="evPontuacao"></pre>
+            </div>
+        </div>
+
+        <div id="panelLive" class="tab-panel">
+            <div class="mb-4">
+                <h3 class="text-red-400 font-bold text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <i class="fab fa-youtube"></i> Transmissão ao Vivo
+                </h3>
+                <div id="evYoutube"></div>
+                <p class="text-slate-500 text-xs mt-3 text-center">A transmissão será ativada durante o evento. Recarregue a página se não carregar.</p>
+            </div>
+        </div>
+
+        <div id="panelGrupos" class="tab-panel">
+            <div class="bg-slate-800 rounded-2xl p-5 border border-slate-700">
+                <h3 class="text-purple-400 font-bold text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <i class="fas fa-users"></i> Divisão de Grupos
+                </h3>
+                <!-- Phase tabs -->
+                <div class="flex gap-2 mb-5 flex-wrap">
+                    <button onclick="loadPublicGroups('classificatoria')" id="pubPhaseBtn_classificatoria"
+                        class="pub-phase-btn px-4 py-2 rounded-lg text-sm font-semibold bg-orange-600 text-white">
+                        CLASSIFICATÓRIA
+                    </button>
+                    <button onclick="loadPublicGroups('semifinal')" id="pubPhaseBtn_semifinal"
+                        class="pub-phase-btn px-4 py-2 rounded-lg text-sm font-semibold bg-slate-700 text-slate-300">
+                        SEMIFINAL
+                    </button>
+                    <button onclick="loadPublicGroups('final')" id="pubPhaseBtn_final"
+                        class="pub-phase-btn px-4 py-2 rounded-lg text-sm font-semibold bg-slate-700 text-slate-300">
+                        FINAL
+                    </button>
+                </div>
+                <div id="publicGroupsContent">
+                    <div class="text-center py-8 text-slate-500">
+                        <i class="fas fa-spinner fa-spin text-xl mb-2 block"></i>Carregando grupos...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Floating CTA -->
+<div id="floatingCta" class="hidden fixed bottom-0 left-0 right-0 z-50 px-4 pb-4 pt-2 bg-gradient-to-t from-slate-900">
+    <button onclick="goRegister()" class="w-full max-w-4xl mx-auto block bg-orange-600 hover:bg-orange-700 active:scale-95 text-white text-base font-black py-4 rounded-2xl shadow-2xl transition-all">
+        <i class="fas fa-ticket-alt mr-2"></i>FAZER INSCRIÇÃO
+    </button>
+</div>
+
+<script>
+    window.FIREBASE_CONFIG = {
+        apiKey: "AIzaSyBzD0iWNIfZwuzWN-Xhjbg22OfCHv1Qwjo",
+        authDomain: "orgfreitas-ofc.firebaseapp.com",
+        projectId: "orgfreitas-ofc",
+        storageBucket: "orgfreitas-ofc.firebasestorage.app",
+        messagingSenderId: "493859004030",
+        appId: "1:493859004030:web:a1cba415344e4a7567822f",
+        measurementId: "G-WZCYZL5VC0"
+    };
+</script>
+<script type="module" src="config/firebase.js"></script>
+
+<script>
+(function() {
+    const params = new URLSearchParams(location.search);
+    const eventId = params.get('id') || '';
+
+    function showError() {
+        document.getElementById('pageLoading').classList.add('hidden');
+        document.getElementById('pageError').classList.remove('hidden');
+    }
+
+    function showContent() {
+        document.getElementById('pageLoading').classList.add('hidden');
+        document.getElementById('pageContent').classList.remove('hidden');
+        document.getElementById('floatingCta').classList.remove('hidden');
+        document.getElementById('headerRegBtn').classList.remove('hidden');
+    }
+
+    function setTab(tabId) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        const btn = document.getElementById('tabBtn_' + tabId);
+        const panel = document.getElementById('panel' + tabId.charAt(0).toUpperCase() + tabId.slice(1));
+        if (btn) btn.classList.add('active');
+        if (panel) panel.classList.add('active');
+    }
+    window.setTab = setTab;
+
+    function buildTabs(ev) {
+        const tabs = [{ id:'info', icon:'fa-info-circle', label:'INFORMAÇÕES' }];
+        if (ev.regras) tabs.push({ id:'regras', icon:'fa-gavel', label:'REGRAS' });
+        if (ev.rodadas) tabs.push({ id:'rodadas', icon:'fa-layer-group', label:'RODADAS' });
+        if (ev.pontuacao) tabs.push({ id:'pontuacao', icon:'fa-trophy', label:'PONTUAÇÃO' });
+        if (ev.youtubeUrl) tabs.push({ id:'live', icon:'fa-play-circle', label:'AO VIVO' });
+        if (ev.category === 'camp') tabs.push({ id:'grupos', icon:'fa-users', label:'GRUPOS' });
+
+        const nav = document.getElementById('tabNav');
+        nav.innerHTML = tabs.map(t =>
+            `<button id="tabBtn_${t.id}" class="tab-btn px-4 py-2 rounded-lg text-xs font-bold" onclick="setTab('${t.id}')">
+                <i class="fas ${t.icon} mr-1"></i>${t.label}
+            </button>`
+        ).join('');
+        setTab('info');
+    }
+
+    function buildInfoGrid(ev) {
+        const items = [];
+        if (ev.tipo) items.push({ icon: 'fa-gamepad', label: 'Tipo', val: ev.tipo });
+        if (ev.modo) items.push({ icon: 'fa-sliders-h', label: 'Modo', val: ev.modo });
+        if (ev.formato) items.push({ icon: 'fa-stream', label: 'Formato', val: ev.formato });
+        if (ev.vagas) items.push({ icon: 'fa-users', label: 'Vagas/Horário', val: ev.vagas });
+        if (ev.quedas) items.push({ icon: 'fa-skull', label: 'Quedas', val: ev.quedas + 'x' });
+        if (ev.preco) items.push({ icon: 'fa-tag', label: 'Entrada', val: 'R$ ' + Number(ev.preco).toFixed(2) });
+        else if (ev.entrada) items.push({ icon: 'fa-tag', label: 'Entrada', val: ev.entrada });
+        if (ev.premiado === 'SIM') items.push({ icon: 'fa-medal', label: 'Premiado', val: 'SIM 🏆' });
+        if (Array.isArray(ev.mapas) && ev.mapas.length) items.push({ icon: 'fa-map', label: 'Mapas', val: ev.mapas.join(' · ') });
+        if (ev.eventDate) items.push({ icon: 'fa-calendar', label: 'Data', val: new Date(ev.eventDate).toLocaleDateString('pt-BR', {day:'2-digit', month:'long', year:'numeric'}) });
+
+        document.getElementById('evInfoGrid').innerHTML = items.map(i =>
+            `<div class="bg-slate-800 rounded-xl p-3 border border-slate-700">
+                <div class="text-slate-500 text-xs mb-1"><i class="fas ${i.icon} mr-1"></i>${i.label}</div>
+                <div class="text-white font-bold text-sm">${i.val}</div>
+            </div>`
+        ).join('');
+    }
+
+    function extractYoutubeId(url) {
+        if (!url) return null;
+        const m = url.match(/(?:youtube\.com\/(?:watch\?v=|live\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+        return m ? m[1] : null;
+    }
+
+    async function loadEvent() {
+        if (!eventId) { showError(); return; }
+
+        const waitFb = () => new Promise(res => {
+            if (window.firebaseDb) { res(); return; }
+            let n = 0;
+            const t = setInterval(() => {
+                n++;
+                if (window.firebaseDb || n > 60) { clearInterval(t); res(); }
+            }, 100);
+        });
+        await waitFb();
+
+        if (!window.firebaseDb) { showError(); return; }
+
+        try {
+            const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            const snap = await getDoc(doc(window.firebaseDb, 'adminEvents', eventId));
+            if (!snap.exists()) { showError(); return; }
+            const ev = snap.data();
+
+            // Banner
+            const banner = document.getElementById('evBanner');
+            banner.src = ev.imageUrl || 'assets/images/events/CAMP.jpeg';
+            banner.alt = ev.name || 'Evento';
+
+            // Title
+            document.getElementById('evName').textContent = ev.name || 'Evento';
+            document.title = (ev.name || 'Evento') + ' - X-TREINO FREITAS';
+
+            // Badges
+            const catColors = { camp: 'bg-orange-600', xtreino: 'bg-blue-600', diario: 'bg-green-600' };
+            const badges = [];
+            if (ev.category) badges.push(`<span class="badge ${catColors[ev.category]||'bg-slate-600'} text-white">${(ev.category).toUpperCase()}</span>`);
+            if (ev.status) {
+                const sc = {Aberto:'bg-green-500',Fechado:'bg-red-500','Em andamento':'bg-blue-500'};
+                badges.push(`<span class="badge ${sc[ev.status]||'bg-gray-500'} text-white">${ev.status}</span>`);
+            }
+            if (ev.quedas) badges.push(`<span class="badge bg-purple-600 text-white">${ev.quedas}x QUEDAS</span>`);
+            document.getElementById('evBadges').innerHTML = badges.join(' ');
+
+            // Meta
+            const meta = [];
+            if (ev.tipo) meta.push(`<span><i class="fas fa-gamepad mr-1"></i>${ev.tipo}</span>`);
+            if (ev.modo) meta.push(`<span><i class="fas fa-sliders-h mr-1"></i>${ev.modo}</span>`);
+            if (ev.vagas) meta.push(`<span><i class="fas fa-users mr-1"></i>${ev.vagas} vagas</span>`);
+            document.getElementById('evMeta').innerHTML = meta.join('<span class="text-slate-600 mx-1">·</span>');
+
+            // Description
+            if (ev.descricao) document.getElementById('evDesc').textContent = ev.descricao;
+
+            // Info grid
+            buildInfoGrid(ev);
+
+            // Rules
+            if (ev.regras) document.getElementById('evRegras').textContent = ev.regras;
+
+            // Rounds
+            if (ev.rodadas) document.getElementById('evRodadas').textContent = ev.rodadas;
+
+            // Scoring
+            if (ev.pontuacao) document.getElementById('evPontuacao').textContent = ev.pontuacao;
+
+            // YouTube
+            if (ev.youtubeUrl) {
+                const yid = extractYoutubeId(ev.youtubeUrl);
+                if (yid) {
+                    document.getElementById('evYoutube').innerHTML =
+                        `<iframe class="yt-iframe" src="https://www.youtube.com/embed/${yid}?autoplay=0" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>`;
+                } else {
+                    document.getElementById('evYoutube').innerHTML =
+                        `<a href="${ev.youtubeUrl}" target="_blank" rel="noopener" class="block text-center bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl"><i class="fab fa-youtube mr-2"></i>Assistir no YouTube</a>`;
+                }
+            }
+
+            // Build tabs & show page
+            buildTabs(ev);
+            showContent();
+
+            // Load groups if camp
+            if (ev.category === 'camp') {
+                window._evtId = eventId;
+                loadPublicGroups('classificatoria');
+            }
+
+            // Store eventId for registration
+            window._currentEventId = eventId;
+            window._currentEventName = ev.name;
+            window._currentEventStatus = ev.status;
+
+            if (ev.status === 'Fechado') {
+                document.getElementById('floatingCta').innerHTML = '<div class="w-full max-w-4xl mx-auto block text-center bg-slate-700 text-slate-400 text-base font-bold py-4 rounded-2xl">Inscrições Encerradas</div>';
+            }
+
+        } catch (err) {
+            console.error('Erro ao carregar evento:', err);
+            showError();
+        }
+    }
+
+    async function loadPublicGroups(phase) {
+        window._pubGroupsPhase = phase;
+        ['classificatoria','semifinal','final'].forEach(p => {
+            const btn = document.getElementById('pubPhaseBtn_' + p);
+            if (btn) {
+                btn.className = p === phase
+                    ? 'pub-phase-btn px-4 py-2 rounded-lg text-sm font-semibold bg-orange-600 text-white'
+                    : 'pub-phase-btn px-4 py-2 rounded-lg text-sm font-semibold bg-slate-700 text-slate-300';
+            }
+        });
+
+        const container = document.getElementById('publicGroupsContent');
+        if (!container || !window.firebaseDb || !window._evtId) return;
+        container.innerHTML = '<div class="text-center py-8 text-slate-500"><i class="fas fa-spinner fa-spin text-xl mb-2 block"></i>Carregando...</div>';
+
+        try {
+            const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            const snap = await getDoc(doc(window.firebaseDb, 'camp_groups', `${window._evtId}_${phase}`));
+            if (!snap.exists()) {
+                container.innerHTML = '<div class="text-center py-8 text-slate-500 text-sm">Grupos não divulgados ainda para esta fase.</div>';
+                return;
+            }
+            const data = snap.data();
+            const { groups, advancingPerGroup } = data;
+            if (!groups || !groups.length) {
+                container.innerHTML = '<div class="text-center py-8 text-slate-500">Nenhum grupo gerado.</div>';
+                return;
+            }
+            const phaseName = {classificatoria:'Classificatória',semifinal:'Semifinal',final:'Final'}[phase] || phase;
+            const advInfo = advancingPerGroup ? `<p class="text-sm text-green-400 mb-4 font-medium"><i class="fas fa-arrow-up mr-1"></i>${advancingPerGroup} time(s) avançam por grupo na ${phaseName}</p>` : '';
+            container.innerHTML = advInfo + groups.map(g => `
+                <div class="border border-slate-600 rounded-xl overflow-hidden mb-3">
+                    <div class="bg-slate-700 border-b border-slate-600 px-4 py-2 flex justify-between items-center">
+                        <span class="font-bold text-orange-400">${g.name}</span>
+                        <span class="text-xs text-slate-400">${g.teams.length} time(s)</span>
+                    </div>
+                    <ul class="divide-y divide-slate-700">
+                        ${g.teams.map((t,j) => `
+                        <li class="flex items-center gap-3 px-4 py-2.5">
+                            <span class="w-6 h-6 rounded-full bg-slate-600 text-slate-300 text-xs font-bold flex items-center justify-center flex-shrink-0">${j+1}</span>
+                            <span class="text-sm font-medium text-slate-100">${t}</span>
+                            ${advancingPerGroup && j < advancingPerGroup ? '<span class="ml-auto text-xs bg-green-900 text-green-400 px-2 py-0.5 rounded-full font-semibold">Avança ↑</span>' : ''}
+                        </li>`).join('')}
+                    </ul>
+                </div>`).join('');
+        } catch (err) {
+            container.innerHTML = '<div class="text-center py-4 text-red-400 text-sm">Erro ao carregar grupos.</div>';
+        }
+    }
+    window.loadPublicGroups = loadPublicGroups;
+
+    window.goRegister = function() {
+        const eid = window._currentEventId;
+        if (eid) {
+            window.location.href = `index.html?openEvent=${encodeURIComponent(eid)}#eventos`;
+        } else {
+            window.location.href = 'index.html#eventos';
+        }
+    };
+
+    loadEvent();
+})();
+</script>
+</body>
+</html>
