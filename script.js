@@ -572,12 +572,18 @@ async function loadUserNotifications() {
             const n = d.data();
             const isRead = readIds.has(d.id);
             const dateStr = n.createdAt ? new Date(n.createdAt.toDate ? n.createdAt.toDate() : n.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
-            return `<div class="p-3 hover:bg-gray-50 transition-colors cursor-default ${isRead ? '' : 'bg-blue-50 border-l-2 border-blue-400'}">
+            const roomBtnHtml = n.roomLink ? `
+                <a href="${n.roomLink}" target="_blank" rel="noopener noreferrer"
+                   style="display:block;margin-top:10px;text-decoration:none;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;text-align:center;padding:12px 16px;border-radius:12px;font-weight:900;font-size:15px;letter-spacing:1px;animation:roomPulse 1.5s infinite;box-shadow:0 0 0 0 rgba(124,58,237,0.7)">
+                    🚀 ENTRAR NA SALA!!
+                </a>` : '';
+            return `<div class="p-3 transition-colors cursor-default ${isRead ? 'hover:bg-gray-50' : 'bg-blue-50 border-l-2 border-blue-400'}">
                 <div class="font-semibold text-sm text-gray-900">${n.title || ''}</div>
                 <div class="text-xs text-gray-600 mt-0.5 leading-relaxed whitespace-pre-line">${n.message || ''}</div>
+                ${roomBtnHtml}
                 <div class="text-xs text-gray-400 mt-1">${dateStr}</div>
             </div>`;
-        }).join('');
+        }).join('') + `<style>@keyframes roomPulse{0%{box-shadow:0 0 0 0 rgba(124,58,237,0.7)}70%{box-shadow:0 0 0 12px rgba(124,58,237,0)}100%{box-shadow:0 0 0 0 rgba(124,58,237,0)}}</style>`;
     } catch (err) {
         console.error('Erro ao carregar notificações:', err);
     }
@@ -6342,23 +6348,25 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
 
         const { collection, query, where, getDocs, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
 
-        // Contar inscrições existentes para atribuir slot
+        const isLiga = (cfg.modo || '').toUpperCase().includes('LIGA');
+        const vagas = cfg.vagas || 0;
+        const grupos = Math.max(1, cfg.grupos || 1);
+        const slotsPerGroup = grupos > 1 ? Math.ceil(vagas / grupos) : vagas;
+
+        // Contar inscrições existentes por horário para atribuir slot por schedule
         const regsRef = collection(window.firebaseDb, 'registrations');
         const existingSnap = await getDocs(query(regsRef,
             where('eventType', '==', rawEventType),
             where('status', 'in', ['confirmed', 'paid', 'approved', 'pending'])
         ));
-        let slotBase = existingSnap.size;
 
-        const vagas = cfg.vagas || 0;
-        const grupos = Math.max(1, cfg.grupos || 1);
-        const slotsPerGroup = grupos > 1 ? Math.ceil(vagas / grupos) : vagas;
-
-        // Verificar se evento está lotado
-        if (vagas > 0 && slotBase >= vagas) {
-            alert('Este evento está lotado! Não há mais vagas disponíveis.');
-            return;
-        }
+        // Mapa: schedule → count de inscrições existentes
+        const scheduleSlotCount = {};
+        existingSnap.docs.forEach(d => {
+            const r = d.data();
+            const sched = r.schedule || '—';
+            scheduleSlotCount[sched] = (scheduleSlotCount[sched] || 0) + 1;
+        });
 
         // Construir timesByDate a partir de selectedTimes
         const timesByDate = {};
@@ -6370,32 +6378,44 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
         }
 
         const externalRef = `free_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-        const assignedSlots = [];
+        const assignedSlots = []; // { team, slot, schedule }
 
         const dates = datesToUse && datesToUse.length > 0 ? datesToUse : [Object.keys(timesByDate)[0] || new Date().toISOString().slice(0, 10)];
-        const times = selectedTimesArg && selectedTimesArg.length > 0 ? null : null; // flag: usar timesByDate
 
         for (const d of dates) {
             const dayTimes = timesByDate[d] || ['—'];
             for (const schedule of dayTimes) {
-                for (const team of teamsData) {
-                    slotBase++;
-                    const slotNumber = slotBase;
+                const schedKey = schedule !== '—' ? schedule : cfg.label;
 
-                    if (vagas > 0 && slotNumber > vagas) {
+                // Slot counter por horário
+                if (!scheduleSlotCount[schedKey]) scheduleSlotCount[schedKey] = 0;
+
+                // Verificar lotação por horário (se não é LIGA)
+                if (!isLiga && vagas > 0 && scheduleSlotCount[schedKey] >= vagas) {
+                    alert(`Horário ${schedKey} está lotado! Não há mais vagas disponíveis neste horário.`);
+                    continue;
+                }
+
+                for (const team of teamsData) {
+                    scheduleSlotCount[schedKey]++;
+                    const slotNumber = scheduleSlotCount[schedKey];
+
+                    if (!isLiga && vagas > 0 && slotNumber > vagas) {
                         alert('Evento lotado durante o processamento. Algumas inscrições não foram concluídas.');
                         closeScheduleModal();
-                        showSlotConfirmationModal(assignedSlots, cfg.label);
+                        showSlotConfirmationModal(assignedSlots, cfg.label, isLiga);
                         return;
                     }
 
-                    let slotDisplay;
-                    if (vagas > 0 && grupos > 1 && slotsPerGroup > 0) {
-                        const groupNum = Math.ceil(slotNumber / slotsPerGroup);
-                        const posInGroup = slotNumber - (groupNum - 1) * slotsPerGroup;
-                        slotDisplay = `Grupo ${groupNum} • Vaga ${posInGroup}`;
-                    } else {
-                        slotDisplay = `Vaga #${slotNumber}`;
+                    let slotDisplay = null;
+                    if (!isLiga) {
+                        if (vagas > 0 && grupos > 1 && slotsPerGroup > 0) {
+                            const groupNum = Math.ceil(slotNumber / slotsPerGroup);
+                            const posInGroup = slotNumber - (groupNum - 1) * slotsPerGroup;
+                            slotDisplay = `Grupo ${groupNum} • Vaga ${posInGroup}`;
+                        } else {
+                            slotDisplay = `Vaga #${slotNumber}`;
+                        }
                     }
 
                     await addDoc(collection(window.firebaseDb, 'registrations'), {
@@ -6403,26 +6423,27 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
                         teamName: team.name,
                         email: team.email,
                         phone: team.phone,
-                        schedule: schedule !== '—' ? schedule : cfg.label,
+                        schedule: schedKey,
                         date: d,
                         eventType: rawEventType,
-                        title: `${cfg.label} - ${slotDisplay}`,
+                        title: isLiga ? `${cfg.label} - ${schedKey}` : `${cfg.label} - ${slotDisplay}`,
                         price: 0,
-                        slot: slotNumber,
+                        slot: isLiga ? null : slotNumber,
                         slotDisplay: slotDisplay,
                         status: 'confirmed',
                         createdAt: serverTimestamp(),
                         external_reference: externalRef,
                         isFreeEvent: true,
+                        isLiga,
                     });
 
-                    assignedSlots.push({ team: team.name, slot: slotDisplay });
+                    assignedSlots.push({ team: team.name, slot: slotDisplay, schedule: schedKey, isLiga });
                 }
             }
         }
 
         closeScheduleModal();
-        showSlotConfirmationModal(assignedSlots, cfg.label);
+        showSlotConfirmationModal(assignedSlots, cfg.label, isLiga);
 
     } catch (err) {
         console.error('Erro ao registrar inscrição gratuita:', err);
@@ -6430,33 +6451,67 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
     }
 }
 
-function showSlotConfirmationModal(slots, eventName) {
+function showSlotConfirmationModal(slots, eventName, isLiga) {
     const existing = document.getElementById('slotConfirmModal');
     if (existing) existing.remove();
 
-    const slotsHtml = slots.map(s => `
-        <div class="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-xl">
-            <span class="text-2xl">✅</span>
-            <div>
-                <div class="font-semibold text-gray-800">${s.team}</div>
-                <div class="text-sm font-bold text-green-700">${s.slot} confirmada!</div>
-            </div>
+    // Agrupar por horário
+    const bySchedule = {};
+    slots.forEach(s => {
+        const key = s.schedule || eventName;
+        if (!bySchedule[key]) bySchedule[key] = [];
+        bySchedule[key].push(s);
+    });
+
+    const schedules = Object.keys(bySchedule);
+
+    let slotsHtml = '';
+    if (isLiga) {
+        // Modo LIGA: sem slots, só info de acesso à sala
+        slotsHtml = `
+        <div class="p-4 bg-yellow-50 border-2 border-yellow-400 rounded-xl text-center">
+            <div class="text-3xl mb-2">🏆</div>
+            <div class="font-bold text-yellow-800 text-base mb-1">Modo Liga — Acesso à Sala</div>
+            <div class="text-sm text-yellow-700 leading-relaxed">Salas no modo Liga não possuem slots numerados.<br>Aguarde o link da sala ser enviado pelo admin nas notificações.<br>Fique de olho no sininho 🔔!</div>
+        </div>
+        ${schedules.map(sched => `
+        <div class="p-3 bg-blue-50 border border-blue-200 rounded-xl">
+            <div class="text-xs font-bold text-blue-600 uppercase mb-1">⏰ Horário</div>
+            <div class="font-semibold text-blue-900">${sched}</div>
+            ${bySchedule[sched].map(s => `<div class="text-xs text-gray-600 mt-0.5">✅ ${s.team}</div>`).join('')}
+        </div>`).join('')}`;
+    } else {
+        slotsHtml = schedules.map(sched => `
+        <div class="p-3 bg-gray-50 border border-gray-200 rounded-xl">
+            <div class="text-xs font-bold text-blue-600 uppercase mb-2 flex items-center gap-1">⏰ Horário: <span class="text-blue-800">${sched}</span></div>
+            ${bySchedule[sched].map(s => `
+            <div class="flex items-center gap-3 p-2 bg-green-50 border border-green-200 rounded-lg mb-1">
+                <span class="text-xl">✅</span>
+                <div>
+                    <div class="font-semibold text-gray-800 text-sm">${s.team}</div>
+                    <div class="text-base font-extrabold text-green-700 tracking-wide">🎯 ${s.slot} confirmada!</div>
+                </div>
+            </div>`).join('')}
         </div>`).join('');
+    }
 
     const div = document.createElement('div');
     div.id = 'slotConfirmModal';
     div.className = 'fixed inset-0 bg-black bg-opacity-60 z-[200] flex items-center justify-center p-4';
     div.innerHTML = `
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
-            <div class="text-center mb-4">
-                <div class="text-4xl mb-2">🎉</div>
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="text-center mb-5">
+                <div class="text-5xl mb-2">🎉</div>
                 <h3 class="text-xl font-bold text-gray-900">Inscrição Confirmada!</h3>
-                <p class="text-gray-600 text-sm mt-1">${eventName}</p>
+                <p class="text-gray-500 text-sm mt-1">${eventName}</p>
             </div>
-            <div class="space-y-2 mb-6">${slotsHtml}</div>
+            <div class="space-y-3 mb-6">${slotsHtml}</div>
+            ${!isLiga ? `<div class="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-700 mb-4 text-center">
+                💡 Guarde o número da sua vaga — ela é a sua posição no evento!
+            </div>` : ''}
             <button onclick="document.getElementById('slotConfirmModal').remove()"
-                    class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold transition-colors">
-                OK, entendido!
+                    class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-bold text-base transition-colors">
+                OK, entendido! 👍
             </button>
         </div>`;
     document.body.appendChild(div);
@@ -7471,18 +7526,23 @@ async function loadDynamicEvents() {
                 vagas: Number(ev.vagas) || 0,
                 grupos: Number(ev.grupos) || 0,
                 isFree: _isFreeEv,
+                modo: (ev.modo || '').toUpperCase(),
             };
             const imgSrc = ev.imageUrl || placeholderImg;
-            const isPago = ev.entrada === 'PAGO';
             const preco = ev.preco ? `R$ ${Number(ev.preco).toFixed(2)}` : 'GRÁTIS';
             const catLabel = categoryLabels[ev.category] || ev.category || '';
             const descLines = ev.descricao ? ev.descricao.split('\n').slice(0, 3).map(l => `<div>${l}</div>`).join('') : '';
-            const btnHtml = isPago && ev.preco
-                ? `<button onclick="openEventPayment('${d.id}', '${(ev.name || '').replace(/'/g, "\\'")}', ${ev.preco})" class="w-full btn-primary py-2 rounded-lg font-semibold">INSCREVER — ${preco}</button>`
-                : `<button onclick="openScheduleModal('${d.id}')" class="w-full btn-primary py-2 rounded-lg font-semibold">RESERVAR VAGA</button>`;
+            const formatoStr = (ev.formato || '').toUpperCase();
+            const modoStr = (ev.modo || '').toUpperCase();
+            const tipoStr = (ev.tipo || '').toUpperCase();
+            const btnLabel = ev.entrada === 'PAGO' && ev.preco ? `INSCREVER — ${preco}` : 'RESERVAR VAGA';
+            const btnHtml = `<button onclick="openScheduleModal('${d.id}')" class="w-full btn-primary py-2 rounded-lg font-semibold">${btnLabel}</button>`;
 
             return `<article class="product-card" data-category="${ev.category || ''}" data-event-id="${d.id}">
-                ${catLabel ? `<div class="px-1 pb-1"><span class="inline-block bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded">${catLabel}</span></div>` : ''}
+                <div class="px-1 pb-1 flex flex-wrap gap-1">
+                    ${catLabel ? `<span class="inline-block bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded">${catLabel}</span>` : ''}
+                    ${formatoStr ? `<span class="inline-block bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded">${formatoStr}</span>` : ''}
+                </div>
                 <div class="product-media">
                     <img src="${imgSrc}" alt="${ev.name || 'Evento'}" loading="lazy" referrerpolicy="no-referrer" onerror="this.src='${placeholderImg}'">
                 </div>
@@ -7490,9 +7550,8 @@ async function loadDynamicEvents() {
                 <div class="product-desc">
                     <div class="space-y-1">
                         <div><strong>Entrada:</strong> ${preco}</div>
-                        <div><strong>Horários:</strong> Seg - Sex • 14h às 23h</div>
-                        <div><strong>Vagas:</strong> ${ev.vagas || '—'}</div>
-                        <div><strong>Modalidade:</strong> ${ev.tipo || ''} | ${ev.modo || ''}${ev.formato ? ' | ' + ev.formato : ''}</div>
+                        <div><strong>Vagas por horário:</strong> ${ev.vagas || '—'}</div>
+                        <div><strong>Modalidade:</strong> ${tipoStr} | ${modoStr}${formatoStr ? ' | ' + formatoStr : ''}</div>
                         ${descLines ? `<div class="text-xs text-gray-500 mt-1">${descLines}</div>` : ''}
                     </div>
                 </div>

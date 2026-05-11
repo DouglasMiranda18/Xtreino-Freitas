@@ -9829,7 +9829,7 @@ async function saveEventForm() {
         name: document.getElementById('evtName').value.trim(),
         tipo: document.getElementById('evtTipo').value,
         modo: document.getElementById('evtModo').value,
-        formato: document.getElementById('evtFormato')?.value || 'Misto',
+        formato: (document.getElementById('evtFormato')?.value || 'MISTO').toUpperCase(),
         status: document.getElementById('evtStatus').value,
         premiado: document.getElementById('evtPremiado').value,
         entrada,
@@ -9983,7 +9983,7 @@ async function editEventItem(eventId) {
         document.getElementById('evtTipo').value = ev.tipo || 'SOLO';
         document.getElementById('evtModo').value = ev.modo || 'NORMAL';
         const fmtEl = document.getElementById('evtFormato');
-        if (fmtEl) fmtEl.value = ev.formato || 'Misto';
+        if (fmtEl) fmtEl.value = (ev.formato || 'MISTO').toUpperCase();
         document.getElementById('evtStatus').value = ev.status || 'Aberto';
         document.getElementById('evtPremiado').value = ev.premiado || 'NÃO';
         document.getElementById('evtEntrada').value = ev.entrada || 'GRÁTIS';
@@ -10176,9 +10176,14 @@ function onEventNotifyTypeChange() {
     const type = document.getElementById('eventNotifyType').value;
     const titleEl = document.getElementById('eventNotifyTitle');
     const msgEl = document.getElementById('eventNotifyMessage');
+    const roomSection = document.getElementById('eventNotifyRoomLinkSection');
+    if (roomSection) roomSection.classList.toggle('hidden', type !== 'room_link');
     if (type === 'credentials') {
         titleEl.value = 'Credenciais do Evento';
         msgEl.placeholder = 'ID do evento: xxxxxx\nSenha: xxxxxx\n\nUse as credenciais acima para acessar o evento.';
+    } else if (type === 'room_link') {
+        titleEl.value = 'Link da Sala Disponível';
+        msgEl.placeholder = 'Ex: A sala está aberta! Clique no botão abaixo para entrar.';
     } else {
         titleEl.value = '';
         msgEl.placeholder = 'Digite sua mensagem para os participantes...';
@@ -10222,6 +10227,14 @@ async function sendEventNotification() {
         const createdBy = user ? (user.displayName || user.email || user.uid) : 'Admin';
 
         const scheduleLabel = selectedSchedule !== 'all' ? ` [${selectedSchedule}]` : '';
+        const notifyType = document.getElementById('eventNotifyType')?.value || 'custom';
+        const roomLink = notifyType === 'room_link' ? (document.getElementById('eventNotifyRoomLink')?.value?.trim() || null) : null;
+
+        if (notifyType === 'room_link' && !roomLink) {
+            showToast('warning', 'Informe a URL da sala.', 'Atenção');
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Enviar'; }
+            return;
+        }
 
         await Promise.all(uniqueUsers.map(uid =>
             addDoc(collection(window.firebaseDb, 'notifications'), {
@@ -10232,6 +10245,8 @@ async function sendEventNotification() {
                 eventId,
                 eventName,
                 schedule: selectedSchedule !== 'all' ? selectedSchedule : null,
+                roomLink: roomLink || null,
+                notifyType,
                 createdAt: serverTimestamp(),
                 createdBy,
                 createdByUid: user?.uid || null,
