@@ -766,6 +766,7 @@ async function updateAdminLinkVisibility() {
     };
     toggle(adminLink, hasAccess);
     toggle(adminLinkMobile, hasAccess);
+    const adminLinkMobileExpanded = document.getElementById('adminLinkMobileExpanded');
     if (adminLinkMobileExpanded) {
         toggle(adminLinkMobileExpanded, hasAccess);
     }
@@ -941,9 +942,21 @@ window.AssocConfig = {
 window.currentUserProfile = null;
 window.isLoggedIn = false;
 
+// Mostrar sino imediatamente se sessão anterior estava ativa (antes mesmo do Firebase resolver)
+// Movido para DOMContentLoaded para garantir que os elementos existam no DOM
+
 // Verifica se há usuário logado ao carregar a página
 document.addEventListener('DOMContentLoaded', function () {
     captureAffiliateRefFromUrl();
+    // Mostrar sino imediatamente se havia sessão ativa (antes do Firebase resolver)
+    try {
+        if (localStorage.getItem('xt_session') === '1') {
+            ['notifBellDesktop','notifBellMobile'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.remove('hidden');
+            });
+        }
+    } catch(_) {}
     // Aguarda o Firebase estar pronto
     const checkFirebaseReady = () => {
         if (window.firebaseReady) {
@@ -1048,6 +1061,8 @@ async function checkAuthState() {
                 if (user) {
                     // Usuário está logado
                     window.isLoggedIn = true;
+                    // Persistir sessão localmente para mostrar sino instantâneo no próximo carregamento
+                    try { localStorage.setItem('xt_session', '1'); } catch(_) {}
                     toggleAccountButtons(true);
                     // Mostrar sininho imediatamente ao logar (conteúdo carrega depois)
                     ['notifBellDesktop','notifBellMobile'].forEach(id => {
@@ -1069,7 +1084,8 @@ async function checkAuthState() {
                     }
                     toggleAccountButtons(false);
                     updateAdminLinkVisibility();
-                    // Ocultar sininho ao deslogar
+                    // Limpar flag de sessão e ocultar sininho ao deslogar
+                    try { localStorage.removeItem('xt_session'); } catch(_) {}
                     ['notifBellDesktop','notifBellMobile'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
                     updateNotifBadge(0);
                 }
