@@ -2846,7 +2846,7 @@ async function loadHighlightsFromFirestore() {
             const highlight = highlights[key];
             if (highlight && highlight.title) {
                 const slide = document.createElement('div');
-                slide.className = 'min-w-full p-4 md:p-8 bg-white';
+                slide.className = 'min-w-full bg-white overflow-hidden';
 
                 // Criar imagem com ou sem link
                 let imageHtml = '';
@@ -2872,19 +2872,27 @@ async function loadHighlightsFromFirestore() {
                     buttonHtml = `<button onclick="${highlight.action}" class="bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold">Ver Mais</button>`;
                 }
 
-                const bgStyle = highlight.image
-                    ? `background-image: url('${highlight.image}'); background-size: cover; background-position: center;`
-                    : 'background: linear-gradient(135deg, #1a3a6b 0%, #2563eb 100%);';
+                const imgSection = highlight.image
+                    ? `<div style="flex:1;overflow:hidden;min-height:0;"><img src="${highlight.image}" alt="${highlight.title}" style="width:100%;height:100%;object-fit:cover;display:block;"></div>`
+                    : `<div style="flex:1;background:linear-gradient(135deg,#1a3a6b,#2563eb);min-height:0;"></div>`;
 
                 slide.innerHTML = `
-                    <div class="relative w-full h-48 md:h-64 flex flex-col justify-end" style="${bgStyle}">
-                        <div class="absolute inset-0 bg-black bg-opacity-50 rounded-none"></div>
-                        <div class="relative z-10 p-4 md:p-6 text-white text-center">
-                            <h3 class="text-base md:text-xl font-bold mb-1 leading-tight">${highlight.title}</h3>
-                            ${highlight.subtitle ? `<p class="text-gray-200 mb-2 text-xs md:text-sm">${highlight.subtitle}</p>` : ''}
-                            <p class="text-gray-300 mb-3 text-xs md:text-sm line-clamp-2">${highlight.description}</p>
-                            <div class="flex justify-center">${buttonHtml}</div>
+                    <div style="display:flex;flex-direction:column;height:220px;" class="md:hidden">
+                        <div style="background:#0f172a;color:#fff;padding:10px 16px;text-align:center;flex-shrink:0;">
+                            <p style="font-size:13px;font-weight:700;margin:0 0 4px;line-height:1.3;">${highlight.title}</p>
+                            ${highlight.subtitle ? `<p style="font-size:11px;color:#94a3b8;margin:0 0 6px;">${highlight.subtitle}</p>` : ''}
+                            <div style="display:flex;justify-content:center;">${buttonHtml}</div>
                         </div>
+                        ${imgSection}
+                    </div>
+                    <div class="hidden md:grid md:grid-cols-2 md:h-64">
+                        <div style="background:#0f172a;color:#fff;display:flex;flex-direction:column;justify-content:center;padding:24px;">
+                            <h3 style="font-size:20px;font-weight:700;margin:0 0 6px;">${highlight.title}</h3>
+                            ${highlight.subtitle ? `<p style="font-size:14px;color:#94a3b8;margin:0 0 8px;">${highlight.subtitle}</p>` : ''}
+                            <p style="font-size:14px;color:#cbd5e1;margin:0 0 12px;">${highlight.description}</p>
+                            ${buttonHtml}
+                        </div>
+                        <div style="overflow:hidden;">${highlight.image ? `<img src="${highlight.image}" alt="${highlight.title}" style="width:100%;height:100%;object-fit:cover;">` : `<div style="background:linear-gradient(135deg,#1a3a6b,#2563eb);width:100%;height:100%;"></div>`}</div>
                     </div>
                 `;
                 track.appendChild(slide);
