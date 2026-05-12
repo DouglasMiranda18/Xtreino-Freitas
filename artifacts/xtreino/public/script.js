@@ -2872,16 +2872,18 @@ async function loadHighlightsFromFirestore() {
                     buttonHtml = `<button onclick="${highlight.action}" class="bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold">Ver Mais</button>`;
                 }
 
+                const bgStyle = highlight.image
+                    ? `background-image: url('${highlight.image}'); background-size: cover; background-position: center;`
+                    : 'background: linear-gradient(135deg, #1a3a6b 0%, #2563eb 100%);';
+
                 slide.innerHTML = `
-                    <div class="flex flex-col items-center text-center md:grid md:grid-cols-2 md:text-left md:items-center gap-4 md:gap-6">
-                        <div class="w-full">
-                            <h3 class="text-lg md:text-xl font-bold mb-2">${highlight.title}</h3>
-                            ${highlight.subtitle ? `<p class="text-gray-500 mb-2 text-sm md:text-base">${highlight.subtitle}</p>` : ''}
-                            <p class="text-gray-600 mb-4 text-sm md:text-base line-clamp-3 md:line-clamp-none">${highlight.description}</p>
-                            <div class="flex justify-center md:justify-start">${buttonHtml}</div>
-                        </div>
-                        <div class="hidden md:flex rounded-xl ${highlight.image ? '' : 'bg-blue-matte bg-opacity-20'} h-48 overflow-hidden items-center justify-center w-full">
-                            ${imageHtml}
+                    <div class="relative w-full h-48 md:h-64 flex flex-col justify-end" style="${bgStyle}">
+                        <div class="absolute inset-0 bg-black bg-opacity-50 rounded-none"></div>
+                        <div class="relative z-10 p-4 md:p-6 text-white text-center">
+                            <h3 class="text-base md:text-xl font-bold mb-1 leading-tight">${highlight.title}</h3>
+                            ${highlight.subtitle ? `<p class="text-gray-200 mb-2 text-xs md:text-sm">${highlight.subtitle}</p>` : ''}
+                            <p class="text-gray-300 mb-3 text-xs md:text-sm line-clamp-2">${highlight.description}</p>
+                            <div class="flex justify-center">${buttonHtml}</div>
                         </div>
                     </div>
                 `;
