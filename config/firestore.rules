@@ -67,25 +67,40 @@ service cloud.firestore {
       return isAdmin() || isGerente() || isVendedor() || isDesign() || isSocio() || isStaff();
     }
 
-    // users: cada usuário lê/escreve o próprio documento; Staff pode ler todos
+    // SEGURANÇA: campos protegidos que usuários não podem auto-modificar
+    function hasNoProtectedFieldChanges() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'tokens', 'role', 'affiliate', 'affiliateStatus', 'affiliateBalance',
+        'affiliateCode', 'affiliateParent', 'affiliateSales', 'affiliateRef',
+        'affiliateCommission', 'affiliatePaidOut'
+      ]);
+    }
+
+    // users: cada usuário lê/cria o próprio documento; atualização protege campos sensíveis; só admin pode alterar tokens/role
     match /users/{userId} {
       allow read: if isSelf(userId) || canReadAll();
-      allow write: if isSelf(userId) || isAdmin();
+      allow create: if isSelf(userId) || isAdmin();
+      allow update: if (isSelf(userId) && hasNoProtectedFieldChanges()) || isAdmin();
+      allow delete: if isAdmin();
     }
 
-    // schedules: leitura pública para contagem; escrita para logados
+    // schedules: leitura pública para contagem; criação para logados; update/delete apenas staff
     match /schedules/{scheduleId} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isAdmin() || isGerente() || isStaff();
+      allow delete: if isAdmin() || isGerente();
     }
 
-    // orders: leitura para staff (admin/gerente/vendedor/sócio) e para o próprio usuário; escrita para logados
+    // orders: leitura para staff e para o próprio usuário; criação apenas para o próprio userId; update/delete apenas staff
     match /orders/{orderId} {
       allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || canReadAll());
-      allow write: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if canReadAll();
+      allow delete: if isAdmin();
     }
 
-    // registrations: leitura para staff (admin/gerente/vendedor/sócio) e para o próprio usuário; escrita para logados
+    // registrations: leitura para staff e para o próprio usuário; criação apenas para o próprio userId; update/delete apenas staff
     match /registrations/{registrationId} {
       allow read: if isSignedIn() && (
         resource.data.userId == request.auth.uid ||
@@ -97,13 +112,16 @@ service cloud.firestore {
           )
         )
       );
-      allow write: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if canReadAll();
+      allow delete: if isAdmin() || isGerente();
     }
 
-    // digital_deliveries: leitura para o próprio usuário e sócio; escrita para logados
+    // digital_deliveries: leitura para o próprio usuário e staff; criação apenas para o próprio email; update apenas staff
     match /digital_deliveries/{deliveryId} {
       allow read: if isSignedIn() && (resource.data.customerEmail == request.auth.token.email || canReadAll());
-      allow write: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.customerEmail == request.auth.token.email;
+      allow update, delete: if canReadAll();
     }
 
     // highlights: leitura pública; escrita para admins autorizados e design
@@ -130,10 +148,11 @@ service cloud.firestore {
       allow create, update, delete: if isAuthorizedAdminOrDesign();
     }
 
-    // product_downloads: leitura para o próprio usuário; escrita para logados
+    // product_downloads: leitura para o próprio usuário; criação apenas pelo próprio usuário com status delivered
     match /product_downloads/{downloadId} {
       allow read: if isSignedIn() && (resource.data.customerEmail == request.auth.token.email || isAdmin());
-      allow create: if isSignedIn() && resource.data.customerEmail == request.auth.token.email && resource.data.status == 'delivered';
+      allow create: if isSignedIn() && request.resource.data.customerEmail == request.auth.token.email && request.resource.data.status == 'delivered';
+      allow update, delete: if isAdmin();
     }
 
     // product_categories: leitura pública; escrita apenas para admins autorizados
@@ -148,14 +167,15 @@ service cloud.firestore {
       allow create, update, delete: if isAuthorizedAdminOrDesign();
     }
 
-    // product_reviews: leitura pública; escrita para usuários logados
+    // product_reviews: leitura pública; criação validada (CORRIGIDO: usa request.resource.data no create)
     match /product_reviews/{reviewId} {
       allow read: if true;
       allow create: if isSignedIn() &&
-        resource.data.productId is string &&
-        resource.data.customerEmail == request.auth.token.email &&
-        resource.data.rating >= 1 && resource.data.rating <= 5 &&
-        resource.data.comment.size() <= 500;
+        request.resource.data.productId is string &&
+        request.resource.data.customerEmail == request.auth.token.email &&
+        request.resource.data.rating >= 1 && request.resource.data.rating <= 5 &&
+        request.resource.data.comment.size() <= 500;
+      allow update, delete: if isAdmin();
     }
 
     // product_analytics: leitura para admins; escrita apenas para admins autorizados
@@ -168,10 +188,11 @@ service cloud.firestore {
     match /product_discounts/{discountId} {
       allow read: if true;
       allow create: if isAuthorizedAdminOrDesign() &&
-        resource.data.code is string &&
-        resource.data.discountType in ['percentage', 'fixed'] &&
-        resource.data.value > 0 &&
-        resource.data.active is bool;
+        request.resource.data.code is string &&
+        request.resource.data.discountType in ['percentage', 'fixed'] &&
+        request.resource.data.value > 0 &&
+        request.resource.data.active is bool;
+      allow update, delete: if isAuthorizedAdminOrDesign();
     }
 
     // product_audit_logs: leitura para admins; escrita apenas para admins autorizados
@@ -198,19 +219,20 @@ service cloud.firestore {
       allow create, update, delete: if isAuthorizedAdmin();
     }
 
-    // coupons: leitura para staff (admin/gerente/sócio); escrita apenas para admins autorizados
+    // coupons: leitura para usuários logados (protege exposição pública dos códigos); escrita apenas para admins
     match /coupons/{couponId} {
-      allow read: if true;
+      allow read: if isSignedIn();
       allow create, update, delete: if isAuthorizedAdmin();
     }
 
-    // couponUsage: leitura para staff (admin/gerente/sócio) e afiliados; escrita para usuários logados
+    // couponUsage: leitura para staff e afiliados; criação vinculada ao próprio userId
     match /couponUsage/{usageId} {
       allow read: if isAdmin() || isGerente() || isSocio() || isAfiliado();
-      allow create: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
     }
     
-    // affiliate_sales: leitura para o próprio afiliado e admins/staff; escrita apenas por staff/admin/gerente
+    // affiliate_sales: leitura para o próprio afiliado e staff; escrita apenas por staff/admin/gerente
     match /affiliate_sales/{saleId} {
       allow read: if isSignedIn() && (
         isAdmin() || isGerente() || isStaff() ||
@@ -224,6 +246,7 @@ service cloud.firestore {
       );
       allow create: if isSignedIn() && (isAdmin() || isGerente() || isStaff());
       allow update: if isAdmin() || isGerente() || isStaff();
+      allow delete: if isAdmin();
     }
     
     // affiliate_commissions
@@ -240,6 +263,7 @@ service cloud.firestore {
       );
       allow create: if isSignedIn() && (isAdmin() || isGerente() || isStaff());
       allow update: if isAdmin() || isGerente() || isStaff();
+      allow delete: if isAdmin();
     }
 
     match /affiliate_payout_requests/{requestId} {
@@ -274,6 +298,7 @@ service cloud.firestore {
         resource.data.userId == request.auth.uid || isAdmin()
       );
       allow create, update: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow delete: if isAdmin();
     }
 
     // adminEvents: leitura pública (para exibir eventos no site); escrita apenas para admins autorizados
@@ -289,14 +314,12 @@ service cloud.firestore {
     }
 
     // event_hour_locks: travas permanentes por horário individual (sem data)
-    // leitura pública para o site verificar; escrita apenas para admins
     match /event_hour_locks/{lockId} {
       allow read: if true;
       allow create, update, delete: if isAuthorizedAdmin() || isAdmin() || isGerente();
     }
 
     // event_global_locks: trava geral do evento inteiro (todas as datas)
-    // leitura pública para o site verificar; escrita apenas para admins
     match /event_global_locks/{lockId} {
       allow read: if true;
       allow create, update, delete: if isAuthorizedAdmin() || isAdmin() || isGerente();
