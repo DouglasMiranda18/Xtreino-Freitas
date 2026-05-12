@@ -2873,14 +2873,14 @@ async function loadHighlightsFromFirestore() {
                 }
 
                 slide.innerHTML = `
-                    <div class="grid md:grid-cols-2 gap-4 md:gap-6 items-center">
-                        <div>
+                    <div class="flex flex-col items-center text-center md:grid md:grid-cols-2 md:text-left md:items-center gap-4 md:gap-6">
+                        <div class="w-full">
                             <h3 class="text-lg md:text-xl font-bold mb-2">${highlight.title}</h3>
                             ${highlight.subtitle ? `<p class="text-gray-500 mb-2 text-sm md:text-base">${highlight.subtitle}</p>` : ''}
-                            <p class="text-gray-600 mb-4 text-sm md:text-base">${highlight.description}</p>
-                            ${buttonHtml}
+                            <p class="text-gray-600 mb-4 text-sm md:text-base line-clamp-3 md:line-clamp-none">${highlight.description}</p>
+                            <div class="flex justify-center md:justify-start">${buttonHtml}</div>
                         </div>
-                        <div class="rounded-xl ${highlight.image ? '' : 'bg-blue-matte bg-opacity-20'} h-36 md:h-48 overflow-hidden flex items-center justify-center">
+                        <div class="hidden md:flex rounded-xl ${highlight.image ? '' : 'bg-blue-matte bg-opacity-20'} h-48 overflow-hidden items-center justify-center w-full">
                             ${imageHtml}
                         </div>
                     </div>
