@@ -2909,12 +2909,29 @@ function initCarousel() {
     const next = document.getElementById('carouselNext');
     if (!track || !prev || !next) return;
 
+    const container = track.parentElement;
+
+    function setSlideWidths() {
+        const w = container.clientWidth;
+        Array.from(track.children).forEach(slide => {
+            slide.style.minWidth = w + 'px';
+            slide.style.width = w + 'px';
+        });
+        return w;
+    }
+
+    let slideWidth = setSlideWidths();
     let index = 0;
     const slides = track.children.length;
     let autoAdvanceInterval;
 
+    window.addEventListener('resize', () => {
+        slideWidth = setSlideWidths();
+        update();
+    });
+
     function update() {
-        track.style.transform = `translateX(-${index * 100}%)`;
+        track.style.transform = `translateX(-${index * slideWidth}px)`;
     }
 
     function nextSlide() {
