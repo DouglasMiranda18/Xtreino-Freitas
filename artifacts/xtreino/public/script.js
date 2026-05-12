@@ -2853,10 +2853,10 @@ async function loadHighlightsFromFirestore() {
                 if (highlight.image) {
                     if (highlight.hasRedirect && highlight.redirectUrl) {
                         imageHtml = `<a href="${highlight.redirectUrl}" target="_blank" rel="noopener noreferrer" class="block w-full h-full">
-                            <img src="${highlight.image}" alt="${highlight.title}" class="w-full h-full object-cover hover:opacity-90 transition-opacity">
+                            <img src="${highlight.image}" alt="${highlight.title}" class="w-full h-full object-contain hover:opacity-90 transition-opacity">
                         </a>`;
                     } else {
-                        imageHtml = `<img src="${highlight.image}" alt="${highlight.title}" class="w-full h-full object-cover">`;
+                        imageHtml = `<img src="${highlight.image}" alt="${highlight.title}" class="w-full h-full object-contain">`;
                     }
                 } else {
                     imageHtml = '';
@@ -2880,7 +2880,7 @@ async function loadHighlightsFromFirestore() {
                             <p class="text-gray-600 mb-4">${highlight.description}</p>
                             ${buttonHtml}
                         </div>
-                        <div class="rounded-xl ${highlight.image ? '' : 'bg-blue-matte bg-opacity-20'} h-48 overflow-hidden flex items-center justify-center">
+                        <div class="rounded-xl ${highlight.image ? '' : 'bg-blue-matte bg-opacity-20'} h-64 overflow-hidden flex items-center justify-center">
                             ${imageHtml}
                         </div>
                     </div>
