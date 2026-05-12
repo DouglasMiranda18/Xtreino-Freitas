@@ -77,12 +77,12 @@
     <link rel="stylesheet" href="mobile-optimizations.css">
 </head>
 <body class="bg-white text-black enterprise-bg">
-    <!-- Top Alert -->
+    <!-- Header -->
+    <header class="fixed w-full top-0 z-50 glass-effect">
+    <!-- Top Alert (inside fixed header so it doesn't blur over content) -->
     <div id="topAlert" class="w-full bg-[var(--brand-yellow)] text-[var(--brand-black)] text-sm py-2 text-center">
         <span class="font-semibold">🏆 Participa e concorra a um PC Gamer + Kit Periféricos + Troféu!</span>
     </div>
-    <!-- Header -->
-    <header class="fixed w-full top-0 z-50 glass-effect">
         <nav class="container mx-auto px-4 md:px-6 py-3 md:py-4">
             <div class="flex items-center justify-between">
                 <!-- Logo -->
@@ -144,7 +144,7 @@
     <!-- ====== PAINEL: HOME ====== -->
     <div class="main-tab-panel tab-active" id="panel-home">
     <!-- Hero Section -->
-    <section id="home" class="pt-24 md:pt-24 h-[calc(100vh-5rem)] md:h-[calc(100vh-6rem)] bg-white flex items-center">
+    <section id="home" class="h-screen bg-white flex items-center">
         <div class="container mx-auto px-6">
             <div class="grid md:grid-cols-2 gap-12 items-center">
                 <div class="space-y-8">

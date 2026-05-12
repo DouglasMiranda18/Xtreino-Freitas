@@ -667,7 +667,21 @@ function toggleAccountButtons(isLogged) {
 }
 
 // Garantir estado inicial correto dos botões ao carregar a página
+// Sync hero padding-top to real header height (includes topAlert when visible)
+function syncHeroPadding() {
+    const header = document.querySelector('header');
+    const home = document.getElementById('home');
+    if (!header || !home) return;
+    const h = header.getBoundingClientRect().height;
+    home.style.paddingTop = h + 'px';
+}
+window.syncHeroPadding = syncHeroPadding;
+window.addEventListener('resize', syncHeroPadding);
+
 document.addEventListener('DOMContentLoaded', () => {
+    syncHeroPadding();
+    // Re-sync after fonts/images settle
+    setTimeout(syncHeroPadding, 300);
     try {
         const loginDesk = document.getElementById('loginBtnDesktop');
         const accDesk = document.getElementById('accountBtnDesktop');
@@ -7183,6 +7197,7 @@ window.addEventListener('load', () => {
                 } else {
                     alertBar.classList.add('hidden');
                 }
+                syncHeroPadding();
             };
             try {
                 const snap = await getDoc(ref);
