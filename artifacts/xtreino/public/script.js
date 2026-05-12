@@ -2846,7 +2846,7 @@ async function loadHighlightsFromFirestore() {
             const highlight = highlights[key];
             if (highlight && highlight.title) {
                 const slide = document.createElement('div');
-                slide.className = 'min-w-full p-8 bg-white';
+                slide.className = 'min-w-full p-4 md:p-8 bg-white';
 
                 // Criar imagem com ou sem link
                 let imageHtml = '';
@@ -2880,7 +2880,7 @@ async function loadHighlightsFromFirestore() {
                             <p class="text-gray-600 mb-4">${highlight.description}</p>
                             ${buttonHtml}
                         </div>
-                        <div class="rounded-xl ${highlight.image ? '' : 'bg-blue-matte bg-opacity-20'} h-64 overflow-hidden flex items-center justify-center">
+                        <div class="rounded-xl ${highlight.image ? '' : 'bg-blue-matte bg-opacity-20'} h-40 md:h-64 overflow-hidden flex items-center justify-center">
                             ${imageHtml}
                         </div>
                     </div>
