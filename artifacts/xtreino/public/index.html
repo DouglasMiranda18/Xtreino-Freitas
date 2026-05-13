@@ -77,12 +77,12 @@
     <link rel="stylesheet" href="mobile-optimizations.css">
 </head>
 <body class="bg-white text-black enterprise-bg">
-    <!-- Header -->
-    <header class="fixed w-full top-0 z-50 glass-effect">
-    <!-- Top Alert (inside fixed header so it doesn't blur over content) -->
+    <!-- Top Alert -->
     <div id="topAlert" class="w-full bg-[var(--brand-yellow)] text-[var(--brand-black)] text-sm py-2 text-center">
         <span class="font-semibold">🏆 Participa e concorra a um PC Gamer + Kit Periféricos + Troféu!</span>
     </div>
+    <!-- Header -->
+    <header class="fixed w-full top-0 z-50 glass-effect">
         <nav class="container mx-auto px-4 md:px-6 py-3 md:py-4">
             <div class="flex items-center justify-between">
                 <!-- Logo -->
@@ -144,11 +144,11 @@
     <!-- ====== PAINEL: HOME ====== -->
     <div class="main-tab-panel tab-active" id="panel-home">
     <!-- Hero Section -->
-    <section id="home" class="h-screen bg-white flex items-center">
+    <section id="home" class="pt-24 md:pt-24 min-h-[calc(100vh-5rem)] md:min-h-[calc(100vh-6rem)] bg-white flex items-center py-8 md:py-0">
         <div class="container mx-auto px-6">
-            <div class="grid md:grid-cols-2 gap-12 items-center">
-                <div class="space-y-8">
-                    <h1 class="text-5xl md:text-7xl font-bold leading-tight">
+            <div class="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
+                <div class="space-y-6 md:space-y-8">
+                    <h1 class="text-3xl sm:text-4xl md:text-7xl font-bold leading-tight">
                         ELEVE SEU
                         <span class="text-blue-matte">GAME</span>
                         AO PRÓXIMO
@@ -187,15 +187,15 @@
     </section>
 
     <!-- Destaques (Carrossel) -->
-    <section class="py-16 bg-white">
-        <div class="container mx-auto px-6">
-            <div class="flex items-center justify-between mb-6">
-                <h2 class="text-2xl font-bold">Destaques</h2>
+    <section class="py-6 md:py-16 bg-white">
+        <div class="container mx-auto px-4 md:px-6">
+            <div class="flex items-center justify-between mb-4 md:mb-6">
+                <h2 class="text-xl md:text-2xl font-bold">Destaques</h2>
                 <div class="flex space-x-3">
-                    <button id="carouselPrev" class="w-12 h-12 bg-blue-matte hover:bg-blue-600 text-white rounded-full flex items-center justify-center transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 border-2 border-white">
+                    <button id="carouselPrev" class="w-10 h-10 md:w-12 md:h-12 bg-blue-matte hover:bg-blue-600 text-white rounded-full flex items-center justify-center transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 border-2 border-white">
                         <span class="text-white font-bold text-xl">‹</span>
                     </button>
-                    <button id="carouselNext" class="w-12 h-12 bg-blue-matte hover:bg-blue-600 text-white rounded-full flex items-center justify-center transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 border-2 border-white">
+                    <button id="carouselNext" class="w-10 h-10 md:w-12 md:h-12 bg-blue-matte hover:bg-blue-600 text-white rounded-full flex items-center justify-center transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 border-2 border-white">
                         <span class="text-white font-bold text-xl">›</span>
                     </button>
                 </div>
@@ -203,7 +203,7 @@
             <div class="overflow-hidden rounded-2xl border border-gray-200">
                 <div id="carouselTrack" class="flex transition-transform duration-500">
                     <!-- Os destaques serão carregados dinamicamente aqui -->
-                    <div class="min-w-full p-8 bg-white flex items-center justify-center">
+                    <div class="min-w-full p-6 bg-white flex items-center justify-center">
                         <p class="text-gray-500">Carregando destaques...</p>
                     </div>
                 </div>
