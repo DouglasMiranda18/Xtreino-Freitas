@@ -6338,19 +6338,41 @@ async function submitSchedule(e, useTokens = false) {
         try {
             if (!window.firebaseReady || !window.firebaseDb) throw new Error('Conexão com banco falhou');
 
-            const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            const { collection, query, where, getDocs, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+            // Contar vagas já preenchidas por horário (campo único — sem índice composto)
+            const mpSlotCount = {};
+            try {
+                const validSt = new Set(['confirmed', 'paid', 'approved', 'pending']);
+                const existingSnap = await getDocs(query(collection(window.firebaseDb, 'registrations'), where('eventType', '==', eventType)));
+                existingSnap.docs.forEach(d => {
+                    const r = d.data();
+                    if (!validSt.has(r.status)) return;
+                    const sched = r.schedule || '—';
+                    mpSlotCount[sched] = (mpSlotCount[sched] || 0) + 1;
+                });
+            } catch (_) {}
+
+            const mpIsLiga = (cfg.modo || '').toUpperCase().includes('LIGA');
+            const mpVagas = cfg.vagas || 0;
+            const mpGrupos = Math.max(1, cfg.grupos || 1);
 
             for (const d of datesToUse) {
                 const times = timesByDate[d] || [];
-                for (let team of teamsData) {
-                    for (let schedule of times) {
-                        const hour = (schedule.split(' - ')[1] || '').trim();
-                        const normalizedHour = normalizeHour(hour);
-                        // rawEventType preserva o case original do ID do Firestore
-                        const price = getEventPrice(rawEventType, hour, d);
+                for (let schedule of times) {
+                    const hour = (schedule.split(' - ')[1] || '').trim();
+                    const normalizedHour = normalizeHour(hour);
+                    // rawEventType preserva o case original do ID do Firestore
+                    const price = getEventPrice(rawEventType, hour, d);
 
-                        // Buscar link usando o horário normalizado
-                        const whatsappLink = await getWhatsAppLink(rawEventType, normalizedHour, d);
+                    // Buscar link usando o horário normalizado
+                    const whatsappLink = await getWhatsAppLink(rawEventType, normalizedHour, d);
+
+                    for (let team of teamsData) {
+                        // Slot por horário independente (evita duplicatas entre horários diferentes)
+                        mpSlotCount[schedule] = (mpSlotCount[schedule] || 0) + 1;
+                        const slotNum = mpSlotCount[schedule];
+                        const slotDisplay = computeSlotDisplay(slotNum, mpVagas, mpGrupos, mpIsLiga);
 
                         const docRef = await addDoc(collection(window.firebaseDb, 'registrations'), {
                             userId: window.firebaseAuth.currentUser.uid,
@@ -6360,8 +6382,10 @@ async function submitSchedule(e, useTokens = false) {
                             schedule: schedule,
                             date: d,
                             eventType: eventType,
-                            title: `${cfg.label} - ${schedule}`,
+                            title: mpIsLiga ? `${cfg.label} - ${schedule}` : `${cfg.label} - ${slotDisplay || schedule}`,
                             price: price,
+                            slot: mpIsLiga ? null : slotNum,
+                            slotDisplay: slotDisplay,
                             status: 'pending',
                             createdAt: serverTimestamp(),
                             external_reference: externalRef,
@@ -6489,6 +6513,18 @@ async function submitSchedule(e, useTokens = false) {
         alert('Ocorreu um erro inesperado. Atualize a página e tente novamente.');
         if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
     }
+}
+
+// ===== Helper: calcula o texto do slot (Vaga #N ou Grupo X • Vaga Y) =====
+function computeSlotDisplay(slotNumber, vagas, grupos, isLiga) {
+    if (isLiga) return null;
+    const slotsPerGroup = grupos > 1 ? Math.ceil(vagas / grupos) : vagas;
+    if (vagas > 0 && grupos > 1 && slotsPerGroup > 0) {
+        const groupNum = Math.ceil(slotNumber / slotsPerGroup);
+        const posInGroup = slotNumber - (groupNum - 1) * slotsPerGroup;
+        return `Grupo ${groupNum} • Vaga ${posInGroup}`;
+    }
+    return `Vaga #${slotNumber}`;
 }
 
 // ===== EVENTO GRÁTIS: Inscrição direta com atribuição de slot =====
@@ -6980,24 +7016,15 @@ async function useTokensForEvent(eventType, totalReservations, finalPrice, teams
     // Criar registros com status 'confirmed'
     const externalRef = `tokens_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
     try {
-        const regIds = await createRegistrationsForEvent(eventType, datesToUse, teamsData, timesByDate, externalRef, 'confirmed', appliedScheduleCoupon);
+        const { regIds, assignedSlots: assignedSlotsTokens } = await createRegistrationsForEvent(eventType, datesToUse, teamsData, timesByDate, externalRef, 'confirmed', appliedScheduleCoupon);
 
         closeScheduleModal();
 
-        // Mostrar modal de confirmação igual ao fluxo de eventos gratuitos e pagos
-        const cfgTokens = scheduleConfig[eventType] || {};
-        const isLigaTokens = cfgTokens.isLiga || false;
-        const assignedSlotsTokens = [];
-        for (const d of datesToUse) {
-            const times = timesByDate[d] || [];
-            for (const schedule of times) {
-                for (const team of teamsData) {
-                    assignedSlotsTokens.push({ team: team.name, slot: null, schedule, isLiga: isLigaTokens });
-                }
-            }
-        }
         // Invalidar cache de ocupação para que a barra atualize na próxima abertura
         Object.keys(scheduleCache).forEach(k => delete scheduleCache[k]);
+
+        const cfgTokens = scheduleConfig[eventType] || {};
+        const isLigaTokens = cfgTokens.isLiga || false;
 
         if (typeof showSlotConfirmationModal === 'function' && assignedSlotsTokens.length > 0) {
             // Buscar link do WhatsApp para exibir no modal
@@ -7152,17 +7179,39 @@ window.getWhatsAppLink = getWhatsAppLink;
 
 async function createRegistrationsForEvent(eventType, datesToUse, teamsData, timesByDate, externalRef, status = 'pending', couponInfo = null) {
     const cfg = scheduleConfig[eventType] || {};
+    const isLiga = (cfg.modo || '').toUpperCase().includes('LIGA');
+    const vagas = cfg.vagas || 0;
+    const grupos = Math.max(1, cfg.grupos || 1);
     const regIds = [];
-    const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const assignedSlots = []; // para o modal de confirmação
+    const { collection, query, where, getDocs, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+    // Contar vagas já preenchidas por horário (campo único — sem índice composto)
+    const slotCount = {};
+    try {
+        const validSt = new Set(['confirmed', 'paid', 'approved', 'pending']);
+        const existingSnap = await getDocs(query(collection(window.firebaseDb, 'registrations'), where('eventType', '==', eventType)));
+        existingSnap.docs.forEach(d => {
+            const r = d.data();
+            if (!validSt.has(r.status)) return;
+            const sched = r.schedule || '—';
+            slotCount[sched] = (slotCount[sched] || 0) + 1;
+        });
+    } catch (_) {}
 
     for (const d of datesToUse) {
         const times = timesByDate[d] || [];
-        for (let team of teamsData) {
-            for (let schedule of times) {
-                const hour = (schedule.split(' - ')[1] || '').trim();
-                const normalizedHour = normalizeHour(hour);
-                const price = getEventPrice(eventType, hour, d);
-                const whatsappLink = await getWhatsAppLink(eventType, normalizedHour, d);            
+        for (let schedule of times) {
+            const hour = (schedule.split(' - ')[1] || '').trim();
+            const normalizedHour = normalizeHour(hour);
+            const price = getEventPrice(eventType, hour, d);
+            const whatsappLink = await getWhatsAppLink(eventType, normalizedHour, d);
+
+            for (let team of teamsData) {
+                // Slot por horário independente (cada horário tem sua sequência própria)
+                slotCount[schedule] = (slotCount[schedule] || 0) + 1;
+                const slotNum = slotCount[schedule];
+                const slotDisplay = computeSlotDisplay(slotNum, vagas, grupos, isLiga);
 
                 const docRef = await addDoc(collection(window.firebaseDb, 'registrations'), {
                     userId: window.firebaseAuth.currentUser.uid,
@@ -7172,8 +7221,10 @@ async function createRegistrationsForEvent(eventType, datesToUse, teamsData, tim
                     schedule: schedule,
                     date: d,
                     eventType: eventType,
-                    title: `${cfg.label} - ${schedule}`,
+                    title: isLiga ? `${cfg.label} - ${schedule}` : `${cfg.label} - ${slotDisplay || schedule}`,
                     price: price,
+                    slot: isLiga ? null : slotNum,
+                    slotDisplay: slotDisplay,
                     status: status,
                     createdAt: serverTimestamp(),
                     external_reference: externalRef,
@@ -7181,25 +7232,24 @@ async function createRegistrationsForEvent(eventType, datesToUse, teamsData, tim
                     whatsappLink: whatsappLink || null,
                     hour: normalizedHour || null,
                     affiliateCode: getActiveAffiliateCode(couponInfo?.affiliateId || null),
-                    // Se for pagamento com tokens, adicionar campos específicos
                     ...(status === 'confirmed' || status === 'paid' ? {
                         paidWithTokens: true,
-                        tokensUsed: price, // cada registro usa o preço unitário
+                        tokensUsed: price,
                     } : {})
                 });
                 regIds.push(docRef.id);
+                assignedSlots.push({ team: team.name, slot: slotDisplay, schedule, isLiga });
 
-                
                 await createPendingAffiliateSale(docRef.id, getActiveAffiliateCode(couponInfo?.affiliateId || null), {
-                amount: price, // preço unitário
-                title: `${cfg.label} - ${schedule}`,
-                customer: team.email,
-                customerName: team.name                
+                    amount: price,
+                    title: `${cfg.label} - ${schedule}`,
+                    customer: team.email,
+                    customerName: team.name
                 }, 'event');
             }
         }
     }
-    return regIds;
+    return { regIds, assignedSlots };
 }
 
 // --- Edição de Perfil ---
