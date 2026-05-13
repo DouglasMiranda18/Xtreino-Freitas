@@ -10760,6 +10760,7 @@ async function openEventSlotsModal(eventId, eventName) {
     const modal = document.getElementById('eventSlotsModal');
     if (!modal) return;
     document.getElementById('eventSlotsEventName').textContent = eventName;
+    document.getElementById('eventSlotsEventId').value = eventId;
     document.getElementById('eventSlotsBody').innerHTML =
         '<div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl"></i><p class="mt-2 text-sm">Carregando slots...</p></div>';
     modal.classList.remove('hidden');
@@ -10859,8 +10860,86 @@ function closeEventSlotsModal() {
     if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
 }
 
+async function repairEventSlots() {
+    const eventId = document.getElementById('eventSlotsEventId').value;
+    const eventName = document.getElementById('eventSlotsEventName').textContent;
+    if (!eventId) return;
+
+    const btn = document.getElementById('repairSlotsBtn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Corrigindo...'; }
+
+    try {
+        const { collection, query, where, getDocs, writeBatch, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const snap = await getDocs(query(
+            collection(window.firebaseDb, 'registrations'),
+            where('eventType', '==', eventId)
+        ));
+        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
+        const docs = snap.docs.filter(d => validStatuses.has(d.data().status));
+
+        if (docs.length === 0) {
+            alert('Nenhum participante encontrado para corrigir.');
+            return;
+        }
+
+        // Agrupar por horário
+        const bySchedule = {};
+        docs.forEach(d => {
+            const r = d.data();
+            const sched = r.schedule || '—';
+            if (!bySchedule[sched]) bySchedule[sched] = [];
+            bySchedule[sched].push({ id: d.id, data: r });
+        });
+
+        // Dentro de cada horário, ordenar por createdAt crescente → slot mais antigo = #1
+        Object.values(bySchedule).forEach(arr => {
+            arr.sort((a, b) => {
+                const ta = a.data.createdAt?.seconds ?? 0;
+                const tb = b.data.createdAt?.seconds ?? 0;
+                return ta - tb;
+            });
+        });
+
+        // Reassignar slots únicos e sequenciais por horário
+        const batch = writeBatch(window.firebaseDb);
+        let updateCount = 0;
+
+        for (const regs of Object.values(bySchedule)) {
+            regs.forEach((entry, idx) => {
+                const newSlot = idx + 1;
+                const newSlotDisplay = `Vaga #${newSlot}`;
+                // Só atualiza se mudou
+                if (entry.data.slot !== newSlot || entry.data.slotDisplay !== newSlotDisplay) {
+                    batch.update(doc(window.firebaseDb, 'registrations', entry.id), {
+                        slot: newSlot,
+                        slotDisplay: newSlotDisplay
+                    });
+                    updateCount++;
+                }
+            });
+        }
+
+        if (updateCount === 0) {
+            alert('Nenhum slot duplicado encontrado — tudo certo!');
+            return;
+        }
+
+        await batch.commit();
+        alert(`✅ ${updateCount} registro(s) corrigido(s) com sucesso!`);
+        // Recarregar o modal para exibir os slots atualizados
+        await openEventSlotsModal(eventId, eventName);
+
+    } catch(e) {
+        console.error('Erro ao corrigir slots:', e);
+        alert('Erro ao corrigir slots: ' + (e.message || 'tente novamente.'));
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-wrench mr-1"></i>Corrigir Slots Duplicados'; }
+    }
+}
+
 window.openEventSlotsModal = openEventSlotsModal;
 window.closeEventSlotsModal = closeEventSlotsModal;
+window.repairEventSlots = repairEventSlots;
 
 window.openEventNotifyModal = openEventNotifyModal;
 window.closeEventNotifyModal = closeEventNotifyModal;

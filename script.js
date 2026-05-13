@@ -6702,7 +6702,7 @@ function showSlotConfirmationModal(slots, eventName, isLiga, eventId, groupLink)
                     ${s.slot != null
                         ? `<div class="mt-0.5">
                             <span class="text-2xl font-black text-orange-600">${s.slot}</span>
-                            <span class="text-xs font-semibold text-gray-500 ml-1">← este é o seu número na sala</span>
+                            <span class="text-xs font-semibold text-gray-500 ml-1">← Esse é o seu SLOT na Sala.</span>
                            </div>`
                         : `<div class="text-sm font-semibold text-green-700">Inscrição confirmada!</div>`
                     }
