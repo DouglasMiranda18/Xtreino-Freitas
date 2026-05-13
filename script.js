@@ -5512,12 +5512,15 @@ async function updateOccupiedAndRefreshButtons(day, date, eventType, container) 
     } catch (err) {}
 
     // Verificar travas permanentes por horário (event_hour_locks) — sem data, valem sempre
+    // IMPORTANTE: usar apenas 1 filtro no where() para evitar exigência de índice composto no Firestore
     try {
         const { collection: _c, query: _q, where: _w, getDocs: _g } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         if (window.firebaseDb && eventType) {
-            const hlSnap = await _g(_q(_c(window.firebaseDb, 'event_hour_locks'), _w('eventType', '==', eventType), _w('locked', '==', true)));
+            const hlSnap = await _g(_q(_c(window.firebaseDb, 'event_hour_locks'), _w('eventType', '==', eventType)));
             hlSnap.forEach(doc => {
-                const h = parseInt(String(doc.data().hour || '').replace(/\D/g,''), 10);
+                const data = doc.data();
+                if (data.locked !== true) return; // filtrar em JS — evita índice composto
+                const h = parseInt(String(data.hour || '').replace(/\D/g,''), 10);
                 if (!isNaN(h)) lockedHours.add(h);
             });
         }
@@ -6242,15 +6245,15 @@ async function submitSchedule(e, useTokens = false) {
                 if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
                 return;
             }
-            // 2. Travas permanentes por horário
+            // 2. Travas permanentes por horário — 1 filtro apenas (evita índice composto no Firestore)
             const hourLocksSnap = await _lgs(_lq(
                 _lc(window.firebaseDb, 'event_hour_locks'),
-                _lw('eventType', '==', rawEventType),
-                _lw('locked', '==', true)
+                _lw('eventType', '==', rawEventType)
             ));
             const lockedHoursSet = new Set();
             hourLocksSnap.forEach(ld => {
                 const ldata = ld.data();
+                if (ldata.locked !== true) return; // filtrar em JS
                 if (ldata.hour) lockedHoursSet.add(String(ldata.hour).toLowerCase().trim());
             });
             if (lockedHoursSet.size > 0) {
@@ -6587,8 +6590,21 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
             }
         }
 
+        // Invalidar cache de ocupação para que a barra atualize na próxima abertura
+        Object.keys(scheduleCache).forEach(k => delete scheduleCache[k]);
+
+        // Buscar link do WhatsApp do grupo para exibir no modal
+        let freeGroupLink = null;
+        try {
+            if (typeof getWhatsAppLink === 'function') {
+                const firstSchedule = assignedSlots[0]?.schedule || null;
+                const firstDate = datesToUse?.[0] || null;
+                freeGroupLink = await getWhatsAppLink(rawEventType, firstSchedule, firstDate);
+            }
+        } catch (_) {}
+
         closeScheduleModal();
-        showSlotConfirmationModal(assignedSlots, cfg.label, isLiga, rawEventType);
+        showSlotConfirmationModal(assignedSlots, cfg.label, isLiga, rawEventType, freeGroupLink);
 
     } catch (err) {
         console.error('Erro ao registrar inscrição gratuita:', err);
@@ -6596,7 +6612,7 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
     }
 }
 
-function showSlotConfirmationModal(slots, eventName, isLiga, eventId) {
+function showSlotConfirmationModal(slots, eventName, isLiga, eventId, groupLink) {
     const existing = document.getElementById('slotConfirmModal');
     if (existing) existing.remove();
 
@@ -6655,12 +6671,16 @@ function showSlotConfirmationModal(slots, eventName, isLiga, eventId) {
                 💡 Guarde o número da sua vaga — ela é a sua posição no evento!
             </div>` : ''}
             <div class="flex flex-col gap-2">
+                ${groupLink ? `<a href="${groupLink}" target="_blank" rel="noopener noreferrer"
+                        class="w-full bg-[#25D366] hover:bg-[#1ebe5b] text-white py-3 rounded-xl font-bold text-base transition-colors flex items-center justify-center gap-2">
+                    <i class="fab fa-whatsapp text-xl"></i> Entrar no Grupo WhatsApp
+                </a>` : ''}
                 ${eventId ? `<button onclick="window.location.href='evento.html#${eventId}'"
                         class="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl font-bold text-base transition-colors">
                     <i class="fas fa-external-link-alt mr-2"></i>VER PÁGINA DO EVENTO
                 </button>` : ''}
                 <button onclick="document.getElementById('slotConfirmModal').remove()"
-                        class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-bold text-base transition-colors">
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold text-base transition-colors">
                     OK, entendido! 👍
                 </button>
             </div>
@@ -6885,8 +6905,18 @@ async function processSuccessfulPayment(externalRef = null) {
                 });
             });
             if (assignedSlots.length > 0 && typeof showSlotConfirmationModal === 'function') {
+                // Invalidar cache de ocupação para que a barra atualize na próxima abertura
+                Object.keys(scheduleCache).forEach(k => delete scheduleCache[k]);
+                // Se o groupLink não veio salvo na registration, buscar dinamicamente
+                let paidGroupLink = groupLink;
+                if (!paidGroupLink && typeof getWhatsAppLink === 'function') {
+                    try {
+                        const firstSlot = assignedSlots[0];
+                        paidGroupLink = await getWhatsAppLink(regEventType, firstSlot?.schedule || null, null);
+                    } catch (_) {}
+                }
                 setTimeout(() => {
-                    showSlotConfirmationModal(assignedSlots, regEventName, regIsLiga, regEventType);
+                    showSlotConfirmationModal(assignedSlots, regEventName, regIsLiga, regEventType, paidGroupLink);
                 }, 400);
             }
         }
@@ -6953,8 +6983,19 @@ async function useTokensForEvent(eventType, totalReservations, finalPrice, teams
                 }
             }
         }
+        // Invalidar cache de ocupação para que a barra atualize na próxima abertura
+        Object.keys(scheduleCache).forEach(k => delete scheduleCache[k]);
+
         if (typeof showSlotConfirmationModal === 'function' && assignedSlotsTokens.length > 0) {
-            showSlotConfirmationModal(assignedSlotsTokens, cfgTokens.label || eventType, isLigaTokens, eventType);
+            // Buscar link do WhatsApp para exibir no modal
+            let tokensGroupLink = null;
+            try {
+                if (typeof getWhatsAppLink === 'function') {
+                    const firstSched = assignedSlotsTokens[0]?.schedule || null;
+                    tokensGroupLink = await getWhatsAppLink(eventType, firstSched, datesToUse?.[0] || null);
+                }
+            } catch (_) {}
+            showSlotConfirmationModal(assignedSlotsTokens, cfgTokens.label || eventType, isLigaTokens, eventType, tokensGroupLink);
         } else {
             showSuccessToast('Pagamento com tokens confirmado! Verifique seus pedidos.', 'Sucesso');
         }
