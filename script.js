@@ -6340,18 +6340,22 @@ async function submitSchedule(e, useTokens = false) {
 
             const { collection, query, where, getDocs, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
 
-            // Contar vagas já preenchidas por horário (campo único — sem índice composto)
+            // Alocar slots via transação atômica (slotCounters) — não requer ler registrations de outros
             const mpSlotCount = {};
-            try {
-                const validSt = new Set(['confirmed', 'paid', 'approved', 'pending']);
-                const existingDocs = await fetchRegsForSlotCount(rawEventType);
-                existingDocs.forEach(d => {
-                    const r = d.data();
-                    if (!validSt.has(r.status)) return;
-                    const sched = r.schedule || '—';
-                    mpSlotCount[sched] = (mpSlotCount[sched] || 0) + 1;
-                });
-            } catch (_) {}
+            {
+                const _sc = {};
+                for (const _d of datesToUse) {
+                    for (const _t of (timesByDate[_d] || [])) {
+                        _sc[_t] = (_sc[_t] || 0) + teamsData.length;
+                    }
+                }
+                if (Object.keys(_sc).length > 0) {
+                    const _ss = await allocateSlotsViaTransaction(rawEventType, _sc);
+                    if (_ss) {
+                        for (const [_k, _v] of Object.entries(_ss)) mpSlotCount[_k] = _v - 1;
+                    }
+                }
+            }
 
             const mpIsLiga = (cfg.modo || '').toUpperCase().includes('LIGA');
             const mpVagas = cfg.vagas || 0;
@@ -6515,9 +6519,8 @@ async function submitSchedule(e, useTokens = false) {
     }
 }
 
-// ===== Helper: busca registrações por eventType (raw + normalizado) para contagem de slots =====
-// Necessário porque registrações antigas foram salvas com o tipo normalizado (lowercase)
-// enquanto as novas usam o ID original do Firestore (case-sensitive)
+// ===== Helper: busca registrações por eventType (raw + normalizado) — uso admin only =====
+// Regras do Firestore bloqueiam leitura de registrations de outros usuários para usuários normais
 async function fetchRegsForSlotCount(rawEventType) {
     try {
         const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
@@ -6537,6 +6540,32 @@ async function fetchRegsForSlotCount(rawEventType) {
         });
         return docs;
     } catch(_) { return []; }
+}
+
+// ===== Helper: aloca slots via transação atômica no slotCounters/{eventType} =====
+// Solução para usuários normais: coleção slotCounters é leitura/escrita para todos os logados
+// scheduleCounts: { "schedule_key": numSlotsNeeded }
+// Retorna: { "schedule_key": firstSlotNumber } ou null se falhar
+async function allocateSlotsViaTransaction(rawEventType, scheduleCounts) {
+    try {
+        const { doc, runTransaction } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const counterRef = doc(window.firebaseDb, 'slotCounters', rawEventType);
+        const startSlots = {};
+        await runTransaction(window.firebaseDb, async (tx) => {
+            const counterDoc = await tx.get(counterRef);
+            const counts = counterDoc.exists() ? { ...counterDoc.data() } : {};
+            for (const [sched, n] of Object.entries(scheduleCounts)) {
+                const current = Number(counts[sched]) || 0;
+                startSlots[sched] = current + 1;
+                counts[sched] = current + n;
+            }
+            tx.set(counterRef, counts, { merge: true });
+        });
+        return startSlots;
+    } catch(e) {
+        console.warn('[SlotCounter] transação falhou, slot pode repetir:', e.message);
+        return null;
+    }
 }
 
 // ===== Helper: calcula o texto do slot (Vaga #N ou Grupo X • Vaga Y) =====
@@ -6568,24 +6597,8 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
         const grupos = Math.max(1, cfg.grupos || 1);
         const slotsPerGroup = grupos > 1 ? Math.ceil(vagas / grupos) : vagas;
 
-        // Contar inscrições existentes por horário para atribuir slot por schedule
-        const regsRef = collection(window.firebaseDb, 'registrations');
+        // scheduleSlotCount será pré-populado via transação atômica logo após construir timesByDate/dates
         const scheduleSlotCount = {};
-        try {
-            // Usar apenas 1 filtro (eventType) para evitar índice composto no Firestore
-            // status é filtrado em JS
-            const validSlotStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
-            const existingDocs = await fetchRegsForSlotCount(rawEventType);
-            existingDocs.forEach(d => {
-                const r = d.data();
-                if (!validSlotStatuses.has(r.status)) return;
-                const sched = r.schedule || '—';
-                scheduleSlotCount[sched] = (scheduleSlotCount[sched] || 0) + 1;
-            });
-        } catch (_readErr) {
-            // Regras de segurança podem bloquear leitura de registrations de outros usuários.
-            // Prosseguir sem contagem prévia — slot será baseado apenas no timestamp.
-        }
 
         // Construir timesByDate a partir de selectedTimes
         const timesByDate = {};
@@ -6600,6 +6613,23 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
         const assignedSlots = []; // { team, slot, schedule }
 
         const dates = datesToUse && datesToUse.length > 0 ? datesToUse : [Object.keys(timesByDate)[0] || new Date().toISOString().slice(0, 10)];
+
+        // Alocar slots via transação atômica (slotCounters) — sem ler registrations de outros usuários
+        {
+            const _sc = {};
+            for (const _d of dates) {
+                for (const _t of (timesByDate[_d] || ['—'])) {
+                    const _k = _t !== '—' ? _t : cfg.label;
+                    _sc[_k] = (_sc[_k] || 0) + teamsData.length;
+                }
+            }
+            if (Object.keys(_sc).length > 0) {
+                const _ss = await allocateSlotsViaTransaction(rawEventType, _sc);
+                if (_ss) {
+                    for (const [_k, _v] of Object.entries(_ss)) scheduleSlotCount[_k] = _v - 1;
+                }
+            }
+        }
 
         for (const d of dates) {
             const dayTimes = timesByDate[d] || ['—'];
@@ -7214,18 +7244,22 @@ async function createRegistrationsForEvent(eventType, datesToUse, teamsData, tim
     const assignedSlots = []; // para o modal de confirmação
     const { collection, query, where, getDocs, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
 
-    // Contar vagas já preenchidas por horário (campo único — sem índice composto)
+    // Alocar slots via transação atômica (slotCounters) — fonte unificada para admin e usuários normais
     const slotCount = {};
-    try {
-        const validSt = new Set(['confirmed', 'paid', 'approved', 'pending']);
-        const existingDocs = await fetchRegsForSlotCount(eventType);
-        existingDocs.forEach(d => {
-            const r = d.data();
-            if (!validSt.has(r.status)) return;
-            const sched = r.schedule || '—';
-            slotCount[sched] = (slotCount[sched] || 0) + 1;
-        });
-    } catch (_) {}
+    {
+        const _sc = {};
+        for (const _d of datesToUse) {
+            for (const _t of (timesByDate[_d] || [])) {
+                _sc[_t] = (_sc[_t] || 0) + teamsData.length;
+            }
+        }
+        if (Object.keys(_sc).length > 0) {
+            const _ss = await allocateSlotsViaTransaction(eventType, _sc);
+            if (_ss) {
+                for (const [_k, _v] of Object.entries(_ss)) slotCount[_k] = _v - 1;
+            }
+        }
+    }
 
     for (const d of datesToUse) {
         const times = timesByDate[d] || [];

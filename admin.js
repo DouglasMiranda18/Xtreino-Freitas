@@ -10925,6 +10925,17 @@ async function repairEventSlots() {
         }
 
         await batch.commit();
+
+        // Sincronizar slotCounters com a contagem real após o reparo
+        try {
+            const { doc: _doc, setDoc: _setDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            const counterData = {};
+            for (const [sched, regs] of Object.entries(bySchedule)) {
+                counterData[sched] = regs.length; // total de slots usados neste horário
+            }
+            await _setDoc(_doc(window.firebaseDb, 'slotCounters', eventId), counterData);
+        } catch(_se) { console.warn('slotCounters sync falhou após reparo:', _se.message); }
+
         alert(`✅ ${updateCount} registro(s) corrigido(s) com sucesso!`);
         // Recarregar o modal para exibir os slots atualizados
         await openEventSlotsModal(eventId, eventName);

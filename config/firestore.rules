@@ -301,6 +301,13 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // slotCounters: contadores atômicos de slots por evento — leitura e escrita para usuários autenticados
+    // Usado para alocar números de slot sem precisar ler registrations de outros usuários
+    match /slotCounters/{eventId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
     // adminEvents: leitura pública (para exibir eventos no site); escrita apenas para admins autorizados
     match /adminEvents/{eventId} {
       allow read: if true;
