@@ -5,13 +5,56 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>X-TREINO FREITAS - Treinamento eSports de Alta Performance</title>
     <link rel="icon" type="image/png" href="assets/images/Logo - Xtreino Freitas.png">
+    <!-- CSS crítico inline: evita FOUC antes do Tailwind carregar -->
+    <style>
+        /* Estrutura básica para estabilizar o layout antes do Tailwind */
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; overflow-x: hidden; }
+        body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: #fff; color: #181818; }
+
+        /* Logo com tamanho fixo para não aparecer gigante antes do Tailwind */
+        header img[alt="X-TREINO FREITAS"] {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            object-fit: contain;
+            display: block;
+            flex-shrink: 0;
+        }
+        @media (min-width: 768px) {
+            header img[alt="X-TREINO FREITAS"] {
+                width: 80px;
+                height: 80px;
+            }
+        }
+
+        /* Header fixo não vaza para fora */
+        header { position: fixed; width: 100%; top: 0; left: 0; z-index: 50; }
+
+        /* Carrossel: contenção de overflow horizontal */
+        .carousel-wrapper { overflow: hidden; width: 100%; max-width: 100%; }
+        #carouselTrack { display: flex; width: 100%; }
+        #carouselTrack > div { min-width: 100%; max-width: 100%; flex-shrink: 0; box-sizing: border-box; }
+
+        /* Bloquear scroll horizontal globalmente */
+        body > * { max-width: 100vw; }
+
+        /* Ocultar o body até o Tailwind estar pronto (evita flash de layout sem estilo) */
+        body { visibility: hidden; }
+    </style>
     <script>
+        // Nota: body está oculto via CSS acima; revealPage() o torna visível após Tailwind carregar.
+
         // Carregar Tailwind com retry automático em caso de falha do CloudFlare
         (function() {
             const maxRetries = 5;
             const retryDelay = 1000; // 1 segundo entre tentativas
             let retryCount = 0;
             let loaded = false;
+
+            function revealPage() {
+                document.body.style.visibility = 'visible';
+            }
             
             function tryLoadTailwind() {
                 if (loaded) return;
@@ -29,8 +72,8 @@
                             setTimeout(tryLoadTailwind, retryDelay);
                         } else {
                             console.error('❌ Não foi possível carregar o Tailwind após', maxRetries, 'tentativas. O site pode não funcionar corretamente.');
-                            // Carregar estilos básicos como último recurso
                             loadFallbackStyles();
+                            revealPage();
                         }
                     }
                 }, 10000); // 10 segundos de timeout
@@ -38,6 +81,8 @@
                 script.onload = function() {
                     clearTimeout(timeout);
                     loaded = true;
+                    // Pequeno delay para o Tailwind processar as classes antes de exibir
+                    requestAnimationFrame(() => requestAnimationFrame(revealPage));
                     console.log('✅ Tailwind carregado com sucesso!');
                 };
                 
@@ -51,6 +96,7 @@
                     } else {
                         console.error('❌ Não foi possível carregar o Tailwind após', maxRetries, 'tentativas.');
                         loadFallbackStyles();
+                        revealPage();
                     }
                 };
                 
@@ -60,11 +106,14 @@
             function loadFallbackStyles() {
                 const style = document.createElement('style');
                 style.textContent = `
-                    * { box-sizing: border-box; }
-                    body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
                     .container { max-width: 1200px; margin: 0 auto; padding: 1rem; }
-                    .btn { padding: 0.5rem 1rem; border-radius: 0.25rem; cursor: pointer; border: none; }
                     .hidden { display: none !important; }
+                    .flex { display: flex; }
+                    .grid { display: grid; }
+                    .items-center { align-items: center; }
+                    .justify-between { justify-content: space-between; }
+                    .text-white { color: #fff; }
+                    .bg-white { background: #fff; }
                 `;
                 document.head.appendChild(style);
             }
@@ -200,7 +249,7 @@
                     </button>
                 </div>
             </div>
-            <div class="overflow-hidden rounded-2xl border border-gray-200">
+            <div class="carousel-wrapper rounded-2xl border border-gray-200">
                 <div id="carouselTrack" class="flex transition-transform duration-500">
                     <!-- Os destaques serão carregados dinamicamente aqui -->
                     <div class="min-w-full p-8 bg-white flex items-center justify-center">
