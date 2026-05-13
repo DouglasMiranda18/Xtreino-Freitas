@@ -3587,12 +3587,14 @@ window.showWarningToast = function(message, title = 'Atenção') {
       const { collection, query, where, getDocs, doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
       const regs = collection(window.firebaseDb,'registrations');
       // Busca reservas PAGAS/CONFIRMADAS do dia; filtra por eventType e hora com normalização (schedule ou hour)
-      const snap = await getDocs(query(regs, where('date','==', date), where('status','in',['paid','confirmed','approved'])));
+      // Incluir 'pending' para mostrar clientes recém-comprados (aguardando confirmação de pagamento)
+      const snap = await getDocs(query(regs, where('date','==', date), where('status','in',['paid','confirmed','approved','pending'])));
       list.innerHTML = '';
       let any = false;
       const evLower = String(eventType||'').toLowerCase();
       const normalizeHour = (s)=>{ const m = String(s||'').match(/(\d{1,2})/); return m? String(parseInt(m[1],10)).padStart(2,'0') : null; };
       const targetHH = normalizeHour(hour);
+      const registeredUserIds = new Set();
       snap.forEach(d=>{
         const r = d.data();
         if (evLower && r.eventType && !String(r.eventType).toLowerCase().includes(evLower)) return;
@@ -3601,13 +3603,84 @@ window.showWarningToast = function(message, title = 'Atenção') {
         const regHH = normalizeHour(schedStr) || normalizeHour(hourStr);
         if (targetHH && regHH && targetHH !== regHH) return;
         any = true;
+        if (r.userId) registeredUserIds.add(r.userId);
+        const isPending = r.status === 'pending';
+        const statusBadge = isPending
+          ? '<span class="text-[10px] bg-yellow-100 text-yellow-700 font-bold rounded px-1 ml-1">Aguardando pagto.</span>'
+          : '<span class="text-[10px] bg-green-100 text-green-700 font-bold rounded px-1 ml-1">Confirmado</span>';
         const row = document.createElement('div');
         row.className = 'flex items-center justify-between border-b py-2';
-        row.innerHTML = `<div class="text-sm"><div class="font-semibold">${r.teamName||r.email||'-'}</div><div class="text-gray-500">${r.contact||r.phone||''}</div></div>
+        row.innerHTML = `<div class="text-sm"><div class="font-semibold">${r.teamName||r.email||'-'}${statusBadge}</div><div class="text-gray-500">${r.contact||r.phone||r.email||''}</div></div>
           <button class="px-2 py-1 bg-red-600 text-white rounded text-xs" data-remove-reg-id="${d.id}">Remover</button>`;
         list.appendChild(row);
       });
       if (!any){ list.innerHTML = '<div class="text-sm text-gray-500">Nenhum time neste horário.</div>'; }
+
+      // Botão "Enviar ID/Senha" para todos os inscritos no horário
+      const sendCredSection = document.createElement('div');
+      sendCredSection.className = 'mt-4 border-t pt-4';
+      sendCredSection.innerHTML = `
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-sm font-semibold text-gray-700">Enviar ID/Senha da Sala</span>
+          <button id="btnToggleCredForm" class="text-xs px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700">
+            <i class="fas fa-key mr-1"></i>Enviar Credenciais
+          </button>
+        </div>
+        <div id="credFormInner" class="hidden space-y-2">
+          <input id="credRoomId" type="text" placeholder="ID da sala (ex: 123456789)" class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:border-indigo-400"/>
+          <input id="credRoomPass" type="text" placeholder="Senha da sala" class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:border-indigo-400"/>
+          <textarea id="credExtraMsg" rows="2" placeholder="Mensagem extra (opcional)" class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:border-indigo-400"></textarea>
+          <button id="btnSendCred" class="w-full py-2 bg-indigo-600 text-white rounded text-sm font-semibold hover:bg-indigo-700">
+            <i class="fas fa-paper-plane mr-1"></i>Enviar para ${registeredUserIds.size} participante(s)
+          </button>
+        </div>`;
+      list.appendChild(sendCredSection);
+
+      document.getElementById('btnToggleCredForm')?.addEventListener('click', () => {
+        document.getElementById('credFormInner')?.classList.toggle('hidden');
+      });
+
+      document.getElementById('btnSendCred')?.addEventListener('click', async () => {
+        const roomId = document.getElementById('credRoomId')?.value?.trim();
+        const roomPass = document.getElementById('credRoomPass')?.value?.trim();
+        const extraMsg = document.getElementById('credExtraMsg')?.value?.trim();
+        if (!roomId || !roomPass) { showToast('warning', 'Preencha o ID e a senha da sala.', 'Atenção'); return; }
+        const sendBtn = document.getElementById('btnSendCred');
+        if (sendBtn) { sendBtn.disabled = true; sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Enviando...'; }
+        try {
+          const { collection: _nc, addDoc: _na, serverTimestamp: _ns } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+          const user = window.firebaseAuth?.currentUser;
+          const createdBy = user ? (user.displayName || user.email || user.uid) : 'Admin';
+          const msgBody = `ID da Sala: ${roomId}\nSenha: ${roomPass}${extraMsg ? '\n\n' + extraMsg : ''}`;
+          await Promise.all([...registeredUserIds].map(uid =>
+            _na(_nc(window.firebaseDb, 'notifications'), {
+              title: `Credenciais do Evento — ${hour} (${date})`,
+              message: msgBody,
+              type: 'user',
+              targetUserId: uid,
+              notifyType: 'credentials',
+              roomId,
+              roomPass,
+              eventType,
+              date,
+              hour,
+              createdAt: _ns(),
+              createdBy,
+              createdByUid: user?.uid || null,
+            })
+          ));
+          showToast('success', `Credenciais enviadas para ${registeredUserIds.size} participante(s)!`, 'Sucesso');
+          document.getElementById('credFormInner')?.classList.add('hidden');
+          if (document.getElementById('credRoomId')) document.getElementById('credRoomId').value = '';
+          if (document.getElementById('credRoomPass')) document.getElementById('credRoomPass').value = '';
+          if (document.getElementById('credExtraMsg')) document.getElementById('credExtraMsg').value = '';
+        } catch(err) {
+          showToast('error', 'Erro ao enviar: ' + (err.message||err), 'Erro');
+        } finally {
+          if (sendBtn) { sendBtn.disabled = false; sendBtn.innerHTML = `<i class="fas fa-paper-plane mr-1"></i>Enviar para ${registeredUserIds.size} participante(s)`; }
+        }
+      });
+
       list.addEventListener('click', async (e)=>{
         const btn = e.target.closest('[data-remove-reg-id]');
         if (!btn) return;

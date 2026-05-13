@@ -5378,71 +5378,138 @@ async function checkSlotAvailability(date, schedule, eventType) {
         } catch (err) {
             
         }
+        // Verificar também travas permanentes (event_hour_locks) — prioritário
+        try {
+            const { collection: _hc, query: _hq, where: _hw, getDocs: _hg } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            if (window.firebaseDb && eventType) {
+                const hlSnap = await _hg(_hq(_hc(window.firebaseDb, 'event_hour_locks'), _hw('eventType', '==', eventType), _hw('locked', '==', true)));
+                hlSnap.forEach(hd => {
+                    const hh = parseInt(String(hd.data().hour || '').replace(/\D/g, ''), 10);
+                    if (!isNaN(hh) && hh === wantedHour) {
+                        occupied = getEventCapacity(eventType, `${wantedHour}h`, date);
+                    }
+                });
+            }
+        } catch (_permErr) {}
+
         const capacity = getEventCapacity(eventType, `${wantedHour}h`, date);
         // Não permitir compra se ocupado >= capacidade (não pode ultrapassar)
         return occupied < capacity;
     } catch (_) { return true; }
 }
 
-// Verifica disponibilidade para múltiplos horários e times
+// Verifica disponibilidade para múltiplos horários e times — implementação Firestore direta
 async function checkMultipleSlotAvailability(date, selectedTimes, eventType, numberOfTeams) {
   try {
-    // Fail-safe: se algo básico estiver errado, não bloqueia o usuário
     if (!date || !Array.isArray(selectedTimes) || selectedTimes.length === 0) {
       return { available: true };
     }
 
-    // Normalização defensiva da data
     const normalizedDate =
-      typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)
-        ? date
-        : null;
+      typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
 
-    if (!normalizedDate) {
-      
+    if (!normalizedDate || !window.firebaseDb) {
       return { available: true };
     }
 
-    // 🔥 ÚNICO ponto de verdade agora é o backend
-    const response = await fetch('/.netlify/functions/check-availability', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        date: normalizedDate,
-        selectedTimes,
-        eventType: eventType || null,
-        numberOfTeams: Number(numberOfTeams || 1)
-      })
-    });
+    const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const n = Number(numberOfTeams || 1);
 
-    if (!response.ok) {
-      
-      return { available: true }; // fail-safe
+    // 1. Carregar travas permanentes (event_hour_locks)
+    const permLockedHours = new Set();
+    try {
+      if (eventType) {
+        const hlSnap = await getDocs(query(
+          collection(window.firebaseDb, 'event_hour_locks'),
+          where('eventType', '==', eventType),
+          where('locked', '==', true)
+        ));
+        hlSnap.forEach(d => {
+          const h = parseInt(String(d.data().hour || '').replace(/\D/g, ''), 10);
+          if (!isNaN(h)) permLockedHours.add(h);
+        });
+      }
+    } catch (_) {}
+
+    // Verificar travas permanentes ANTES de qualquer outra coisa
+    for (const timeItem of selectedTimes) {
+      const schedStr = typeof timeItem === 'string' ? timeItem : (timeItem.schedule || '');
+      const hourMatch = schedStr.match(/(\d{1,2})\s*h/i) || schedStr.match(/- (\d{1,2})h/i);
+      const h = hourMatch ? parseInt(hourMatch[1], 10) : NaN;
+      if (!isNaN(h) && permLockedHours.has(h)) {
+        return { available: false, message: 'Horário indisponível. Este horário foi bloqueado pelo administrador.' };
+      }
     }
 
-    const result = await response.json();
+    // 2. Carregar overrides de data (schedule_overrides)
+    const dateLockedHours = new Set();
+    try {
+      const ovSnap = await getDocs(query(
+        collection(window.firebaseDb, 'schedule_overrides'),
+        where('date', '==', normalizedDate)
+      ));
+      ovSnap.forEach(d => {
+        const ov = d.data();
+        if (ov.date !== normalizedDate) return;
+        const ovEventType = ov.eventType || null;
+        const shouldApply = !ovEventType || ovEventType === eventType || !eventType;
+        if (!shouldApply) return;
+        if (ov.locked === true) {
+          const h = parseInt(String(ov.hour || ov.hh || '').replace(/\D/g, ''), 10);
+          if (!isNaN(h)) dateLockedHours.add(h);
+        }
+      });
+    } catch (_) {}
 
-    // Garantia mínima de contrato
-    if (typeof result !== 'object' || result === null) {
-      
-      return { available: true };
+    // Verificar travas de data
+    for (const timeItem of selectedTimes) {
+      const schedStr = typeof timeItem === 'string' ? timeItem : (timeItem.schedule || '');
+      const hourMatch = schedStr.match(/(\d{1,2})\s*h/i) || schedStr.match(/- (\d{1,2})h/i);
+      const h = hourMatch ? parseInt(hourMatch[1], 10) : NaN;
+      if (!isNaN(h) && dateLockedHours.has(h)) {
+        return { available: false, message: 'Horário indisponível nesta data.' };
+      }
     }
 
-    return result;
+    // 3. Verificar lotação: contar registrations para cada horário
+    try {
+      const clauses = [
+        where('date', '==', normalizedDate),
+        where('status', 'in', ['paid', 'confirmed', 'approved', 'pending'])
+      ];
+      if (eventType) clauses.push(where('eventType', '==', eventType));
+      const regsSnap = await getDocs(query(collection(window.firebaseDb, 'registrations'), ...clauses));
+
+      // Agrupar por hora
+      const occupiedMap = {};
+      regsSnap.forEach(d => {
+        const r = d.data();
+        const rawSchedule = String(r.schedule || '');
+        const rawHour = String(r.hour || '');
+        let hh = rawSchedule.match(/(\d{1,2})\s*h/i)?.[1]
+          || rawSchedule.match(/(\d{1,2})\s*:/)?.[1]
+          || rawHour.match(/(\d{1,2})/)?.[1];
+        const h = parseInt(hh || 'NaN', 10);
+        if (!isNaN(h)) occupiedMap[h] = (occupiedMap[h] || 0) + 1;
+      });
+
+      for (const timeItem of selectedTimes) {
+        const schedStr = typeof timeItem === 'string' ? timeItem : (timeItem.schedule || '');
+        const hourMatch = schedStr.match(/(\d{1,2})\s*h/i) || schedStr.match(/- (\d{1,2})h/i);
+        const h = hourMatch ? parseInt(hourMatch[1], 10) : NaN;
+        if (isNaN(h)) continue;
+        const capacity = getEventCapacity(eventType, `${h}h`, normalizedDate);
+        const currentOccupied = occupiedMap[h] || 0;
+        if (currentOccupied + n > capacity) {
+          return { available: false, message: `Horário ${h}h não tem vagas suficientes. (${currentOccupied}/${capacity} ocupadas)` };
+        }
+      }
+    } catch (_) {}
+
+    return { available: true };
 
   } catch (error) {
-    // 🔒 Nunca bloquear compra por erro técnico
-    
-
-    try {
-      logError(
-        typeof error?.message === 'string' ? error.message : 'CHECK_AVAILABILITY_ERROR',
-        'EVENT_004'
-      );
-    } catch (_) {
-      // logging não pode quebrar fluxo
-    }
-
+    try { logError(typeof error?.message === 'string' ? error.message : 'CHECK_AVAILABILITY_ERROR', 'EVENT_004'); } catch (_) {}
     return { available: true };
   }
 }
@@ -6299,6 +6366,23 @@ async function submitSchedule(e, useTokens = false) {
                         // rawEventType preserva o case original do ID do Firestore
                         const price = getEventPrice(rawEventType, hour, d);
 
+                        // Guarda final: verificar trava permanente antes de criar registro
+                        try {
+                            const { collection: _lc, query: _lq, where: _lw, getDocs: _lg } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+                            if (window.firebaseDb && eventType) {
+                                const _hlSnap = await _lg(_lq(_lc(window.firebaseDb, 'event_hour_locks'), _lw('eventType', '==', eventType), _lw('locked', '==', true)));
+                                const hourNum = parseInt(String(normalizedHour || hour).replace(/\D/g, ''), 10);
+                                _hlSnap.forEach(hd => {
+                                    const h = parseInt(String(hd.data().hour || '').replace(/\D/g, ''), 10);
+                                    if (!isNaN(h) && !isNaN(hourNum) && h === hourNum) {
+                                        throw new Error(`Horário ${hour} está bloqueado permanentemente. Reserva cancelada.`);
+                                    }
+                                });
+                            }
+                        } catch (lockErr) {
+                            if (lockErr.message && lockErr.message.includes('bloqueado permanentemente')) throw lockErr;
+                        }
+
                         // Buscar link usando o horário normalizado
                         const whatsappLink = await getWhatsAppLink(rawEventType, normalizedHour, d);
 
@@ -7021,7 +7105,23 @@ window.getWhatsAppLink = getWhatsAppLink;
 async function createRegistrationsForEvent(eventType, datesToUse, teamsData, timesByDate, externalRef, status = 'pending', couponInfo = null) {
     const cfg = scheduleConfig[eventType] || {};
     const regIds = [];
-    const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const { collection, addDoc, serverTimestamp, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+    // Carregar travas permanentes uma vez por chamada
+    const permLockedHoursCache = new Set();
+    try {
+        if (window.firebaseDb && eventType) {
+            const hlSnap = await getDocs(query(
+                collection(window.firebaseDb, 'event_hour_locks'),
+                where('eventType', '==', eventType),
+                where('locked', '==', true)
+            ));
+            hlSnap.forEach(hd => {
+                const h = parseInt(String(hd.data().hour || '').replace(/\D/g, ''), 10);
+                if (!isNaN(h)) permLockedHoursCache.add(h);
+            });
+        }
+    } catch (_) {}
 
     for (const d of datesToUse) {
         const times = timesByDate[d] || [];
@@ -7029,6 +7129,12 @@ async function createRegistrationsForEvent(eventType, datesToUse, teamsData, tim
             for (let schedule of times) {
                 const hour = (schedule.split(' - ')[1] || '').trim();
                 const normalizedHour = normalizeHour(hour);
+
+                // Guarda contra trava permanente — impede registro mesmo se frontend foi bypassado
+                const hourNum = parseInt(String(normalizedHour || hour).replace(/\D/g, ''), 10);
+                if (!isNaN(hourNum) && permLockedHoursCache.has(hourNum)) {
+                    throw new Error(`Horário ${hour} está bloqueado permanentemente pelo administrador e não pode ser reservado.`);
+                }
                 const price = getEventPrice(eventType, hour, d);
                 const whatsappLink = await getWhatsAppLink(eventType, normalizedHour, d);            
 
