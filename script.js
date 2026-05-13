@@ -6697,9 +6697,15 @@ function showSlotConfirmationModal(slots, eventName, isLiga, eventId, groupLink)
             ${bySchedule[sched].map(s => `
             <div class="flex items-center gap-3 p-2 bg-green-50 border border-green-200 rounded-lg mb-1">
                 <span class="text-xl">✅</span>
-                <div>
+                <div class="flex-1">
                     <div class="font-semibold text-gray-800 text-sm">${s.team}</div>
-                    <div class="text-base font-extrabold text-green-700 tracking-wide">🎯 ${s.slot != null ? s.slot + ' confirmada!' : 'Inscrição confirmada!'}</div>
+                    ${s.slot != null
+                        ? `<div class="mt-0.5">
+                            <span class="text-2xl font-black text-orange-600">${s.slot}</span>
+                            <span class="text-xs font-semibold text-gray-500 ml-1">← este é o seu número na sala</span>
+                           </div>`
+                        : `<div class="text-sm font-semibold text-green-700">Inscrição confirmada!</div>`
+                    }
                 </div>
             </div>`).join('')}
         </div>`).join('');

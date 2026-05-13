@@ -10140,6 +10140,9 @@ async function loadEventsList(category) {
                     <a href="evento.html#${d.id}" target="_blank" class="px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-100 inline-flex items-center" title="Ver página do evento">
                         <i class="fas fa-external-link-alt mr-1"></i>Ver Página
                     </a>
+                    <button onclick="openEventSlotsModal('${d.id}', this.dataset.name)" data-name="${escapeAdminHtml(ev.name || '')}" title="Ver slots por horário" class="px-3 py-1.5 bg-green-50 text-green-700 rounded-lg text-xs font-semibold hover:bg-green-100">
+                        <i class="fas fa-hashtag mr-1"></i>Slots
+                    </button>
                     <button onclick="openEventNotifyModal('${d.id}', this.dataset.name)" data-name="${escapeAdminHtml(ev.name || '')}" title="Enviar mensagem aos participantes" class="px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-semibold hover:bg-purple-100">
                         <i class="fas fa-paper-plane mr-1"></i>Notificar
                     </button>
@@ -10751,6 +10754,113 @@ async function sendEventNotification() {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Enviar'; }
     }
 }
+
+// ===== SLOTS POR HORÁRIO =====
+async function openEventSlotsModal(eventId, eventName) {
+    const modal = document.getElementById('eventSlotsModal');
+    if (!modal) return;
+    document.getElementById('eventSlotsEventName').textContent = eventName;
+    document.getElementById('eventSlotsBody').innerHTML =
+        '<div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl"></i><p class="mt-2 text-sm">Carregando slots...</p></div>';
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+
+    try {
+        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const snap = await getDocs(query(
+            collection(window.firebaseDb, 'registrations'),
+            where('eventType', '==', eventId)
+        ));
+        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
+        const docs = snap.docs.filter(d => validStatuses.has(d.data().status));
+
+        if (docs.length === 0) {
+            document.getElementById('eventSlotsBody').innerHTML =
+                '<div class="text-center py-8 text-gray-400"><i class="fas fa-users text-3xl mb-2 block"></i><p class="text-sm">Nenhum participante inscrito ainda.</p></div>';
+            return;
+        }
+
+        // Agrupar por horário
+        const bySchedule = {};
+        docs.forEach(d => {
+            const r = d.data();
+            const sched = r.schedule || '—';
+            if (!bySchedule[sched]) bySchedule[sched] = [];
+            bySchedule[sched].push(r);
+        });
+
+        // Ordenar cada horário por slot crescente (null vai pro final)
+        Object.values(bySchedule).forEach(arr => {
+            arr.sort((a, b) => {
+                const sa = a.slot != null ? Number(a.slot) : Infinity;
+                const sb = b.slot != null ? Number(b.slot) : Infinity;
+                return sa - sb;
+            });
+        });
+
+        // Ordenar horários alfabeticamente
+        const schedKeys = Object.keys(bySchedule).sort();
+
+        const statusLabel = { confirmed: 'Confirmado', paid: 'Pago', approved: 'Aprovado', pending: 'Pendente' };
+        const statusCls = {
+            confirmed: 'bg-green-100 text-green-700',
+            paid: 'bg-blue-100 text-blue-700',
+            approved: 'bg-emerald-100 text-emerald-700',
+            pending: 'bg-yellow-100 text-yellow-700'
+        };
+
+        let html = '';
+        for (const sched of schedKeys) {
+            const regs = bySchedule[sched];
+            html += `
+            <div class="mb-6">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-clock mr-1"></i>${escapeAdminHtml(sched)}</span>
+                    <span class="text-xs text-gray-400">${regs.length} inscrito(s)</span>
+                </div>
+                <div class="overflow-x-auto rounded-lg border border-gray-200">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="bg-gray-50 text-xs text-gray-500 uppercase">
+                            <th class="px-3 py-2 text-left w-20">Slot</th>
+                            <th class="px-3 py-2 text-left">Equipe / Nome</th>
+                            <th class="px-3 py-2 text-left w-24">Data</th>
+                            <th class="px-3 py-2 text-left w-28">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${regs.map(r => {
+                            const slotLabel = r.slotDisplay || (r.slot != null ? `#${r.slot}` : '—');
+                            const st = r.status || 'pending';
+                            const dateFmt = r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date)
+                                ? r.date.split('-').reverse().join('/') : (r.date || '—');
+                            return `<tr class="border-t border-gray-100 hover:bg-orange-50 transition-colors">
+                                <td class="px-3 py-2 font-bold text-orange-600 text-base">${escapeAdminHtml(slotLabel)}</td>
+                                <td class="px-3 py-2 font-medium text-gray-800">${escapeAdminHtml(r.teamName || r.email || '—')}</td>
+                                <td class="px-3 py-2 text-gray-500 text-xs">${dateFmt}</td>
+                                <td class="px-3 py-2"><span class="px-2 py-0.5 rounded-full text-xs font-semibold ${statusCls[st] || 'bg-gray-100 text-gray-500'}">${statusLabel[st] || st}</span></td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>
+                </div>
+            </div>`;
+        }
+
+        document.getElementById('eventSlotsBody').innerHTML = html;
+    } catch(e) {
+        document.getElementById('eventSlotsBody').innerHTML =
+            '<div class="text-center py-8 text-red-400"><i class="fas fa-exclamation-circle text-2xl mb-2 block"></i><p class="text-sm">Erro ao carregar slots.</p></div>';
+    }
+}
+
+function closeEventSlotsModal() {
+    const modal = document.getElementById('eventSlotsModal');
+    if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+}
+
+window.openEventSlotsModal = openEventSlotsModal;
+window.closeEventSlotsModal = closeEventSlotsModal;
 
 window.openEventNotifyModal = openEventNotifyModal;
 window.closeEventNotifyModal = closeEventNotifyModal;
