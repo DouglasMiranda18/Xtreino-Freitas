@@ -5208,9 +5208,11 @@ async function fetchOccupiedForDate(day, date, eventType) {
         const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const regsRef = collection(window.firebaseDb, 'registrations');
         // Incluir 'pending' para contar todas as reservas, mesmo as que ainda não foram pagas
-        const clauses = [where('date', '==', date), where('status', 'in', ['paid', 'confirmed', 'approved', 'pending'])];
-        if (eventType) clauses.push(where('eventType', '==', eventType));
-        const q = query(regsRef, ...clauses);
+        // Usar apenas 1 filtro no Firestore para evitar índice composto (failed-precondition)
+        // status e eventType são filtrados em JS depois
+        const validStatuses = new Set(['paid', 'confirmed', 'approved', 'pending']);
+        const baseClauses = eventType ? [where('date', '==', date), where('eventType', '==', eventType)] : [where('date', '==', date)];
+        const q = query(regsRef, ...baseClauses);
         const snap = await getDocs(q);
         const parseHourFromRecord = (r) => {
             // Try multiple fields that may contain hour info
@@ -5247,6 +5249,7 @@ async function fetchOccupiedForDate(day, date, eventType) {
         };
         snap.forEach(doc => {
             const r = doc.data();
+            if (!validStatuses.has(r.status)) return; // filtrar status em JS
             const key = normalizeToScheduleKey(r);
             if (!key) return;
             map[key] = (map[key] || 0) + 1;
@@ -5308,16 +5311,18 @@ async function checkSlotAvailability(date, schedule, eventType) {
         if (!window.firebaseReady) return true;
         const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const regsRef = collection(window.firebaseDb, 'registrations');
-        // Incluir 'pending' para evitar que múltiplas reservas sejam criadas simultaneamente
-        const clauses = [where('date', '==', date), where('status', 'in', ['paid', 'confirmed', 'approved', 'pending'])];
-        if (eventType) clauses.push(where('eventType', '==', eventType));
-        const q = query(regsRef, ...clauses);
+        // Usar apenas 1-2 filtros no Firestore para evitar índice composto (failed-precondition)
+        // status é filtrado em JS depois
+        const validStatuses2 = new Set(['paid', 'confirmed', 'approved', 'pending']);
+        const baseClauses2 = eventType ? [where('date', '==', date), where('eventType', '==', eventType)] : [where('date', '==', date)];
+        const q = query(regsRef, ...baseClauses2);
         const snap = await getDocs(q);
         // Normalizar para comparar por hora
         const wantedHour = parseInt(String(schedule).match(/(\d{1,2})\s*h/)?.[1] || 'NaN', 10);
         let occupied = 0;
         snap.forEach(d => {
             const r = d.data();
+            if (!validStatuses2.has(r.status)) return; // filtrar status em JS
             const rawSchedule = String(r.schedule || '');
             const rawHour = String(r.hour || '');
             let hh = rawSchedule.match(/(\d{1,2})\s*h/)?.[1]
@@ -6502,12 +6507,15 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
         const regsRef = collection(window.firebaseDb, 'registrations');
         const scheduleSlotCount = {};
         try {
+            // Usar apenas 1 filtro (eventType) para evitar índice composto no Firestore
+            // status é filtrado em JS
+            const validSlotStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
             const existingSnap = await getDocs(query(regsRef,
-                where('eventType', '==', rawEventType),
-                where('status', 'in', ['confirmed', 'paid', 'approved', 'pending'])
+                where('eventType', '==', rawEventType)
             ));
             existingSnap.docs.forEach(d => {
                 const r = d.data();
+                if (!validSlotStatuses.has(r.status)) return;
                 const sched = r.schedule || '—';
                 scheduleSlotCount[sched] = (scheduleSlotCount[sched] || 0) + 1;
             });
@@ -6650,7 +6658,7 @@ function showSlotConfirmationModal(slots, eventName, isLiga, eventId, groupLink)
                 <span class="text-xl">✅</span>
                 <div>
                     <div class="font-semibold text-gray-800 text-sm">${s.team}</div>
-                    <div class="text-base font-extrabold text-green-700 tracking-wide">🎯 ${s.slot} confirmada!</div>
+                    <div class="text-base font-extrabold text-green-700 tracking-wide">🎯 ${s.slot != null ? s.slot + ' confirmada!' : 'Inscrição confirmada!'}</div>
                 </div>
             </div>`).join('')}
         </div>`).join('');

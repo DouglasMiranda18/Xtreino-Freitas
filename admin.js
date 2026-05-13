@@ -3213,8 +3213,10 @@ window.showWarningToast = function(message, title = 'Atenção') {
       try {
         const { collection: _c, query: _q, where: _w, getDocs: _g } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const hlRef = _c(window.firebaseDb, 'event_hour_locks');
-        const hlSnap = await _g(_q(hlRef, _w('eventType', '==', ovEventType), _w('locked', '==', true)));
+        // Usar apenas 1 filtro (eventType) para evitar índice composto no Firestore
+        const hlSnap = await _g(_q(hlRef, _w('eventType', '==', ovEventType)));
         hlSnap.forEach(d => {
+          if (d.data().locked !== true) return; // filtrar locked em JS
           const h = parseInt(String(d.data().hour || '').replace(/\D/g,''), 10);
           if (!isNaN(h)) permLockedHours.add(h);
         });
@@ -10367,13 +10369,18 @@ async function generateCampGroups() {
 
         if (phase === 'classificatoria') {
             // CLASSIFICATÓRIA: busca todos os times inscritos nas registrations
+            // Usar apenas 1 filtro (eventType) para evitar índice composto no Firestore
             const regsSnap = await getDocs(query(
                 collection(window.firebaseDb, 'registrations'),
-                where('eventType', '==', eventId),
-                where('status', 'in', ['confirmed', 'paid', 'approved', 'pending'])
+                where('eventType', '==', eventId)
             ));
+            const validSt = new Set(['confirmed', 'paid', 'approved', 'pending']);
             const teamSet = new Set();
-            regsSnap.docs.forEach(d => { const t = d.data().teamName; if (t) teamSet.add(t); });
+            regsSnap.docs.forEach(d => {
+                const data = d.data();
+                if (!validSt.has(data.status)) return;
+                if (data.teamName) teamSet.add(data.teamName);
+            });
             teams = Array.from(teamSet);
 
         } else if (phase === 'semifinal') {
