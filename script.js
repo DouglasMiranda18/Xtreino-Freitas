@@ -6344,8 +6344,8 @@ async function submitSchedule(e, useTokens = false) {
             const mpSlotCount = {};
             try {
                 const validSt = new Set(['confirmed', 'paid', 'approved', 'pending']);
-                const existingSnap = await getDocs(query(collection(window.firebaseDb, 'registrations'), where('eventType', '==', rawEventType)));
-                existingSnap.docs.forEach(d => {
+                const existingDocs = await fetchRegsForSlotCount(rawEventType);
+                existingDocs.forEach(d => {
                     const r = d.data();
                     if (!validSt.has(r.status)) return;
                     const sched = r.schedule || '—';
@@ -6515,6 +6515,30 @@ async function submitSchedule(e, useTokens = false) {
     }
 }
 
+// ===== Helper: busca registrações por eventType (raw + normalizado) para contagem de slots =====
+// Necessário porque registrações antigas foram salvas com o tipo normalizado (lowercase)
+// enquanto as novas usam o ID original do Firestore (case-sensitive)
+async function fetchRegsForSlotCount(rawEventType) {
+    try {
+        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const regsRef = collection(window.firebaseDb, 'registrations');
+        const normalizedType = String(rawEventType || '').toLowerCase().trim().replace(/\s+/g, '-');
+        const promises = [getDocs(query(regsRef, where('eventType', '==', rawEventType)))];
+        if (normalizedType !== rawEventType) {
+            promises.push(getDocs(query(regsRef, where('eventType', '==', normalizedType))));
+        }
+        const snaps = await Promise.all(promises);
+        const seen = new Set();
+        const docs = [];
+        snaps.forEach(snap => {
+            snap.docs.forEach(d => {
+                if (!seen.has(d.id)) { seen.add(d.id); docs.push(d); }
+            });
+        });
+        return docs;
+    } catch(_) { return []; }
+}
+
 // ===== Helper: calcula o texto do slot (Vaga #N ou Grupo X • Vaga Y) =====
 function computeSlotDisplay(slotNumber, vagas, grupos, isLiga) {
     if (isLiga) return null;
@@ -6551,10 +6575,8 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
             // Usar apenas 1 filtro (eventType) para evitar índice composto no Firestore
             // status é filtrado em JS
             const validSlotStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
-            const existingSnap = await getDocs(query(regsRef,
-                where('eventType', '==', rawEventType)
-            ));
-            existingSnap.docs.forEach(d => {
+            const existingDocs = await fetchRegsForSlotCount(rawEventType);
+            existingDocs.forEach(d => {
                 const r = d.data();
                 if (!validSlotStatuses.has(r.status)) return;
                 const sched = r.schedule || '—';
@@ -7196,8 +7218,8 @@ async function createRegistrationsForEvent(eventType, datesToUse, teamsData, tim
     const slotCount = {};
     try {
         const validSt = new Set(['confirmed', 'paid', 'approved', 'pending']);
-        const existingSnap = await getDocs(query(collection(window.firebaseDb, 'registrations'), where('eventType', '==', eventType)));
-        existingSnap.docs.forEach(d => {
+        const existingDocs = await fetchRegsForSlotCount(eventType);
+        existingDocs.forEach(d => {
             const r = d.data();
             if (!validSt.has(r.status)) return;
             const sched = r.schedule || '—';
