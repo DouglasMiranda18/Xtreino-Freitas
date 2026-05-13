@@ -5207,12 +5207,13 @@ async function fetchOccupiedForDate(day, date, eventType) {
         if (!window.firebaseReady) return map;
         const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const regsRef = collection(window.firebaseDb, 'registrations');
-        // Incluir 'pending' para contar todas as reservas, mesmo as que ainda não foram pagas
-        // Usar apenas 1 filtro no Firestore para evitar índice composto (failed-precondition)
-        // status e eventType são filtrados em JS depois
+        // CRÍTICO: usar apenas 1 filtro no Firestore (campo único) para nunca precisar de índice composto
+        // date, status e eventType são filtrados em JS depois
         const validStatuses = new Set(['paid', 'confirmed', 'approved', 'pending']);
-        const baseClauses = eventType ? [where('date', '==', date), where('eventType', '==', eventType)] : [where('date', '==', date)];
-        const q = query(regsRef, ...baseClauses);
+        // Priorizar eventType (mais seletivo); se não houver, filtrar por date
+        const q = eventType
+            ? query(regsRef, where('eventType', '==', eventType))
+            : query(regsRef, where('date', '==', date));
         const snap = await getDocs(q);
         const parseHourFromRecord = (r) => {
             // Try multiple fields that may contain hour info
@@ -5250,6 +5251,7 @@ async function fetchOccupiedForDate(day, date, eventType) {
         snap.forEach(doc => {
             const r = doc.data();
             if (!validStatuses.has(r.status)) return; // filtrar status em JS
+            if (r.date !== date) return; // filtrar date em JS (query usa só eventType)
             const key = normalizeToScheduleKey(r);
             if (!key) return;
             map[key] = (map[key] || 0) + 1;
@@ -5311,11 +5313,12 @@ async function checkSlotAvailability(date, schedule, eventType) {
         if (!window.firebaseReady) return true;
         const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const regsRef = collection(window.firebaseDb, 'registrations');
-        // Usar apenas 1-2 filtros no Firestore para evitar índice composto (failed-precondition)
-        // status é filtrado em JS depois
+        // CRÍTICO: campo único no Firestore — sem índice composto
+        // date, status e eventType são filtrados em JS
         const validStatuses2 = new Set(['paid', 'confirmed', 'approved', 'pending']);
-        const baseClauses2 = eventType ? [where('date', '==', date), where('eventType', '==', eventType)] : [where('date', '==', date)];
-        const q = query(regsRef, ...baseClauses2);
+        const q = eventType
+            ? query(regsRef, where('eventType', '==', eventType))
+            : query(regsRef, where('date', '==', date));
         const snap = await getDocs(q);
         // Normalizar para comparar por hora
         const wantedHour = parseInt(String(schedule).match(/(\d{1,2})\s*h/)?.[1] || 'NaN', 10);
@@ -5323,6 +5326,7 @@ async function checkSlotAvailability(date, schedule, eventType) {
         snap.forEach(d => {
             const r = d.data();
             if (!validStatuses2.has(r.status)) return; // filtrar status em JS
+            if (r.date !== date) return; // filtrar date em JS
             const rawSchedule = String(r.schedule || '');
             const rawHour = String(r.hour || '');
             let hh = rawSchedule.match(/(\d{1,2})\s*h/)?.[1]
@@ -6372,6 +6376,7 @@ async function submitSchedule(e, useTokens = false) {
             }
 
             if (regIds.length > 0) {
+                try { sessionStorage.setItem('lastRegIds', JSON.stringify(regIds)); } catch (_) { }
                 try { sessionStorage.setItem('lastRegId', regIds[0]); } catch (_) { }
                 try { sessionStorage.setItem('lastExternalRef', externalRef); } catch (_) { }
             }
@@ -6837,23 +6842,23 @@ async function processSuccessfulPayment(externalRef = null) {
     try {
         const { collection, query, where, getDocs, doc, updateDoc, addDoc, serverTimestamp, writeBatch } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
 
-        // 1) Atualizar todas as registrations com este external_reference    
+        // 1) Atualizar todas as registrations com este external_reference
+        // CRÍTICO: campo único (external_reference) para evitar índice composto no Firestore
+        // userId é filtrado em JS
         const regsRef = collection(window.firebaseDb, 'registrations');
-        const q = query(
-            regsRef,
-            where('external_reference', '==', extRef),
-            where('userId', '==', auth.currentUser.uid)
-        );
+        const q = query(regsRef, where('external_reference', '==', extRef));
         const snap = await getDocs(q);
+        const currentUid = auth.currentUser?.uid || window.firebaseAuth?.currentUser?.uid;
         let groupLink = null;
 
-        // Atualizar em lote
+        // Atualizar em lote — apenas docs do usuário atual
         const batch = writeBatch(window.firebaseDb);
         snap.forEach(d => {
+            const data = d.data();
+            if (currentUid && data.userId && data.userId !== currentUid) return; // filtrar userId em JS
             const ref = doc(window.firebaseDb, 'registrations', d.id);
             batch.update(ref, { status: 'paid', paidAt: serverTimestamp() });
-            const data = d.data();
-            if (!groupLink && data && data.groupLink) groupLink = data.groupLink;
+            if (!groupLink && data.groupLink) groupLink = data.groupLink;
         });
         await batch.commit();
 
