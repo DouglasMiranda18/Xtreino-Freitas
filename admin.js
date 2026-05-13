@@ -10551,12 +10551,14 @@ async function openEventNotifyModal(eventId, eventName) {
 
     try {
         const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        // Buscar apenas por eventType (campo único) e filtrar status em JS para evitar
+        // erros de índice composto (failed-precondition) que silenciam eventos pagos/tokens
         const snap = await getDocs(query(
             collection(window.firebaseDb, 'registrations'),
-            where('eventType', '==', eventId),
-            where('status', 'in', ['confirmed', 'paid', 'approved', 'pending'])
+            where('eventType', '==', eventId)
         ));
-        _notifyEventDocs = snap.docs;
+        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
+        _notifyEventDocs = snap.docs.filter(d => validStatuses.has(d.data().status));
 
         // Montar mapa de data+horário → usuários únicos
         // Chave: "YYYY-MM-DD||schedule" para distinguir mesmo horário em dias diferentes
