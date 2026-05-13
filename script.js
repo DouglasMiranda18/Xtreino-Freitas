@@ -6326,7 +6326,7 @@ async function submitSchedule(e, useTokens = false) {
 
         // Se for pagamento com tokens
         if (useTokens || (cfg && cfg.payWithToken)) {
-            await useTokensForEvent(eventType, totalReservations, finalPrice, teamsData, selectedTimes, datesToUse);
+            await useTokensForEvent(rawEventType, totalReservations, finalPrice, teamsData, selectedTimes, datesToUse);
             if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
             return;
         }
@@ -6344,7 +6344,7 @@ async function submitSchedule(e, useTokens = false) {
             const mpSlotCount = {};
             try {
                 const validSt = new Set(['confirmed', 'paid', 'approved', 'pending']);
-                const existingSnap = await getDocs(query(collection(window.firebaseDb, 'registrations'), where('eventType', '==', eventType)));
+                const existingSnap = await getDocs(query(collection(window.firebaseDb, 'registrations'), where('eventType', '==', rawEventType)));
                 existingSnap.docs.forEach(d => {
                     const r = d.data();
                     if (!validSt.has(r.status)) return;
@@ -6381,7 +6381,7 @@ async function submitSchedule(e, useTokens = false) {
                             phone: team.phone,
                             schedule: schedule,
                             date: d,
-                            eventType: eventType,
+                            eventType: rawEventType,
                             title: mpIsLiga ? `${cfg.label} - ${schedule}` : `${cfg.label} - ${slotDisplay || schedule}`,
                             price: price,
                             slot: mpIsLiga ? null : slotNum,
