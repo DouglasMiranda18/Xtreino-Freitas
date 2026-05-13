@@ -6232,6 +6232,44 @@ async function submitSchedule(e, useTokens = false) {
             }
         }
 
+        // Verificar travas permanentes ANTES de criar cobrança (event_global_locks + event_hour_locks)
+        try {
+            const { doc: _ld, getDoc: _lg, collection: _lc, query: _lq, where: _lw, getDocs: _lgs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            // 1. Trava global do evento inteiro
+            const globalLock = await _lg(_ld(window.firebaseDb, 'event_global_locks', rawEventType));
+            if (globalLock.exists() && globalLock.data().locked === true) {
+                alert('Este evento está temporariamente suspenso. Nenhuma nova inscrição pode ser feita no momento.');
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+                return;
+            }
+            // 2. Travas permanentes por horário
+            const hourLocksSnap = await _lgs(_lq(
+                _lc(window.firebaseDb, 'event_hour_locks'),
+                _lw('eventType', '==', rawEventType),
+                _lw('locked', '==', true)
+            ));
+            const lockedHoursSet = new Set();
+            hourLocksSnap.forEach(ld => {
+                const ldata = ld.data();
+                if (ldata.hour) lockedHoursSet.add(String(ldata.hour).toLowerCase().trim());
+            });
+            if (lockedHoursSet.size > 0) {
+                for (const item of selectedTimes) {
+                    const parts = (item.schedule || '').split(' - ');
+                    const rawHourStr = (parts[1] || parts[0] || '').trim();
+                    const normH = normalizeHour(rawHourStr);
+                    if (normH && lockedHoursSet.has(normH)) {
+                        alert(`O horário ${normH} está permanentemente bloqueado para este evento e não aceita novas inscrições.`);
+                        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+                        return;
+                    }
+                }
+            }
+        } catch (_lockErr) {
+            // Se a checagem de travas falhar por qualquer motivo, não bloquear o fluxo
+            // (a UI já oculta os botões dos horários travados)
+        }
+
         // Calcular total original
         // Usa rawEventType (ID original do Firestore, case-sensitive) para lookup correto no scheduleConfig
         let originalTotal = 0;
@@ -6824,7 +6862,35 @@ async function processSuccessfulPayment(externalRef = null) {
                     await updateDoc(doc(window.firebaseDb, 'orders', existingOrder.id), { status: 'paid', paidAt: serverTimestamp() });
                 }
             }
-        }       
+        }
+
+        // 3) Mostrar modal de confirmação "Parabéns" para o cliente
+        if (!snap.empty) {
+            const assignedSlots = [];
+            let regEventName = '';
+            let regIsLiga = false;
+            let regEventType = '';
+            snap.forEach(d => {
+                const data = d.data();
+                if (!regEventType) {
+                    regEventType = data.eventType || '';
+                    regIsLiga = data.isLiga || false;
+                    regEventName = data.eventType || 'Evento';
+                }
+                assignedSlots.push({
+                    team: data.teamName || data.email || 'Time',
+                    slot: data.slotDisplay || null,
+                    schedule: data.schedule || '',
+                    isLiga: data.isLiga || false
+                });
+            });
+            if (assignedSlots.length > 0 && typeof showSlotConfirmationModal === 'function') {
+                setTimeout(() => {
+                    showSlotConfirmationModal(assignedSlots, regEventName, regIsLiga, regEventType);
+                }, 400);
+            }
+        }
+
     } catch (error) {
                
     }
@@ -6872,15 +6938,27 @@ async function useTokensForEvent(eventType, totalReservations, finalPrice, teams
     const externalRef = `tokens_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
     try {
         const regIds = await createRegistrationsForEvent(eventType, datesToUse, teamsData, timesByDate, externalRef, 'confirmed', appliedScheduleCoupon);
-        
 
         closeScheduleModal();
-        showSuccessToast('Pagamento com tokens confirmado! Verifique seus pedidos.', 'Sucesso');
-        setTimeout(() => {
-            window.location.href = 'client.html?tab=orders';
-        }, 2000);
+
+        // Mostrar modal de confirmação igual ao fluxo de eventos gratuitos e pagos
+        const cfgTokens = scheduleConfig[eventType] || {};
+        const isLigaTokens = cfgTokens.isLiga || false;
+        const assignedSlotsTokens = [];
+        for (const d of datesToUse) {
+            const times = timesByDate[d] || [];
+            for (const schedule of times) {
+                for (const team of teamsData) {
+                    assignedSlotsTokens.push({ team: team.name, slot: null, schedule, isLiga: isLigaTokens });
+                }
+            }
+        }
+        if (typeof showSlotConfirmationModal === 'function' && assignedSlotsTokens.length > 0) {
+            showSlotConfirmationModal(assignedSlotsTokens, cfgTokens.label || eventType, isLigaTokens, eventType);
+        } else {
+            showSuccessToast('Pagamento com tokens confirmado! Verifique seus pedidos.', 'Sucesso');
+        }
     } catch (error) {
-        
         // Reembolsar tokens
         await grantTokens(finalPrice);
         showErrorToast('Erro ao criar agendamento. Tokens devolvidos.', 'ERRO');

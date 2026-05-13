@@ -10558,28 +10558,45 @@ async function openEventNotifyModal(eventId, eventName) {
         ));
         _notifyEventDocs = snap.docs;
 
-        // Montar mapa de schedules → usuários únicos
-        const scheduleMap = {}; // schedule label → Set of userIds
+        // Montar mapa de data+horário → usuários únicos
+        // Chave: "YYYY-MM-DD||schedule" para distinguir mesmo horário em dias diferentes
+        const scheduleMap = {}; // key → { label, users: Set }
         for (const d of _notifyEventDocs) {
             const r = d.data();
             const uid = r.userId;
             if (!uid) continue;
             const sched = r.schedule || r.slotDisplay || '—';
-            if (!scheduleMap[sched]) scheduleMap[sched] = new Set();
-            scheduleMap[sched].add(uid);
+            const date = r.date || '';
+            const key = date ? `${date}||${sched}` : `||${sched}`;
+            if (!scheduleMap[key]) {
+                // Formatar data como DD/MM para exibição
+                let dateLabel = '';
+                if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+                    const [y, m, dd] = date.split('-');
+                    dateLabel = `${dd}/${m}`;
+                } else if (date) {
+                    dateLabel = date;
+                }
+                const label = dateLabel ? `${dateLabel} — ${sched}` : sched;
+                scheduleMap[key] = { label, users: new Set(), date, sched };
+            }
+            scheduleMap[key].users.add(uid);
         }
 
         const totalUnique = new Set(_notifyEventDocs.map(d => d.data().userId).filter(Boolean)).size;
         document.getElementById('eventNotifyCount').textContent = `${totalUnique} participante(s) no total`;
 
-        // Popular select de horários
+        // Popular select de data+horários ordenados por data
         if (schedSel) {
-            const schedules = Object.keys(scheduleMap).sort();
-            if (schedules.length === 0) {
-                schedSel.innerHTML = '<option value="all">Todos os horários (sem filtro)</option>';
+            const keys = Object.keys(scheduleMap).sort();
+            if (keys.length === 0) {
+                schedSel.innerHTML = '<option value="all">Todos (sem filtro)</option>';
             } else {
-                schedSel.innerHTML = `<option value="all">Todos os horários (${totalUnique} participante(s))</option>` +
-                    schedules.map(s => `<option value="${s.replace(/"/g, '&quot;')}">${s} — ${scheduleMap[s].size} participante(s)</option>`).join('');
+                schedSel.innerHTML = `<option value="all">Todos os participantes (${totalUnique} total)</option>` +
+                    keys.map(k => {
+                        const entry = scheduleMap[k];
+                        return `<option value="${k.replace(/"/g, '&quot;')}">${entry.label} — ${entry.users.size} participante(s)</option>`;
+                    }).join('');
             }
         }
     } catch(e) {
@@ -10598,12 +10615,21 @@ function onEventNotifyScheduleChange() {
         const total = new Set(_notifyEventDocs.map(d => d.data().userId).filter(Boolean)).size;
         countEl.textContent = `${total} participante(s) no total`;
     } else {
+        // Chave composta "YYYY-MM-DD||schedule" — separar para comparar individualmente
+        const [selDate, ...schedParts] = selected.split('||');
+        const selSched = schedParts.join('||');
         const filtered = new Set(
             _notifyEventDocs
-                .filter(d => { const r = d.data(); return (r.schedule || r.slotDisplay || '—') === selected && r.userId; })
+                .filter(d => {
+                    const r = d.data();
+                    if (!r.userId) return false;
+                    const rDate = r.date || '';
+                    const rSched = r.schedule || r.slotDisplay || '—';
+                    return rDate === selDate && rSched === selSched;
+                })
                 .map(d => d.data().userId)
         );
-        countEl.textContent = `${filtered.size} participante(s) neste horário`;
+        countEl.textContent = `${filtered.size} participante(s) neste dia/horário`;
     }
 }
 
@@ -10648,26 +10674,38 @@ async function sendEventNotification() {
     try {
         const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
 
-        // Filtrar por horário se necessário
+        // Filtrar por data+horário se necessário (chave composta "YYYY-MM-DD||schedule")
         let docsToNotify = _notifyEventDocs;
+        let filterLabel = '';
         if (selectedSchedule !== 'all') {
+            const [selDate, ...schedParts] = selectedSchedule.split('||');
+            const selSched = schedParts.join('||');
             docsToNotify = _notifyEventDocs.filter(d => {
                 const r = d.data();
-                return (r.schedule || r.slotDisplay || '—') === selectedSchedule;
+                const rDate = r.date || '';
+                const rSched = r.schedule || r.slotDisplay || '—';
+                return rDate === selDate && rSched === selSched;
             });
+            // Montar label legível para o log: "DD/MM — horário"
+            if (selDate && /^\d{4}-\d{2}-\d{2}$/.test(selDate)) {
+                const [, m, dd] = selDate.split('-');
+                filterLabel = `${dd}/${m} — ${selSched}`;
+            } else {
+                filterLabel = selSched;
+            }
         }
 
         const uniqueUsers = [...new Set(docsToNotify.map(d => d.data().userId).filter(Boolean))];
 
         if (uniqueUsers.length === 0) {
-            showToast('warning', 'Nenhum participante encontrado para o horário selecionado.', 'Atenção');
+            showToast('warning', 'Nenhum participante encontrado para o dia/horário selecionado.', 'Atenção');
             return;
         }
 
         const user = window.firebaseAuth?.currentUser;
         const createdBy = user ? (user.displayName || user.email || user.uid) : 'Admin';
 
-        const scheduleLabel = selectedSchedule !== 'all' ? ` [${selectedSchedule}]` : '';
+        const scheduleLabel = filterLabel ? ` [${filterLabel}]` : '';
         const notifyType = document.getElementById('eventNotifyType')?.value || 'custom';
         const roomLink = notifyType === 'room_link' ? (document.getElementById('eventNotifyRoomLink')?.value?.trim() || null) : null;
 
@@ -10685,7 +10723,7 @@ async function sendEventNotification() {
                 targetUserId: uid,
                 eventId,
                 eventName,
-                schedule: selectedSchedule !== 'all' ? selectedSchedule : null,
+                schedule: filterLabel || null,
                 roomLink: roomLink || null,
                 notifyType,
                 createdAt: serverTimestamp(),
@@ -10694,7 +10732,7 @@ async function sendEventNotification() {
             })
         ));
 
-        const horarioMsg = selectedSchedule !== 'all' ? ` (horário: ${selectedSchedule})` : '';
+        const horarioMsg = filterLabel ? ` (${filterLabel})` : '';
         showToast('success', `Notificação enviada para ${uniqueUsers.length} participante(s)${horarioMsg}!`, 'Sucesso');
         closeEventNotifyModal();
     } catch (err) {
