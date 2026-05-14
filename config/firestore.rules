@@ -77,10 +77,16 @@ service cloud.firestore {
     }
 
     // users: cada usuário lê/cria o próprio documento; atualização protege campos sensíveis; só admin pode alterar tokens/role
+    // Exceção: usuário pode DIMINUIR seus próprios tokens (spendTokens), mas não pode aumentar
     match /users/{userId} {
       allow read: if isSelf(userId) || canReadAll();
       allow create: if isSelf(userId) || isAdmin();
-      allow update: if (isSelf(userId) && hasNoProtectedFieldChanges()) || isAdmin();
+      allow update: if (isSelf(userId) && hasNoProtectedFieldChanges()) ||
+                       (isSelf(userId) &&
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tokens']) &&
+                        request.resource.data.tokens < resource.data.tokens &&
+                        request.resource.data.tokens >= 0) ||
+                       isAdmin();
       allow delete: if isAdmin();
     }
 
@@ -100,9 +106,9 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // registrations: leitura para staff e para o próprio usuário; criação apenas para o próprio userId; update/delete apenas staff
+    // registrations: leitura individual restrita ao dono/staff; listagem liberada para logados (contagem de vagas em tempo real)
     match /registrations/{registrationId} {
-      allow read: if isSignedIn() && (
+      allow get: if isSignedIn() && (
         resource.data.userId == request.auth.uid ||
         canReadAll() ||
         (
@@ -112,6 +118,7 @@ service cloud.firestore {
           )
         )
       );
+      allow list: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow update: if canReadAll();
       allow delete: if isAdmin() || isGerente();
