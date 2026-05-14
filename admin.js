@@ -10831,13 +10831,18 @@ async function openEventSlotsModal(eventId, eventName) {
                     </thead>
                     <tbody>
                         ${regs.map(r => {
-                            const slotLabel = r.slotDisplay || (r.slot != null ? `#${r.slot}` : '—');
+                            const slotNum = r.slotNumber != null ? r.slotNumber : r.slot;
+                            const slotLabel = r.slotDisplay || (slotNum != null ? `#${slotNum}` : '—');
                             const st = r.status || 'pending';
                             const dateFmt = r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date)
                                 ? r.date.split('-').reverse().join('/') : (r.date || '—');
+                            const leaderName = r.leaderName && r.leaderName !== r.teamName ? r.leaderName : null;
                             return `<tr class="border-t border-gray-100 hover:bg-orange-50 transition-colors">
                                 <td class="px-3 py-2 font-bold text-orange-600 text-base">${escapeAdminHtml(slotLabel)}</td>
-                                <td class="px-3 py-2 font-medium text-gray-800">${escapeAdminHtml(r.teamName || r.email || '—')}</td>
+                                <td class="px-3 py-2">
+                                    <p class="font-medium text-gray-800">${escapeAdminHtml(r.teamName || r.email || '—')}</p>
+                                    ${leaderName ? `<p class="text-xs text-gray-400">Líder: ${escapeAdminHtml(leaderName)}</p>` : ''}
+                                </td>
                                 <td class="px-3 py-2 text-gray-500 text-xs">${dateFmt}</td>
                                 <td class="px-3 py-2"><span class="px-2 py-0.5 rounded-full text-xs font-semibold ${statusCls[st] || 'bg-gray-100 text-gray-500'}">${statusLabel[st] || st}</span></td>
                             </tr>`;

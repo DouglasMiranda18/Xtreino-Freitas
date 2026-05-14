@@ -6542,11 +6542,13 @@ async function fetchRegsForSlotCount(rawEventType) {
     } catch(_) { return []; }
 }
 
-// ===== Helper: aloca slots via transação atômica no slotCounters/{eventType} =====
-// Solução para usuários normais: coleção slotCounters é leitura/escrita para todos os logados
+// ===== Helper: aloca slots a partir do maior slot já no banco =====
 // scheduleCounts: { "schedule_key": numSlotsNeeded }
-// Retorna: { "schedule_key": firstSlotNumber } ou null se falhar
-async function allocateSlotsViaTransaction(rawEventType, scheduleCounts) {
+// Retorna: { "schedule_key": firstSlotNumber } ou null se ambos os métodos falharem
+// Nível 1: transação atômica via slotCounters (sem race condition quando regras estiverem deployadas)
+// Nível 2: fallback — busca o maior slotNumber existente nas registrations (requer allow list)
+async function allocateSlotsFromDB(rawEventType, scheduleCounts) {
+    // --- Nível 1: transação atômica via slotCounters ---
     try {
         const { doc, runTransaction } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const counterRef = doc(window.firebaseDb, 'slotCounters', rawEventType);
@@ -6561,9 +6563,38 @@ async function allocateSlotsViaTransaction(rawEventType, scheduleCounts) {
             }
             tx.set(counterRef, counts, { merge: true });
         });
+        console.log('[SlotDB] transação atômica OK | evento:', rawEventType, '| slots:', JSON.stringify(startSlots));
         return startSlots;
-    } catch(e) {
-        console.warn('[SlotCounter] transação falhou, slot pode repetir:', e.message);
+    } catch (txErr) {
+        console.warn('[SlotDB] transação slotCounters falhou, buscando máx. no banco:', txErr.message);
+    }
+
+    // --- Nível 2: buscar maior slotNumber por horário nas registrations ---
+    try {
+        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const snap = await getDocs(query(
+            collection(window.firebaseDb, 'registrations'),
+            where('eventType', '==', rawEventType)
+        ));
+        const maxSlotPerSchedule = {};
+        snap.forEach(docSnap => {
+            const r = docSnap.data();
+            if (!r.schedule) return;
+            const sn = Number(r.slotNumber || r.slot || 0);
+            if (!isNaN(sn) && sn > (maxSlotPerSchedule[r.schedule] || 0)) {
+                maxSlotPerSchedule[r.schedule] = sn;
+            }
+        });
+        const startSlots = {};
+        for (const [sched, numNeeded] of Object.entries(scheduleCounts)) {
+            const maxExisting = maxSlotPerSchedule[sched] || 0;
+            startSlots[sched] = maxExisting + 1;
+            console.log(`[SlotDB] evento="${rawEventType}" horário="${sched}" máx.existente=${maxExisting} → próxSlot=${maxExisting + 1} (${numNeeded} inscrição/ões)`);
+        }
+        console.log('[SlotDB] startSlots (via DB):', JSON.stringify(startSlots), '| evento:', rawEventType);
+        return startSlots;
+    } catch (dbErr) {
+        console.error('[SlotDB] erro crítico ao buscar slots no banco:', dbErr.message, '| evento:', rawEventType);
         return null;
     }
 }
@@ -6624,7 +6655,7 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
                 }
             }
             if (Object.keys(_sc).length > 0) {
-                const _ss = await allocateSlotsViaTransaction(rawEventType, _sc);
+                const _ss = await allocateSlotsFromDB(rawEventType, _sc);
                 if (_ss) {
                     for (const [_k, _v] of Object.entries(_ss)) scheduleSlotCount[_k] = _v - 1;
                 }
@@ -6670,6 +6701,7 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
                     await addDoc(collection(window.firebaseDb, 'registrations'), {
                         userId: window.firebaseAuth.currentUser.uid,
                         teamName: team.name,
+                        leaderName: window.currentUserProfile?.name || team.name,
                         email: team.email,
                         phone: team.phone,
                         schedule: schedKey,
@@ -6678,6 +6710,7 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
                         title: isLiga ? `${cfg.label} - ${schedKey}` : `${cfg.label} - ${slotDisplay}`,
                         price: 0,
                         slot: isLiga ? null : slotNumber,
+                        slotNumber: isLiga ? null : slotNumber,
                         slotDisplay: slotDisplay,
                         status: 'confirmed',
                         createdAt: serverTimestamp(),
@@ -7254,7 +7287,7 @@ async function createRegistrationsForEvent(eventType, datesToUse, teamsData, tim
             }
         }
         if (Object.keys(_sc).length > 0) {
-            const _ss = await allocateSlotsViaTransaction(eventType, _sc);
+            const _ss = await allocateSlotsFromDB(eventType, _sc);
             if (_ss) {
                 for (const [_k, _v] of Object.entries(_ss)) slotCount[_k] = _v - 1;
             }
@@ -7278,6 +7311,7 @@ async function createRegistrationsForEvent(eventType, datesToUse, teamsData, tim
                 const docRef = await addDoc(collection(window.firebaseDb, 'registrations'), {
                     userId: window.firebaseAuth.currentUser.uid,
                     teamName: team.name,
+                    leaderName: window.currentUserProfile?.name || team.name,
                     email: team.email,
                     phone: team.phone,
                     schedule: schedule,
@@ -7286,6 +7320,7 @@ async function createRegistrationsForEvent(eventType, datesToUse, teamsData, tim
                     title: isLiga ? `${cfg.label} - ${schedule}` : `${cfg.label} - ${slotDisplay || schedule}`,
                     price: price,
                     slot: isLiga ? null : slotNum,
+                    slotNumber: isLiga ? null : slotNum,
                     slotDisplay: slotDisplay,
                     status: status,
                     createdAt: serverTimestamp(),
