@@ -175,7 +175,7 @@
 <script type="module">
 import { initializeApp, getApps, getApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import { getFirestore, doc, getDoc, collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
-import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
+import { getAuth, onAuthStateChanged, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
 
 const FIREBASE_CONFIG = {
     apiKey: "AIzaSyBzD0iWNIfZwuzWN-Xhjbg22OfCHv1Qwjo",
@@ -252,6 +252,9 @@ function setTab(tabId) {
     const panel = document.getElementById('panel' + capId);
     if (btn) btn.classList.add('active');
     if (panel) panel.classList.add('active');
+    if (tabId === 'inscritos' && window._currentEventId) {
+        loadInscritos(window._currentEventId);
+    }
 }
 window.setTab = setTab;
 
@@ -364,6 +367,14 @@ async function loadEvent() {
 
         buildTabs(ev);
         showContent();
+
+        // Garantir autenticação (pelo menos anônima) para poder consultar inscrições
+        await new Promise(resolve => {
+            const unsub = onAuthStateChanged(_auth, () => { unsub(); resolve(); });
+        });
+        if (!_auth.currentUser) {
+            try { await signInAnonymously(_auth); } catch(_e) {}
+        }
         loadInscritos(eventId);
 
         if (ev.status === 'Fechado') {
@@ -491,15 +502,15 @@ async function loadInscritos(evId) {
                 <div class="space-y-2">
                     ${regs.map(r => {
                         const slotNum = r.slotNumber != null ? r.slotNumber : r.slot;
-                        const slotLabel = r.slotDisplay || (slotNum != null ? `Vaga #${slotNum}` : '—');
                         const teamName = r.teamName || r.email || '—';
                         const leaderName = r.leaderName && r.leaderName !== r.teamName ? r.leaderName : null;
                         const dateFmt = r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date.split('-').reverse().join('/') : (r.date || '');
+                        const slotBadge = slotNum != null ? `<span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-orange-600 text-white text-xs font-black flex-shrink-0">#${slotNum}</span>` : '';
                         return `<div class="bg-slate-700 rounded-xl px-4 py-3 border border-slate-600">
                             <div class="flex items-center gap-3">
-                                <span class="font-black text-orange-400 text-lg w-20 flex-shrink-0">${slotLabel}</span>
+                                ${slotBadge}
                                 <div class="flex-1 min-w-0">
-                                    <p class="font-semibold text-slate-100 text-sm leading-tight">${teamName}</p>
+                                    <p class="font-bold text-slate-100 text-sm leading-tight truncate">${teamName}</p>
                                     ${leaderName ? `<p class="text-xs text-slate-400 mt-0.5">Líder: ${leaderName}</p>` : ''}
                                 </div>
                                 ${dateFmt ? `<span class="text-xs text-slate-500 flex-shrink-0">${dateFmt}</span>` : ''}
