@@ -644,13 +644,21 @@ body {
     }
 
     /* Header compacto no mobile */
-    #scheduleModal .bg-gradient-to-r.p-6 {
-        padding: 0.875rem 1rem !important;
+    #scheduleModal .schedule-modal-header {
+        padding: 0.625rem 1rem !important;
     }
 
-    /* Texto menor no header */
-    #scheduleModal h3.text-2xl {
-        font-size: 1.1rem !important;
+    #scheduleModal .schedule-modal-icon {
+        display: none !important;
+    }
+
+    #scheduleModal .schedule-modal-title {
+        font-size: 0.95rem !important;
+        line-height: 1.2 !important;
+    }
+
+    #scheduleModal .schedule-modal-sub {
+        font-size: 0.75rem !important;
     }
 }
 
