@@ -1540,12 +1540,35 @@ async function openImagesSelect(orderId) {
             }
         }
 
+        // Normaliza chaves de mapa (compatibilidade legado: novaterra→novaTerra, alpina→solara)
+        const _normalizeMapKey = k => {
+            const m = { novaterra: 'novaTerra', alpina: 'solara' };
+            return m[k] || k;
+        };
+
+        // Mapas que o cliente comprou (ordem.productOptions.maps)
+        let purchasedKeys = null;
+        if (orderSnap.exists()) {
+            const opts = orderSnap.data().productOptions;
+            if (Array.isArray(opts?.maps) && opts.maps.length > 0) {
+                purchasedKeys = new Set(opts.maps.map(_normalizeMapKey));
+            }
+        }
+
+        // Monta lista: deve ter link no produto E ter sido comprado (se tiver lista de compra)
         const availableMaps = Object.entries(MAP_NAMES_CLIENT)
-            .filter(([key]) => mapLinks && mapLinks[key] && mapLinks[key].trim() !== '')
+            .filter(([key]) => {
+                const hasLink = mapLinks && mapLinks[key] && mapLinks[key].trim() !== '';
+                const wasPurchased = !purchasedKeys || purchasedKeys.has(key);
+                return hasLink && wasPurchased;
+            })
             .map(([key, name]) => ({ key, name, url: mapLinks[key] }));
 
         if (availableMaps.length === 0) {
-            body.innerHTML = '<p class="text-sm text-red-600 text-center py-4"><i class="fas fa-exclamation-triangle mr-2"></i>Nenhum mapa disponível no momento. Contate o suporte.</p>';
+            const reason = purchasedKeys
+                ? 'Os mapas comprados ainda não tiveram os links configurados. Contate o suporte.'
+                : 'Nenhum mapa disponível no momento. Contate o suporte.';
+            body.innerHTML = `<p class="text-sm text-red-600 text-center py-4"><i class="fas fa-exclamation-triangle mr-2"></i>${reason}</p>`;
             return;
         }
 

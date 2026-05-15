@@ -4527,7 +4527,51 @@ function addProductOptions(productId) {
             const isPasse = prodCat === 'passe' || prodName.includes('passe') || prodName.includes('pass booyah');
             const isFisico = prodCat === 'fisico' || prodCat === 'physical';
 
-            if (isPasse) {
+            const isAereas = prodCat === 'aereas';
+
+            if (isAereas) {
+                // Imagens Aéreas do admin — checkboxes com mapas disponíveis
+                const mapDefs = [
+                    { key: 'bermuda',   label: 'Bermuda' },
+                    { key: 'purgatorio',label: 'Purgatório' },
+                    { key: 'solara',    label: 'Solara' },
+                    { key: 'kalahari',  label: 'Kalahari' },
+                    { key: 'novaTerra', label: 'Nova Terra' }
+                ];
+                const ml = prodData.mapLinks || {};
+                // Mostrar só mapas com link; se nenhum ainda, mostrar todos
+                const displayMaps = mapDefs.filter(m => ml[m.key] && ml[m.key].trim() !== '');
+                const mapsHtml = (displayMaps.length > 0 ? displayMaps : mapDefs)
+                    .map(m => `<label class="flex items-center gap-3 p-3 border border-orange-200 rounded-xl bg-white hover:bg-orange-50 cursor-pointer">
+                        <input type="checkbox" name="aereasMapOption" value="${m.key}" class="w-4 h-4 accent-orange-500">
+                        <i class="fas fa-map-marker-alt text-orange-400 text-sm"></i>
+                        <span class="text-sm font-medium text-gray-800">${m.label}</span>
+                    </label>`).join('');
+                const basePrice = (prodData.priceOptions?.[0]?.price) || prodData.price || 2;
+                container.innerHTML = `
+                    <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-6 border border-orange-100">
+                        <div class="flex items-center mb-4">
+                            <div class="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center mr-3">
+                                <i class="fas fa-map text-white"></i>
+                            </div>
+                            <h4 class="text-lg font-semibold text-gray-800">Selecionar Mapas</h4>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-3 mb-4">${mapsHtml}</div>
+                        <div class="bg-orange-100 rounded-lg p-3">
+                            <span class="text-sm text-orange-800 font-medium">
+                                Selecionados: <b id="aereasCount">0</b> •
+                                Total: <b id="aereasPrice">R$ 0,00</b>
+                            </span>
+                        </div>
+                    </div>`;
+                const updateAereasPrice = () => {
+                    const n = document.querySelectorAll('input[name="aereasMapOption"]:checked').length;
+                    const el = document.getElementById('aereasCount'); if (el) el.textContent = String(n);
+                    const ep = document.getElementById('aereasPrice'); if (ep) ep.textContent = `R$ ${(n * basePrice).toFixed(2)}`;
+                };
+                document.querySelectorAll('input[name="aereasMapOption"]').forEach(i => i.addEventListener('change', updateAereasPrice));
+                updateAereasPrice();
+            } else if (isPasse) {
                 container.innerHTML = `
                     <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
                         <div class="flex items-center mb-4">
@@ -6092,8 +6136,22 @@ async function handleProductPurchase(productId, cfg) {
             const prodName = (prodInfo.name || prodInfo.label || '').toLowerCase();
             const isPasse = prodCat === 'passe' || prodName.includes('passe');
             const isFisico = prodCat === 'fisico' || prodCat === 'physical';
+            const isAereas = prodCat === 'aereas';
 
-            if (isPasse) {
+            if (isAereas) {
+                const selectedMaps = Array.from(
+                    document.querySelectorAll('input[name="aereasMapOption"]:checked')
+                ).map(i => i.value);
+                if (selectedMaps.length === 0) {
+                    alert('Por favor, selecione pelo menos um mapa.');
+                    return;
+                }
+                productOptions.maps = selectedMaps;
+                productOptions.quantity = selectedMaps.length;
+                // Calcula preço com base na quantidade × preço base
+                const basePrice = (prodInfo.priceOptions?.[0]?.price) || prodInfo.price || 2;
+                finalPrice = selectedMaps.length * basePrice;
+            } else if (isPasse) {
                 productOptions.gameNick = document.getElementById('gameNick')?.value?.trim() || '';
                 productOptions.gameId = document.getElementById('gameId')?.value?.trim() || '';
                 productOptions.gameContact = document.getElementById('gameContact')?.value?.trim() || '';
