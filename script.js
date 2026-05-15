@@ -4521,107 +4521,140 @@ function addProductOptions(productId) {
 
         default: {
             // Produtos criados pelo admin — detecta o tipo pelo dado salvo no Firestore
-            const prodData = (typeof products !== 'undefined' && products[productId]) || {};
+            const prodData = (window.scheduleConfig?.[productId]) || (typeof products !== 'undefined' && products[productId]) || {};
             const prodCat = (prodData.category || '').toLowerCase();
-            const prodName = (prodData.name || '').toLowerCase();
+            const prodName = (prodData.name || prodData.label || '').toLowerCase();
             const isPasse = prodCat === 'passe' || prodName.includes('passe') || prodName.includes('pass booyah');
             const isFisico = prodCat === 'fisico' || prodCat === 'physical';
 
             if (isPasse) {
-                // Passe: pede ID do jogo
                 container.innerHTML = `
                     <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
                         <div class="flex items-center mb-4">
                             <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center mr-3">
-                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
+                                <i class="fas fa-gamepad text-white"></i>
                             </div>
                             <h4 class="text-lg font-semibold text-gray-800">Informações do Jogo</h4>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">ID do Jogador (Free Fire)</label>
-                            <input type="text" id="playerId" placeholder="Ex.: 123456789"
-                                   class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 focus:outline-none transition-colors">
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nick (Apelido no Free Fire) <span class="text-red-500">*</span></label>
+                                <input type="text" id="gameNick" placeholder="Seu apelido no jogo"
+                                       class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">ID do Jogador (Free Fire) <span class="text-red-500">*</span></label>
+                                <input type="text" id="gameId" placeholder="Ex.: 123456789"
+                                       class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Contato WhatsApp <span class="text-red-500">*</span></label>
+                                <input type="tel" id="gameContact" placeholder="(XX) 9XXXX-XXXX"
+                                       class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 focus:outline-none transition-colors">
+                            </div>
                         </div>
                         <div class="mt-4 bg-green-100 rounded-lg p-3 flex items-center gap-2">
-                            <svg class="w-4 h-4 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                            <span class="text-sm text-green-800 font-medium">Entrega rápida! Não pedimos senha/email, apenas o ID.</span>
+                            <i class="fas fa-info-circle text-green-600 flex-shrink-0"></i>
+                            <span class="text-sm text-green-800 font-medium">Não pedimos senha/email. Apenas Nick, ID e WhatsApp para entrega.</span>
                         </div>
                     </div>
                 `;
             } else if (isFisico) {
-                // Produto físico: pede endereço de entrega
                 container.innerHTML = `
                     <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-100">
                         <div class="flex items-center mb-4">
                             <div class="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center mr-3">
-                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                </svg>
+                                <i class="fas fa-box text-white"></i>
                             </div>
-                            <h4 class="text-lg font-semibold text-gray-800">Endereço de Entrega</h4>
+                            <h4 class="text-lg font-semibold text-gray-800">Dados para Entrega</h4>
                         </div>
-                        <div class="grid md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Nome Completo</label>
+                        <div class="grid md:grid-cols-2 gap-3">
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nome Completo <span class="text-red-500">*</span></label>
                                 <input id="addrNome" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">CPF</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">CPF <span class="text-red-500">*</span></label>
                                 <input id="customerCPF" type="text" placeholder="000.000.000-00" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">CEP</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Tamanho (se aplicável)</label>
+                                <select id="prodTamanho" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                                    <option value="">Não se aplica</option>
+                                    <option value="PP">PP</option>
+                                    <option value="P">P</option>
+                                    <option value="M">M</option>
+                                    <option value="G">G</option>
+                                    <option value="GG">GG</option>
+                                    <option value="XGG">XGG</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">CEP <span class="text-red-500">*</span></label>
                                 <input id="addrCEP" type="text" placeholder="00000-000" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Endereço</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Endereço (Rua) <span class="text-red-500">*</span></label>
                                 <input id="addrRua" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Número</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Número</label>
                                 <input id="addrNumero" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Bairro</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Complemento</label>
+                                <input id="addrComplemento" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Bairro <span class="text-red-500">*</span></label>
                                 <input id="addrBairro" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Cidade</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Cidade <span class="text-red-500">*</span></label>
                                 <input id="addrCidade" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Estado <span class="text-red-500">*</span></label>
                                 <input id="addrEstado" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
                             </div>
                         </div>
                         <div class="mt-4 bg-purple-100 rounded-lg p-3 flex items-center gap-2">
-                            <svg class="w-4 h-4 text-purple-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                            <span class="text-sm text-purple-800 font-medium">Produto físico — será enviado pelo correio após confirmação.</span>
+                            <i class="fas fa-truck text-purple-600 flex-shrink-0"></i>
+                            <span class="text-sm text-purple-800 font-medium">Produto físico — será enviado pelo correio após confirmação do pagamento.</span>
                         </div>
                     </div>
                 `;
             } else {
-                // Digital / Serviço: mostra confirmação simples
-                const dlLink = prodData.downloadLink;
+                // Digital — coleta Nome, Email, Telefone
                 container.innerHTML = `
                     <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
-                        <div class="flex items-center gap-3 mb-3">
+                        <div class="flex items-center gap-3 mb-4">
                             <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                                </svg>
+                                <i class="fas fa-download text-white"></i>
                             </div>
-                            <h4 class="text-lg font-semibold text-gray-800">Produto Digital</h4>
+                            <h4 class="text-lg font-semibold text-gray-800">Dados para Recebimento</h4>
                         </div>
-                        <p class="text-sm text-gray-600 mb-3">Após a confirmação do pagamento, o acesso será liberado automaticamente na sua conta.</p>
-                        ${dlLink ? `<p class="text-xs text-blue-700 bg-blue-100 rounded-lg px-3 py-2"><i class="fas fa-link mr-1"></i>Link de acesso será disponibilizado após o pagamento.</p>` : ''}
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nome Completo <span class="text-red-500">*</span></label>
+                                <input type="text" id="digitalNome" placeholder="Seu nome completo"
+                                       class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">E-mail <span class="text-red-500">*</span></label>
+                                <input type="email" id="digitalEmail" placeholder="seu@email.com"
+                                       class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Telefone / WhatsApp <span class="text-red-500">*</span></label>
+                                <input type="tel" id="digitalTelefone" placeholder="(XX) 9XXXX-XXXX"
+                                       class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-colors">
+                            </div>
+                        </div>
+                        <div class="mt-4 bg-blue-100 rounded-lg p-3 flex items-center gap-2">
+                            <i class="fas fa-bolt text-blue-600 flex-shrink-0"></i>
+                            <span class="text-sm text-blue-800 font-medium">O link de download será liberado automaticamente após a confirmação do pagamento.</span>
+                        </div>
                     </div>
                 `;
             }
@@ -5657,14 +5690,20 @@ async function updateOccupiedAndRefreshButtons(day, date, eventType, container) 
     } catch (err) {}
 
     // Verificar travas permanentes por horário (event_hour_locks) — sem data, valem sempre
-    // IMPORTANTE: usar apenas 1 filtro no where() para evitar exigência de índice composto no Firestore
+    // Busca todos os docs e filtra em JS para evitar problemas de índice/eventType
     try {
-        const { collection: _c, query: _q, where: _w, getDocs: _g } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        if (window.firebaseDb && eventType) {
-            const hlSnap = await _g(_q(_c(window.firebaseDb, 'event_hour_locks'), _w('eventType', '==', eventType)));
+        const { collection: _c, getDocs: _g } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        if (window.firebaseDb) {
+            const hlSnap = await _g(_c(window.firebaseDb, 'event_hour_locks'));
             hlSnap.forEach(doc => {
                 const data = doc.data();
-                if (data.locked !== true) return; // filtrar em JS — evita índice composto
+                if (data.locked !== true) return;
+                // Verificar se o eventType bate (comparação case-insensitive e normalizada)
+                const docEventType = (data.eventType || '').toLowerCase().replace(/[\s_]/g, '-');
+                const curEventType = (eventType || '').toLowerCase().replace(/[\s_]/g, '-');
+                // Aceitar se eventType não definido no doc, ou se bate, ou se o docId começa com o eventType
+                const matchesType = !data.eventType || docEventType === curEventType || doc.id.startsWith(curEventType) || doc.id.startsWith((eventType||''));
+                if (!matchesType) return;
                 const h = parseInt(String(data.hour || '').replace(/\D/g,''), 10);
                 if (!isNaN(h)) lockedHours.add(h);
             });
@@ -6046,6 +6085,41 @@ async function handleProductPurchase(productId, cfg) {
             productOptions.size = shirtSize;
             productOptions.name = nameOnShirt;
             productOptions.delivery = { nome, cpf, cep, rua, numero, complemento, bairro, cidade, estado };
+        } else {
+            // Produto genérico criado pelo admin — coleta dados conforme categoria
+            const prodInfo = window.scheduleConfig?.[productId] || {};
+            const prodCat = (prodInfo.category || '').toLowerCase();
+            const prodName = (prodInfo.name || prodInfo.label || '').toLowerCase();
+            const isPasse = prodCat === 'passe' || prodName.includes('passe');
+            const isFisico = prodCat === 'fisico' || prodCat === 'physical';
+
+            if (isPasse) {
+                productOptions.gameNick = document.getElementById('gameNick')?.value?.trim() || '';
+                productOptions.gameId = document.getElementById('gameId')?.value?.trim() || '';
+                productOptions.gameContact = document.getElementById('gameContact')?.value?.trim() || '';
+            } else if (isFisico) {
+                productOptions.delivery = {
+                    nome: document.getElementById('addrNome')?.value?.trim() || '',
+                    cpf: document.getElementById('customerCPF')?.value?.trim() || '',
+                    cep: document.getElementById('addrCEP')?.value?.trim() || '',
+                    rua: document.getElementById('addrRua')?.value?.trim() || '',
+                    numero: document.getElementById('addrNumero')?.value?.trim() || '',
+                    complemento: document.getElementById('addrComplemento')?.value?.trim() || '',
+                    bairro: document.getElementById('addrBairro')?.value?.trim() || '',
+                    cidade: document.getElementById('addrCidade')?.value?.trim() || '',
+                    estado: document.getElementById('addrEstado')?.value?.trim() || '',
+                    tamanho: document.getElementById('prodTamanho')?.value || ''
+                };
+            } else {
+                // Digital
+                productOptions.nome = document.getElementById('digitalNome')?.value?.trim() || '';
+                productOptions.email = document.getElementById('digitalEmail')?.value?.trim() || '';
+                productOptions.telefone = document.getElementById('digitalTelefone')?.value?.trim() || '';
+            }
+            // Salva o link de download direto no pedido para liberação automática
+            if (prodInfo.downloadLink) {
+                productOptions.downloadLink = prodInfo.downloadLink;
+            }
         }
 
         // Validar preço final
@@ -6081,6 +6155,8 @@ async function handleProductPurchase(productId, cfg) {
                     phone: resolvedPhone,
                     productId: productId,
                     productOptions: productOptions,
+                    downloadLink: cfg.downloadLink || productOptions.downloadLink || '',
+                    productCategory: cfg.category || '',
                     createdAt: new Date(),
                     timestamp: Date.now(),
                     type: 'digital_product'

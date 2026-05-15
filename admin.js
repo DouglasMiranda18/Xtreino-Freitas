@@ -1067,7 +1067,8 @@ window.showWarningToast = function(message, title = 'Atenção') {
             date,
             schedule: schedule || '—',
             eventType: eventType || null,
-            status: 'confirmed'
+            status: 'confirmed',
+            userId: window.firebaseAuth?.currentUser?.uid || null
           };
           try{
             const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
@@ -9477,6 +9478,68 @@ function updateProdTitle(idx, val) {
     if (el) el.textContent = val || 'Novo Produto';
 }
 
+function _prodCatConfig(cat) {
+    const c = (cat || 'digital').toLowerCase();
+    if (c === 'passe') return { label: 'Passe de Elite', icon: 'fas fa-gamepad', headerClass: 'bg-gradient-to-r from-green-600 to-emerald-500', badgeClass: 'bg-white/20 text-white' };
+    if (c === 'fisico' || c === 'physical') return { label: 'Produto Físico', icon: 'fas fa-box', headerClass: 'bg-gradient-to-r from-purple-600 to-pink-500', badgeClass: 'bg-white/20 text-white' };
+    return { label: 'Produto Digital', icon: 'fas fa-download', headerClass: 'bg-gradient-to-r from-blue-600 to-indigo-500', badgeClass: 'bg-white/20 text-white' };
+}
+
+function _renderPriceOptionsHtml(idx) {
+    const options = productsData[idx]?.priceOptions || [];
+    if (options.length === 0) return '<p class="text-xs text-gray-400 italic">Nenhum valor cadastrado. Clique em "Adicionar Valor".</p>';
+    return options.map((opt, pIdx) => `
+        <div class="flex items-center gap-2">
+            <input type="text" value="${(opt.label || '').replace(/"/g, '&quot;')}" oninput="updatePriceOption(${idx},${pIdx},'label',this.value)" placeholder="Ex.: Básico, Premium..." class="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" style="min-width:0">
+            <span class="text-gray-500 text-sm font-medium flex-shrink-0">R$</span>
+            <input type="number" value="${opt.price || 0}" step="0.01" min="0" oninput="updatePriceOption(${idx},${pIdx},'price',parseFloat(this.value)||0)" class="w-24 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 flex-shrink-0">
+            ${options.length > 1 ? `<button onclick="removePriceOption(${idx},${pIdx})" class="text-red-400 hover:text-red-600 flex-shrink-0 text-lg leading-none">&times;</button>` : ''}
+        </div>`).join('');
+}
+
+function addPriceOption(idx) {
+    if (!Array.isArray(productsData[idx].priceOptions)) productsData[idx].priceOptions = [];
+    productsData[idx].priceOptions.push({ label: '', price: 0 });
+    const el = document.getElementById(`prod-prices-${idx}`);
+    if (el) el.innerHTML = _renderPriceOptionsHtml(idx);
+}
+
+function removePriceOption(idx, pIdx) {
+    if (!Array.isArray(productsData[idx].priceOptions)) return;
+    productsData[idx].priceOptions.splice(pIdx, 1);
+    if (productsData[idx].priceOptions[0]) productsData[idx].price = productsData[idx].priceOptions[0].price || 0;
+    const el = document.getElementById(`prod-prices-${idx}`);
+    if (el) el.innerHTML = _renderPriceOptionsHtml(idx);
+}
+
+function updatePriceOption(idx, pIdx, field, val) {
+    if (!Array.isArray(productsData[idx].priceOptions)) return;
+    productsData[idx].priceOptions[pIdx] = { ...(productsData[idx].priceOptions[pIdx] || {}), [field]: val };
+    if (pIdx === 0 && field === 'price') productsData[idx].price = val;
+}
+
+function setProdCategory(idx, cat) {
+    productsData[idx].category = cat;
+    renderProducts();
+    // Scroll to card after re-render
+    setTimeout(() => {
+        const card = document.getElementById(`prod-card-${idx}`);
+        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 80);
+}
+
+function updateProdBannerPreview(idx, url) {
+    const el = document.getElementById(`prod-banner-preview-${idx}`);
+    if (!el) return;
+    if (url) {
+        el.classList.remove('hidden');
+        el.innerHTML = `<img src="${url.replace(/"/g, '&quot;')}" class="w-full h-full object-cover" onerror="this.parentElement.classList.add('hidden')">`;
+    } else {
+        el.classList.add('hidden');
+        el.innerHTML = '';
+    }
+}
+
 function renderProducts() {
     const container = document.getElementById('productsContainer');
     if (!container) return;
@@ -9486,92 +9549,177 @@ function renderProducts() {
         return;
     }
     productsData.forEach((product, index) => {
+        const cat = (product.category || 'digital').toLowerCase();
         const isActive = product.active !== false;
-        const imgHtml = product.image
-            ? `<img src="${product.image}" class="w-full h-full object-cover" alt="Banner">`
-            : `<div class="flex flex-col items-center justify-center h-full text-gray-400 text-center px-2"><i class="fas fa-image text-2xl mb-1"></i><span class="text-xs">Sem banner</span></div>`;
+        const cc = _prodCatConfig(cat);
+
+        // Garantir priceOptions
+        if (!Array.isArray(product.priceOptions) || product.priceOptions.length === 0) {
+            product.priceOptions = [{ label: 'Padrão', price: product.price || 0 }];
+        }
+
         const safeTitle = (product.name || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-        const safeDl = (product.downloadLink || '').replace(/"/g, '&quot;');
+        const safeImg   = (product.image || '').replace(/"/g, '&quot;');
+        const safeDl    = (product.downloadLink || '').replace(/"/g, '&quot;');
+        const safeDesc  = (product.description || '').replace(/</g, '&lt;');
+
+        const isDigital = cat === 'digital' || cat === 'servico' || cat === 'service';
+        const isFisico  = cat === 'fisico' || cat === 'physical';
+        const isPasse   = cat === 'passe';
+
         const div = document.createElement('div');
         div.id = `prod-card-${index}`;
-        div.className = 'bg-white border border-gray-200 rounded-xl shadow-sm mb-6';
+        div.className = 'bg-white border border-gray-200 rounded-xl shadow-sm mb-6 overflow-hidden';
         div.innerHTML = `
-<div class="flex items-center justify-between px-5 py-3 bg-gray-50 border-b border-gray-200 rounded-t-xl">
-    <div class="flex items-center gap-2 min-w-0">
-        <span id="prod-title-${index}" class="font-semibold text-gray-800 text-sm truncate">${safeTitle || 'Novo Produto'}</span>
-        <span id="prod-badge-${index}" class="${_prodBadgeClass(isActive)}">${isActive ? 'Ativo' : 'Inativo'}</span>
+<div class="${cc.headerClass} px-5 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+        <i class="${cc.icon} text-white text-sm"></i>
+        <span id="prod-title-${index}" class="text-white font-semibold text-sm truncate max-w-xs">${safeTitle || 'Novo Produto'}</span>
+        <span id="prod-badge-${index}" class="px-2 py-0.5 rounded-full text-xs font-bold ${isActive ? 'bg-white/20 text-white' : 'bg-red-200 text-red-800'}">${isActive ? 'Ativo' : 'Inativo'}</span>
     </div>
-    <button onclick="deleteProduct(${index})" class="flex-shrink-0 ml-3 text-xs text-red-400 hover:text-red-600 transition-colors">
+    <button onclick="deleteProduct(${index})" class="flex-shrink-0 text-white/70 hover:text-white text-xs transition-colors ml-3">
         <i class="fas fa-trash-alt mr-1"></i>Excluir
     </button>
 </div>
-<div class="p-5">
-    <div class="flex flex-col md:flex-row gap-5 mb-5">
-        <div class="flex flex-col items-center gap-2 flex-shrink-0">
-            <div id="prod-banner-${index}" class="w-44 h-28 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 overflow-hidden">${imgHtml}</div>
-            <button onclick="uploadProductBanner(${index})" class="w-44 px-3 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg text-xs hover:bg-indigo-100 transition-colors text-center">
-                <i class="fas fa-upload mr-1"></i>Upload Banner
+<div class="p-5 space-y-4">
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="sm:col-span-2">
+            <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider">Título</label>
+            <input type="text" value="${safeTitle}" oninput="updateProdTitle(${index},this.value)"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" placeholder="Nome do produto">
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider">Status</label>
+            <select oninput="updateProdStatus(${index},this.value)"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                <option value="true"  ${isActive  ? 'selected' : ''}>Ativo</option>
+                <option value="false" ${!isActive ? 'selected' : ''}>Inativo</option>
+            </select>
+        </div>
+    </div>
+
+    <div>
+        <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider">Categoria</label>
+        <div class="grid grid-cols-3 gap-2">
+            <button onclick="setProdCategory(${index},'passe')"
+                    class="flex flex-col items-center gap-1 py-2 px-1 rounded-lg border-2 text-xs font-semibold transition-colors ${isPasse ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 text-gray-500 hover:border-green-300'}">
+                <i class="fas fa-gamepad text-base"></i>Passe de Elite
+            </button>
+            <button onclick="setProdCategory(${index},'fisico')"
+                    class="flex flex-col items-center gap-1 py-2 px-1 rounded-lg border-2 text-xs font-semibold transition-colors ${isFisico ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-gray-200 text-gray-500 hover:border-purple-300'}">
+                <i class="fas fa-box text-base"></i>Físico
+            </button>
+            <button onclick="setProdCategory(${index},'digital')"
+                    class="flex flex-col items-center gap-1 py-2 px-1 rounded-lg border-2 text-xs font-semibold transition-colors ${isDigital ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:border-blue-300'}">
+                <i class="fas fa-download text-base"></i>Digital
             </button>
         </div>
-        <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div class="sm:col-span-2">
-                <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider">Título</label>
-                <input type="text" value="${safeTitle}" oninput="updateProdTitle(${index},this.value)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" placeholder="Nome do produto">
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider">Categoria</label>
-                <select oninput="productsData[${index}].category=this.value" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
-                    <option value="">Selecione</option>
-                    <option value="digital" ${product.category === 'digital' ? 'selected' : ''}>Digital</option>
-                    <option value="fisico" ${['fisico','physical'].includes(product.category) ? 'selected' : ''}>Físico</option>
-                    <option value="servico" ${['servico','service'].includes(product.category) ? 'selected' : ''}>Serviço</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider">Valor (R$)</label>
-                <input type="number" value="${product.price || 0}" step="0.01" min="0" oninput="productsData[${index}].price=parseFloat(this.value)||0" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" placeholder="0,00">
-            </div>
-            <div class="sm:col-span-2">
-                <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider">Status</label>
-                <select oninput="updateProdStatus(${index},this.value)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
-                    <option value="true" ${isActive ? 'selected' : ''}>Ativo</option>
-                    <option value="false" ${!isActive ? 'selected' : ''}>Inativo</option>
-                </select>
-            </div>
+        <p class="text-xs text-gray-400 mt-1">
+            ${isPasse  ? '<i class="fas fa-gamepad text-green-500 mr-1"></i>Coleta Nick, ID e WhatsApp do jogador após compra.' : ''}
+            ${isFisico ? '<i class="fas fa-box text-purple-500 mr-1"></i>Coleta nome, endereço, CPF e tamanho após compra.' : ''}
+            ${isDigital ? '<i class="fas fa-download text-blue-500 mr-1"></i>Link liberado automaticamente após pagamento. Coleta nome, e-mail e WhatsApp.' : ''}
+        </p>
+    </div>
+
+    <div>
+        <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider"><i class="fas fa-image mr-1"></i>URL da Imagem / Banner</label>
+        <input type="url" value="${safeImg}" oninput="productsData[${index}].image=this.value;updateProdBannerPreview(${index},this.value)"
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" placeholder="https://...">
+        <div id="prod-banner-preview-${index}" class="mt-2 h-20 rounded-lg border border-gray-200 bg-gray-50 overflow-hidden ${safeImg ? '' : 'hidden'}">
+            ${safeImg ? `<img src="${safeImg}" class="w-full h-full object-cover" onerror="this.parentElement.classList.add('hidden')">` : ''}
         </div>
     </div>
-    <div class="mb-4">
-        <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider"><i class="fas fa-link mr-1"></i>Link de Download / Drive</label>
-        <input type="url" value="${safeDl}" oninput="productsData[${index}].downloadLink=this.value" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" placeholder="https://drive.google.com/...">
-    </div>
-    <div class="mb-4">
+
+    <div>
         <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider">Infos do Produto</label>
-        <textarea oninput="productsData[${index}].description=this.value" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none" placeholder="Informações gerais sobre o produto...">${product.description || ''}</textarea>
+        <textarea oninput="productsData[${index}].description=this.value" rows="3"
+                  class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none"
+                  placeholder="Descrição, o que está incluso, benefícios...">${safeDesc}</textarea>
     </div>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-            <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider">Detalhes</label>
-            <textarea oninput="productsData[${index}].details=this.value" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none" placeholder="Especificações técnicas, o que está incluso...">${product.details || ''}</textarea>
+
+    ${isDigital ? `
+    <div>
+        <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider">
+            <i class="fab fa-google-drive text-blue-500 mr-1"></i>Link de Download (Google Drive)
+        </label>
+        <input type="url" value="${safeDl}" oninput="productsData[${index}].downloadLink=this.value"
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+               placeholder="https://drive.google.com/...">
+        <p class="text-xs text-blue-600 mt-1">
+            <i class="fas fa-bolt mr-1"></i>Liberado automaticamente ao confirmar pagamento. Você também pode enviar manualmente na aba de pedidos.
+        </p>
+    </div>` : ''}
+
+    <div>
+        <div class="flex items-center justify-between mb-2">
+            <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                <i class="fas fa-tags mr-1"></i>Valores / Planos
+            </label>
+            <button onclick="addPriceOption(${index})"
+                    class="text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-1 rounded-lg hover:bg-indigo-100 transition-colors">
+                <i class="fas fa-plus mr-1"></i>Adicionar Valor
+            </button>
         </div>
-        <div>
-            <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider">Benefícios</label>
-            <textarea oninput="productsData[${index}].benefits=this.value" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none" placeholder="O que o cliente irá ganhar/receber...">${product.benefits || ''}</textarea>
+        <div id="prod-prices-${index}" class="space-y-2">
+            ${_renderPriceOptionsHtml(index)}
         </div>
+        <p class="text-xs text-gray-400 mt-1">O primeiro valor será o preço padrão. Adicione vários planos/faixas de preço se quiser.</p>
     </div>
+
 </div>`;
         container.appendChild(div);
     });
 }
 
 function addProduct() {
+    const existing = document.getElementById('_catSelectorOverlay');
+    if (existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.id = '_catSelectorOverlay';
+    overlay.className = 'fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4';
+    overlay.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full">
+            <h3 class="text-lg font-bold text-gray-800 mb-1 text-center">Tipo de Produto</h3>
+            <p class="text-sm text-gray-500 text-center mb-5">Escolha a categoria do novo produto:</p>
+            <div class="space-y-3">
+                <button onclick="_createProductWithCat('passe')" class="w-full flex items-center gap-3 px-4 py-3 bg-green-50 border-2 border-green-200 rounded-xl hover:border-green-400 hover:bg-green-100 transition-colors text-left">
+                    <i class="fas fa-gamepad text-green-600 text-xl w-7 text-center flex-shrink-0"></i>
+                    <div>
+                        <div class="font-semibold text-gray-800">Passe de Elite</div>
+                        <div class="text-xs text-gray-500">Coleta Nick, ID do Free Fire e WhatsApp</div>
+                    </div>
+                </button>
+                <button onclick="_createProductWithCat('fisico')" class="w-full flex items-center gap-3 px-4 py-3 bg-purple-50 border-2 border-purple-200 rounded-xl hover:border-purple-400 hover:bg-purple-100 transition-colors text-left">
+                    <i class="fas fa-box text-purple-600 text-xl w-7 text-center flex-shrink-0"></i>
+                    <div>
+                        <div class="font-semibold text-gray-800">Produto Físico</div>
+                        <div class="text-xs text-gray-500">Coleta nome, endereço, CPF e tamanho</div>
+                    </div>
+                </button>
+                <button onclick="_createProductWithCat('digital')" class="w-full flex items-center gap-3 px-4 py-3 bg-blue-50 border-2 border-blue-200 rounded-xl hover:border-blue-400 hover:bg-blue-100 transition-colors text-left">
+                    <i class="fas fa-download text-blue-600 text-xl w-7 text-center flex-shrink-0"></i>
+                    <div>
+                        <div class="font-semibold text-gray-800">Produto Digital</div>
+                        <div class="text-xs text-gray-500">Link de download liberado após pagamento. Coleta nome, e-mail e WhatsApp</div>
+                    </div>
+                </button>
+            </div>
+            <button onclick="document.getElementById('_catSelectorOverlay').remove()" class="w-full mt-4 py-2 text-sm text-gray-400 hover:text-gray-600 transition-colors">Cancelar</button>
+        </div>`;
+    document.body.appendChild(overlay);
+}
+
+function _createProductWithCat(cat) {
+    const overlay = document.getElementById('_catSelectorOverlay');
+    if (overlay) overlay.remove();
     productsData.push({
         id: `product_${Date.now()}`,
         name: '',
         description: '',
-        details: '',
-        benefits: '',
         price: 0,
-        category: 'digital',
+        priceOptions: [{ label: 'Padrão', price: 0 }],
+        category: cat,
         image: '',
         downloadLink: '',
         active: true,
@@ -9625,6 +9773,12 @@ async function uploadProductBanner(index) {
 async function saveProducts() {
     try {
         if (productsData.length === 0) { showToast('warning', 'Nenhum produto para salvar', 'Aviso'); return; }
+        // Sincronizar price com o primeiro priceOption antes de salvar
+        for (const product of productsData) {
+            if (Array.isArray(product.priceOptions) && product.priceOptions.length > 0) {
+                product.price = Number(product.priceOptions[0].price) || 0;
+            }
+        }
         const { collection, doc, setDoc, deleteDoc, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const productsRef = collection(window.firebaseDb, 'products');
         const existingSnap = await getDocs(productsRef);
@@ -9644,14 +9798,52 @@ async function saveProducts() {
     }
 }
 
+async function sendDownloadLink(orderId, userId, downloadLink, productName) {
+    if (!orderId || !downloadLink) { showToast('error', 'Pedido ou link inválido.', 'Erro'); return; }
+    try {
+        const { doc, collection, addDoc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        // Marca o pedido como link enviado manualmente
+        await updateDoc(doc(window.firebaseDb, 'orders', orderId), {
+            downloadSent: true,
+            downloadSentAt: Date.now(),
+            downloadSentBy: window.firebaseAuth?.currentUser?.uid || null
+        });
+        // Envia notificação ao usuário no app
+        if (userId) {
+            await addDoc(collection(window.firebaseDb, 'notifications'), {
+                userId,
+                title: '📦 Seu produto digital está pronto!',
+                message: `Olá! Seu produto "${productName || 'digital'}" está disponível para download. Acesse o link abaixo.`,
+                link: downloadLink,
+                type: 'download_ready',
+                read: false,
+                createdAt: serverTimestamp()
+            });
+        }
+        // Copia o link para área de transferência também
+        try { await navigator.clipboard.writeText(downloadLink); } catch(_) {}
+        showToast('success', 'Link enviado ao cliente! Link também copiado para área de transferência.', 'Enviado');
+    } catch (e) {
+        console.error('Erro ao enviar link:', e);
+        showToast('error', 'Erro ao enviar link: ' + (e.message || e), 'Erro');
+    }
+}
+
 window.openProductsModal = openProductsModal;
 window.closeProductsModal = closeProductsModal;
 window.addProduct = addProduct;
+window._createProductWithCat = _createProductWithCat;
 window.deleteProduct = deleteProduct;
 window.uploadProductBanner = uploadProductBanner;
 window.saveProducts = saveProducts;
+window.sendDownloadLink = sendDownloadLink;
 window.updateProdStatus = updateProdStatus;
 window.updateProdTitle = updateProdTitle;
+window.addPriceOption = addPriceOption;
+window.removePriceOption = removePriceOption;
+window.updatePriceOption = updatePriceOption;
+window.setProdCategory = setProdCategory;
+window.updateProdBannerPreview = updateProdBannerPreview;
 
 // ==================== ADMIN NOTIFICATION SYSTEM ====================
 

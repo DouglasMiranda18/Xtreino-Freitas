@@ -119,7 +119,7 @@ service cloud.firestore {
         )
       );
       allow list: if true;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && (request.resource.data.userId == request.auth.uid || canReadAll());
       allow update: if canReadAll();
       allow delete: if isAdmin() || isGerente();
     }
