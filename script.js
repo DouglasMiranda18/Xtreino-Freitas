@@ -4415,6 +4415,7 @@ function addProductOptions(productId) {
             break;
 
         case 'passe-booyah':
+        case 'passe':
             // Opções para passe Booyah
             container.innerHTML = `
                 <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
@@ -4426,20 +4427,16 @@ function addProductOptions(productId) {
                         </div>
                         <h4 class="text-lg font-semibold text-gray-800">Informações do Jogo</h4>
                     </div>
-                    
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">ID do Jogador (Free Fire)</label>
-                        <input type="text" id="playerId" placeholder="Ex.: 123456789" 
+                        <input type="text" id="playerId" placeholder="Ex.: 123456789"
                                class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 focus:outline-none transition-colors">
                     </div>
-                    
-                    <div class="mt-4 bg-green-100 rounded-lg p-3">
-                        <div class="flex items-center">
-                            <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                            <span class="text-sm text-green-800 font-medium">Entrega rápida! Não pedimos senha/email, apenas o ID.</span>
-                        </div>
+                    <div class="mt-4 bg-green-100 rounded-lg p-3 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span class="text-sm text-green-800 font-medium">Entrega rápida! Não pedimos senha/email, apenas o ID.</span>
                     </div>
                 </div>
             `;
@@ -4521,6 +4518,115 @@ function addProductOptions(productId) {
                 </div>
             `;
             break;
+
+        default: {
+            // Produtos criados pelo admin — detecta o tipo pelo dado salvo no Firestore
+            const prodData = (typeof products !== 'undefined' && products[productId]) || {};
+            const prodCat = (prodData.category || '').toLowerCase();
+            const prodName = (prodData.name || '').toLowerCase();
+            const isPasse = prodCat === 'passe' || prodName.includes('passe') || prodName.includes('pass booyah');
+            const isFisico = prodCat === 'fisico' || prodCat === 'physical';
+
+            if (isPasse) {
+                // Passe: pede ID do jogo
+                container.innerHTML = `
+                    <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
+                        <div class="flex items-center mb-4">
+                            <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center mr-3">
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <h4 class="text-lg font-semibold text-gray-800">Informações do Jogo</h4>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">ID do Jogador (Free Fire)</label>
+                            <input type="text" id="playerId" placeholder="Ex.: 123456789"
+                                   class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 focus:outline-none transition-colors">
+                        </div>
+                        <div class="mt-4 bg-green-100 rounded-lg p-3 flex items-center gap-2">
+                            <svg class="w-4 h-4 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span class="text-sm text-green-800 font-medium">Entrega rápida! Não pedimos senha/email, apenas o ID.</span>
+                        </div>
+                    </div>
+                `;
+            } else if (isFisico) {
+                // Produto físico: pede endereço de entrega
+                container.innerHTML = `
+                    <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-100">
+                        <div class="flex items-center mb-4">
+                            <div class="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center mr-3">
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                            </div>
+                            <h4 class="text-lg font-semibold text-gray-800">Endereço de Entrega</h4>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Nome Completo</label>
+                                <input id="addrNome" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">CPF</label>
+                                <input id="customerCPF" type="text" placeholder="000.000.000-00" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">CEP</label>
+                                <input id="addrCEP" type="text" placeholder="00000-000" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Endereço</label>
+                                <input id="addrRua" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Número</label>
+                                <input id="addrNumero" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Bairro</label>
+                                <input id="addrBairro" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Cidade</label>
+                                <input id="addrCidade" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+                                <input id="addrEstado" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                            </div>
+                        </div>
+                        <div class="mt-4 bg-purple-100 rounded-lg p-3 flex items-center gap-2">
+                            <svg class="w-4 h-4 text-purple-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span class="text-sm text-purple-800 font-medium">Produto físico — será enviado pelo correio após confirmação.</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // Digital / Serviço: mostra confirmação simples
+                const dlLink = prodData.downloadLink;
+                container.innerHTML = `
+                    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                                </svg>
+                            </div>
+                            <h4 class="text-lg font-semibold text-gray-800">Produto Digital</h4>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-3">Após a confirmação do pagamento, o acesso será liberado automaticamente na sua conta.</p>
+                        ${dlLink ? `<p class="text-xs text-blue-700 bg-blue-100 rounded-lg px-3 py-2"><i class="fas fa-link mr-1"></i>Link de acesso será disponibilizado após o pagamento.</p>` : ''}
+                    </div>
+                `;
+            }
+            break;
+        }
     }
 
     // Adicionar event listeners para atualizar preço dinamicamente
@@ -7782,43 +7888,47 @@ function setImageProducts(productId, product){
 }
 
 
-function setScheduleConfig(productId,product){
-            if (scheduleConfig[productId]) {               
-                scheduleConfig[productId].label = product.name || scheduleConfig[productId].label;
-                scheduleConfig[productId].price = product.price || scheduleConfig[productId].price;
-                scheduleConfig[productId].isProduct = true;               
-                scheduleConfig[productId].description = product.description;
-                scheduleConfig[productId].image = product.image;                
-               
-            } else {
-               
-                scheduleConfig[productId] = {
-                    label: product.name,
-                    price: product.price,
-                    isProduct: true,
-                    description: product.description,
-                    image: product.image
-                };
-            }
+function setScheduleConfig(productId, product) {
+    const base = {
+        label: product.name,
+        price: Number(product.price) || 0,
+        isProduct: true,
+        description: product.description,
+        details: product.details,
+        benefits: product.benefits,
+        image: product.image,
+        category: product.category,
+        downloadLink: product.downloadLink
+    };
+    if (scheduleConfig[productId]) {
+        scheduleConfig[productId] = { ...scheduleConfig[productId], ...base,
+            label: product.name || scheduleConfig[productId].label,
+            price: Number(product.price) || scheduleConfig[productId].price
+        };
+    } else {
+        scheduleConfig[productId] = base;
+    }
 }
 
-function setProducts(productId, product){
-    if (products[productId]) {               
-        products[productId].name = product.name || products[productId].name;
-        products[productId].price = product.price || products[productId].price;
-        products[productId].isProduct = true;               
-        products[productId].description = product.description;
-        products[productId].image = product.image;
-        
-            
-    } else {        
-        products[productId] = {
-            name: product.name,
-            price: product.price,
-            isProduct: true,
-            description: product.description,
-            image: product.image
+function setProducts(productId, product) {
+    const base = {
+        name: product.name,
+        price: Number(product.price) || 0,
+        isProduct: true,
+        description: product.description,
+        details: product.details,
+        benefits: product.benefits,
+        image: product.image,
+        category: product.category,
+        downloadLink: product.downloadLink
+    };
+    if (products[productId]) {
+        products[productId] = { ...products[productId], ...base,
+            name: product.name || products[productId].name,
+            price: Number(product.price) || products[productId].price
         };
+    } else {
+        products[productId] = base;
     }
 }
 
@@ -7858,10 +7968,12 @@ async function loadProductsFromFirestore() {
                 badgeHtml = `<div class="absolute top-4 right-4 ${badgeColor} text-xs font-bold px-2 py-1 rounded">${product.badge}</div>`;
             }
 
-            // Define ícone/indicador de categoria (físico/digital)
-            const categoryIcon = product.category === 'physical' 
-                ? '<span class="text-sm text-gray-500">Físico</span>' 
-                : '<span class="text-sm text-gray-500">Digital</span>';
+            // Define ícone/indicador de categoria
+            const catVal = (product.category || '').toLowerCase();
+            const catLabel = catVal === 'fisico' || catVal === 'physical' ? 'Físico'
+                : catVal === 'servico' || catVal === 'service' ? 'Serviço'
+                : 'Digital';
+            const categoryIcon = `<span class="text-sm text-gray-500">${catLabel}</span>`;
 
             // Monta a descrição resumida (primeiras linhas)
             const descriptionLines = (product.description || '').split('\n').slice(0, 3).join('<br>');
@@ -7869,21 +7981,24 @@ async function loadProductsFromFirestore() {
             // Imagem (usa imagem padrão se não houver)
             const imageUrl = product.image || 'assets/images/Logo - Xtreino Freitas.png';
 
+            // Preço seguro
+            const priceNum = Number(product.price) || 0;
+
             html += `
                 <div class="product-card relative">
                     ${badgeHtml}
                     <div class="product-media">
-                        <img src="${imageUrl}" alt="${product.name}" loading="lazy"">
+                        <img src="${imageUrl}" alt="${product.name}" loading="lazy">
                     </div>
                     <div class="product-title">${product.name}</div>
                     <div class="product-desc">
                         <div class="space-y-1">
-                            <div><strong>Valor:</strong> R$ ${product.price.toFixed(2)}</div>
+                            <div><strong>Valor:</strong> R$ ${priceNum.toFixed(2)}</div>
                             ${descriptionLines ? `<div>${descriptionLines}</div>` : ''}
                         </div>
                     </div>
                     <div class="product-meta flex justify-between items-center mb-3">
-                        <span class="text-2xl font-bold text-blue-matte">R$ ${product.price.toFixed(2)}</span>
+                        <span class="text-2xl font-bold text-blue-matte">R$ ${priceNum.toFixed(2)}</span>
                         ${categoryIcon}
                     </div>
                     <button onclick="openScheduleModal('${productId}')" class="w-full btn-primary py-2 rounded-lg font-semibold transition-colors">
