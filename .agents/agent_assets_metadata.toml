@@ -5,7 +5,7 @@ generated = []
 id = "f8OWt9htdzTifU0jnDr1x"
 uri = "file://firestore-rules.txt"
 type = "text"
-title = "firestore-rules.txt — Regras Firestore atualizadas"
+title = "firestore.rules — atualizado"
 
 [[outputs]]
 id = "gjvTQoqdXQDTG8X17jqBo"
