@@ -200,10 +200,10 @@
                     </button>
                 </div>
             </div>
-            <div class="overflow-hidden rounded-2xl border border-gray-200">
-                <div id="carouselTrack" class="flex transition-transform duration-500">
+            <div id="carouselViewport" class="overflow-hidden rounded-2xl border border-gray-200">
+                <div id="carouselTrack" class="flex transition-transform duration-500" style="will-change:transform;">
                     <!-- Os destaques serão carregados dinamicamente aqui -->
-                    <div class="min-w-full p-8 bg-white flex items-center justify-center">
+                    <div class="carousel-slide p-8 bg-white flex items-center justify-center" style="min-width:100%;">
                         <p class="text-gray-500">Carregando destaques...</p>
                     </div>
                 </div>
@@ -1000,23 +1000,16 @@
     <div id="scheduleModal" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
         <div class="bg-white rounded-3xl max-w-4xl max-w-[calc(100vw-2rem)] w-full max-h-[90vh] overflow-hidden relative shadow-2xl mx-auto">
             <!-- Header -->
-            <div class="text-white p-6 relative" style="background: linear-gradient(135deg, var(--brand-green-2) 0%, var(--brand-green-3) 100%);">
-                <button onclick="closeScheduleModal()" class="absolute top-4 right-4 text-white hover:text-gray-200 transition-colors">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="text-white px-5 py-3 relative flex items-center justify-between" style="background: linear-gradient(135deg, var(--brand-green-2) 0%, var(--brand-green-3) 100%);">
+                <div>
+                    <h3 class="text-base font-bold leading-tight">Reservar Horário</h3>
+                    <p class="text-white text-xs" style="opacity:.85;">Escolha a data e horário para seu evento</p>
+                </div>
+                <button onclick="closeScheduleModal()" class="text-white hover:text-gray-200 transition-colors ml-4 flex-shrink-0">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                 </button>
-                <div class="flex items-center space-x-3">
-                    <div class="w-12 h-12 bg-white bg-opacity-20 rounded-xl flex items-center justify-center">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                        </svg>
-                    </div>
-                    <div>
-                        <h3 class="text-2xl font-bold">Reservar Horário</h3>
-                        <p class="text-white text-opacity-80 text-sm">Escolha a data e horário para seu evento</p>
-                    </div>
-                </div>
             </div>
 
             <!-- Content -->

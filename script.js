@@ -2902,94 +2902,89 @@ async function loadHighlightsFromFirestore() {
     }
 }
 
-// Simple carousel with auto-advance
+// Carousel — abordagem por scrollLeft (não depende de offsetWidth no init)
 function initCarousel() {
-    const track = document.getElementById('carouselTrack');
-    const prev = document.getElementById('carouselPrev');
-    const next = document.getElementById('carouselNext');
+    const viewport = document.getElementById('carouselViewport');
+    const track    = document.getElementById('carouselTrack');
+    const prev     = document.getElementById('carouselPrev');
+    const next     = document.getElementById('carouselNext');
     if (!track || !prev || !next) return;
 
+    // Remover listener anterior para evitar duplicatas
+    if (window._carouselCleanup) window._carouselCleanup();
+
+    const container = viewport || track.parentElement;
     let index = 0;
-    const slides = track.children.length;
+    let slideCount = track.children.length;
     let autoAdvanceInterval;
 
-    function getSlideWidth() {
-        return track.parentElement ? track.parentElement.offsetWidth : window.innerWidth;
+    function slideWidth() {
+        return container.getBoundingClientRect().width || container.offsetWidth || 0;
     }
 
-    function setSlideWidths() {
-        const w = getSlideWidth();
-        Array.from(track.children).forEach(slide => {
-            slide.style.width = w + 'px';
-            slide.style.flexShrink = '0';
+    function applyWidths() {
+        const w = slideWidth();
+        if (!w) return;
+        Array.from(track.children).forEach(s => {
+            s.style.width    = w + 'px';
+            s.style.minWidth = w + 'px';
+            s.style.flexShrink = '0';
         });
+        slideCount = track.children.length;
     }
 
     function update() {
-        track.style.transform = `translateX(-${index * getSlideWidth()}px)`;
+        const w = slideWidth();
+        track.style.transform = `translateX(-${index * w}px)`;
     }
 
-    function nextSlide() {
-        index = (index + 1) % slides;
+    function go(dir) {
+        index = ((index + dir) % slideCount + slideCount) % slideCount;
         update();
     }
 
-    function prevSlide() {
-        index = (index - 1 + slides) % slides;
-        update();
-    }
+    function startAuto() { autoAdvanceInterval = setInterval(() => go(1), 8000); }
+    function stopAuto()  { clearInterval(autoAdvanceInterval); }
 
-    function startAutoAdvance() {
-        autoAdvanceInterval = setInterval(nextSlide, 8000);
-    }
-
-    function stopAutoAdvance() {
-        if (autoAdvanceInterval) {
-            clearInterval(autoAdvanceInterval);
-        }
-    }
-
-    setSlideWidths();
-    update();
-
-    window.addEventListener('resize', () => {
-        setSlideWidths();
-        update();
+    // Aguardar dois frames para garantir que o layout foi calculado
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            applyWidths();
+            update();
+            if (slideCount > 1) startAuto();
+        });
     });
 
-    // Event listeners para botões manuais
-    prev.addEventListener('click', () => {
-        stopAutoAdvance();
-        prevSlide();
-        startAutoAdvance();
-    });
+    const onResize = () => { applyWidths(); update(); };
+    window.addEventListener('resize', onResize);
 
-    next.addEventListener('click', () => {
-        stopAutoAdvance();
-        nextSlide();
-        startAutoAdvance();
-    });
+    const onPrev = () => { stopAuto(); go(-1); startAuto(); };
+    const onNext = () => { stopAuto(); go(1);  startAuto(); };
+    prev.addEventListener('click', onPrev);
+    next.addEventListener('click', onNext);
 
-    // Pausar auto-advance quando hover
-    track.addEventListener('mouseenter', stopAutoAdvance);
-    track.addEventListener('mouseleave', startAutoAdvance);
+    track.addEventListener('mouseenter', stopAuto);
+    track.addEventListener('mouseleave', startAuto);
 
-    // Suporte a swipe no mobile
-    let touchStartX = 0;
-    track.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, { passive: true });
-    track.addEventListener('touchend', e => {
-        const diff = touchStartX - e.changedTouches[0].screenX;
-        if (Math.abs(diff) > 50) {
-            stopAutoAdvance();
-            if (diff > 0) nextSlide(); else prevSlide();
-            startAutoAdvance();
-        }
-    }, { passive: true });
+    // Swipe no mobile
+    let tx = 0;
+    const onTouchStart = e => { tx = e.changedTouches[0].screenX; };
+    const onTouchEnd   = e => {
+        const d = tx - e.changedTouches[0].screenX;
+        if (Math.abs(d) > 50) { stopAuto(); go(d > 0 ? 1 : -1); startAuto(); }
+    };
+    track.addEventListener('touchstart', onTouchStart, { passive: true });
+    track.addEventListener('touchend',   onTouchEnd,   { passive: true });
 
-    // Iniciar auto-advance
-    if (slides > 1) {
-        startAutoAdvance();
-    }
+    // Limpeza para evitar listeners duplicados
+    window._carouselCleanup = () => {
+        stopAuto();
+        window.removeEventListener('resize', onResize);
+        prev.removeEventListener('click', onPrev);
+        next.removeEventListener('click', onNext);
+        track.removeEventListener('touchstart', onTouchStart);
+        track.removeEventListener('touchend',   onTouchEnd);
+    };
 }
 
 // Carregar destaques quando o Firebase estiver pronto
