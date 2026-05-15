@@ -174,7 +174,7 @@
 
 <script type="module">
 import { initializeApp, getApps, getApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
-import { getFirestore, doc, getDoc, collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+import { getFirestore, doc, getDoc, deleteDoc, collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 import { getAuth, onAuthStateChanged, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
 
 const FIREBASE_CONFIG = {
@@ -466,51 +466,111 @@ async function loadInscritos(evId) {
         const allDocs = [];
         snaps.forEach(snap => snap.docs.forEach(d => { if (!seen.has(d.id)) { seen.add(d.id); allDocs.push(d); } }));
 
+        // Auto-deletar inscrições de dias passados (best-effort; silencia erro se sem permissão)
+        const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const pastDocs = allDocs.filter(d => {
+            const dt = d.data().date;
+            return dt && /^\d{4}-\d{2}-\d{2}$/.test(dt) && dt < todayStr;
+        });
+        if (pastDocs.length > 0) {
+            for (const pd of pastDocs) {
+                deleteDoc(doc(_db, 'registrations', pd.id)).catch(() => {});
+            }
+        }
+
         const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
-        const valid = allDocs.filter(d => validStatuses.has(d.data().status));
+        // Excluir dias passados da exibição independente de permissão de delete
+        const valid = allDocs.filter(d => {
+            const r = d.data();
+            const dt = r.date;
+            const isPast = dt && /^\d{4}-\d{2}-\d{2}$/.test(dt) && dt < todayStr;
+            return validStatuses.has(r.status) && !isPast;
+        });
 
         if (valid.length === 0) {
             container.innerHTML = '<div class="text-center py-6 text-slate-500 text-sm">Nenhuma equipe inscrita ainda.</div>';
             return;
         }
 
-        // Agrupar por horário
-        const bySchedule = {};
+        // Agrupar por (data + horário) — chave ordenável: "YYYY-MM-DD|horário"
+        const groups = {};
         valid.forEach(d => {
             const r = d.data();
+            const dt = r.date || '';
             const sched = r.schedule || '—';
-            if (!bySchedule[sched]) bySchedule[sched] = [];
-            bySchedule[sched].push(r);
+            const key = `${dt}|${sched}`;
+            if (!groups[key]) groups[key] = { date: dt, sched, regs: [] };
+            groups[key].regs.push(r);
         });
 
-        // Ordenar por slot crescente dentro de cada horário
-        Object.values(bySchedule).forEach(arr => {
-            arr.sort((a, b) => {
-                const sa = a.slot != null ? Number(a.slot) : Infinity;
-                const sb = b.slot != null ? Number(b.slot) : Infinity;
+        // Ordenar grupos por data crescente, depois horário crescente
+        const groupKeys = Object.keys(groups).sort();
+
+        // Dentro de cada grupo: ordenar por slot crescente e deduplicar slots
+        for (const key of groupKeys) {
+            const grp = groups[key];
+            grp.regs.sort((a, b) => {
+                const sa = a.slot != null ? Number(a.slot) : (a.slotNumber != null ? Number(a.slotNumber) : Infinity);
+                const sb = b.slot != null ? Number(b.slot) : (b.slotNumber != null ? Number(b.slotNumber) : Infinity);
                 return sa - sb;
             });
-        });
+            const seenSlots = new Set();
+            grp.regs = grp.regs.filter(r => {
+                const slotKey = r.slot != null ? String(r.slot) : (r.slotNumber != null ? String(r.slotNumber) : r.teamName);
+                if (seenSlots.has(slotKey)) return false;
+                seenSlots.add(slotKey);
+                return true;
+            });
+        }
 
-        const schedKeys = Object.keys(bySchedule).sort();
-        let html = '';
-        for (const sched of schedKeys) {
-            const regs = bySchedule[sched];
-            html += `
-            <div class="mb-5">
-                <div class="flex items-center gap-2 mb-3">
-                    <span class="bg-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold">
-                        <i class="fas fa-clock mr-1"></i>${sched}
-                    </span>
-                    <span class="text-xs text-slate-400">${regs.length} inscrito(s)</span>
+        // Datas e horários únicos para filtros
+        const uniqueDates = [...new Set(groupKeys.map(k => groups[k].date))].filter(Boolean).sort();
+        const uniqueScheds = [...new Set(groupKeys.map(k => groups[k].sched))].sort();
+        const hasDateFilter = uniqueDates.length > 1;
+        const hasSchedFilter = uniqueScheds.length > 1;
+
+        // Renderizar filtros
+        const fmtDate = d => d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d.split('-').reverse().join('/') : d;
+        let filterHtml = '';
+        if (hasDateFilter || hasSchedFilter) {
+            filterHtml = `<div class="mb-5 space-y-2">`;
+            if (hasDateFilter) {
+                filterHtml += `<div class="flex flex-wrap gap-1.5 items-center">
+                    <span class="text-xs text-slate-400 mr-1"><i class="fas fa-calendar-alt mr-1"></i>Dia:</span>
+                    <button class="ins-df active-filter px-3 py-1 text-xs rounded-full font-bold transition-colors" data-fd="all">Todos</button>
+                    ${uniqueDates.map(d => `<button class="ins-df px-3 py-1 text-xs rounded-full font-bold transition-colors" data-fd="${d}">${fmtDate(d)}</button>`).join('')}
+                </div>`;
+            }
+            if (hasSchedFilter) {
+                filterHtml += `<div class="flex flex-wrap gap-1.5 items-center">
+                    <span class="text-xs text-slate-400 mr-1"><i class="fas fa-clock mr-1"></i>Horário:</span>
+                    <button class="ins-sf active-filter px-3 py-1 text-xs rounded-full font-bold transition-colors" data-fs="all">Todos</button>
+                    ${uniqueScheds.map(s => `<button class="ins-sf px-3 py-1 text-xs rounded-full font-bold transition-colors" data-fs="${s}">${s}</button>`).join('')}
+                </div>`;
+            }
+            filterHtml += `</div>`;
+        }
+
+        // Renderizar grupos
+        let groupsHtml = '';
+        for (const key of groupKeys) {
+            const { date, sched, regs } = groups[key];
+            const safeKey = key.replace(/[^a-zA-Z0-9]/g, '_');
+            groupsHtml += `
+            <div class="ins-group mb-5" data-gd="${date}" data-gs="${sched}">
+                <div class="flex items-center gap-2 mb-3 flex-wrap">
+                    ${date ? `<span class="bg-slate-600 text-slate-200 px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-calendar-alt mr-1"></i>${fmtDate(date)}</span>` : ''}
+                    <span class="bg-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-clock mr-1"></i>${sched}</span>
+                    <span class="text-xs text-slate-400">${regs.length} time(s)</span>
                 </div>
                 <div class="space-y-2">
                     ${regs.map(r => {
                         const slotNum = r.slotNumber != null ? r.slotNumber : r.slot;
                         const teamName = r.teamName || r.email || '—';
                         const leaderName = r.leaderName && r.leaderName !== r.teamName ? r.leaderName : null;
-                        const dateFmt = r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date.split('-').reverse().join('/') : (r.date || '');
-                        const slotBadge = slotNum != null ? `<span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-orange-600 text-white text-xs font-black flex-shrink-0">#${slotNum}</span>` : '';
+                        const slotBadge = slotNum != null
+                            ? `<span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-orange-600 text-white text-xs font-black flex-shrink-0">#${slotNum}</span>`
+                            : '';
                         return `<div class="bg-slate-700 rounded-xl px-4 py-3 border border-slate-600">
                             <div class="flex items-center gap-3">
                                 ${slotBadge}
@@ -518,14 +578,50 @@ async function loadInscritos(evId) {
                                     <p class="font-bold text-slate-100 text-sm leading-tight truncate">${teamName}</p>
                                     ${leaderName ? `<p class="text-xs text-slate-400 mt-0.5">Líder: ${leaderName}</p>` : ''}
                                 </div>
-                                ${dateFmt ? `<span class="text-xs text-slate-500 flex-shrink-0">${dateFmt}</span>` : ''}
                             </div>
                         </div>`;
                     }).join('')}
                 </div>
             </div>`;
         }
-        container.innerHTML = html;
+
+        container.innerHTML = filterHtml + `<div id="insGrpWrap">${groupsHtml}</div>`;
+
+        // Estilo ativo/inativo dos filtros via classes inline
+        const styleActive = 'ins-df active-filter px-3 py-1 text-xs rounded-full font-bold transition-colors bg-orange-600 text-white';
+        const styleInactive = 'ins-df px-3 py-1 text-xs rounded-full font-bold transition-colors bg-slate-700 text-slate-300 hover:bg-slate-600';
+        const styleSActive = 'ins-sf active-filter px-3 py-1 text-xs rounded-full font-bold transition-colors bg-orange-600 text-white';
+        const styleSInactive = 'ins-sf px-3 py-1 text-xs rounded-full font-bold transition-colors bg-slate-700 text-slate-300 hover:bg-slate-600';
+
+        // Aplicar estilos iniciais
+        container.querySelectorAll('.ins-df').forEach(b => { b.className = b.dataset.fd === 'all' ? styleActive : styleInactive; });
+        container.querySelectorAll('.ins-sf').forEach(b => { b.className = b.dataset.fs === 'all' ? styleSActive : styleSInactive; });
+
+        let activeDate = 'all', activeSched = 'all';
+        function applyFilters() {
+            container.querySelectorAll('.ins-group').forEach(g => {
+                const matchD = activeDate === 'all' || g.dataset.gd === activeDate;
+                const matchS = activeSched === 'all' || g.dataset.gs === activeSched;
+                g.style.display = matchD && matchS ? '' : 'none';
+            });
+        }
+
+        container.addEventListener('click', e => {
+            const df = e.target.closest('.ins-df');
+            if (df) {
+                activeDate = df.dataset.fd;
+                container.querySelectorAll('.ins-df').forEach(b => { b.className = b.dataset.fd === activeDate ? styleActive : styleInactive; });
+                applyFilters();
+                return;
+            }
+            const sf = e.target.closest('.ins-sf');
+            if (sf) {
+                activeSched = sf.dataset.fs;
+                container.querySelectorAll('.ins-sf').forEach(b => { b.className = b.dataset.fs === activeSched ? styleSActive : styleSInactive; });
+                applyFilters();
+            }
+        });
+
     } catch(e) {
         console.error('[loadInscritos] erro ao carregar inscritos:', e?.message || e);
         const isPermission = e?.code === 'permission-denied' || String(e).includes('permission');
