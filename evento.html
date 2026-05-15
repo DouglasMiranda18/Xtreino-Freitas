@@ -479,16 +479,16 @@ async function loadInscritos(evId) {
         }
 
         const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
-        // Excluir dias passados da exibição independente de permissão de delete
+        // Mostrar apenas inscrições do dia atual (ou sem data definida)
         const valid = allDocs.filter(d => {
             const r = d.data();
             const dt = r.date;
-            const isPast = dt && /^\d{4}-\d{2}-\d{2}$/.test(dt) && dt < todayStr;
-            return validStatuses.has(r.status) && !isPast;
+            const isToday = !dt || !(/^\d{4}-\d{2}-\d{2}$/.test(dt)) || dt === todayStr;
+            return validStatuses.has(r.status) && isToday;
         });
 
         if (valid.length === 0) {
-            container.innerHTML = '<div class="text-center py-6 text-slate-500 text-sm">Nenhuma equipe inscrita ainda.</div>';
+            container.innerHTML = '<div class="text-center py-6 text-slate-500 text-sm">Nenhuma equipe inscrita para hoje.</div>';
             return;
         }
 

@@ -9431,33 +9431,24 @@ window.submitPaymentRequest = submitPaymentRequest;
 // ===== GERENCIAMENTO DE PRODUTOS =====
 
 let productsData = [];
-let productCounter = 1;
 
-// Abrir modal de produtos
 function openProductsModal() {
     loadProducts();
     const modal = document.getElementById('modalProducts');
     if (modal) modal.classList.remove('hidden');
 }
 
-// Fechar modal de produtos
 function closeProductsModal() {
     const modal = document.getElementById('modalProducts');
     if (modal) modal.classList.add('hidden');
 }
 
-// Carregar produtos do Firestore
 async function loadProducts() {
     try {
         const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const productsRef = collection(window.firebaseDb, 'products');
-        const snapshot = await getDocs(productsRef);
-        
+        const snapshot = await getDocs(collection(window.firebaseDb, 'products'));
         productsData = [];
-        snapshot.forEach(doc => {
-            productsData.push({ id: doc.id, ...doc.data() });
-        });
-        
+        snapshot.forEach(d => productsData.push({ id: d.id, ...d.data() }));
         renderProducts();
     } catch (error) {
         console.error('Erro ao carregar produtos:', error);
@@ -9465,114 +9456,134 @@ async function loadProducts() {
     }
 }
 
-// Renderizar produtos na interface
+function _prodBadgeClass(active) {
+    return active
+        ? 'px-2 py-0.5 rounded-full text-xs font-bold flex-shrink-0 bg-green-100 text-green-700'
+        : 'px-2 py-0.5 rounded-full text-xs font-bold flex-shrink-0 bg-red-100 text-red-700';
+}
+
+function updateProdStatus(idx, val) {
+    productsData[idx].active = val === 'true';
+    const badge = document.getElementById('prod-badge-' + idx);
+    if (badge) {
+        badge.className = _prodBadgeClass(val === 'true');
+        badge.textContent = val === 'true' ? 'Ativo' : 'Inativo';
+    }
+}
+
+function updateProdTitle(idx, val) {
+    productsData[idx].name = val;
+    const el = document.getElementById('prod-title-' + idx);
+    if (el) el.textContent = val || 'Novo Produto';
+}
+
 function renderProducts() {
     const container = document.getElementById('productsContainer');
     if (!container) return;
-    
     container.innerHTML = '';
-    
     if (productsData.length === 0) {
-        container.innerHTML = '<div class="text-center py-8 text-gray-500">Nenhum produto cadastrado. Clique em "Adicionar" para criar um novo.</div>';
+        container.innerHTML = '<div class="text-center py-10 text-gray-400"><i class="fas fa-box-open text-4xl mb-3 block opacity-40"></i><p>Nenhum produto cadastrado.</p><p class="text-sm mt-1">Clique em "Adicionar" para criar um novo.</p></div>';
         return;
     }
-    
     productsData.forEach((product, index) => {
-        const productDiv = document.createElement('div');
-        productDiv.className = 'bg-white border border-gray-200 rounded-lg p-6 mb-4';
-        productDiv.innerHTML = `
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">Nome do Produto</label>
-                    <input type="text" value="${product.name || ''}" class="w-full border rounded px-3 py-2 text-sm" 
-                           onchange="productsData[${index}].name = this.value" placeholder="Ex: Sensibilidade, Planilha">
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">Descrição</label>
-                    <input type="text" value="${product.description || ''}" class="w-full border rounded px-3 py-2 text-sm"
-                           onchange="productsData[${index}].description = this.value" placeholder="Descrição breve">
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">Preço (R$)</label>
-                    <input type="number" value="${product.price || 0}" step="0.01" class="w-full border rounded px-3 py-2 text-sm"
-                           onchange="productsData[${index}].price = parseFloat(this.value)" placeholder="0.00">
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">Categoria</label>
-                    <select onchange="productsData[${index}].category = this.value" class="w-full border rounded px-3 py-2 text-sm">
-                        <option value="">Selecione</option>
-                        <option value="digital" ${product.category === 'digital' ? 'selected' : ''}>Produto Digital</option>
-                        <option value="physical" ${product.category === 'physical' ? 'selected' : ''}>Produto Físico</option>
-                        <option value="service" ${product.category === 'service' ? 'selected' : ''}>Serviço</option>
-                    </select>
-                </div>
+        const isActive = product.active !== false;
+        const imgHtml = product.image
+            ? `<img src="${product.image}" class="w-full h-full object-cover" alt="Banner">`
+            : `<div class="flex flex-col items-center justify-center h-full text-gray-400 text-center px-2"><i class="fas fa-image text-2xl mb-1"></i><span class="text-xs">Sem banner</span></div>`;
+        const safeTitle = (product.name || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        const safeDl = (product.downloadLink || '').replace(/"/g, '&quot;');
+        const div = document.createElement('div');
+        div.id = `prod-card-${index}`;
+        div.className = 'bg-white border border-gray-200 rounded-xl shadow-sm mb-6';
+        div.innerHTML = `
+<div class="flex items-center justify-between px-5 py-3 bg-gray-50 border-b border-gray-200 rounded-t-xl">
+    <div class="flex items-center gap-2 min-w-0">
+        <span id="prod-title-${index}" class="font-semibold text-gray-800 text-sm truncate">${safeTitle || 'Novo Produto'}</span>
+        <span id="prod-badge-${index}" class="${_prodBadgeClass(isActive)}">${isActive ? 'Ativo' : 'Inativo'}</span>
+    </div>
+    <button onclick="deleteProduct(${index})" class="flex-shrink-0 ml-3 text-xs text-red-400 hover:text-red-600 transition-colors">
+        <i class="fas fa-trash-alt mr-1"></i>Excluir
+    </button>
+</div>
+<div class="p-5">
+    <div class="flex flex-col md:flex-row gap-5 mb-5">
+        <div class="flex flex-col items-center gap-2 flex-shrink-0">
+            <div id="prod-banner-${index}" class="w-44 h-28 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 overflow-hidden">${imgHtml}</div>
+            <button onclick="uploadProductBanner(${index})" class="w-44 px-3 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg text-xs hover:bg-indigo-100 transition-colors text-center">
+                <i class="fas fa-upload mr-1"></i>Upload Banner
+            </button>
+        </div>
+        <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="sm:col-span-2">
+                <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider">Título</label>
+                <input type="text" value="${safeTitle}" oninput="updateProdTitle(${index},this.value)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" placeholder="Nome do produto">
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">URL da Imagem</label>
-                    <input type="url" value="${product.image || ''}" class="w-full border rounded px-3 py-2 text-sm"
-                           onchange="productsData[${index}].image = this.value" placeholder="https://...">
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">Link de Download/Acesso</label>
-                    <input type="url" value="${product.downloadLink || ''}" class="w-full border rounded px-3 py-2 text-sm"
-                           onchange="productsData[${index}].downloadLink = this.value" placeholder="https://...">
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">Status</label>
-                    <select onchange="productsData[${index}].active = this.value === 'true'" class="w-full border rounded px-3 py-2 text-sm">
-                        <option value="true" ${product.active !== false ? 'selected' : ''}>Ativo</option>
-                        <option value="false" ${product.active === false ? 'selected' : ''}>Inativo</option>
-                    </select>
-                </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider">Categoria</label>
+                <select oninput="productsData[${index}].category=this.value" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                    <option value="">Selecione</option>
+                    <option value="digital" ${product.category === 'digital' ? 'selected' : ''}>Digital</option>
+                    <option value="fisico" ${['fisico','physical'].includes(product.category) ? 'selected' : ''}>Físico</option>
+                    <option value="servico" ${['servico','service'].includes(product.category) ? 'selected' : ''}>Serviço</option>
+                </select>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">Estoque (se aplicável)</label>
-                    <input type="number" value="${product.stock || 0}" class="w-full border rounded px-3 py-2 text-sm"
-                           onchange="productsData[${index}].stock = parseInt(this.value)" placeholder="0">
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">ID do Produto (será salvo)</label>
-                    <input type="text" value="${product.id || ''}" class="w-full border rounded px-3 py-2 text-sm bg-gray-100" disabled>
-                </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider">Valor (R$)</label>
+                <input type="number" value="${product.price || 0}" step="0.01" min="0" oninput="productsData[${index}].price=parseFloat(this.value)||0" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" placeholder="0,00">
             </div>
-            <div class="mt-4 flex justify-end gap-2">
-                <button onclick="deleteProduct(${index})" class="px-3 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200">
-                    <i class="fas fa-trash mr-1"></i>Excluir
-                </button>
+            <div class="sm:col-span-2">
+                <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider">Status</label>
+                <select oninput="updateProdStatus(${index},this.value)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                    <option value="true" ${isActive ? 'selected' : ''}>Ativo</option>
+                    <option value="false" ${!isActive ? 'selected' : ''}>Inativo</option>
+                </select>
             </div>
-        `;
-        container.appendChild(productDiv);
+        </div>
+    </div>
+    <div class="mb-4">
+        <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider"><i class="fas fa-link mr-1"></i>Link de Download / Drive</label>
+        <input type="url" value="${safeDl}" oninput="productsData[${index}].downloadLink=this.value" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" placeholder="https://drive.google.com/...">
+    </div>
+    <div class="mb-4">
+        <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider">Infos do Produto</label>
+        <textarea oninput="productsData[${index}].description=this.value" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none" placeholder="Informações gerais sobre o produto...">${product.description || ''}</textarea>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+            <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider">Detalhes</label>
+            <textarea oninput="productsData[${index}].details=this.value" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none" placeholder="Especificações técnicas, o que está incluso...">${product.details || ''}</textarea>
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider">Benefícios</label>
+            <textarea oninput="productsData[${index}].benefits=this.value" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none" placeholder="O que o cliente irá ganhar/receber...">${product.benefits || ''}</textarea>
+        </div>
+    </div>
+</div>`;
+        container.appendChild(div);
     });
 }
 
-// Adicionar novo produto
 function addProduct() {
-    const newProduct = {
+    productsData.push({
         id: `product_${Date.now()}`,
         name: '',
         description: '',
+        details: '',
+        benefits: '',
         price: 0,
         category: 'digital',
         image: '',
         downloadLink: '',
         active: true,
-        stock: 0,
         createdAt: new Date()
-    };
-    
-    productsData.push(newProduct);
+    });
     renderProducts();
-    
-    // Scroll para o novo produto
     setTimeout(() => {
-        const container = document.getElementById('productsContainer');
-        if (container) container.scrollTop = container.scrollHeight;
+        const c = document.getElementById('productsContainer');
+        if (c) c.scrollTop = c.scrollHeight;
     }, 100);
 }
 
-// Deletar produto
 function deleteProduct(index) {
     if (confirm('Tem certeza que deseja deletar este produto?')) {
         productsData.splice(index, 1);
@@ -9580,50 +9591,67 @@ function deleteProduct(index) {
     }
 }
 
-// Salvar produtos no Firestore
+async function uploadProductBanner(index) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async () => {
+        const file = input.files[0];
+        if (!file) return;
+        const card = document.getElementById(`prod-card-${index}`);
+        const btn = card ? card.querySelector('button[onclick^="uploadProductBanner"]') : null;
+        try {
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Enviando...'; }
+            const { ref, uploadBytes, getDownloadURL } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js');
+            const storage = window.firebaseStorage;
+            if (!storage) throw new Error('Firebase Storage não disponível');
+            const storageRef = ref(storage, `products/${productsData[index].id}/banner`);
+            const snap = await uploadBytes(storageRef, file);
+            const url = await getDownloadURL(snap.ref);
+            productsData[index].image = url;
+            const bannerEl = document.getElementById(`prod-banner-${index}`);
+            if (bannerEl) bannerEl.innerHTML = `<img src="${url}" class="w-full h-full object-cover" alt="Banner">`;
+            showToast('success', 'Banner enviado com sucesso!', 'Sucesso');
+        } catch (e) {
+            console.error('Erro upload banner:', e);
+            showToast('error', 'Erro ao enviar banner: ' + e.message, 'Erro');
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-upload mr-1"></i>Upload Banner'; }
+        }
+    };
+    input.click();
+}
+
 async function saveProducts() {
     try {
-        if (productsData.length === 0) {
-            showToast('warning', 'Nenhum produto para salvar', 'Aviso');
-            return;
-        }
-        
+        if (productsData.length === 0) { showToast('warning', 'Nenhum produto para salvar', 'Aviso'); return; }
         const { collection, doc, setDoc, deleteDoc, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const productsRef = collection(window.firebaseDb, 'products');
-        
-        // Primeiro, deletar produtos que foram removidos
         const existingSnap = await getDocs(productsRef);
-        const existingIds = new Set(productsData.map(p => p.id));
-        
-        for (const existingDoc of existingSnap.docs) {
-            if (!existingIds.has(existingDoc.id)) {
-                await deleteDoc(doc(window.firebaseDb, 'products', existingDoc.id));
-            }
+        const keepIds = new Set(productsData.map(p => p.id));
+        for (const ed of existingSnap.docs) {
+            if (!keepIds.has(ed.id)) await deleteDoc(doc(window.firebaseDb, 'products', ed.id));
         }
-        
-        // Salvar/atualizar produtos
         for (const product of productsData) {
-            const productRef = doc(window.firebaseDb, 'products', product.id);
-            const { id, ...productData } = product;
-            await setDoc(productRef, {
-                ...productData,
-                updatedAt: new Date()
-            });
+            const { id, ...data } = product;
+            await setDoc(doc(window.firebaseDb, 'products', id), { ...data, updatedAt: new Date() });
         }
-        
         showToast('success', `${productsData.length} produto(s) salvo(s) com sucesso!`, 'Sucesso');
         closeProductsModal();
     } catch (error) {
         console.error('Erro ao salvar produtos:', error);
-        showToast('error', 'Erro ao salvar produtos: ' + error.message, 'Erro');
+        showToast('error', 'Erro ao salvar: ' + error.message, 'Erro');
     }
 }
 
-// Expor funções globalmente
 window.openProductsModal = openProductsModal;
 window.closeProductsModal = closeProductsModal;
 window.addProduct = addProduct;
 window.deleteProduct = deleteProduct;
+window.uploadProductBanner = uploadProductBanner;
+window.saveProducts = saveProducts;
+window.updateProdStatus = updateProdStatus;
+window.updateProdTitle = updateProdTitle;
 
 // ==================== ADMIN NOTIFICATION SYSTEM ====================
 
