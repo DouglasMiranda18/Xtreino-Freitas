@@ -10011,6 +10011,7 @@ async function saveEventForm() {
         formato: (document.getElementById('evtFormato')?.value || 'MISTO').toUpperCase(),
         status: document.getElementById('evtStatus').value,
         premiado: document.getElementById('evtPremiado').value,
+        premiacao: (document.getElementById('evtPremiacao')?.value || '').trim(),
         entrada,
         vagas: parseInt(document.getElementById('evtVagas').value, 10),
         quedas: parseInt(document.getElementById('evtQuedas')?.value, 10) || null,
@@ -10178,6 +10179,8 @@ async function editEventItem(eventId) {
         if (fmtEl) fmtEl.value = (ev.formato || 'MISTO').toUpperCase();
         document.getElementById('evtStatus').value = ev.status || 'Aberto';
         document.getElementById('evtPremiado').value = ev.premiado || 'NÃO';
+        const premiacaoEl = document.getElementById('evtPremiacao');
+        if (premiacaoEl) premiacaoEl.value = ev.premiacao || '';
         document.getElementById('evtEntrada').value = ev.entrada || 'GRÁTIS';
         document.getElementById('evtVagas').value = ev.vagas || '';
         const gruposEl = document.getElementById('evtGrupos');

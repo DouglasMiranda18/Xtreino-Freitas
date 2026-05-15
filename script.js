@@ -2846,7 +2846,7 @@ async function loadHighlightsFromFirestore() {
             const highlight = highlights[key];
             if (highlight && highlight.title) {
                 const slide = document.createElement('div');
-                slide.className = 'min-w-full p-8 bg-white';
+                slide.className = 'carousel-slide p-8 bg-white';
 
                 // Criar imagem com ou sem link
                 let imageHtml = '';
@@ -2913,8 +2913,20 @@ function initCarousel() {
     const slides = track.children.length;
     let autoAdvanceInterval;
 
+    function getSlideWidth() {
+        return track.parentElement ? track.parentElement.offsetWidth : window.innerWidth;
+    }
+
+    function setSlideWidths() {
+        const w = getSlideWidth();
+        Array.from(track.children).forEach(slide => {
+            slide.style.width = w + 'px';
+            slide.style.flexShrink = '0';
+        });
+    }
+
     function update() {
-        track.style.transform = `translateX(-${index * 100}%)`;
+        track.style.transform = `translateX(-${index * getSlideWidth()}px)`;
     }
 
     function nextSlide() {
@@ -2928,7 +2940,7 @@ function initCarousel() {
     }
 
     function startAutoAdvance() {
-        autoAdvanceInterval = setInterval(nextSlide, 11500); // +1.5s -> 11.5 segundos
+        autoAdvanceInterval = setInterval(nextSlide, 8000);
     }
 
     function stopAutoAdvance() {
@@ -2936,6 +2948,14 @@ function initCarousel() {
             clearInterval(autoAdvanceInterval);
         }
     }
+
+    setSlideWidths();
+    update();
+
+    window.addEventListener('resize', () => {
+        setSlideWidths();
+        update();
+    });
 
     // Event listeners para botões manuais
     prev.addEventListener('click', () => {
@@ -2953,6 +2973,18 @@ function initCarousel() {
     // Pausar auto-advance quando hover
     track.addEventListener('mouseenter', stopAutoAdvance);
     track.addEventListener('mouseleave', startAutoAdvance);
+
+    // Suporte a swipe no mobile
+    let touchStartX = 0;
+    track.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, { passive: true });
+    track.addEventListener('touchend', e => {
+        const diff = touchStartX - e.changedTouches[0].screenX;
+        if (Math.abs(diff) > 50) {
+            stopAutoAdvance();
+            if (diff > 0) nextSlide(); else prevSlide();
+            startAutoAdvance();
+        }
+    }, { passive: true });
 
     // Iniciar auto-advance
     if (slides > 1) {
@@ -6746,9 +6778,28 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
     }
 }
 
+function playNotificationSound() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const gain = ctx.createGain();
+        gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0.25, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.7);
+        [880, 1100, 1320].forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            osc.type = 'sine';
+            osc.connect(gain);
+            osc.frequency.value = freq;
+            osc.start(ctx.currentTime + i * 0.13);
+            osc.stop(ctx.currentTime + i * 0.13 + 0.2);
+        });
+    } catch (_) {}
+}
+
 function showSlotConfirmationModal(slots, eventName, isLiga, eventId, groupLink) {
     const existing = document.getElementById('slotConfirmModal');
     if (existing) existing.remove();
+    playNotificationSound();
 
     // Agrupar por horário
     const bySchedule = {};

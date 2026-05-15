@@ -284,6 +284,7 @@ function buildInfoGrid(ev) {
     if (ev.preco) items.push({ icon:'fa-tag', label:'Entrada', val:'R$ ' + Number(ev.preco).toFixed(2) });
     else if (ev.entrada) items.push({ icon:'fa-tag', label:'Entrada', val: ev.entrada });
     if (ev.premiado === 'SIM') items.push({ icon:'fa-medal', label:'Premiado', val:'SIM 🏆' });
+    if (ev.premiacao) items.push({ icon:'fa-trophy', label:'Premiação', val: ev.premiacao });
     if (Array.isArray(ev.mapas) && ev.mapas.length) items.push({ icon:'fa-map', label:'Mapas', val: ev.mapas.join(' · ') });
     if (ev.eventDate) items.push({ icon:'fa-calendar', label:'Data', val: new Date(ev.eventDate).toLocaleDateString('pt-BR', {day:'2-digit', month:'long', year:'numeric'}) });
     document.getElementById('evInfoGrid').innerHTML = items.map(i =>
