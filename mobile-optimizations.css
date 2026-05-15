@@ -447,30 +447,25 @@
 
 /* ==================== CARROSSEL MOBILE ==================== */
 @media (max-width: 767px) {
-    /* Seção do carrossel - nunca deixar vazar horizontalmente */
-    section:has(#carouselTrack),
-    #carouselTrack,
-    #carouselTrack ~ *,
-    .carousel-wrapper {
+    /* O viewport (PAI estático) faz o clipping — NUNCA o track */
+    #carouselViewport {
+        overflow: hidden !important;
         max-width: 100% !important;
-        overflow-x: hidden !important;
     }
 
-    /* Wrapper externo do carrossel - garantir clipping */
+    /* O track SE MOVE via translateX — NUNCA deve ter overflow:hidden próprio */
     #carouselTrack {
-        overflow: hidden !important; /* NÃO pode ser auto - briga com translateX do JS */
-        max-width: 100% !important;
+        overflow: visible !important;
+        /* largura definida pelo JS via style.width em cada slide */
     }
 
-    /* Cada slide ocupa exatamente 100% do wrapper */
-    #carouselTrack > div {
-        min-width: 100% !important;
-        max-width: 100% !important;
+    /* Cada slide: padding menor no mobile; JS controla width/minWidth */
+    .carousel-slide {
         box-sizing: border-box !important;
-        padding: 1.25rem !important; /* reduzir padding p-8 -> p-5 no mobile */
+        padding: 1.25rem !important;
     }
 
-    /* Setas do carrossel: mostrar no mobile mas menores */
+    /* Setas do carrossel: menores no mobile */
     #carouselPrev,
     #carouselNext {
         width: 2.25rem !important;
@@ -480,10 +475,10 @@
 
     /* Imagem do slide: altura menor no mobile */
     #carouselTrack .h-48 {
-        height: 8rem !important; /* h-32 no mobile */
+        height: 8rem !important;
     }
 
-    /* Grid do slide: 1 coluna no mobile, imagem abaixo */
+    /* Grid do slide: 1 coluna no mobile */
     #carouselTrack .grid.md\:grid-cols-2 {
         grid-template-columns: 1fr !important;
         gap: 0.75rem !important;
