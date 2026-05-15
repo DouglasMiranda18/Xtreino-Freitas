@@ -190,8 +190,10 @@ let _db = null;
 let _auth = null;
 
 function initFirebase() {
-    const existing = getApps().find(a => a.name === 'evento-page');
-    const app = existing || initializeApp(FIREBASE_CONFIG, 'evento-page');
+    // Usa o app padrão (sem nome) para compartilhar o estado de auth com o site principal.
+    // Isso garante que usuários logados no index.html também estejam autenticados aqui.
+    const existing = getApps().find(a => a.name === '[DEFAULT]') || (getApps().length > 0 ? getApps()[0] : null);
+    const app = existing || initializeApp(FIREBASE_CONFIG);
     _db = getFirestore(app);
     _auth = getAuth(app);
     return _db;
@@ -451,6 +453,8 @@ window.loadPublicGroups = async function(phase) {
 async function loadInscritos(evId) {
     const container = document.getElementById('inscritosContent');
     if (!container) return;
+    if (!_db) { container.innerHTML = '<div class="text-center py-6 text-slate-500 text-sm">Banco de dados não disponível.</div>'; return; }
+    container.innerHTML = '<div class="text-center py-6 text-slate-500"><i class="fas fa-spinner fa-spin text-xl mb-2 block"></i>Carregando inscritos...</div>';
     try {
         const normalizedId = String(evId || '').toLowerCase().trim().replace(/\s+/g, '-');
         const promises = [getDocs(query(collection(_db, 'registrations'), where('eventType', '==', evId)))];
@@ -523,7 +527,13 @@ async function loadInscritos(evId) {
         }
         container.innerHTML = html;
     } catch(e) {
-        container.innerHTML = '<div class="text-center py-6 text-slate-400 text-sm">Dados de inscritos não disponíveis.</div>';
+        console.error('[loadInscritos] erro ao carregar inscritos:', e?.message || e);
+        const isPermission = e?.code === 'permission-denied' || String(e).includes('permission');
+        if (isPermission) {
+            container.innerHTML = '<div class="text-center py-6 text-slate-400 text-sm"><i class="fas fa-lock mr-1"></i>Faça login para ver os times inscritos.</div>';
+        } else {
+            container.innerHTML = '<div class="text-center py-6 text-slate-400 text-sm">Dados de inscritos não disponíveis.</div>';
+        }
     }
 }
 

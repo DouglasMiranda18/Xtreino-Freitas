@@ -106,7 +106,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // registrations: leitura individual restrita ao dono/staff; listagem liberada para logados (contagem de vagas em tempo real)
+    // registrations: leitura individual restrita ao dono/staff; listagem pública (times inscritos são info pública do evento)
     match /registrations/{registrationId} {
       allow get: if isSignedIn() && (
         resource.data.userId == request.auth.uid ||
@@ -118,7 +118,7 @@ service cloud.firestore {
           )
         )
       );
-      allow list: if isSignedIn();
+      allow list: if true;
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow update: if canReadAll();
       allow delete: if isAdmin() || isGerente();

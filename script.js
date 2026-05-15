@@ -2067,6 +2067,9 @@ async function payCurrentProductWithTokens() {
 
 // Ação do botão "Pagar com Tokens" do agendamento
 function payScheduleWithTokens() {
+    if (window._scheduleSubmitting) return;
+    const tokenBtn = document.getElementById('schedPayTokens');
+    if (tokenBtn && tokenBtn.disabled) return;
     submitSchedule({ preventDefault: () => { } }, true);
 }
 
@@ -6171,9 +6174,13 @@ async function handleProductPurchaseWithTokens(productId, cfg) {
 }
 async function submitSchedule(e, useTokens = false) {
     e.preventDefault();
+    if (window._scheduleSubmitting) return;
+    window._scheduleSubmitting = true;
     const submitBtn = document.getElementById('schedSubmit');
+    const tokenBtn = document.getElementById('schedPayTokens');
     const oldText = submitBtn ? submitBtn.textContent : '';
     if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Processando...'; }
+    if (tokenBtn) tokenBtn.disabled = true;
 
     try {
         const modal = document.getElementById('scheduleModal');
@@ -6543,6 +6550,10 @@ async function submitSchedule(e, useTokens = false) {
         
         alert('Ocorreu um erro inesperado. Atualize a página e tente novamente.');
         if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+    } finally {
+        window._scheduleSubmitting = false;
+        const _tb = document.getElementById('schedPayTokens');
+        if (_tb) _tb.disabled = false;
     }
 }
 
