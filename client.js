@@ -1239,17 +1239,20 @@ function getProductActionButton(product) {
         `;
     }
     
-    // Check if it's Imagens Aéreas
-    if (title.includes('imagens') || title.includes('aéreas') || item.includes('imagens') || item.includes('aéreas')) {
+    // Check if it's Imagens Aéreas (categoria 'aereas' ou por título)
+    const isAereas = (product.productCategory === 'aereas') ||
+                     title.includes('imagens') || title.includes('aéreas') ||
+                     item.includes('imagens')  || item.includes('aéreas');
+    if (isAereas) {
         return `
             <div class="mt-3">
-                <button onclick="openImagesSelect('${product.id}')" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200">
+                <button onclick="openImagesSelect('${product.id}')" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-orange-700 bg-orange-100 hover:bg-orange-200">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
                     </svg>
                     Selecionar Mapas
                 </button>
-        </div>
+            </div>
         `;
     }
     
@@ -1458,7 +1461,15 @@ function downloadImagensAereas(orderId) {
       });
 }
 
-// Modal de seleção de mapas comprados
+// Modal de seleção de mapas — lê mapLinks direto do Firestore (sem Netlify)
+const MAP_NAMES_CLIENT = {
+    bermuda: 'Bermuda',
+    purgatorio: 'Purgatório',
+    solara: 'Solara',
+    kalahari: 'Kalahari',
+    novaTerra: 'Nova Terra'
+};
+
 function ensureImagesModal(){
     let modal = document.getElementById('imagesSelectModal');
     if (modal) return modal;
@@ -1469,14 +1480,14 @@ function ensureImagesModal(){
         <div class="bg-white rounded-2xl max-w-lg w-full p-6">
             <div class="flex items-center justify-between mb-4">
                 <h3 class="text-lg font-semibold text-gray-900">Selecionar Mapas</h3>
-                <button id="imagesSelectClose" class="text-gray-500 hover:text-black">✕</button>
+                <button id="imagesSelectClose" class="text-gray-500 hover:text-black text-xl">✕</button>
             </div>
             <div id="imagesSelectBody" class="space-y-2 max-h-72 overflow-auto"></div>
             <div class="mt-5 flex items-center justify-between">
                 <button id="imagesSelectAll" class="px-3 py-2 rounded bg-gray-100 text-gray-700 text-sm">Selecionar todos</button>
                 <div class="space-x-2">
                     <button id="imagesSelectCancel" class="px-3 py-2 rounded border text-sm">Cancelar</button>
-                    <button id="imagesSelectConfirm" class="px-3 py-2 rounded bg-blue-matte text-white text-sm">Abrir selecionados</button>
+                    <button id="imagesSelectConfirm" class="px-3 py-2 rounded bg-blue-600 text-white text-sm font-semibold">Baixar selecionados</button>
                 </div>
             </div>
         </div>`;
@@ -1484,123 +1495,147 @@ function ensureImagesModal(){
     return modal;
 }
 
-function openImagesSelect(orderId){
+async function openImagesSelect(orderId) {
     const modal = ensureImagesModal();
     const body = modal.querySelector('#imagesSelectBody');
-    body.innerHTML = '<p class="text-sm text-gray-500">Carregando mapas...</p>';
+    const close = () => { modal.classList.add('hidden'); modal.classList.remove('flex'); };
+
+    body.innerHTML = '<p class="text-sm text-gray-500 text-center py-4"><i class="fas fa-spinner fa-spin mr-2"></i>Carregando mapas...</p>';
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 
-    const listUrl = `/.netlify/functions/download?orderId=${encodeURIComponent(orderId)}&list=1`;
-    fetch(listUrl)
-        .then(r => r.ok ? r.json() : Promise.reject())
-        .then(data => {
-            const files = Array.isArray(data?.files) ? data.files : [];
-            if (files.length === 0){
-                body.innerHTML = '<p class="text-sm text-red-600">Nenhum mapa disponível para este pedido.</p>';
-                return;
+    try {
+        // Buscar o pedido no Firestore para pegar o productId
+        const { doc, getDoc, collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+        let productId = null;
+        let mapLinks = null;
+
+        // Tentar pegar direto pela ordem
+        const orderSnap = await getDoc(doc(window.firebaseDb, 'orders', orderId));
+        if (orderSnap.exists()) {
+            const od = orderSnap.data();
+            productId = od.productId || od.itemId || null;
+            // Se o próprio pedido já tem mapLinks (legado), usar
+            if (od.mapLinks && typeof od.mapLinks === 'object') {
+                mapLinks = od.mapLinks;
             }
-            body.innerHTML = files.map(f => {
-                const name = (f.name || '').replace(/imagens\s+aéreas\s+-\s+/i, '').trim();
-                const id = `imgopt_${orderId}_${f.index}`;
-                return `
-                    <label for="${id}" class="flex items-center gap-3 p-2 border rounded">
-                        <input id="${id}" type="checkbox" data-index="${f.index}" class="w-4 h-4">
-                        <span class="text-sm text-gray-800">${name || (f.name || `Mapa ${f.index+1}`)}</span>
-                    </label>`;
-            }).join('');
+        }
 
-            const btnAll = modal.querySelector('#imagesSelectAll');
-            btnAll.onclick = () => {
-                body.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
-            };
+        // Se não tem mapLinks ainda, buscar do produto
+        if (!mapLinks && productId) {
+            const prodSnap = await getDoc(doc(window.firebaseDb, 'products', productId));
+            if (prodSnap.exists()) {
+                mapLinks = prodSnap.data().mapLinks || null;
+            }
+        }
 
-            const btnCancel = modal.querySelector('#imagesSelectCancel');
-            const btnClose = modal.querySelector('#imagesSelectClose');
-            const close = ()=>{ modal.classList.add('hidden'); modal.classList.remove('flex'); };
-            btnCancel.onclick = close; btnClose.onclick = close;
+        // Fallback: buscar o produto por nome (Imagens Aéreas) na coleção
+        if (!mapLinks) {
+            const prodQuery = query(collection(window.firebaseDb, 'products'),
+                where('category', '==', 'aereas'));
+            const prodSnap = await getDocs(prodQuery);
+            if (!prodSnap.empty) {
+                mapLinks = prodSnap.docs[0].data().mapLinks || null;
+            }
+        }
 
-            const btnConfirm = modal.querySelector('#imagesSelectConfirm');
-            btnConfirm.onclick = () => {
-                const selected = Array.from(body.querySelectorAll('input[type="checkbox"]:checked'));
-                if (selected.length === 0){
-                    alert('Selecione pelo menos um mapa.');
-                    return;
-                }
-                // Estratégia anti-bloqueio: abrir o primeiro link agora,
-                // e oferecer um botão "Abrir próximo" para os restantes
-                const indices = selected.map(cb => cb.getAttribute('data-index'));
+        const availableMaps = Object.entries(MAP_NAMES_CLIENT)
+            .filter(([key]) => mapLinks && mapLinks[key] && mapLinks[key].trim() !== '')
+            .map(([key, name]) => ({ key, name, url: mapLinks[key] }));
 
-                const openViaAnchor = (idx) => {
-                    const url = `/.netlify/functions/download?orderId=${encodeURIComponent(orderId)}&i=${encodeURIComponent(idx)}`;
-                    const a = document.createElement('a');
-                    a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.style.display = 'none';
-                    document.body.appendChild(a); a.click(); a.remove();
-                };
+        if (availableMaps.length === 0) {
+            body.innerHTML = '<p class="text-sm text-red-600 text-center py-4"><i class="fas fa-exclamation-triangle mr-2"></i>Nenhum mapa disponível no momento. Contate o suporte.</p>';
+            return;
+        }
 
-                // abrir o primeiro imediatamente
-                openViaAnchor(indices[0]);
+        body.innerHTML = availableMaps.map(m => `
+            <label class="flex items-center gap-3 p-3 border rounded-xl hover:bg-orange-50 cursor-pointer">
+                <input type="checkbox" data-url="${m.url.replace(/"/g,'&quot;')}" data-name="${m.name}" class="w-4 h-4 accent-orange-500">
+                <i class="fas fa-map-marker-alt text-orange-400"></i>
+                <span class="text-sm font-medium text-gray-800">${m.name}</span>
+            </label>`).join('');
 
-                // guardar fila para abrir manualmente (um clique por aba)
-                window.imagesOpenQueue = indices.slice(1);
-                ensureImagesQueueModal();
-                showImagesQueueModal(orderId);
-                close();
-            };
-        })
-        .catch(() => {
-            body.innerHTML = '<p class="text-sm text-red-600">Falha ao carregar mapas.</p>';
-        });
+        const btnAll    = modal.querySelector('#imagesSelectAll');
+        const btnCancel = modal.querySelector('#imagesSelectCancel');
+        const btnClose  = modal.querySelector('#imagesSelectClose');
+        const btnConfirm = modal.querySelector('#imagesSelectConfirm');
+
+        btnAll.onclick = () => body.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
+        btnCancel.onclick = close;
+        btnClose.onclick  = close;
+
+        btnConfirm.onclick = () => {
+            const selected = Array.from(body.querySelectorAll('input[type="checkbox"]:checked'));
+            if (selected.length === 0) { alert('Selecione pelo menos um mapa.'); return; }
+
+            // Abrir primeiro imediatamente; restantes via fila
+            const links = selected.map(cb => ({ url: cb.getAttribute('data-url'), name: cb.getAttribute('data-name') }));
+            const first = links[0];
+            const a = document.createElement('a');
+            a.href = first.url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.style.display = 'none';
+            document.body.appendChild(a); a.click(); a.remove();
+
+            if (links.length > 1) {
+                window._mapLinksQueue = links.slice(1);
+                _showMapQueueModal();
+            }
+            close();
+        };
+
+    } catch (err) {
+        console.error('openImagesSelect erro:', err);
+        body.innerHTML = `<p class="text-sm text-red-600 text-center py-4"><i class="fas fa-exclamation-triangle mr-2"></i>Falha ao carregar mapas.<br><span class="text-xs text-gray-400">${err.message || ''}</span></p>`;
+    }
 }
 
-// Modal "Abrir Próximo" (fila de mapas restantes)
-function ensureImagesQueueModal(){
-    let modal = document.getElementById('imagesQueueModal');
-    if (modal) return modal;
-    modal = document.createElement('div');
-    modal.id = 'imagesQueueModal';
-    modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4';
-    modal.innerHTML = `
-        <div class="bg-white rounded-2xl max-w-sm w-full p-6">
-            <div class="flex items-center justify-between mb-3">
-                <h3 class="text-lg font-semibold text-gray-900">Abrir mapas restantes</h3>
-                <button id="imagesQueueClose" class="text-gray-500 hover:text-black">✕</button>
-            </div>
-            <p id="imagesQueueInfo" class="text-sm text-gray-600 mb-4"></p>
-            <div class="flex items-center justify-end gap-2">
-                <button id="imagesQueueNext" class="px-3 py-2 rounded bg-blue-matte text-white text-sm">Abrir próximo</button>
-            </div>
-        </div>`;
-    document.body.appendChild(modal);
-    return modal;
-}
-
-function showImagesQueueModal(orderId){
-    const modal = ensureImagesQueueModal();
-    const info = modal.querySelector('#imagesQueueInfo');
-    const btnNext = modal.querySelector('#imagesQueueNext');
-    const btnClose = modal.querySelector('#imagesQueueClose');
-    const updateInfo = () => {
-        const remaining = Array.isArray(window.imagesOpenQueue) ? window.imagesOpenQueue.length : 0;
-        info.textContent = remaining > 0 ? `Restam ${remaining} mapa(s) para abrir.` : 'Todos os mapas foram abertos.';
-        btnNext.disabled = remaining === 0;
-        if (remaining === 0) btnNext.classList.add('opacity-50', 'cursor-not-allowed');
+// Fila de mapas restantes
+function _showMapQueueModal() {
+    let modal = document.getElementById('_mapQueueModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = '_mapQueueModal';
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4';
+        modal.innerHTML = `
+            <div class="bg-white rounded-2xl max-w-sm w-full p-6 text-center">
+                <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-map text-orange-500 text-lg"></i>
+                </div>
+                <h3 class="text-base font-semibold text-gray-900 mb-1">Baixar próximo mapa</h3>
+                <p id="_mqInfo" class="text-sm text-gray-500 mb-4"></p>
+                <div class="flex gap-2 justify-center">
+                    <button id="_mqNext" class="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-semibold hover:bg-orange-600">Abrir próximo</button>
+                    <button id="_mqClose" class="px-4 py-2 border rounded-lg text-sm text-gray-600">Fechar</button>
+                </div>
+            </div>`;
+        document.body.appendChild(modal);
+    }
+    const info  = modal.querySelector('#_mqInfo');
+    const btnNext  = modal.querySelector('#_mqNext');
+    const btnClose = modal.querySelector('#_mqClose');
+    const update = () => {
+        const rem = Array.isArray(window._mapLinksQueue) ? window._mapLinksQueue.length : 0;
+        info.textContent = rem > 0 ? `Restam ${rem} mapa(s). Clique para abrir o próximo.` : 'Todos os mapas foram abertos!';
+        btnNext.disabled = rem === 0;
+        btnNext.classList.toggle('opacity-40', rem === 0);
     };
-    const openNext = () => {
-        if (!Array.isArray(window.imagesOpenQueue) || window.imagesOpenQueue.length === 0) return;
-        const idx = window.imagesOpenQueue.shift();
+    btnNext.onclick = () => {
+        if (!window._mapLinksQueue || window._mapLinksQueue.length === 0) return;
+        const item = window._mapLinksQueue.shift();
         const a = document.createElement('a');
-        a.href = `/.netlify/functions/download?orderId=${encodeURIComponent(orderId)}&i=${encodeURIComponent(idx)}`;
-        a.target = '_blank'; a.rel = 'noopener noreferrer'; a.style.display = 'none';
+        a.href = item.url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.style.display = 'none';
         document.body.appendChild(a); a.click(); a.remove();
-        updateInfo();
+        update();
     };
-    btnNext.onclick = openNext;
     btnClose.onclick = () => { modal.classList.add('hidden'); modal.classList.remove('flex'); };
-    updateInfo();
+    update();
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 }
+
+// Mantidas por compatibilidade com código existente
+function ensureImagesQueueModal() { return document.getElementById('_mapQueueModal') || { querySelector: () => null }; }
+function showImagesQueueModal()   { _showMapQueueModal(); }
 
 // Expor funções de download no escopo global (para onclick do HTML)
 try {

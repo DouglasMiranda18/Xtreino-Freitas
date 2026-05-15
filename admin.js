@@ -9482,6 +9482,7 @@ function _prodCatConfig(cat) {
     const c = (cat || 'digital').toLowerCase();
     if (c === 'passe') return { label: 'Passe de Elite', icon: 'fas fa-gamepad', headerClass: 'bg-gradient-to-r from-green-600 to-emerald-500', badgeClass: 'bg-white/20 text-white' };
     if (c === 'fisico' || c === 'physical') return { label: 'Produto Físico', icon: 'fas fa-box', headerClass: 'bg-gradient-to-r from-purple-600 to-pink-500', badgeClass: 'bg-white/20 text-white' };
+    if (c === 'aereas') return { label: 'Imagens Aéreas', icon: 'fas fa-map', headerClass: 'bg-gradient-to-r from-orange-500 to-amber-400', badgeClass: 'bg-white/20 text-white' };
     return { label: 'Produto Digital', icon: 'fas fa-download', headerClass: 'bg-gradient-to-r from-blue-600 to-indigo-500', badgeClass: 'bg-white/20 text-white' };
 }
 
@@ -9528,6 +9529,12 @@ function setProdCategory(idx, cat) {
     }, 80);
 }
 
+function updateMapLink(idx, key, val) {
+    if (!productsData[idx]) return;
+    if (!productsData[idx].mapLinks || typeof productsData[idx].mapLinks !== 'object') productsData[idx].mapLinks = {};
+    productsData[idx].mapLinks[key] = val;
+}
+
 function updateProdBannerPreview(idx, url) {
     const el = document.getElementById(`prod-banner-preview-${idx}`);
     if (!el) return;
@@ -9566,6 +9573,11 @@ function renderProducts() {
         const isDigital = cat === 'digital' || cat === 'servico' || cat === 'service';
         const isFisico  = cat === 'fisico' || cat === 'physical';
         const isPasse   = cat === 'passe';
+        const isAereas  = cat === 'aereas';
+        const MAP_KEYS  = ['bermuda','purgatorio','solara','kalahari','novaTerra'];
+        const MAP_NAMES = { bermuda: 'Bermuda', purgatorio: 'Purgatório', solara: 'Solara', kalahari: 'Kalahari', novaTerra: 'Nova Terra' };
+        if (!product.mapLinks || typeof product.mapLinks !== 'object') product.mapLinks = {};
+        const ml = product.mapLinks;
 
         const div = document.createElement('div');
         div.id = `prod-card-${index}`;
@@ -9601,10 +9613,10 @@ function renderProducts() {
 
     <div>
         <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider">Categoria</label>
-        <div class="grid grid-cols-3 gap-2">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <button onclick="setProdCategory(${index},'passe')"
                     class="flex flex-col items-center gap-1 py-2 px-1 rounded-lg border-2 text-xs font-semibold transition-colors ${isPasse ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 text-gray-500 hover:border-green-300'}">
-                <i class="fas fa-gamepad text-base"></i>Passe de Elite
+                <i class="fas fa-gamepad text-base"></i>Passe Elite
             </button>
             <button onclick="setProdCategory(${index},'fisico')"
                     class="flex flex-col items-center gap-1 py-2 px-1 rounded-lg border-2 text-xs font-semibold transition-colors ${isFisico ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-gray-200 text-gray-500 hover:border-purple-300'}">
@@ -9614,11 +9626,16 @@ function renderProducts() {
                     class="flex flex-col items-center gap-1 py-2 px-1 rounded-lg border-2 text-xs font-semibold transition-colors ${isDigital ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:border-blue-300'}">
                 <i class="fas fa-download text-base"></i>Digital
             </button>
+            <button onclick="setProdCategory(${index},'aereas')"
+                    class="flex flex-col items-center gap-1 py-2 px-1 rounded-lg border-2 text-xs font-semibold transition-colors ${isAereas ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-500 hover:border-orange-300'}">
+                <i class="fas fa-map text-base"></i>Img. Aéreas
+            </button>
         </div>
         <p class="text-xs text-gray-400 mt-1">
-            ${isPasse  ? '<i class="fas fa-gamepad text-green-500 mr-1"></i>Coleta Nick, ID e WhatsApp do jogador após compra.' : ''}
-            ${isFisico ? '<i class="fas fa-box text-purple-500 mr-1"></i>Coleta nome, endereço, CPF e tamanho após compra.' : ''}
-            ${isDigital ? '<i class="fas fa-download text-blue-500 mr-1"></i>Link liberado automaticamente após pagamento. Coleta nome, e-mail e WhatsApp.' : ''}
+            ${isPasse   ? '<i class="fas fa-gamepad text-green-500 mr-1"></i>Coleta Nick, ID e WhatsApp do jogador após compra.' : ''}
+            ${isFisico  ? '<i class="fas fa-box text-purple-500 mr-1"></i>Coleta nome, endereço, CPF e tamanho após compra.' : ''}
+            ${isDigital ? '<i class="fas fa-download text-blue-500 mr-1"></i>Link único liberado automaticamente após pagamento.' : ''}
+            ${isAereas  ? '<i class="fas fa-map text-orange-500 mr-1"></i>5 mapas com links individuais. Cliente escolhe qual baixar na área do cliente.' : ''}
         </p>
     </div>
 
@@ -9649,6 +9666,25 @@ function renderProducts() {
         <p class="text-xs text-blue-600 mt-1">
             <i class="fas fa-bolt mr-1"></i>Liberado automaticamente ao confirmar pagamento. Você também pode enviar manualmente na aba de pedidos.
         </p>
+    </div>` : ''}
+
+    ${isAereas ? `
+    <div class="border border-orange-200 rounded-xl p-4 bg-orange-50">
+        <div class="flex items-center gap-2 mb-3">
+            <i class="fas fa-map text-orange-500"></i>
+            <span class="text-sm font-semibold text-orange-700">Links por Mapa (Google Drive)</span>
+        </div>
+        <p class="text-xs text-orange-600 mb-3">Cole o link do Google Drive para cada mapa. O cliente verá somente os mapas que tiverem link preenchido.</p>
+        <div class="space-y-2">
+            ${MAP_KEYS.map(key => `
+            <div class="flex items-center gap-2">
+                <label class="text-xs font-semibold text-gray-600 w-24 flex-shrink-0">${MAP_NAMES[key]}</label>
+                <input type="url" value="${((ml[key]) || '').replace(/"/g,'&quot;')}"
+                       oninput="updateMapLink(${index},'${key}',this.value)"
+                       class="flex-1 border border-orange-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+                       placeholder="https://drive.google.com/...">
+            </div>`).join('')}
+        </div>
     </div>` : ''}
 
     <div>
@@ -9701,7 +9737,14 @@ function addProduct() {
                     <i class="fas fa-download text-blue-600 text-xl w-7 text-center flex-shrink-0"></i>
                     <div>
                         <div class="font-semibold text-gray-800">Produto Digital</div>
-                        <div class="text-xs text-gray-500">Link de download liberado após pagamento. Coleta nome, e-mail e WhatsApp</div>
+                        <div class="text-xs text-gray-500">Link único de download. Coleta nome, e-mail e WhatsApp</div>
+                    </div>
+                </button>
+                <button onclick="_createProductWithCat('aereas')" class="w-full flex items-center gap-3 px-4 py-3 bg-orange-50 border-2 border-orange-200 rounded-xl hover:border-orange-400 hover:bg-orange-100 transition-colors text-left">
+                    <i class="fas fa-map text-orange-500 text-xl w-7 text-center flex-shrink-0"></i>
+                    <div>
+                        <div class="font-semibold text-gray-800">Imagens Aéreas</div>
+                        <div class="text-xs text-gray-500">5 links por mapa: Bermuda, Purgatório, Solara, Kalahari, Nova Terra</div>
                     </div>
                 </button>
             </div>
@@ -9713,7 +9756,7 @@ function addProduct() {
 function _createProductWithCat(cat) {
     const overlay = document.getElementById('_catSelectorOverlay');
     if (overlay) overlay.remove();
-    productsData.push({
+    const base = {
         id: `product_${Date.now()}`,
         name: '',
         description: '',
@@ -9724,7 +9767,11 @@ function _createProductWithCat(cat) {
         downloadLink: '',
         active: true,
         createdAt: new Date()
-    });
+    };
+    if (cat === 'aereas') {
+        base.mapLinks = { bermuda: '', purgatorio: '', solara: '', kalahari: '', novaTerra: '' };
+    }
+    productsData.push(base);
     renderProducts();
     setTimeout(() => {
         const c = document.getElementById('productsContainer');
@@ -9842,6 +9889,7 @@ window.updateProdTitle = updateProdTitle;
 window.addPriceOption = addPriceOption;
 window.removePriceOption = removePriceOption;
 window.updatePriceOption = updatePriceOption;
+window.updateMapLink = updateMapLink;
 window.setProdCategory = setProdCategory;
 window.updateProdBannerPreview = updateProdBannerPreview;
 
