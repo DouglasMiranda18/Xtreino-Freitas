@@ -5734,25 +5734,26 @@ async function updateOccupiedAndRefreshButtons(day, date, eventType, container) 
     } catch (err) {}
 
     // Verificar travas permanentes por horário (event_hour_locks) — sem data, valem sempre
-    // Busca todos os docs e filtra em JS para evitar problemas de índice/eventType
     try {
         const { collection: _c, getDocs: _g } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         if (window.firebaseDb) {
             const hlSnap = await _g(_c(window.firebaseDb, 'event_hour_locks'));
+            console.log('[HourLocks] docs encontrados:', hlSnap.size, '| eventType atual:', eventType);
             hlSnap.forEach(doc => {
                 const data = doc.data();
                 if (data.locked !== true) return;
-                // Verificar se o eventType bate (comparação case-insensitive e normalizada)
                 const docEventType = (data.eventType || '').toLowerCase().replace(/[\s_]/g, '-');
                 const curEventType = (eventType || '').toLowerCase().replace(/[\s_]/g, '-');
-                // Aceitar se eventType não definido no doc, ou se bate, ou se o docId começa com o eventType
                 const matchesType = !data.eventType || docEventType === curEventType || doc.id.startsWith(curEventType) || doc.id.startsWith((eventType||''));
+                console.log('[HourLocks] doc:', doc.id, '| docEventType:', docEventType, '| match:', matchesType);
                 if (!matchesType) return;
                 const h = parseInt(String(data.hour || '').replace(/\D/g,''), 10);
-                if (!isNaN(h)) lockedHours.add(h);
+                if (!isNaN(h)) { lockedHours.add(h); console.log('[HourLocks] travando hora:', h); }
             });
+        } else {
+            console.warn('[HourLocks] firebaseDb não disponível ainda');
         }
-    } catch (_) {}
+    } catch (err) { console.error('[HourLocks] erro:', err); }
 
     const now = new Date();
     const selectedDate = new Date(date + 'T00:00:00');

@@ -1231,14 +1231,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
     if (btnSch) btnSch.onclick = exportSchedulesCsv;
     const btnLoadBoard = document.getElementById('btnLoadBoard');
     if (btnLoadBoard) btnLoadBoard.onclick = loadBoard;
-    // Carrega eventos dinâmicos no dropdown do board ao iniciar e quando Firebase estiver pronto
-    if (window.firebaseDb) {
-      loadDynamicEventsIntoBoard();
-    } else {
-      const _waitFb = setInterval(() => {
-        if (window.firebaseDb) { clearInterval(_waitFb); loadDynamicEventsIntoBoard(); }
-      }, 300);
-    }
+    // Eventos dinâmicos removidos do dropdown do board (não utilizados)
     const formAddTeam = document.getElementById('formAddTeam');
     if (formAddTeam) formAddTeam.onsubmit = submitAddTeam;
     // Bind filtros do histórico de cupons - configurar após DOM estar pronto
