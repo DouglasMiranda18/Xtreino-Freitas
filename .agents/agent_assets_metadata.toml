@@ -5,7 +5,7 @@ generated = []
 id = "f8OWt9htdzTifU0jnDr1x"
 uri = "file://firestore-rules.txt"
 type = "text"
-title = "firestore.rules — atualizado (implante no Firebase Console)"
+title = "firestore.rules — publique no Firebase Console"
 
 [[outputs]]
 id = "gjvTQoqdXQDTG8X17jqBo"
