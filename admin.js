@@ -2733,6 +2733,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
         opt.value = d.id;
         opt.textContent = ev.name || d.id;
         opt.dataset.dynamic = '1';
+        opt.dataset.canonicalType = canonicalType(ev.eventType || ev.name || d.id);
         typeEl.appendChild(opt);
       });
     } catch (err) {
@@ -2863,7 +2864,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
     const isStaff = window.adminRoleLower === 'staff';
 
     // Trava permanente deste horário
-    const hNum = parseInt(String(hour).replace(/\D/g,''), 10);
+    const hNum = parseInt(String(hour).match(/^(\d+)/)?.[1] || '', 10);
     const permLocked = !!(permLockedHours && permLockedHours.has(hNum));
     
     const remaining = Math.max(0, capacity - occupied);
@@ -3102,7 +3103,8 @@ window.showWarningToast = function(message, title = 'Atenção') {
         return
       }
 
-      const ovEventType = canonicalType(eventType);
+      const selectedOpt = typeEl.options[typeEl.selectedIndex];
+      const ovEventType = selectedOpt?.dataset?.canonicalType || canonicalType(eventType);
       const isCampSemifinalDate = CAMP_SEMIFINAL_DATES.includes(date);
       const isCampFinalDate = CAMP_FINAL_DATES.includes(date);
 
@@ -3218,7 +3220,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
         const hlSnap = await _g(_q(hlRef, _w('eventType', '==', ovEventType)));
         hlSnap.forEach(d => {
           if (d.data().locked !== true) return; // filtrar locked em JS
-          const h = parseInt(String(d.data().hour || '').replace(/\D/g,''), 10);
+          const h = parseInt(String(d.data().hour || '').match(/^(\d+)/)?.[1] || '', 10);
           if (!isNaN(h)) permLockedHours.add(h);
         });
       } catch(_) {}
@@ -3293,7 +3295,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
 
   // Trava permanente de horário individual (sem data)
   async function handleTogglePermanentLock(hour, ovEventType) {
-    const hNum = parseInt(String(hour).replace(/\D/g,''), 10);
+    const hNum = parseInt(String(hour).match(/^(\d+)/)?.[1] || '', 10);
     console.log('[Fixar] chamado', { hour, hNum, ovEventType });
     if (isNaN(hNum)) { showToast('error','Horário inválido.','Erro'); return; }
     const docId = `${ovEventType}__${hNum}`;
