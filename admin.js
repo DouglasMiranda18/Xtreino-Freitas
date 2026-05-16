@@ -3294,25 +3294,32 @@ window.showWarningToast = function(message, title = 'Atenção') {
   // Trava permanente de horário individual (sem data)
   async function handleTogglePermanentLock(hour, ovEventType) {
     const hNum = parseInt(String(hour).replace(/\D/g,''), 10);
+    console.log('[Fixar] chamado', { hour, hNum, ovEventType });
     if (isNaN(hNum)) { showToast('error','Horário inválido.','Erro'); return; }
     const docId = `${ovEventType}__${hNum}`;
     try {
       const { doc, getDoc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
       const ref = doc(window.firebaseDb, 'event_hour_locks', docId);
+      console.log('[Fixar] lendo estado atual, docId:', docId);
       const snap = await getDoc(ref);
       const isCurrentlyLocked = snap.exists() && snap.data().locked === true;
-      const action = isCurrentlyLocked ? 'DESTRAVAR permanentemente' : 'TRAVAR permanentemente';
+      console.log('[Fixar] estado atual:', { exists: snap.exists(), isCurrentlyLocked });
       const msg = isCurrentlyLocked
         ? `🔓 Destravar o horário ${hNum}h de "${ovEventType}" em TODAS as datas?`
         : `🔒 Travar o horário ${hNum}h de "${ovEventType}" em TODAS as datas permanentemente?\n\nOs clientes não poderão reservar este horário em nenhuma data até você destravar.`;
-      const ok = await confirm(msg);
+      const ok = await showConfirm('Confirmar', msg);
+      console.log('[Fixar] confirmação:', ok);
       if (!ok) return;
+      console.log('[Fixar] gravando no Firestore...');
       await setDoc(ref, { eventType: ovEventType, hour: String(hNum), locked: !isCurrentlyLocked, updatedAt: Date.now() });
+      console.log('[Fixar] gravado com sucesso');
       showToast('success', isCurrentlyLocked ? `Horário ${hNum}h destravado em todas as datas.` : `Horário ${hNum}h travado permanentemente em todas as datas.`, isCurrentlyLocked ? 'Destravado' : 'Fixado');
       await loadBoard();
     } catch(err) {
-      console.error(err);
-      showToast('error','Falha na trava permanente: ' + (err.message||err),'Erro');
+      console.error('[Fixar] ERRO:', err);
+      const msg = 'Falha ao fixar horário: ' + (err.message || String(err));
+      showToast('error', msg, 'Erro');
+      alert('❌ ' + msg + '\n\nAbra o console do navegador (F12) para mais detalhes.');
     }
   }
 
