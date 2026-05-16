@@ -643,9 +643,9 @@ body {
         max-width: 100% !important;
     }
 
-    /* Header compacto no mobile */
+    /* Header ultra-compacto no mobile — só as duas linhas de texto */
     #scheduleModal .schedule-modal-header {
-        padding: 0.625rem 1rem !important;
+        padding: 0.45rem 1rem !important;
     }
 
     #scheduleModal .schedule-modal-icon {
@@ -653,12 +653,111 @@ body {
     }
 
     #scheduleModal .schedule-modal-title {
-        font-size: 0.95rem !important;
+        font-size: 0.875rem !important;
         line-height: 1.2 !important;
+        font-weight: 700 !important;
+        margin: 0 !important;
     }
 
     #scheduleModal .schedule-modal-sub {
-        font-size: 0.75rem !important;
+        font-size: 0.7rem !important;
+        line-height: 1.2 !important;
+        margin: 0 !important;
+    }
+
+    #scheduleModal .schedule-modal-header .flex {
+        gap: 0 !important;
+    }
+
+    #scheduleModal .schedule-modal-header div {
+        gap: 0 !important;
+        line-height: 1 !important;
+    }
+}
+
+/* Cabeçalho compacto do modal de produto no mobile */
+@media (max-width: 767px) {
+    #purchaseModal {
+        padding: 0 !important;
+        align-items: flex-end !important;
+    }
+
+    #purchaseModal > div {
+        max-height: 93dvh !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        border-radius: 1.25rem 1.25rem 0 0 !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+
+    /* Alça visual */
+    #purchaseModal > div::before {
+        content: '';
+        display: block;
+        width: 40px;
+        height: 4px;
+        background: #d1d5db;
+        border-radius: 2px;
+        margin: 10px auto 0;
+    }
+
+    /* Seção de imagem: cabeçalho compacto — só o suficiente para mostrar nome + imagem pequena */
+    #purchaseModal .grid.md\\:grid-cols-2 {
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    #purchaseModal .grid.md\\:grid-cols-2 > div:first-child {
+        background: linear-gradient(135deg, var(--brand-green-2, #16a34a) 0%, var(--brand-green-3, #15803d) 100%) !important;
+        padding: 0.45rem 1rem !important;
+        justify-content: flex-start !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
+        flex-direction: row !important;
+        min-height: unset !important;
+    }
+
+    #purchaseModal #purchaseImage {
+        width: 36px !important;
+        height: 36px !important;
+        min-width: 36px !important;
+        max-height: 36px !important;
+        border-radius: 8px !important;
+        object-fit: cover !important;
+        flex-shrink: 0 !important;
+    }
+
+    /* Mostrar span do título no cabeçalho verde */
+    #purchaseModal #purchaseHeaderTitle {
+        display: inline !important;
+        font-size: 0.875rem !important;
+        font-weight: 700 !important;
+        line-height: 1.25 !important;
+        color: #fff !important;
+    }
+
+    /* Título do produto na seção do formulário — volta ao normal */
+    #purchaseModal #purchaseTitle {
+        font-size: 1.1rem !important;
+        font-weight: 700 !important;
+        color: #111 !important;
+        margin-bottom: 0.25rem !important;
+    }
+
+    /* Esconder descrição longa no mobile — economiza espaço */
+    #purchaseModal #purchaseDescription {
+        display: none !important;
+    }
+
+    /* Botão de fechar fica branco sobre o cabeçalho verde */
+    #purchaseModal > div > button.absolute {
+        color: #fff !important;
+    }
+
+    #purchaseModal .grid.md\\:grid-cols-2 > div:last-child {
+        padding: 0.875rem !important;
     }
 }
 

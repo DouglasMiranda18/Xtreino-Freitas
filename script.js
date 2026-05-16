@@ -1769,6 +1769,8 @@ function showProductModal(productId) {
     document.getElementById('purchaseTitle').textContent = product.name;
     document.getElementById('purchaseDescription').textContent = details.desc;
     document.getElementById('purchasePrice').textContent = product.price;
+    const headerTitle = document.getElementById('purchaseHeaderTitle');
+    if (headerTitle) headerTitle.textContent = product.name;
  
 
     const imgEl = document.getElementById('purchaseImage');
@@ -6557,6 +6559,35 @@ async function submitSchedule(e, useTokens = false) {
             // (a UI já oculta os botões dos horários travados)
         }
 
+        // Anti-duplicação: campeonatos não permitem o mesmo nome de equipe duas vezes
+        const _isCampEvent = (cfg?.category === 'camp') ||
+            rawEventType === 'camp-freitas' || rawEventType === 'camp-final' ||
+            rawEventType.toLowerCase().startsWith('camp');
+        if (_isCampEvent && teamsData.length > 0) {
+            try {
+                const { collection: _dc, query: _dq, where: _dw, getDocs: _ddg } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+                const _existSnap = await _ddg(_dq(
+                    _dc(window.firebaseDb, 'registrations'),
+                    _dw('eventType', '==', rawEventType)
+                ));
+                const _existNames = new Set();
+                _existSnap.docs.forEach(_d => {
+                    const _tn = _d.data().teamName;
+                    if (_tn) _existNames.add(_tn.trim().toLowerCase().replace(/\s+/g, ' '));
+                });
+                for (const _team of teamsData) {
+                    const _norm = (_team.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+                    if (_norm && _existNames.has(_norm)) {
+                        alert(`Já existe uma equipe inscrita com esse nome nas fases iniciais: "${_team.name}"\n\nVerifique se sua equipe já está inscrita neste campeonato.`);
+                        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+                        return;
+                    }
+                }
+            } catch (_dupErr) {
+                console.warn('[Camp] Verificação anti-duplicata falhou:', _dupErr);
+            }
+        }
+
         // Calcular total original
         // Usa rawEventType (ID original do Firestore, case-sensitive) para lookup correto no scheduleConfig
         let originalTotal = 0;
@@ -8226,6 +8257,7 @@ async function loadDynamicEvents() {
                 grupos: Number(ev.grupos) || 0,
                 isFree: _isFreeEv,
                 modo: (ev.modo || '').toUpperCase(),
+                category: ev.category || '',
                 // Padrão: segunda a sexta, 14h-23h, sem data de corte automática
                 allowedWeekdays: [1, 2, 3, 4, 5],
                 slots: ['14h','15h','16h','17h','18h','19h','20h','21h','22h','23h'],
