@@ -1231,7 +1231,14 @@ window.showWarningToast = function(message, title = 'Atenção') {
     if (btnSch) btnSch.onclick = exportSchedulesCsv;
     const btnLoadBoard = document.getElementById('btnLoadBoard');
     if (btnLoadBoard) btnLoadBoard.onclick = loadBoard;
-    // Eventos dinâmicos removidos do dropdown do board (não utilizados)
+    // Carrega eventos dinâmicos no dropdown do board ao iniciar e quando Firebase estiver pronto
+    if (window.firebaseDb) {
+      loadDynamicEventsIntoBoard();
+    } else {
+      const _waitFb = setInterval(() => {
+        if (window.firebaseDb) { clearInterval(_waitFb); loadDynamicEventsIntoBoard(); }
+      }, 300);
+    }
     const formAddTeam = document.getElementById('formAddTeam');
     if (formAddTeam) formAddTeam.onsubmit = submitAddTeam;
     // Bind filtros do histórico de cupons - configurar após DOM estar pronto
@@ -2726,7 +2733,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
         opt.value = d.id;
         opt.textContent = ev.name || d.id;
         opt.dataset.dynamic = '1';
-        opt.dataset.canonicalType = canonicalType(ev.eventType || ev.name || d.id);
+        opt.dataset.canonicalType = d.id;
         typeEl.appendChild(opt);
       });
     } catch (err) {
