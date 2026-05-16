@@ -10582,19 +10582,24 @@ async function loadCampPhaseList(keepCurrentPhase = false) {
     if (tabsEl) tabsEl.innerHTML = '<span class="text-xs text-gray-400"><i class="fas fa-spinner fa-spin mr-1"></i>Carregando...</span>';
 
     try {
-        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const snap = await getDocs(query(
-            collection(window.firebaseDb, 'camp_groups'),
-            where('eventId', '==', _campGroupsEventId)
-        ));
-
+        const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        // Probe known keys directly — no index needed, no collection query
+        const keysToProbe = [
+            'classificatoria', // legacy alias
+            'fase1','fase2','fase3','fase4','fase5','fase6','fase7','fase8',
+            'semifinal','final'
+        ];
         const seen = new Set();
         const phases = [];
-        snap.docs.forEach(d => {
-            const data = d.data();
-            // Derive key: prefer phaseKey field, else strip eventId prefix from doc id
-            let key = data.phaseKey || d.id.replace(`${_campGroupsEventId}_`, '');
-            if (key === 'classificatoria') key = 'fase1'; // normalize legacy
+        const reads = keysToProbe.map(k =>
+            getDoc(doc(window.firebaseDb, 'camp_groups', `${_campGroupsEventId}_${k}`))
+                .then(snap => ({ k, snap }))
+                .catch(() => ({ k, snap: null }))
+        );
+        const results = await Promise.all(reads);
+        results.forEach(({ k, snap }) => {
+            if (!snap || !snap.exists()) return;
+            let key = k === 'classificatoria' ? 'fase1' : k;
             if (seen.has(key)) return;
             seen.add(key);
             phases.push({ key, label: _phaseLabel(key), order: _phaseOrder(key) });
