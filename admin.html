@@ -2243,49 +2243,46 @@
             <button onclick="closeCampGroupsModal()" class="text-gray-400 hover:text-gray-700 text-xl"><i class="fas fa-times"></i></button>
         </div>
 
-        <!-- Phase tabs -->
+        <!-- Phase tabs (dynamic) -->
         <div class="px-6 pt-4 pb-2 border-b border-gray-100">
-            <!-- Fluxo visual -->
-            <div class="flex items-center gap-1 text-xs mb-3 flex-wrap">
-                <button id="campPhaseBtn_classificatoria" onclick="setCampGroupsPhase('classificatoria')"
-                    class="px-3 py-1.5 rounded-lg font-bold bg-orange-600 text-white transition-colors">
-                    CLASSIFICATÓRIA
-                </button>
-                <i class="fas fa-arrow-right text-gray-400 text-xs"></i>
-                <button id="campPhaseBtn_semifinal" onclick="setCampGroupsPhase('semifinal')"
-                    class="px-3 py-1.5 rounded-lg font-bold bg-gray-100 text-gray-700 transition-colors">
-                    SEMIFINAL
-                </button>
-                <i class="fas fa-arrow-right text-gray-400 text-xs"></i>
-                <button id="campPhaseBtn_final" onclick="setCampGroupsPhase('final')"
-                    class="px-3 py-1.5 rounded-lg font-bold bg-gray-100 text-gray-700 transition-colors">
-                    FINAL 🏆
-                </button>
+            <!-- Tabs gerados dinamicamente pelo JS -->
+            <div id="campPhaseTabs" class="flex items-center gap-1 flex-wrap mb-3 min-h-[28px]">
+                <span class="text-xs text-gray-400 italic">Carregando fases...</span>
             </div>
 
             <!-- Descrição da fase ativa -->
             <div id="campPhaseDesc" class="text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 mb-3">
                 <i class="fas fa-info-circle mr-1"></i>
-                <span id="campPhaseDescText">Classificatória: 12 times por grupo. Times inscritos são sorteados automaticamente.</span>
+                <span id="campPhaseDescText">Fase 1: 12 times por grupo, agrupados pela ordem de inscrição.</span>
             </div>
 
-            <!-- Controls -->
-            <div class="flex flex-wrap items-end gap-3 mb-2">
+            <!-- Controls: gerar próxima fase -->
+            <div class="flex flex-wrap items-end gap-2 mb-2">
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Gerar fase</label>
+                    <select id="campNextPhaseSelect" onchange="_onNextPhaseSelectChange()"
+                        class="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
+                    </select>
+                </div>
                 <div id="campAdvancingWrapper">
-                    <label class="block text-xs font-medium text-gray-600 mb-1" id="campAdvancingLabel">Times que avançam no total para a Semifinal</label>
+                    <label class="block text-xs font-medium text-gray-600 mb-1" id="campAdvancingLabel">Times que avançam</label>
                     <input id="campAdvancingInput" type="number" min="1" max="999" value="30" placeholder="Ex: 30"
-                        class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-36 focus:outline-none focus:ring-2 focus:ring-orange-400">
+                        class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-28 focus:outline-none focus:ring-2 focus:ring-orange-400">
                 </div>
                 <button id="campGenerateBtn" onclick="generateCampGroups()"
                     class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-bold rounded-lg flex items-center gap-2 transition-colors">
-                    <i class="fas fa-random"></i> Sortear Grupos
+                    <i class="fas fa-list-ol"></i> Gerar Fase 1
                 </button>
-                <button onclick="loadCampGroups()" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-lg transition-colors" title="Recarregar grupos salvos">
+                <button id="campReorganizeBtn" onclick="reorganizarGrupos()"
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg flex items-center gap-2 transition-colors" title="Reorganizar fase atual pela ordem de inscrição">
+                    <i class="fas fa-redo"></i> Reorganizar
+                </button>
+                <button onclick="loadCampPhaseList(true)" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-lg transition-colors" title="Recarregar fases">
                     <i class="fas fa-sync-alt"></i>
                 </button>
             </div>
 
-            <!-- Resultado do último sorteio -->
+            <!-- Resultado da geração -->
             <p id="campPhaseInfo" class="hidden text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5 mb-1 font-medium"></p>
         </div>
 

@@ -10521,59 +10521,176 @@ async function editEventItem(eventId) {
     }
 }
 
-// ===== CAMP GRUPOS =====
+// ===== CAMP GRUPOS (Multi-Phase) =====
 let _campGroupsEventId = null;
-let _campGroupsPhase = 'classificatoria';
+let _campGroupsPhase = 'fase1';
+let _campPhaseList = []; // phases found in Firestore for this event, sorted
+
+function _phaseLabel(key) {
+    if (!key) return '';
+    if (key === 'semifinal') return 'Semifinal';
+    if (key === 'final') return 'Final 🏆';
+    if (key === 'classificatoria') return 'Fase 1';
+    const m = key.match(/^fase(\d+)$/i);
+    if (m) return `Fase ${m[1]}`;
+    return key;
+}
+function _phaseOrder(key) {
+    if (key === 'final') return 99;
+    if (key === 'semifinal') return 98;
+    if (key === 'classificatoria') return 1;
+    const m = key.match(/^fase(\d+)$/i);
+    return m ? parseInt(m[1]) : 50;
+}
+function _phaseTeamSize(key) {
+    return (key === 'semifinal' || key === 'final') ? 15 : 12;
+}
+function _prevPhaseKey(key) {
+    if (key === 'final') return 'semifinal';
+    if (key === 'semifinal') {
+        const fases = _campPhaseList.filter(p => /^fase\d+$/.test(p.key));
+        return fases.length ? fases[fases.length - 1].key : 'fase1';
+    }
+    const m = key.match(/^fase(\d+)$/i);
+    if (m) { const n = parseInt(m[1]); return n > 1 ? `fase${n - 1}` : null; }
+    return null;
+}
 
 function openCampGroupsModal(eventId, eventName) {
     _campGroupsEventId = eventId;
-    _campGroupsPhase = 'classificatoria';
+    _campGroupsPhase = 'fase1';
+    _campPhaseList = [];
     const modal = document.getElementById('campGroupsModal');
     if (!modal) return;
     const titleEl = document.getElementById('campGroupsTitle');
     if (titleEl) titleEl.innerHTML = `<i class="fas fa-users text-orange-500 mr-2"></i>Grupos — ${escapeAdminHtml(eventName || 'Campeonato')}`;
     modal.classList.remove('hidden');
     modal.classList.add('flex');
-    setCampGroupsPhase('classificatoria', false);
-    loadCampGroups();
+    loadCampPhaseList(false);
 }
 
 function closeCampGroupsModal() {
     const modal = document.getElementById('campGroupsModal');
     if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
     _campGroupsEventId = null;
+    _campPhaseList = [];
+}
+
+async function loadCampPhaseList(keepCurrentPhase = false) {
+    const tabsEl = document.getElementById('campPhaseTabs');
+    if (!window.firebaseDb || !_campGroupsEventId) return;
+    if (tabsEl) tabsEl.innerHTML = '<span class="text-xs text-gray-400"><i class="fas fa-spinner fa-spin mr-1"></i>Carregando...</span>';
+
+    try {
+        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const snap = await getDocs(query(
+            collection(window.firebaseDb, 'camp_groups'),
+            where('eventId', '==', _campGroupsEventId)
+        ));
+
+        const seen = new Set();
+        const phases = [];
+        snap.docs.forEach(d => {
+            const data = d.data();
+            // Derive key: prefer phaseKey field, else strip eventId prefix from doc id
+            let key = data.phaseKey || d.id.replace(`${_campGroupsEventId}_`, '');
+            if (key === 'classificatoria') key = 'fase1'; // normalize legacy
+            if (seen.has(key)) return;
+            seen.add(key);
+            phases.push({ key, label: _phaseLabel(key), order: _phaseOrder(key) });
+        });
+        phases.sort((a, b) => a.order - b.order);
+        _campPhaseList = phases;
+
+        _renderCampPhaseTabs(phases);
+        _updateNextPhaseSelect(phases);
+
+        const toSelect = keepCurrentPhase && phases.find(p => p.key === _campGroupsPhase)
+            ? _campGroupsPhase : (phases[0]?.key || 'fase1');
+        setCampGroupsPhase(toSelect, true);
+
+    } catch (err) {
+        console.error('Erro ao carregar fases:', err);
+        if (tabsEl) tabsEl.innerHTML = '<span class="text-xs text-red-400">Erro ao carregar fases.</span>';
+    }
+}
+
+function _renderCampPhaseTabs(phases) {
+    const tabsEl = document.getElementById('campPhaseTabs');
+    if (!tabsEl) return;
+    if (!phases.length) {
+        tabsEl.innerHTML = '<span class="text-xs text-gray-400 italic">Nenhuma fase gerada ainda.</span>';
+        return;
+    }
+    let html = '';
+    phases.forEach((p, i) => {
+        html += `<button id="campPhaseBtn_${p.key}" onclick="setCampGroupsPhase('${p.key}')"
+            class="px-3 py-1.5 rounded-lg font-bold text-xs bg-gray-100 text-gray-700 transition-colors whitespace-nowrap">
+            ${escapeAdminHtml(p.label.toUpperCase())}
+        </button>`;
+        if (i < phases.length - 1) html += `<i class="fas fa-arrow-right text-gray-400 text-xs self-center"></i>`;
+    });
+    tabsEl.innerHTML = html;
+}
+
+function _updateNextPhaseSelect(phases) {
+    const sel = document.getElementById('campNextPhaseSelect');
+    if (!sel) return;
+    const existingKeys = new Set(phases.map(p => p.key));
+    const opts = [];
+
+    if (!existingKeys.has('fase1')) {
+        opts.push({ key: 'fase1', label: 'Fase 1 (inscritos)' });
+    } else {
+        const lastN = phases.filter(p => /^fase\d+$/.test(p.key))
+            .reduce((mx, p) => Math.max(mx, parseInt(p.key.replace('fase', ''))), 0);
+        if (lastN > 0 && !existingKeys.has('semifinal')) {
+            opts.push({ key: `fase${lastN + 1}`, label: `Fase ${lastN + 1}` });
+            opts.push({ key: 'semifinal', label: 'Semifinal (direto)' });
+        }
+        if (existingKeys.has('semifinal') && !existingKeys.has('final')) {
+            opts.push({ key: 'final', label: 'Final' });
+        }
+    }
+    if (!opts.length) opts.push({ key: 'regenerar', label: '— Regenerar fase atual —' });
+
+    sel.innerHTML = opts.map(o => `<option value="${o.key}">${o.label}</option>`).join('');
+    _onNextPhaseSelectChange();
+}
+
+function _onNextPhaseSelectChange() {
+    const sel = document.getElementById('campNextPhaseSelect');
+    const key = sel?.value || '';
+    const advWrapper = document.getElementById('campAdvancingWrapper');
+    const labelEl = document.getElementById('campAdvancingLabel');
+    const genBtn = document.getElementById('campGenerateBtn');
+    const isFinal = key === 'final';
+    if (advWrapper) advWrapper.style.display = isFinal ? 'none' : '';
+    if (labelEl) {
+        if (key === 'semifinal' || key === 'final') labelEl.textContent = `Times que avançam para a ${_phaseLabel(key)}`;
+        else { const n = key.match(/^fase(\d+)$/)?.[1]; labelEl.textContent = n ? `Times que avançam para Fase ${n}` : 'Times que avançam'; }
+    }
+    if (genBtn) genBtn.innerHTML = `<i class="fas fa-list-ol mr-1"></i>Gerar ${_phaseLabel(key)}`;
 }
 
 function setCampGroupsPhase(phase, reload = true) {
     _campGroupsPhase = phase;
-    ['classificatoria', 'semifinal', 'final'].forEach(p => {
-        const btn = document.getElementById('campPhaseBtn_' + p);
-        if (!btn) return;
-        btn.className = p === phase
-            ? 'px-3 py-1.5 rounded-lg font-bold bg-orange-600 text-white transition-colors'
-            : 'px-3 py-1.5 rounded-lg font-bold bg-gray-100 text-gray-700 transition-colors';
+    document.querySelectorAll('[id^="campPhaseBtn_"]').forEach(btn => {
+        const isActive = btn.id === `campPhaseBtn_${phase}`;
+        btn.className = isActive
+            ? 'px-3 py-1.5 rounded-lg font-bold text-xs bg-orange-600 text-white transition-colors whitespace-nowrap'
+            : 'px-3 py-1.5 rounded-lg font-bold text-xs bg-gray-100 text-gray-700 transition-colors whitespace-nowrap';
     });
-
-    // Atualiza descrição da fase e label do input
-    const descMap = {
-        classificatoria: 'Classificatória: 12 times por grupo, sorteados dos inscritos. Informe quantos avançam no total para a Semifinal.',
-        semifinal: 'Semifinal: 15 times por grupo. Times vêm automaticamente dos que avançaram na Classificatória. Informe quantos avançam para a Final.',
-        final: 'Final: 15 times por grupo. Times vêm automaticamente dos que avançaram na Semifinal. Nenhum avanço necessário.'
-    };
-    const labelMap = {
-        classificatoria: 'Times que avançam no total para a Semifinal',
-        semifinal: 'Times que avançam no total para a Final',
-        final: null
-    };
+    const teamSize = _phaseTeamSize(phase);
+    const phaseLabel = _phaseLabel(phase);
     const descTextEl = document.getElementById('campPhaseDescText');
-    if (descTextEl) descTextEl.textContent = descMap[phase] || '';
-    const labelEl = document.getElementById('campAdvancingLabel');
-    if (labelEl) labelEl.textContent = labelMap[phase] || '';
-    const advWrapper = document.getElementById('campAdvancingWrapper');
-    if (advWrapper) advWrapper.style.display = phase === 'final' ? 'none' : '';
+    if (descTextEl) {
+        if (phase === 'final') descTextEl.textContent = `Final: ${teamSize} times por grupo. Times vêm dos que avançaram na Semifinal.`;
+        else if (phase === 'semifinal') descTextEl.textContent = `Semifinal: ${teamSize} times por grupo, vindos da fase anterior. Informe quantos avançam para a Final.`;
+        else { const n = phase.match(/^fase(\d+)$/)?.[1] || '1'; descTextEl.textContent = `${phaseLabel}: ${teamSize} times por grupo${n === '1' ? ', ordem de inscrição' : ', top 6 de cada grupo anterior'}. 6 avançam por grupo.`; }
+    }
     const infoEl = document.getElementById('campPhaseInfo');
     if (infoEl) infoEl.classList.add('hidden');
-
     if (reload) loadCampGroups();
 }
 
@@ -10583,27 +10700,34 @@ async function loadCampGroups() {
     container.innerHTML = '<div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl"></i></div>';
     try {
         const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const docId = `${_campGroupsEventId}_${_campGroupsPhase}`;
-        const snap = await getDoc(doc(window.firebaseDb, 'camp_groups', docId));
-        if (!snap.exists()) {
-            container.innerHTML = '<div class="text-center py-8 text-gray-400 text-sm">Nenhum grupo gerado para esta fase ainda.<br>Use "Sortear Grupos" para gerar automaticamente.</div>';
+        const phase = _campGroupsPhase;
+        // Try the phase key; also try 'classificatoria' as alias when phase=fase1
+        const keysToTry = [phase];
+        if (phase === 'fase1') keysToTry.push('classificatoria');
+        let data = null;
+        for (const k of keysToTry) {
+            const snap = await getDoc(doc(window.firebaseDb, 'camp_groups', `${_campGroupsEventId}_${k}`));
+            if (snap.exists()) { data = snap.data(); break; }
+        }
+        if (!data) {
+            container.innerHTML = `<div class="text-center py-8 text-gray-400 text-sm">Nenhum grupo gerado para esta fase.<br>Use o seletor abaixo para gerar.</div>`;
             return;
         }
-        const data = snap.data();
-        renderCampGroups(data.groups || [], data.advancingPerGroup || 0, data.generatedAt);
+        renderCampGroups(data.groups || [], data.advancingPerGroup || 0, data.generatedAt, data.teamSize);
     } catch (err) {
         console.error('Erro ao carregar grupos:', err);
         container.innerHTML = '<div class="text-center py-4 text-red-400 text-sm">Erro ao carregar grupos.</div>';
     }
 }
 
-function renderCampGroups(groups, advancingPerGroup, generatedAt) {
+function renderCampGroups(groups, advancingPerGroup, generatedAt, teamSize) {
     const container = document.getElementById('campGroupsContent');
     if (!container) return;
     if (!groups || !groups.length) {
         container.innerHTML = '<div class="text-center py-8 text-gray-400 text-sm">Nenhum grupo gerado.</div>';
         return;
     }
+    const capacity = teamSize || (_campGroupsPhase === 'classificatoria' ? 12 : 15);
     const totalTeams = groups.reduce((s, g) => s + g.teams.length, 0);
     const dateStr = generatedAt?.toDate ? generatedAt.toDate().toLocaleString('pt-BR') : (generatedAt ? new Date(generatedAt).toLocaleString('pt-BR') : '');
     const advInfo = advancingPerGroup
@@ -10613,11 +10737,17 @@ function renderCampGroups(groups, advancingPerGroup, generatedAt) {
                <span class="ml-auto text-xs text-blue-400">${totalTeams} times · ${groups.length} grupos</span>
            </div>` : '';
     const dateInfo = dateStr ? `<p class="text-xs text-gray-400 mb-3">Gerado em: ${dateStr}</p>` : '';
-    container.innerHTML = advInfo + dateInfo + groups.map(g => `
+    container.innerHTML = advInfo + dateInfo + groups.map(g => {
+        const count = g.teams.length;
+        const isFull = count >= capacity;
+        const statusBadge = isFull
+            ? `<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">COMPLETO</span>`
+            : `<span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-bold">AGUARDANDO</span>`;
+        return `
         <div class="border border-gray-200 rounded-xl overflow-hidden mb-3">
-            <div class="bg-orange-50 border-b border-orange-100 px-4 py-2 flex justify-between items-center">
-                <span class="font-bold text-orange-700 text-sm">${g.name}</span>
-                <span class="text-xs text-gray-500">${g.teams.length} time(s)</span>
+            <div class="bg-orange-50 border-b border-orange-100 px-4 py-2 flex justify-between items-center gap-2">
+                <span class="font-bold text-orange-700 text-sm">${g.name} <span class="font-normal text-gray-500">(${count}/${capacity})</span></span>
+                ${statusBadge}
             </div>
             <ul class="divide-y divide-gray-100">
                 ${g.teams.map((t, j) => `
@@ -10627,138 +10757,193 @@ function renderCampGroups(groups, advancingPerGroup, generatedAt) {
                     ${advancingPerGroup && j < advancingPerGroup ? '<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold whitespace-nowrap">Avança ↑</span>' : ''}
                 </li>`).join('')}
             </ul>
-        </div>`).join('');
+        </div>`;
+    }).join('');
+}
+
+async function _getTeamsFromPrevPhase(eventId, prevKey) {
+    const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const keysToTry = [prevKey];
+    if (prevKey === 'fase1') keysToTry.push('classificatoria');
+    for (const k of keysToTry) {
+        const snap = await getDoc(doc(window.firebaseDb, 'camp_groups', `${eventId}_${k}`));
+        if (snap.exists()) return snap.data();
+    }
+    return null;
 }
 
 async function generateCampGroups() {
     const eventId = _campGroupsEventId;
-    const phase = _campGroupsPhase;
     if (!eventId) return;
 
-    // "totalAdvancing" = quantos times avançam NO TOTAL para a próxima fase
+    // Phase to generate comes from the selector
+    const sel = document.getElementById('campNextPhaseSelect');
+    const phase = sel?.value || 'fase1';
+    if (phase === 'regenerar') { await reorganizarGrupos(); return; }
+
     const advancingInput = document.getElementById('campAdvancingInput');
     const totalAdvancing = parseInt(advancingInput?.value || '0', 10) || 0;
-
-    // Tamanho do grupo por fase
-    const teamSize = phase === 'classificatoria' ? 12 : 15;
+    const teamSize = _phaseTeamSize(phase);
 
     const btn = document.getElementById('campGenerateBtn');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Gerando...'; }
 
     try {
-        const { collection, query, where, getDocs, doc, getDoc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-
+        const { collection, query, where, getDocs, doc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         let teams = [];
 
-        if (phase === 'classificatoria') {
-            // CLASSIFICATÓRIA: busca todos os times inscritos nas registrations
-            // Usar apenas 1 filtro (eventType) para evitar índice composto no Firestore
+        const isFirstPhase = phase === 'fase1' || phase === 'classificatoria';
+        if (isFirstPhase) {
+            // Fase 1: from registrations sorted by inscription date
             const regsSnap = await getDocs(query(
                 collection(window.firebaseDb, 'registrations'),
                 where('eventType', '==', eventId)
             ));
             const validSt = new Set(['confirmed', 'paid', 'approved', 'pending']);
-            const teamSet = new Set();
+            const entries = []; const seen = new Set();
             regsSnap.docs.forEach(d => {
                 const data = d.data();
-                if (!validSt.has(data.status)) return;
-                if (data.teamName) teamSet.add(data.teamName);
+                if (!validSt.has(data.status) || !data.teamName) return;
+                const norm = data.teamName.trim().toLowerCase().replace(/\s+/g, ' ');
+                if (seen.has(norm)) return;
+                seen.add(norm);
+                const ts = data.createdAt?.toMillis?.() || (data.createdAt?.seconds || 0) * 1000;
+                entries.push({ name: data.teamName, ts });
             });
-            teams = Array.from(teamSet);
-
-        } else if (phase === 'semifinal') {
-            // SEMIFINAL: usa os times que avançaram da CLASSIFICATÓRIA
-            const prevSnap = await getDoc(doc(window.firebaseDb, 'camp_groups', `${eventId}_classificatoria`));
-            if (!prevSnap.exists()) {
-                showToast('warning', 'Gere os grupos da Classificatória primeiro.', 'Atenção');
+            entries.sort((a, b) => a.ts - b.ts);
+            teams = entries.map(e => e.name);
+        } else {
+            // Subsequent phases: top-N from previous phase groups
+            const prevKey = _prevPhaseKey(phase);
+            if (!prevKey) { showToast('warning', 'Fase anterior não encontrada.', 'Atenção'); return; }
+            const prevData = await _getTeamsFromPrevPhase(eventId, prevKey);
+            if (!prevData) {
+                showToast('warning', `Gere os grupos de "${_phaseLabel(prevKey)}" primeiro.`, 'Atenção');
                 return;
             }
-            const prevData = prevSnap.data();
-            const prevGroups = prevData.groups || [];
-            const prevAdv = prevData.advancingPerGroup || 0;
-            if (!prevAdv) {
-                showToast('warning', 'Defina quantos avançam na Classificatória antes de gerar a Semifinal.', 'Atenção');
-                return;
-            }
-            prevGroups.forEach(g => {
-                g.teams.slice(0, prevAdv).forEach(t => { if (t) teams.push(t); });
-            });
-
-        } else if (phase === 'final') {
-            // FINAL: usa os times que avançaram da SEMIFINAL
-            const prevSnap = await getDoc(doc(window.firebaseDb, 'camp_groups', `${eventId}_semifinal`));
-            if (!prevSnap.exists()) {
-                showToast('warning', 'Gere os grupos da Semifinal primeiro.', 'Atenção');
-                return;
-            }
-            const prevData = prevSnap.data();
-            const prevGroups = prevData.groups || [];
-            const prevAdv = prevData.advancingPerGroup || 0;
-            if (!prevAdv) {
-                showToast('warning', 'Defina quantos avançam na Semifinal antes de gerar a Final.', 'Atenção');
-                return;
-            }
-            prevGroups.forEach(g => {
-                g.teams.slice(0, prevAdv).forEach(t => { if (t) teams.push(t); });
-            });
+            const prevAdv = prevData.advancingPerGroup || 6;
+            if (!prevAdv) { showToast('warning', 'Defina quantos avançam na fase anterior antes de gerar a próxima.', 'Atenção'); return; }
+            (prevData.groups || []).forEach(g => g.teams.slice(0, prevAdv).forEach(t => { if (t) teams.push(t); }));
         }
 
-        if (!teams.length) {
-            showToast('warning', 'Nenhum time encontrado para esta fase.', 'Sem times');
-            return;
-        }
+        if (!teams.length) { showToast('warning', 'Nenhum time encontrado para esta fase.', 'Sem times'); return; }
 
-        // Fisher-Yates shuffle
-        for (let i = teams.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [teams[i], teams[j]] = [teams[j], teams[i]];
-        }
-
-        // Divide em grupos do tamanho da fase
         const groups = [];
         const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
         for (let i = 0; i < teams.length; i += teamSize) {
-            const letter = letters[groups.length] || String(groups.length + 1);
+            const gIdx = groups.length;
+            const letter = letters[gIdx] || String(gIdx + 1);
             groups.push({ name: `Grupo ${letter}`, teams: teams.slice(i, i + teamSize) });
         }
 
-        // Calcula advancingPerGroup a partir do total informado
+        const defaultAdv = phase === 'final' ? 0 : 6;
         const advancingPerGroup = totalAdvancing > 0 && groups.length > 0
-            ? Math.ceil(totalAdvancing / groups.length)
-            : 0;
+            ? Math.ceil(totalAdvancing / groups.length) : defaultAdv;
 
-        const docId = `${eventId}_${phase}`;
-        await setDoc(doc(window.firebaseDb, 'camp_groups', docId), {
-            eventId, phase, teamSize, advancingPerGroup, totalAdvancing,
+        await setDoc(doc(window.firebaseDb, 'camp_groups', `${eventId}_${phase}`), {
+            eventId, phaseKey: phase, phaseOrder: _phaseOrder(phase),
+            teamSize, advancingPerGroup, totalAdvancing: totalAdvancing || advancingPerGroup * groups.length,
             groups, generatedAt: serverTimestamp()
         });
 
-        renderCampGroups(groups, advancingPerGroup, null);
-
-        const phaseLabel = {classificatoria:'Classificatória',semifinal:'Semifinal',final:'Final'}[phase] || phase;
         const advMsg = advancingPerGroup ? ` · ${advancingPerGroup} avançam por grupo` : '';
-        showToast('success', `${groups.length} grupo(s) na ${phaseLabel} com ${teams.length} time(s)${advMsg}.`, 'Grupos Gerados');
-
-        // Atualiza label informativo
+        showToast('success', `${_phaseLabel(phase)}: ${groups.length} grupo(s) · ${teams.length} times${advMsg}.`, 'Gerado');
         _updatePhaseInfo(phase, groups.length, teams.length, advancingPerGroup);
+
+        await loadCampPhaseList(false);
+        setCampGroupsPhase(phase, false);
+        renderCampGroups(groups, advancingPerGroup, null, teamSize);
 
     } catch (err) {
         console.error('Erro ao gerar grupos:', err);
         showToast('error', 'Erro ao gerar grupos: ' + (err.message || ''), 'Erro');
     } finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-random mr-1"></i>Sortear Grupos'; }
+        if (btn) { btn.disabled = false; _onNextPhaseSelectChange(); }
+    }
+}
+
+async function reorganizarGrupos() {
+    const eventId = _campGroupsEventId;
+    const phase = _campGroupsPhase;
+    if (!eventId) return;
+    if (!confirm(`Reorganizar redistribuirá todos os grupos de "${_phaseLabel(phase)}" pela ordem atual. Confirmar?`)) return;
+
+    const btn = document.getElementById('campReorganizeBtn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Reorganizando...'; }
+
+    try {
+        const { collection, query, where, getDocs, doc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const teamSize = _phaseTeamSize(phase);
+        const advancingInput = document.getElementById('campAdvancingInput');
+        const totalAdvancing = parseInt(advancingInput?.value || '0', 10) || 0;
+        let teams = [];
+
+        const isFirst = phase === 'fase1' || phase === 'classificatoria';
+        if (isFirst) {
+            const regsSnap = await getDocs(query(
+                collection(window.firebaseDb, 'registrations'),
+                where('eventType', '==', eventId)
+            ));
+            const validSt = new Set(['confirmed', 'paid', 'approved', 'pending']);
+            const entries = []; const seen = new Set();
+            regsSnap.docs.forEach(d => {
+                const data = d.data();
+                if (!validSt.has(data.status) || !data.teamName) return;
+                const norm = data.teamName.trim().toLowerCase().replace(/\s+/g, ' ');
+                if (seen.has(norm)) return; seen.add(norm);
+                const ts = data.createdAt?.toMillis?.() || (data.createdAt?.seconds || 0) * 1000;
+                entries.push({ name: data.teamName, ts });
+            });
+            entries.sort((a, b) => a.ts - b.ts);
+            teams = entries.map(e => e.name);
+        } else {
+            const prevKey = _prevPhaseKey(phase);
+            const prevData = prevKey ? await _getTeamsFromPrevPhase(eventId, prevKey) : null;
+            if (!prevData) { showToast('warning', 'Fase anterior não encontrada.', 'Atenção'); return; }
+            const prevAdv = prevData.advancingPerGroup || 6;
+            (prevData.groups || []).forEach(g => g.teams.slice(0, prevAdv).forEach(t => { if (t) teams.push(t); }));
+        }
+
+        if (!teams.length) { showToast('warning', 'Nenhum time encontrado.', 'Sem times'); return; }
+
+        const groups = [];
+        const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        for (let i = 0; i < teams.length; i += teamSize) {
+            const gIdx = groups.length;
+            const letter = letters[gIdx] || String(gIdx + 1);
+            groups.push({ name: `Grupo ${letter}`, teams: teams.slice(i, i + teamSize) });
+        }
+        const advancingPerGroup = totalAdvancing > 0 && groups.length > 0 ? Math.ceil(totalAdvancing / groups.length) : (phase === 'final' ? 0 : 6);
+
+        await setDoc(doc(window.firebaseDb, 'camp_groups', `${eventId}_${phase}`), {
+            eventId, phaseKey: phase, phaseOrder: _phaseOrder(phase),
+            teamSize, advancingPerGroup, totalAdvancing: totalAdvancing || advancingPerGroup * groups.length,
+            groups, generatedAt: serverTimestamp()
+        });
+
+        renderCampGroups(groups, advancingPerGroup, null, teamSize);
+        _updatePhaseInfo(phase, groups.length, teams.length, advancingPerGroup);
+        showToast('success', `Grupos reorganizados: ${groups.length} grupo(s), ${teams.length} time(s).`, 'Reorganizado');
+
+    } catch (err) {
+        console.error('Erro ao reorganizar grupos:', err);
+        showToast('error', 'Erro ao reorganizar: ' + (err.message || ''), 'Erro');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-redo mr-1"></i>Reorganizar'; }
     }
 }
 
 function _updatePhaseInfo(phase, numGroups, numTeams, advancingPerGroup) {
     const infoEl = document.getElementById('campPhaseInfo');
     if (!infoEl) return;
+    const totalAdv = advancingPerGroup * numGroups;
     if (phase === 'final') {
         infoEl.textContent = `Final: ${numTeams} times em ${numGroups} grupo(s).`;
+    } else if (phase === 'semifinal') {
+        infoEl.textContent = `Semifinal: ${numGroups} grupo(s) · ${numTeams} times · ${totalAdv} avançam para a Final`;
     } else {
-        const nextPhase = phase === 'classificatoria' ? 'Semifinal' : 'Final';
-        const totalAdv = advancingPerGroup * numGroups;
-        infoEl.textContent = `${numGroups} grupo(s) · ${numTeams} times · ${totalAdv} avançam para a ${nextPhase}`;
+        const nextLabel = _phaseLabel(`fase${(_phaseOrder(phase) || 1) + 1}`);
+        infoEl.textContent = `${numGroups} grupo(s) · ${numTeams} times · ${totalAdv} avançam → ${nextLabel}`;
     }
     infoEl.classList.remove('hidden');
 }
