@@ -9553,6 +9553,235 @@ async function saveProducts() {
     }
 }
 
+
+
+
+// ==================== GERENCIAMENTO DE EVENTOS ====================
+let eventsData = [];
+let eventCounter = 1;
+
+async function loadEvents() {
+    try {
+        const { collection, getDocs, query, orderBy } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const eventsRef = collection(window.firebaseDb, 'events');
+        const q = query(eventsRef, orderBy('order', 'asc'));
+        const snapshot = await getDocs(q);
+        eventsData = [];
+        snapshot.forEach(doc => {
+            eventsData.push({ id: doc.id, ...doc.data() });
+        });
+        renderEventsForm();
+    } catch (error) {
+        console.error('Erro ao carregar eventos:', error);
+    }
+}
+
+function openEventsModal() {
+    const modal = document.getElementById('modalEvents');
+    if (modal) {
+        modal.classList.remove('hidden');
+        loadEvents();
+    }
+}
+
+function closeEventsModal() {
+    const modal = document.getElementById('modalEvents');
+    if (modal) modal.classList.add('hidden');
+}
+
+function addEvent() {
+    const newEvent = {
+        id: `event_${Date.now()}`,
+        eventType: '',
+        title: '',
+        badge: '',
+        imageUrl: '',
+        price: 0,
+        schedules: '',
+        startDate: '',
+        format: '',
+        slots: '',
+        prize: '',
+        differential: '',
+        buttonText: 'RESERVAR VAGA',
+        active: true,
+        order: eventsData.length,
+        allowedWeekdays: [1,2,3,4,5],
+        defaultCapacity: 12,
+        createdAt: new Date(),
+        updatedAt: new Date()
+    };
+    eventsData.push(newEvent);
+    renderEventsForm();
+    setTimeout(() => {
+        const container = document.getElementById('eventsContainer');
+        if (container) container.scrollTop = container.scrollHeight;
+    }, 100);
+}
+
+function deleteEvent(index) {
+    if (confirm('Tem certeza que deseja deletar este evento?')) {
+        eventsData.splice(index, 1);
+        renderEventsForm();
+    }
+}
+
+function renderEventsForm() {
+    const container = document.getElementById('eventsContainer');
+    if (!container) return;
+    if (eventsData.length === 0) {
+        container.innerHTML = '<div class="text-center py-8 text-gray-500">Nenhum evento cadastrado. Clique em "Adicionar" para criar um novo.</div>';
+        return;
+    }
+    container.innerHTML = '';
+    eventsData.forEach((event, idx) => {
+        const div = document.createElement('div');
+        div.className = 'bg-white border border-gray-200 rounded-lg p-6 mb-4';
+        div.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Chave (eventType)</label>
+                    <input type="text" value="${escapeHtml(event.eventType || '')}" class="w-full border rounded px-3 py-2 text-sm" onchange="eventsData[${idx}].eventType = this.value" placeholder="ex: camp-freitas">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Título</label>
+                    <input type="text" value="${escapeHtml(event.title || '')}" class="w-full border rounded px-3 py-2 text-sm" onchange="eventsData[${idx}].title = this.value" placeholder="CAMPEONATO FREITAS">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Badge / Selo</label>
+                    <input type="text" value="${escapeHtml(event.badge || '')}" class="w-full border rounded px-3 py-2 text-sm" onchange="eventsData[${idx}].badge = this.value" placeholder="Novidade!">
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">URL da Imagem</label>
+                    <input type="url" value="${escapeHtml(event.imageUrl || '')}" class="w-full border rounded px-3 py-2 text-sm" onchange="eventsData[${idx}].imageUrl = this.value" placeholder="https://...">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Preço (R$)</label>
+                    <input type="number" step="0.01" value="${event.price || 0}" class="w-full border rounded px-3 py-2 text-sm" onchange="eventsData[${idx}].price = parseFloat(this.value)">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Horários</label>
+                    <input type="text" value="${escapeHtml(event.schedules || '')}" class="w-full border rounded px-3 py-2 text-sm" onchange="eventsData[${idx}].schedules = this.value" placeholder="14h - 15h - 16h ...">
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Data de Início</label>
+                    <input type="date" value="${event.startDate || ''}" class="w-full border rounded px-3 py-2 text-sm" onchange="eventsData[${idx}].startDate = this.value">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Formato</label>
+                    <input type="text" value="${escapeHtml(event.format || '')}" class="w-full border rounded px-3 py-2 text-sm" onchange="eventsData[${idx}].format = this.value" placeholder="Misto | Squad | 2 quedas">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Vagas</label>
+                    <input type="text" value="${escapeHtml(event.slots || '')}" class="w-full border rounded px-3 py-2 text-sm" onchange="eventsData[${idx}].slots = this.value" placeholder="Limitadas">
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Premiação</label>
+                    <input type="text" value="${escapeHtml(event.prize || '')}" class="w-full border rounded px-3 py-2 text-sm" onchange="eventsData[${idx}].prize = this.value" placeholder="R$ 4.000,00">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Diferencial</label>
+                    <input type="text" value="${escapeHtml(event.differential || '')}" class="w-full border rounded px-3 py-2 text-sm" onchange="eventsData[${idx}].differential = this.value" placeholder="Transmissão ao vivo + Troféu">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Texto do Botão</label>
+                    <input type="text" value="${escapeHtml(event.buttonText || 'RESERVAR VAGA')}" class="w-full border rounded px-3 py-2 text-sm" onchange="eventsData[${idx}].buttonText = this.value">
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Status</label>
+                    <select onchange="eventsData[${idx}].active = this.value === 'true'" class="w-full border rounded px-3 py-2 text-sm">
+                        <option value="true" ${event.active !== false ? 'selected' : ''}>Ativo</option>
+                        <option value="false" ${event.active === false ? 'selected' : ''}>Inativo</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Ordem</label>
+                    <input type="number" value="${event.order || idx}" class="w-full border rounded px-3 py-2 text-sm" onchange="eventsData[${idx}].order = parseInt(this.value)">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Capacidade Padrão</label>
+                    <input type="number" value="${event.defaultCapacity || 12}" class="w-full border rounded px-3 py-2 text-sm" onchange="eventsData[${idx}].defaultCapacity = parseInt(this.value)">
+                </div>
+                <div class="flex items-end">
+                    <button onclick="deleteEvent(${idx})" class="px-3 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200">
+                        <i class="fas fa-trash mr-1"></i>Excluir
+                    </button>
+                </div>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+}
+
+async function saveEvents() {
+    try {
+        if (eventsData.length === 0) {
+            showToast('warning', 'Nenhum evento para salvar', 'Aviso');
+            return;
+        }
+        const { collection, doc, setDoc, deleteDoc, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const eventsRef = collection(window.firebaseDb, 'events');
+        const existingSnap = await getDocs(eventsRef);
+        const existingIds = new Set(eventsData.map(e => e.id));
+        for (const docSnap of existingSnap.docs) {
+            if (!existingIds.has(docSnap.id)) {
+                await deleteDoc(doc(window.firebaseDb, 'events', docSnap.id));
+            }
+        }
+        for (const event of eventsData) {
+
+            // Validação: título e eventType são obrigatórios
+            if (!event.title || !event.title.trim()) {
+                showToast('error', `Evento sem título. Preencha o título antes de salvar.`, 'Erro');
+                return;
+            }
+            
+            if (!event.eventType || !event.eventType.trim()) {
+                showToast('error', `Evento "${event.title || 'sem nome'}" sem chave (eventType). Preencha a chave.`, 'Erro');
+                return;
+            }
+            // Se price for inválido, define 0
+            if (isNaN(event.price)) event.price = 0;
+
+            const eventRef = doc(window.firebaseDb, 'events', event.id);
+            const { id, ...data } = event;
+            await setDoc(eventRef, {
+                ...data,
+                updatedAt: new Date()
+            });
+        }
+        showToast('success', `${eventsData.length} evento(s) salvo(s) com sucesso!`, 'Sucesso');
+        closeEventsModal();
+        // Recarregar eventos no frontend (via script.js)
+        if (typeof window.loadEventsFromFirestore === 'function') {
+            await window.loadEventsFromFirestore();
+        }
+    } catch (error) {
+        console.error('Erro ao salvar eventos:', error);
+        showToast('error', 'Erro ao salvar eventos: ' + error.message, 'Erro');
+    }
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
+
+
+
 // ==================== UNIFICAÇÃO E CORREÇÃO DE PERMISSÕES ====================
 
 // Variáveis globais para busca
@@ -9755,3 +9984,9 @@ window.closeProductsModal = closeProductsModal;
 window.addProduct = addProduct;
 window.deleteProduct = deleteProduct;
 window.saveProducts = saveProducts;
+
+window.openEventsModal = openEventsModal;
+window.closeEventsModal = closeEventsModal;
+window.addEvent = addEvent;
+window.deleteEvent = deleteEvent;
+window.saveEvents = saveEvents;

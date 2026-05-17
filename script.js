@@ -4086,13 +4086,13 @@ window.reinitAnimations = reinitAnimations;
 window.initSmoothAnimations = initSmoothAnimations;
 
 // --- Agendamento nativo (Firestore + Netlify Function) ---
-const scheduleConfig =
+let scheduleConfig =
 {
-    'modo-liga': { label: 'XTreino Modo Liga', price: 3.00 },
-    'camp-freitas': { label: 'Camp Freitas', price: 8.00, startDate: '2026-01-12', allowedWeekdays: [1, 2, 3, 4, 5], slots: ['19h', '20h', '21h', '22h', '23h'] },
-    'camp-final': { label: 'Vaga Direto na Final', price: 100.00 },
-    'semanal-freitas': { label: 'Semanal Freitas', price: 3.50 },
-    'xtreino-tokens': { label: 'XTreino Tokens', price: 1.00 },
+    // 'modo-liga': { label: 'XTreino Modo Liga', price: 3.00 },
+    // 'camp-freitas': { label: 'Camp Freitas', price: 8.00, startDate: '2026-01-12', allowedWeekdays: [1, 2, 3, 4, 5], slots: ['19h', '20h', '21h', '22h', '23h'] },
+    // 'camp-final': { label: 'Vaga Direto na Final', price: 100.00 },
+    // 'semanal-freitas': { label: 'Semanal Freitas', price: 3.50 },
+    // 'xtreino-tokens': { label: 'XTreino Tokens', price: 1.00 },
     // Produtos da loja virtual
     // 'sensibilidades': { label: 'Sensibilidade no Free Fire – PC / Android / iOS', price: 8.00, isProduct: true },
     // 'imagens': { label: 'Imagens Aéreas dos Mapas', price: 2.00, isProduct: true },
@@ -7146,6 +7146,151 @@ async function loadProductsFromFirestore() {
         }
     }
 }
+
+
+// ==================== EVENTOS DINÂMICOS ====================
+let dynamicEvents = [];
+
+async function loadEventsFromFirestore() {
+    try {
+        if (!window.firebaseDb) {
+            console.warn('Firebase não inicializado');
+            return;
+        }
+        const { collection, getDocs, query, where, orderBy } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const eventsRef = collection(window.firebaseDb, 'events');
+        const q = query(eventsRef, where('active', '==', true));
+        const snapshot = await getDocs(q);
+        
+        dynamicEvents = [];
+        snapshot.forEach(doc => {
+            dynamicEvents.push({ id: doc.id, ...doc.data() });
+        });
+
+        dynamicEvents.sort((a, b) => (a.order || 0) - (b.order || 0));
+        
+        // Atualizar scheduleConfig dinamicamente
+        window.dynamicScheduleConfig = {};
+        dynamicEvents.forEach(ev => {
+            window.dynamicScheduleConfig[ev.eventType] = {
+                label: ev.title,
+                price: ev.price,
+                startDate: ev.startDate,
+                allowedWeekdays: ev.allowedWeekdays || [1,2,3,4,5],
+                defaultCapacity: ev.defaultCapacity || 12,
+                description: ev.format,
+                differential: ev.differential,
+                prize: ev.prize
+            };
+        });
+        
+        // Renderizar cards
+        renderEventsCards();
+        
+        // Atualizar funções de preço/capacidade
+        window.getEventPrice = function(eventType, hour, dateStr) {
+            const cfg = window.dynamicScheduleConfig[eventType];
+            if (!cfg) return 0;
+            let base = cfg.price;
+            // promoções especiais podem ser mantidas em fallback
+            if (eventType === 'camp-freitas' && dateStr && CAMP_SEMIFINAL_DATES.includes(dateStr) && hour === '17h') {
+                return 60.00;
+            }
+            return base;
+        };
+        
+        window.getEventCapacity = function(eventType, hourStr, dateStr) {
+            const cfg = window.dynamicScheduleConfig[eventType];
+            let capacity = cfg?.defaultCapacity || 12;
+            if (eventType === 'modo-liga') capacity = 15;
+            if (eventType === 'camp-freitas' && dateStr && CAMP_SEMIFINAL_DATES.includes(dateStr) && hourStr === '17h') capacity = 3;
+            if (eventType === 'semanal-freitas' && hourStr === '22h') capacity = 4;
+            if (eventType === 'camp-final') capacity = 2;
+            return capacity;
+        };
+        
+    } catch (error) {
+        console.error('Erro ao carregar eventos:', error);
+        const container = document.getElementById('eventsContainer');
+        if (container) container.innerHTML = '<p class="col-span-full text-center text-red-500">Erro ao carregar eventos.</p>';
+    }
+}
+
+function renderEventsCards() {
+    const container = document.getElementById('eventsContainer');
+    if (!container) return;
+    if (dynamicEvents.length === 0) {
+        container.innerHTML = '<p class="col-span-full text-center text-gray-500">Nenhum evento disponível no momento.</p>';
+        return;
+    }
+    container.innerHTML = '';
+    dynamicEvents.forEach(event => {
+        const card = document.createElement('article');
+        card.className = 'product-card';
+        // Badge
+        const badgeHtml = event.badge ? `<div class="absolute top-4 right-4 bg-[var(--brand-yellow)] text-[var(--brand-black)] text-xs font-bold px-2 py-1 rounded">${escapeHtml(event.badge)}</div>` : '';
+        // Imagem
+        const imgHtml = `<div class="product-media relative">${badgeHtml}<img src="${event.imageUrl || 'assets/images/Logo - Xtreino Freitas.png'}" alt="${escapeHtml(event.title)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='assets/images/Logo - Xtreino Freitas.png'"></div>`;
+        // Descrição (lista)
+        const descLines = [];
+        if (event.price) descLines.push(`<div><strong>Valor:</strong> R$ ${event.price.toFixed(2)}</div>`);
+        if (event.schedules) descLines.push(`<div><strong>Horários:</strong> ${event.schedules}</div>`);
+        if (event.startDate) descLines.push(`<div><strong>Início:</strong> ${formatDateBR(event.startDate)}</div>`);
+        if (event.format) descLines.push(`<div><strong>Formato:</strong> ${event.format}</div>`);
+        if (event.slots) descLines.push(`<div><strong>Vagas por horário:</strong> ${event.slots}</div>`);
+        if (event.prize) descLines.push(`<div><strong>Premiação:</strong> ${event.prize}</div>`);
+        if (event.differential) descLines.push(`<div><strong>Diferencial:</strong> ${event.differential}</div>`);
+        const descHtml = `<div class="product-desc"><div class="space-y-1">${descLines.join('')}</div></div>`;
+        const buttonHtml = `<button onclick="openScheduleModal('${event.eventType}')" class="w-full btn-primary py-2 rounded-lg font-semibold">${escapeHtml(event.buttonText || 'RESERVAR VAGA')}</button>`;
+        card.innerHTML = imgHtml + `<div class="product-title">${escapeHtml(event.title)}</div>` + descHtml + buttonHtml;
+        container.appendChild(card);
+    });
+    // Reaplicar animações
+    if (typeof reinitAnimations === 'function') reinitAnimations(container);
+}
+
+function formatDateBR(isoString) {
+    if (!isoString) return '';
+    const parts = isoString.split('-');
+    if (parts.length !== 3) return isoString;
+    return `${parts[2]}/${parts[1]}`;
+}
+
+// Substituir scheduleConfig existente por dinâmico
+window.originalScheduleConfig = { ...scheduleConfig };
+// scheduleConfig será substituído pelos dados carregados; manter fallback
+scheduleConfig = window.dynamicScheduleConfig || {};
+Object.assign(scheduleConfig, window.originalScheduleConfig); // fallback
+
+// Chamar carregamento após Firebase pronto
+if (window.firebaseReady) {
+    loadEventsFromFirestore();
+} else {
+    window.addEventListener('load', () => {
+        setTimeout(loadEventsFromFirestore, 1000);
+    });
+}
+
+// Atualizar funções de preço e capacidade globais
+window.getEventPrice = function(eventType, hour, dateStr) {
+    const cfg = window.dynamicScheduleConfig?.[eventType] || scheduleConfig[eventType];
+    if (!cfg) return 0;
+    let base = cfg.price;
+    if (eventType === 'camp-freitas' && dateStr && CAMP_SEMIFINAL_DATES.includes(dateStr) && hour === '17h') return 60.00;
+    if (eventType === 'semanal-freitas' && hour === '22h') return 7.00;
+    if (eventType === 'camp-final') return 100.00;
+    return base;
+};
+
+window.getEventCapacity = function(eventType, hourStr, dateStr) {
+    const cfg = window.dynamicScheduleConfig?.[eventType] || scheduleConfig[eventType];
+    let capacity = cfg?.defaultCapacity || 12;
+    if (eventType === 'modo-liga') return 15;
+    if (eventType === 'camp-freitas' && dateStr && CAMP_SEMIFINAL_DATES.includes(dateStr) && hourStr === '17h') return 3;
+    if (eventType === 'semanal-freitas' && hourStr === '22h') return 4;
+    if (eventType === 'camp-final') return 2;
+    return capacity;
+};
 
 window.applyCoupon = applyCoupon;
 window.applyScheduleCoupon = applyScheduleCoupon;
