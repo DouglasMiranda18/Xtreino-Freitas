@@ -7,7 +7,7 @@
     <link rel="icon" type="image/png" href="assets/images/Logo - Xtreino Freitas.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        // Fallback rápido se o Tailwind não carregar em 2 segundos
+        // Fallback rápido se o Tailwind não carregar em 2 segundos v17/05/2026
         setTimeout(function() {
             if (typeof tailwind === 'undefined') {
                 console.warn('⚠️ Tailwind não carregou, tentando novamente...');
@@ -35,9 +35,6 @@
                 </div>
             </div>
             <div class="flex items-center gap-3">
-                <button id="adminSidebarToggle" class="text-sm px-3 py-2 rounded-lg flex items-center gap-2" onclick="toggleAdminSidebar()" title="Menu">
-                    <i class="fas fa-bars"></i>
-                </button>
                 <a href="index.html" class="text-sm px-4 py-2 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 hover:shadow-md transition-all flex items-center gap-2 font-medium">
                     <i class="fas fa-home text-blue-600"></i>
                     Voltar ao Site
@@ -61,116 +58,50 @@
         </nav>
     </header>
 
-    <!-- Sidebar Navigation -->
-    <nav id="adminSidebar">
-        <div class="sidebar-header-block">
-            <img src="assets/images/Logo - Xtreino Freitas.png" alt="XTreino" onerror="this.style.display='none'">
-            <div>
-                <div class="sidebar-brand-name">XTreino Freitas</div>
-                <div class="sidebar-brand-sub">Painel Admin</div>
-            </div>
-        </div>
-
-        <p class="sidebar-section-label">Principal</p>
-        <ul class="sidebar-menu">
-            <li><button class="sidebar-link" data-page="principal" onclick="adminNav('principal','sectionKPIs',this)"><i class="fas fa-chart-line"></i><span>Visão Geral</span></button></li>
-            <li><button class="sidebar-link" data-page="principal" onclick="adminNav('principal','sectionFilters',this)"><i class="fas fa-sliders-h"></i><span>Filtros & Ações</span></button></li>
-            <li><button class="sidebar-link" data-page="principal" onclick="adminNav('principal','sectionCharts',this)"><i class="fas fa-chart-bar"></i><span>Gráficos</span></button></li>
-            <li><button class="sidebar-link" data-page="principal" onclick="adminNav('principal','sectionTokenStats',this)"><i class="fas fa-shopping-cart"></i><span>Pedidos</span></button></li>
-        </ul>
-
-        <p class="sidebar-section-label">Usuários</p>
-        <ul class="sidebar-menu">
-            <li><button class="sidebar-link" data-page="usuarios" onclick="adminNav('usuarios','sectionUsersManagement',this)"><i class="fas fa-users"></i><span>Usuários Ativos</span></button></li>
-            <li><button class="sidebar-link" data-page="usuarios" onclick="adminNav('usuarios','sectionTokens',this)"><i class="fas fa-coins"></i><span>Tokens</span></button></li>
-        </ul>
-
-        <p class="sidebar-section-label">Financeiro</p>
-        <ul class="sidebar-menu">
-            <li><button class="sidebar-link" data-page="financeiro" onclick="adminNav('financeiro','sectionCoupons',this)"><i class="fas fa-tag"></i><span>Cupons</span></button></li>
-            <li><button class="sidebar-link" data-page="financeiro" onclick="adminNav('financeiro','sectionCouponUsage',this)"><i class="fas fa-chart-pie"></i><span>Uso de Cupons</span></button></li>
-            <li><button class="sidebar-link" data-page="financeiro" onclick="adminNav('financeiro','sectionAffiliates',this)"><i class="fas fa-handshake"></i><span>Afiliados</span></button></li>
-            <li><button class="sidebar-link" data-page="financeiro" onclick="adminNav('financeiro','sectionAffiliateSales',this)"><i class="fas fa-dollar-sign"></i><span>Comissões</span></button></li>
-            <li><button class="sidebar-link" data-page="financeiro" onclick="adminNav('financeiro','sectionPasseBooyah',this)"><i class="fas fa-id-card"></i><span>Passe Booyah</span></button></li>
-        </ul>
-
-        <p class="sidebar-section-label">Conteúdo</p>
-        <ul class="sidebar-menu">
-            <li><button class="sidebar-link" data-page="conteudo" onclick="adminNav('conteudo','sectionHighlights',this)"><i class="fas fa-star"></i><span>Destaques</span></button></li>
-            <li><button class="sidebar-link" data-page="conteudo" onclick="adminNav('conteudo','sectionNews',this)"><i class="fas fa-newspaper"></i><span>Notícias</span></button></li>
-            <li><button class="sidebar-link" data-page="conteudo" onclick="adminNav('conteudo','sectionProducts',this)"><i class="fas fa-box"></i><span>Produtos</span></button></li>
-            <li><button class="sidebar-link" data-page="conteudo" onclick="adminNav('conteudo','sectionEvents',this)"><i class="fas fa-trophy"></i><span>Eventos</span></button></li>
-            <li><button class="sidebar-link" data-page="conteudo" onclick="adminNav('conteudo','sectionSchedules',this)"><i class="fas fa-clock"></i><span>Horários</span></button></li>
-            <li><button class="sidebar-link" data-page="conteudo" onclick="adminNav('conteudo','sectionShirtOrders',this)"><i class="fas fa-tshirt"></i><span>Camisas</span></button></li>
-        </ul>
-
-        <p class="sidebar-section-label">Operações</p>
-        <ul class="sidebar-menu">
-            <li><button class="sidebar-link" data-page="operacoes" onclick="adminNav('operacoes','sectionWhatsAppLinks',this)"><i class="fab fa-whatsapp"></i><span>WhatsApp Links</span></button></li>
-            <li><button class="sidebar-link" data-page="operacoes" onclick="adminNav('operacoes','sectionNotificationsAdmin',this)"><i class="fas fa-bell"></i><span>Notificações</span></button></li>
-            <li><button class="sidebar-link sidebar-danger" data-page="operacoes" onclick="adminNav('operacoes','sectionResetData',this)"><i class="fas fa-exclamation-triangle"></i><span>Reset Dados</span></button></li>
-        </ul>
-    </nav>
-
-    <main class="px-6 py-8">
+    <main class="container mx-auto px-6 py-8">
         <section id="authGate" class="hidden">
-            <div class="admin-login-split">
-                <!-- Painel esquerdo — marca -->
-                <div class="admin-login-left">
-                    <img src="assets/images/Logo - Xtreino Freitas.png" alt="XTreino Freitas" />
-                    <div>
-                        <div class="admin-login-left-title">XTreino<br>Freitas</div>
-                        <div class="admin-login-left-sub">Plataforma de eSports<br>Free Fire — Painel Admin</div>
-                    </div>
-                    <div class="admin-login-left-badge">
-                        <i class="fas fa-shield-alt"></i>
-                        Acesso Restrito
-                    </div>
+            <div class="max-w-md mx-auto bg-white border border-gray-200 rounded-2xl p-8 shadow-lg">
+                <div class="text-center mb-6">
+                    <img src="assets/images/Logo - Xtreino Freitas.png" alt="X-TREINO FREITAS" class="h-16 w-16 mx-auto mb-4 rounded-lg object-contain" />
+                    <h2 class="text-2xl font-bold mb-2">Painel Administrativo</h2>
+                    <p class="text-gray-600">Acesso restrito a administradores autorizados</p>
                 </div>
-                <!-- Painel direito — formulário -->
-                <div class="admin-login-right">
-                    <h2>Bem-vindo de volta</h2>
-                    <p>Entre com suas credenciais administrativas para continuar.</p>
-                    <form id="emailLoginForm" class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium mb-2">Email</label>
-                            <input id="adminEmail" type="email" required placeholder="admin@xtreinofreitas.com">
+                <form id="emailLoginForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Email Administrativo</label>
+                        <input id="adminEmail" type="email" required class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-black placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="admin@xtreinofreitas.com">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Senha</label>
+                        <input id="adminPassword" type="password" required class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-black placeholder-gray-400 focus:border-blue-matte focus:outline-none" placeholder="••••••••">
+                        <div class="mt-2 text-right">
+                            <button id="btnForgotPassword" type="button" class="text-sm text-blue-600 hover:text-blue-800">Esqueceu a senha?</button>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-2">Senha</label>
-                            <input id="adminPassword" type="password" required placeholder="••••••••">
-                            <div class="mt-2 text-right">
-                                <button id="btnForgotPassword" type="button">Esqueceu a senha?</button>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <input id="rememberMe" type="checkbox" class="rounded">
-                            <label for="rememberMe" class="text-sm text-gray-500 cursor-pointer">Manter sessão ativa</label>
-                        </div>
-                        <button id="btnEmailLogin" type="submit">
-                            <i class="fas fa-lock mr-2"></i>Entrar no Painel
-                        </button>
-                    </form>
-                    <div id="loginError" class="hidden mt-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm"></div>
-                    <div id="loginInfo" class="hidden mt-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-xl text-sm"></div>
+                    </div>
+                    <div class="flex items-center">
+                        <input id="rememberMe" type="checkbox" class="mr-2">
+                        <label for="rememberMe" class="text-sm text-gray-600">Manter sessão ativa</label>
+                    </div>
+                    <button id="btnEmailLogin" type="submit" class="w-full bg-blue-matte text-white hover:bg-blue-600 py-3 rounded-lg font-semibold transition-colors">
+                        <i class="fas fa-lock mr-2"></i>Entrar no Painel
+                    </button>
+                </form>
+                <div id="loginError" class="hidden mt-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded-lg text-sm"></div>
+                <div id="loginInfo" class="hidden mt-4 p-3 bg-green-100 border border-green-300 text-green-700 rounded-lg text-sm"></div>
+                <div class="mt-6 text-center">
+                    <p class="text-xs text-gray-500">
+                        <i class="fas fa-shield-alt mr-1"></i>
+                        Conexão segura e criptografada
+                    </p>
                 </div>
             </div>
         </section>
 
         <section id="dashboard" class="hidden">
-            <div class="mb-8 flex items-center justify-between">
-                <div>
-                    <h2 class="text-2xl font-bold">Painel Administrativo</h2>
-                    <p id="roleBadge" class="text-sm text-gray-500 mt-1">Carregando permissões...</p>
-                </div>
-                <div class="text-right hidden md:block">
-                    <div id="adminDateDisplay" class="text-xs text-gray-400 font-medium"></div>
-                    <div id="adminTimeDisplay" class="text-lg font-bold text-gray-700 tabular-nums"></div>
-                </div>
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold">Visão Geral</h2>
+                <p id="roleBadge" class="text-sm text-gray-500">Carregando permissões...</p>
             </div>
-
-            <!-- ===== PAGE: PRINCIPAL ===== -->
-            <div id="page-principal" class="admin-page">
 
             <div id="sectionKPIs" class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8">
                 <div class="bg-gradient-to-br from-green-50 to-green-100 border-l-4 border-green-500 rounded-xl p-4 md:p-6 shadow-sm hover:shadow-md transition-shadow">
@@ -250,9 +181,6 @@
                     <button onclick="openProductsModal()" class="px-3 py-2 bg-blue-600 text-white rounded text-sm whitespace-nowrap hover:bg-blue-700">
                         <i class="fas fa-box mr-1"></i>Gerenciar Produtos
                     </button>
-                    <button onclick="openEventsModal()" class="px-3 py-2 bg-orange-600 text-white rounded text-sm whitespace-nowrap hover:bg-orange-700">
-                        <i class="fas fa-trophy mr-1"></i>Gerenciar Eventos
-                    </button>
                 </div>
             </div>
 
@@ -281,7 +209,7 @@
                 </div>
             </div>
             
-            <div id="sectionOrders" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
                     <div class="flex items-center justify-between mb-3">
                         <h3 class="font-bold text-sm flex items-center gap-2">
@@ -471,11 +399,6 @@
                 </div>
             </div>
 
-            </div><!-- /page-principal -->
-
-            <!-- ===== PAGE: USUÁRIOS ===== -->
-            <div id="page-usuarios" class="admin-page hidden">
-
             <!-- Cards de Usuários - Layout Responsivo -->
             <div id="sectionUsersManagement" class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
                 <!-- Novo Card: Usuários Ativos -->
@@ -489,6 +412,7 @@
                         </h3>
                         <div class="flex items-center gap-2 text-xs text-gray-500">
                             <span id="activeUsersCount">0 usuários</span>
+                            <span id="activeUsersPageInfo">Página 1 de 1</span>
                         </div>
                     </div>
                     
@@ -535,10 +459,23 @@
                             </tbody>
                         </table>
                     </div>
+                    <div id="activeUsersPagination" class="flex justify-center mt-3 gap-1">
+                        <!-- Pagination buttons will be added here -->
+                    </div>
                 </div>
                 
                 <!-- Card Simplificado: Usuários & Permissões -->
                 <div class="bg-white border border-gray-200 rounded-xl p-4">
+                    <!-- Campo de busca-->
+                    <div class="mb-4">
+                        <div class="relative">
+                            <input type="text" id="permissionsSearchInput" placeholder="Buscar por nome, email, cargo ou ID..." 
+                                class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <div class="absolute inset-y-0 right-0 flex items-center pr-3">
+                                <span class="text-gray-400">🔍</span>
+                            </div>
+                        </div>
+                    </div>
                     <div class="flex items-center justify-between mb-3">
                         <h3 class="font-bold text-sm flex items-center">
                             <svg class="w-4 h-4 mr-2 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -549,28 +486,7 @@
                         </h3>
                         <div class="flex items-center gap-2 text-xs text-gray-500">
                             <span id="permissionsUsersCount">0 usuários</span>
-                        </div>
-                    </div>
-
-                    <!-- Filtros de Busca e Função -->
-                    <div class="mb-3 space-y-2">
-                        <div class="relative">
-                            <input type="text"
-                                   id="permissionsSearchInput"
-                                   placeholder="Buscar por nome ou email..."
-                                   class="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-8"
-                                   onkeyup="filterPermissionsTable()">
-                            <span class="absolute inset-y-0 right-3 flex items-center text-gray-400 text-sm">🔍</span>
-                        </div>
-                        <div class="flex flex-wrap gap-1" id="permissionsRoleFilters">
-                            <button onclick="setPermissionsRoleFilter('',this)"     class="px-2 py-1 bg-blue-600 text-white rounded text-xs perm-role-btn">Todos</button>
-                            <button onclick="setPermissionsRoleFilter('ceo',this)"  class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs perm-role-btn hover:bg-gray-300">CEO</button>
-                            <button onclick="setPermissionsRoleFilter('admin',this)" class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs perm-role-btn hover:bg-gray-300">Admin</button>
-                            <button onclick="setPermissionsRoleFilter('gerente',this)" class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs perm-role-btn hover:bg-gray-300">Gerente</button>
-                            <button onclick="setPermissionsRoleFilter('vendedor',this)" class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs perm-role-btn hover:bg-gray-300">Vendedor</button>
-                            <button onclick="setPermissionsRoleFilter('design',this)"  class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs perm-role-btn hover:bg-gray-300">Design</button>
-                            <button onclick="setPermissionsRoleFilter('socio',this)"   class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs perm-role-btn hover:bg-gray-300">Sócio</button>
-                            <button onclick="setPermissionsRoleFilter('user',this)"    class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs perm-role-btn hover:bg-gray-300">Usuário</button>
+                            <span id="permissionsUsersPageInfo">Página 1 de 1</span>
                         </div>
                     </div>
                     
@@ -591,7 +507,7 @@
                                 </tr>
                             </tbody>
                         </table>
-                    </div>
+                    </div>                   
                 </div>
             </div>
 
@@ -644,7 +560,7 @@
                                 </tr>
                             </tbody>
                         </table>
-                    </div>
+                    </div>                 
                 </div>
 
                 <!-- Card de Histórico do Admin -->
@@ -690,13 +606,11 @@
                             </tbody>
                         </table>
                     </div>
+                    <!-- <div id="adminHistoryPagination" class="flex justify-center mt-3 gap-1">
+                         Pagination buttons will be added here 
+                    </div> -->
                 </div>
             </div>
-
-            </div><!-- /page-usuarios -->
-
-            <!-- ===== PAGE: FINANCEIRO ===== -->
-            <div id="page-financeiro" class="admin-page hidden">
 
             <!-- Seção de Cupons -->
             <div id="sectionCoupons" class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
@@ -1098,11 +1012,6 @@
                 </div>
             </div>
 
-            </div><!-- /page-financeiro -->
-
-            <!-- ===== PAGE: CONTEÚDO ===== -->
-            <div id="page-conteudo" class="admin-page hidden">
-
             <!-- Gerenciar Destaques -->
             <div id="sectionHighlights" class="bg-white border border-gray-200 rounded-xl p-6 mt-6">
                 <div class="flex items-center justify-between mb-4">
@@ -1137,24 +1046,14 @@
                         <i class="fas fa-box mr-1"></i>Editar
                     </button>
                 </div>
-                <div id="productsPreview" class="space-y-3">
-                    <div class="text-center text-gray-500 text-sm">Carregando produtos...</div>
-                </div>
-            </div>
-
-            <!-- Gerenciar Eventos -->
-            <div id="sectionEvents" class="bg-white border border-gray-200 rounded-xl p-6 mt-6">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="font-bold text-sm flex items-center gap-2">
-                        <i class="fas fa-trophy text-orange-500"></i>
-                        Gerenciar Eventos
-                    </h3>
-                    <button onclick="openEventsModal()" class="px-3 py-1 bg-orange-600 text-white rounded text-xs hover:bg-orange-700">
-                        <i class="fas fa-plus mr-1"></i>Criar / Gerenciar
+                    <h3 class="font-bold text-sm">Gerenciar Eventos</h3>                   
+                    <button onclick="openEventsModal()" class="px-3 py-2 bg-purple-600 text-white rounded text-sm whitespace-nowrap hover:bg-purple-700">
+                      <i class="fas fa-calendar-alt mr-1"></i>Editar
                     </button>
                 </div>
-                <div id="eventsPreview" class="space-y-2">
-                    <div class="text-center text-gray-500 text-sm py-4">Carregando eventos...</div>
+                <div id="productsPreview" class="space-y-3">
+                    <!-- <div class="text-center text-gray-500 text-sm">Carregando produtos...</div> -->
                 </div>
             </div>
 
@@ -1226,57 +1125,6 @@
               </div>
             </div>
 
-            <!-- Controle de Horários -->
-            <div id="sectionSchedules" class="bg-white border border-gray-200 rounded-xl p-6 mt-6">
-                <div class="flex flex-wrap gap-3 items-end mb-4">
-                    <div>
-                        <label class="block text-xs text-gray-500 mb-1">Evento</label>
-                        <select id="boardEventType" class="border rounded px-2 py-1">
-                            <option value="xtreino-tokens">XTREINO TOKENS</option>
-                            <option value="liga">XTREINO MODO LIGA</option>
-                            <option value="semanal">SEMANAL FREITAS</option>
-                            <option value="camp">CAMP FREITAS</option>
-                            <option value="camp-final">CAMP FINAL</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-500 mb-1">Data</label>
-                        <input id="boardDate" type="date" class="border rounded px-2 py-1" />
-                    </div>
-                    <button id="btnLoadBoard" class="px-3 py-2 bg-black text-white rounded">Carregar</button>
-                    <button id="btnLockAllDay" class="px-3 py-2 bg-orange-600 text-white rounded font-semibold">🔒 Travar dia inteiro</button>
-                    <button id="btnClearLocks" class="px-3 py-2 bg-red-600 text-white rounded">🔓 Destravar tudo do dia</button>
-                    <button id="btnGlobalLock" class="px-3 py-2 bg-gray-800 text-white rounded font-semibold">⏳ Carregando...</button>
-                </div>
-                <div id="scheduleBoard" class="overflow-x-auto text-sm">
-                    <table class="w-full">
-                        <thead>
-                            <tr class="text-left text-gray-500">
-                                <th class="py-2">Hora</th>
-                                <th class="py-2">Vagas</th>
-                                <th class="py-2">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody id="boardTbody"></tbody>
-                    </table>
-                </div>
-                <div id="campSemifinalLinksPanel" class="mt-6 bg-red-50 border border-red-200 rounded-xl p-4 hidden">
-                    <div class="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                            <h4 class="text-sm font-bold text-red-700">Camp Freitas • Links das Semifinais (ID e Senha)</h4>
-                            <p class="text-xs text-red-600 mt-1">Cadastre os links oficiais dos grupos para 22/11 e 23/11 às 17h. Eles serão enviados automaticamente para as equipes confirmadas.</p>
-                        </div>
-                        <button id="campSemifinalLinksRefresh" class="px-3 py-1 bg-white border border-red-300 text-red-700 rounded text-xs font-semibold hover:bg-red-100">Atualizar links</button>
-                    </div>
-                    <div id="campSemifinalLinksList" class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4"></div>
-                </div>
-            </div>
-
-            </div><!-- /page-conteudo -->
-
-            <!-- ===== PAGE: OPERAÇÕES ===== -->
-            <div id="page-operacoes" class="admin-page hidden">
-
             <!-- Gerenciamento de Links WhatsApp -->
             <div id="sectionWhatsAppLinks" class="bg-white border border-gray-200 rounded-xl p-6 mt-6">
                 <div class="flex items-center justify-between mb-4">
@@ -1327,6 +1175,50 @@
                 </div>
             </div>
 
+            <!-- Controle de Horários -->
+            <div id="sectionSchedules" class="bg-white border border-gray-200 rounded-xl p-6 mt-6">
+                <div class="flex flex-wrap gap-3 items-end mb-4">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Evento</label>
+                        <select id="boardEventType" class="border rounded px-2 py-1">
+                            <option value="xtreino-tokens">XTREINO TOKENS</option>
+                            <option value="liga">XTREINO MODO LIGA</option>
+                            <option value="semanal">SEMANAL FREITAS</option>
+                            <option value="camp">CAMP FREITAS</option>
+                            <option value="camp-final">CAMP FINAL</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Data</label>
+                        <input id="boardDate" type="date" class="border rounded px-2 py-1" />
+                    </div>
+                    <button id="btnLoadBoard" class="px-3 py-2 bg-black text-white rounded">Carregar</button>
+                    <button id="btnClearLocks" class="px-3 py-2 bg-red-600 text-white rounded">Destravar tudo do dia</button>
+                </div>
+                <div id="scheduleBoard" class="overflow-x-auto text-sm">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="text-left text-gray-500">
+                                <th class="py-2">Hora</th>
+                                <th class="py-2">Vagas</th>
+                                <th class="py-2">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="boardTbody"></tbody>
+                    </table>
+                </div>
+                <div id="campSemifinalLinksPanel" class="mt-6 bg-red-50 border border-red-200 rounded-xl p-4 hidden">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h4 class="text-sm font-bold text-red-700">Camp Freitas • Links das Semifinais (ID e Senha)</h4>
+                            <p class="text-xs text-red-600 mt-1">Cadastre os links oficiais dos grupos para 22/11 e 23/11 às 17h. Eles serão enviados automaticamente para as equipes confirmadas.</p>
+                        </div>
+                        <button id="campSemifinalLinksRefresh" class="px-3 py-1 bg-white border border-red-300 text-red-700 rounded text-xs font-semibold hover:bg-red-100">Atualizar links</button>
+                    </div>
+                    <div id="campSemifinalLinksList" class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </div>
+            </div>
+
             <!-- Reset de Dados (Perigoso) -->
             <div id="sectionResetData" class="bg-white border border-red-300 rounded-xl p-6 mt-6">
                 <div class="flex items-center justify-between mb-3">
@@ -1335,58 +1227,36 @@
                 </div>
                 <p class="text-xs text-gray-600">Use somente antes de ir ao ar. Essa ação apaga coleções selecionadas e pode zerar tokens de usuários.</p>
             </div>
+        </section>
 
-            <!-- Seção: Enviar Notificações (Admin) -->
-            <div id="sectionNotificationsAdmin" class="bg-white border border-gray-200 rounded-xl p-6 mt-6">
+
+        <!-- Modal Gerenciar Eventos (Treinos/Campeonatos) -->
+        <div id="modalEvents" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-white rounded-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto p-6">
                 <div class="flex items-center justify-between mb-6">
-                    <h3 class="font-bold text-base flex items-center gap-2">
-                        <span class="w-8 h-8 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center"><i class="fas fa-bell text-sm"></i></span>
-                        Enviar Notificações
-                    </h3>
-                    <button onclick="loadAdminNotifications()" class="text-sm px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-1">
-                        <i class="fas fa-sync-alt text-xs"></i> Atualizar
+                    <h3 class="font-bold text-xl">Gerenciar Eventos</h3>
+                    <div class="flex items-center gap-3">
+                        <button onclick="addEvent()" class="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700">
+                            <i class="fas fa-plus mr-1"></i>Adicionar
+                        </button>
+                        <button onclick="closeEventsModal()" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="eventsContainer" class="space-y-6">
+                    <!-- Os eventos serão listados dinamicamente -->
+                </div>
+                <div class="flex justify-end gap-3 mt-6 pt-4 border-t">
+                    <button onclick="closeEventsModal()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                        Cancelar
+                    </button>
+                    <button onclick="saveEvents()" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                        <i class="fas fa-save mr-2"></i>Salvar Eventos
                     </button>
                 </div>
-                <!-- Form -->
-                <div class="bg-gray-50 rounded-lg p-4 mb-6">
-                    <h4 class="font-semibold text-sm mb-4">Nova Notificação</h4>
-                    <div class="space-y-3">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Destinatários</label>
-                            <select id="notifTarget" onchange="toggleNotifUserField()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                                <option value="all">Todos os usuários</option>
-                                <option value="user">Usuário específico (por UID)</option>
-                            </select>
-                        </div>
-                        <div id="notifUserIdRow" class="hidden">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">UID do usuário</label>
-                            <input id="notifUserId" type="text" placeholder="Cole o UID do usuário aqui..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Título</label>
-                            <input id="notifTitle" type="text" placeholder="Ex: Novo evento disponível!" maxlength="100" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Mensagem</label>
-                            <textarea id="notifMessage" rows="3" placeholder="Escreva a mensagem da notificação..." maxlength="500" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none"></textarea>
-                        </div>
-                        <div class="flex justify-end">
-                            <button onclick="sendAdminNotification()" class="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium flex items-center gap-2">
-                                <i class="fas fa-paper-plane"></i> Enviar Notificação
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <!-- List -->
-                <div>
-                    <h4 class="font-semibold text-sm mb-3 text-gray-700">Notificações Enviadas</h4>
-                    <div id="adminNotifList" class="space-y-2 max-h-80 overflow-y-auto">
-                        <div class="text-center text-gray-400 py-6 text-sm">Clique em "Atualizar" para carregar</div>
-                    </div>
-                </div>
             </div>
-            </div><!-- /page-operacoes -->
-        </section>
+        </div>
     </main>
 
     <!-- Modal: Reset de Dados -->
@@ -1573,155 +1443,6 @@
     <script type="module" src="config/firebase.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="admin.js"></script>
-
-    <!-- Sidebar / Page Router -->
-    <script>
-    (function() {
-        var sidebar = document.getElementById('adminSidebar');
-        var mainEl  = document.querySelector('main');
-        var dash    = document.getElementById('dashboard');
-        var isMobile = function() { return window.innerWidth < 1024; };
-        var PAGES = ['principal','usuarios','financeiro','conteudo','operacoes'];
-
-        /* Show/hide sidebar based on dashboard visibility */
-        function syncSidebar() {
-            var visible = dash && !dash.classList.contains('hidden');
-            if (visible) {
-                if (!isMobile()) {
-                    sidebar.classList.add('active');
-                    mainEl.classList.add('with-sidebar');
-                }
-            } else {
-                sidebar.classList.remove('active');
-                mainEl.classList.remove('with-sidebar');
-            }
-        }
-        if (dash) {
-            var obs = new MutationObserver(syncSidebar);
-            obs.observe(dash, { attributes: true, attributeFilter: ['class'] });
-        }
-        syncSidebar();
-
-        /* Show a page, hide all others */
-        function showPage(page) {
-            PAGES.forEach(function(p) {
-                var el = document.getElementById('page-' + p);
-                if (!el) return;
-                if (p === page) {
-                    el.classList.remove('hidden');
-                } else {
-                    el.classList.add('hidden');
-                }
-            });
-            window.scrollTo({ top: 0, behavior: 'instant' });
-            /* Lazy-load data for this page */
-            if (typeof window.loadPageData === 'function' && window.firebaseDb) {
-                window.loadPageData(page);
-            } else {
-                /* Retry once Firebase is ready */
-                setTimeout(function() {
-                    if (typeof window.loadPageData === 'function' && window.firebaseDb) {
-                        window.loadPageData(page);
-                    }
-                }, 1500);
-            }
-        }
-
-        /* Navigate: update hash → triggers hashchange → showPage */
-        window.adminNav = function(page, sectionId, btn) {
-            if (PAGES.indexOf(page) === -1) page = 'principal';
-            /* Update active link */
-            document.querySelectorAll('.sidebar-link').forEach(function(l) {
-                l.classList.remove('sidebar-active');
-            });
-            if (btn) btn.classList.add('sidebar-active');
-            /* Close sidebar on mobile */
-            if (isMobile()) sidebar.classList.remove('active');
-            /* Navigate */
-            if (window.location.hash === '#' + page) {
-                /* Already on page — just scroll to section */
-                scrollToSection(sectionId);
-            } else {
-                /* Store pending section for after hashchange */
-                window._pendingSection = sectionId;
-                window.location.hash = page;
-            }
-        };
-
-        /* Scroll to a specific section within the active page */
-        function scrollToSection(id) {
-            if (!id) return;
-            setTimeout(function() {
-                var el = document.getElementById(id);
-                if (el) {
-                    var top = el.getBoundingClientRect().top + window.scrollY - 70;
-                    window.scrollTo({ top: top, behavior: 'smooth' });
-                }
-            }, 60);
-        }
-
-        /* Backward-compat: sidebarScroll now maps to adminNav */
-        window.sidebarScroll = function(id, btn) {
-            /* Detect which page owns this section */
-            var page = 'principal';
-            PAGES.forEach(function(p) {
-                var pg  = document.getElementById('page-' + p);
-                var sec = document.getElementById(id);
-                if (pg && sec && pg.contains(sec)) page = p;
-            });
-            window.adminNav(page, id, btn);
-        };
-
-        /* Mobile toggle */
-        window.toggleAdminSidebar = function() {
-            sidebar.classList.toggle('active');
-        };
-
-        /* Handle hash changes */
-        function onHashChange() {
-            var hash = (window.location.hash || '').replace('#', '').trim();
-            if (PAGES.indexOf(hash) === -1) hash = 'principal';
-            showPage(hash);
-            /* Highlight matching sidebar link */
-            document.querySelectorAll('.sidebar-link').forEach(function(l) {
-                l.classList.remove('sidebar-active');
-            });
-            var first = document.querySelector('.sidebar-link[data-page="' + hash + '"]');
-            if (first) first.classList.add('sidebar-active');
-            /* Scroll to pending section (from adminNav cross-page) */
-            if (window._pendingSection) {
-                scrollToSection(window._pendingSection);
-                window._pendingSection = null;
-            }
-        }
-        window.addEventListener('hashchange', onHashChange);
-
-        /* Init router when dashboard becomes visible */
-        function initRouter() {
-            if (dash && !dash.classList.contains('hidden')) {
-                onHashChange();
-            }
-        }
-        if (dash) {
-            var dashObs = new MutationObserver(function() { initRouter(); });
-            dashObs.observe(dash, { attributes: true, attributeFilter: ['class'] });
-        }
-        initRouter();
-
-        /* Live clock */
-        (function startClock() {
-            var dateEl = document.getElementById('adminDateDisplay');
-            var timeEl = document.getElementById('adminTimeDisplay');
-            function tick() {
-                var now = new Date();
-                if (dateEl) dateEl.textContent = now.toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'long' });
-                if (timeEl) timeEl.textContent = now.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-            }
-            tick();
-            setInterval(tick, 1000);
-        })();
-    })();
-    </script>
 
     <!-- Modal Adicionar Time -->
     <div id="modalAddTeam" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
@@ -1941,427 +1662,6 @@
             </button>
             <button id="confirmOkBtn" onclick="handleConfirmOk()" class="px-6 py-2 bg-blue-matte hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors">
                 Confirmar
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- Modal Gerenciar Eventos -->
-<div id="modalEvents" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-xl max-w-5xl w-full max-h-[92vh] overflow-y-auto p-6">
-        <!-- Header -->
-        <div class="flex items-center justify-between mb-6">
-            <h3 class="font-bold text-xl flex items-center gap-2">
-                <i class="fas fa-trophy text-orange-500"></i>
-                Gerenciar Eventos
-            </h3>
-            <button onclick="closeEventsModal()" class="text-gray-500 hover:text-gray-700">
-                <i class="fas fa-times text-xl"></i>
-            </button>
-        </div>
-
-        <!-- Tabs -->
-        <div class="flex gap-1 mb-6 bg-gray-100 rounded-lg p-1">
-            <button id="evtTab-camp" onclick="switchEventTab('camp')" class="flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all bg-white shadow text-orange-600">
-                <i class="fas fa-trophy mr-1"></i>Campeonatos
-            </button>
-            <button id="evtTab-xtreino" onclick="switchEventTab('xtreino')" class="flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all text-gray-600 hover:bg-white">
-                <i class="fas fa-gamepad mr-1"></i>X-Treinos
-            </button>
-            <button id="evtTab-diario" onclick="switchEventTab('diario')" class="flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all text-gray-600 hover:bg-white">
-                <i class="fas fa-calendar-day mr-1"></i>Diário
-            </button>
-        </div>
-
-        <!-- Formulário de criação/edição (compartilhado, adaptado por aba) -->
-        <div id="evtFormArea" class="bg-gray-50 border border-gray-200 rounded-xl p-5 mb-6">
-            <h4 id="evtFormTitle" class="font-bold text-base mb-4 text-gray-800">Novo Evento</h4>
-            <input type="hidden" id="evtEditId" value="">
-            <input type="hidden" id="evtEditCategory" value="">
-
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <!-- Nome -->
-                <div class="lg:col-span-3">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Nome do Evento</label>
-                    <input id="evtName" type="text" placeholder="Ex: Campeonato Solo #1" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
-                </div>
-
-                <!-- Tipo (SOLO só para CAMP) -->
-                <div id="evtTipoWrapper">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-                    <select id="evtTipo" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
-                        <option value="SOLO">SOLO</option>
-                        <option value="DUO">DUO</option>
-                        <option value="SQUAD">SQUAD</option>
-                    </select>
-                </div>
-
-                <!-- Modo -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Modo</label>
-                    <select id="evtModo" onchange="onEvtModoChange()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
-                        <option value="NORMAL">NORMAL</option>
-                        <option value="LIGA">LIGA</option>
-                    </select>
-                </div>
-
-                <!-- Formato -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Formato</label>
-                    <select id="evtFormato" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
-                        <option value="MISTO">MISTO</option>
-                        <option value="FULL MOBILE">FULL MOBILE</option>
-                    </select>
-                </div>
-
-                <!-- Status -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                    <select id="evtStatus" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
-                        <option value="Aberto">Aberto</option>
-                        <option value="Em andamento">Em andamento</option>
-                        <option value="Fechado">Fechado</option>
-                    </select>
-                </div>
-
-                <!-- Premiado -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Premiado</label>
-                    <select id="evtPremiado" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
-                        <option value="SIM">SIM</option>
-                        <option value="NÃO">NÃO</option>
-                    </select>
-                </div>
-
-                <!-- Premiação (descrição automática) -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">🏆 Premiação (ex: R$ 65,00 • 1º lugar)</label>
-                    <input id="evtPremiacao" type="text" placeholder="Ex: R$ 65,00 para o 1º lugar" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
-                    <p class="text-xs text-gray-400 mt-1">Aparece automaticamente na página pública do evento</p>
-                </div>
-
-                <!-- Tipo de Entrada -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Entrada</label>
-                    <select id="evtEntrada" onchange="onEvtEntradaChange()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
-                        <option value="GRÁTIS">GRÁTIS</option>
-                        <option value="PAGO">PAGO</option>
-                    </select>
-                </div>
-
-                <!-- Preço (visível só quando PAGO) -->
-                <div id="evtPrecoWrapper" style="display:none">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Preço por Vaga (R$)</label>
-                    <input id="evtPreco" type="number" min="0.01" step="0.01" placeholder="Ex: 8.00" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
-                </div>
-
-                <!-- Vagas -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Vagas por Horário</label>
-                    <input id="evtVagas" type="number" min="1" placeholder="Ex: 12" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
-                    <p id="evtVagasHint" class="text-xs text-gray-500 mt-1">Modo NORMAL: múltiplos de 12</p>
-                </div>
-
-                <!-- Quedas -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Quantidade de Quedas</label>
-                    <select id="evtQuedas" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
-                        <option value="">— Selecione —</option>
-                        <option value="1">1 queda</option>
-                        <option value="2">2 quedas</option>
-                        <option value="3">3 quedas</option>
-                        <option value="4">4 quedas</option>
-                        <option value="5">5 quedas</option>
-                        <option value="6">6 quedas</option>
-                        <option value="7">7 quedas</option>
-                        <option value="8">8 quedas</option>
-                        <option value="9">9 quedas</option>
-                        <option value="10">10 quedas</option>
-                        <option value="11">11 quedas</option>
-                        <option value="12">12 quedas</option>
-                    </select>
-                </div>
-
-                <!-- Grupos (só CAMP) -->
-                <div id="evtGruposWrapper">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Quantidade de Grupos</label>
-                    <input id="evtGrupos" type="number" min="1" placeholder="Ex: 3" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
-                </div>
-
-                <!-- Data/Hora -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Data e Hora <span class="text-gray-400 font-normal text-xs">(opcional — evento fica ativo até travar manualmente)</span></label>
-                    <input id="evtData" type="datetime-local" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
-                </div>
-
-                <!-- Mapas -->
-                <div class="lg:col-span-3">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Mapas disponíveis</label>
-                    <div class="flex flex-wrap gap-2">
-                        <label class="flex items-center gap-2 cursor-pointer border border-gray-300 rounded-lg px-3 py-2 text-sm has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 transition-colors">
-                            <input type="checkbox" name="evtMapas" value="BERMUDA" class="accent-orange-500">
-                            <span class="font-semibold">BERMUDA</span>
-                        </label>
-                        <label class="flex items-center gap-2 cursor-pointer border border-gray-300 rounded-lg px-3 py-2 text-sm has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 transition-colors">
-                            <input type="checkbox" name="evtMapas" value="PURGATORIO" class="accent-orange-500">
-                            <span class="font-semibold">PURGATÓRIO</span>
-                        </label>
-                        <label class="flex items-center gap-2 cursor-pointer border border-gray-300 rounded-lg px-3 py-2 text-sm has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 transition-colors">
-                            <input type="checkbox" name="evtMapas" value="KALAHARI" class="accent-orange-500">
-                            <span class="font-semibold">KALAHARI</span>
-                        </label>
-                        <label class="flex items-center gap-2 cursor-pointer border border-gray-300 rounded-lg px-3 py-2 text-sm has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 transition-colors">
-                            <input type="checkbox" name="evtMapas" value="SOLARA" class="accent-orange-500">
-                            <span class="font-semibold">SOLARA</span>
-                        </label>
-                        <label class="flex items-center gap-2 cursor-pointer border border-gray-300 rounded-lg px-3 py-2 text-sm has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 transition-colors">
-                            <input type="checkbox" name="evtMapas" value="NOVA TERRA" class="accent-orange-500">
-                            <span class="font-semibold">NOVA TERRA</span>
-                        </label>
-                        <label class="flex items-center gap-2 cursor-pointer border border-gray-300 rounded-lg px-3 py-2 text-sm has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 transition-colors">
-                            <input type="checkbox" name="evtMapas" value="ALPINE" class="accent-orange-500">
-                            <span class="font-semibold">ALPINE</span>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Descrição -->
-                <div class="lg:col-span-3">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Descrição (opcional)</label>
-                    <textarea id="evtDescricao" rows="2" placeholder="Detalhes adicionais do evento..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"></textarea>
-                </div>
-
-                <!-- Regras -->
-                <div class="lg:col-span-3">
-                    <label class="block text-sm font-medium text-gray-700 mb-1"><i class="fas fa-gavel text-orange-500 mr-1"></i>Regras do Evento <span class="text-gray-400 font-normal text-xs">(exibido na página do evento)</span></label>
-                    <textarea id="evtRegras" rows="4" placeholder="Digite as regras do evento. Use Enter para separar linhas..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 font-mono"></textarea>
-                </div>
-
-                <!-- Rodadas -->
-                <div class="lg:col-span-3">
-                    <label class="block text-sm font-medium text-gray-700 mb-1"><i class="fas fa-layer-group text-blue-500 mr-1"></i>Rodadas <span class="text-gray-400 font-normal text-xs">(estrutura de fases)</span></label>
-                    <textarea id="evtRodadas" rows="3" placeholder="Ex: Classificatória: 3 rodadas de 12 times&#10;Semifinal: 2 rodadas de 15 times&#10;Final: 1 rodada de 15 times" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 font-mono"></textarea>
-                </div>
-
-                <!-- Pontuação -->
-                <div class="lg:col-span-3">
-                    <label class="block text-sm font-medium text-gray-700 mb-1"><i class="fas fa-trophy text-green-500 mr-1"></i>Tabela de Pontuação <span class="text-gray-400 font-normal text-xs">(visível na página do evento)</span></label>
-                    <textarea id="evtPontuacao" rows="4" placeholder="Ex: 1º lugar: 12pts | 2º lugar: 9pts | 3º lugar: 7pts&#10;Abate: 1pt por eliminação&#10;..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 font-mono"></textarea>
-                </div>
-
-                <!-- YouTube URL -->
-                <div class="lg:col-span-3">
-                    <label class="block text-sm font-medium text-gray-700 mb-1"><i class="fab fa-youtube text-red-500 mr-1"></i>URL do YouTube Live <span class="text-gray-400 font-normal text-xs">(transmissão ao vivo — exibida na página do evento)</span></label>
-                    <input id="evtYoutubeUrl" type="url" placeholder="https://www.youtube.com/live/..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
-                </div>
-
-                <!-- Tamanho do Banner -->
-                <div class="lg:col-span-3">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Tamanho do Banner</label>
-                    <div class="flex flex-wrap gap-2">
-                        <label class="flex items-center gap-2 cursor-pointer border border-gray-300 rounded-lg px-3 py-2 text-sm has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50">
-                            <input type="radio" name="evtBannerSize" value="1920x1080" checked class="accent-orange-500">
-                            <span class="font-medium">Widescreen</span><span class="text-gray-400">1920×1080</span>
-                        </label>
-                        <label class="flex items-center gap-2 cursor-pointer border border-gray-300 rounded-lg px-3 py-2 text-sm has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50">
-                            <input type="radio" name="evtBannerSize" value="1080x1080" class="accent-orange-500">
-                            <span class="font-medium">Quadrado</span><span class="text-gray-400">1080×1080</span>
-                        </label>
-                        <label class="flex items-center gap-2 cursor-pointer border border-gray-300 rounded-lg px-3 py-2 text-sm has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50">
-                            <input type="radio" name="evtBannerSize" value="1920x720" class="accent-orange-500">
-                            <span class="font-medium">Banner</span><span class="text-gray-400">1920×720</span>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Upload de Imagem -->
-                <div class="lg:col-span-3">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Imagem do Evento</label>
-                    <div class="flex flex-col gap-3">
-                        <div id="evtImagePreview" class="hidden w-full rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
-                            <img id="evtImagePreviewImg" src="" alt="Preview" class="w-full object-cover max-h-52">
-                            <div class="flex items-center justify-between px-3 py-2 bg-gray-50 border-t border-gray-200">
-                                <span id="evtImagePreviewName" class="text-xs text-gray-500 truncate"></span>
-                                <button type="button" onclick="clearEvtImage()" class="text-xs text-red-500 hover:text-red-700 font-medium"><i class="fas fa-trash-alt mr-1"></i>Remover</button>
-                            </div>
-                        </div>
-                        <label for="evtImageInput" class="flex items-center gap-3 cursor-pointer border-2 border-dashed border-gray-300 hover:border-orange-400 rounded-xl px-4 py-5 transition-colors group">
-                            <i class="fas fa-cloud-upload-alt text-2xl text-gray-400 group-hover:text-orange-400 transition-colors"></i>
-                            <div>
-                                <p class="text-sm font-medium text-gray-700 group-hover:text-orange-600">Clique para selecionar a imagem</p>
-                                <p class="text-xs text-gray-400">JPG, PNG, WebP</p>
-                            </div>
-                        </label>
-                        <input id="evtImageInput" type="file" accept="image/*" class="hidden" onchange="onEvtImageSelected(this)">
-                        <input id="evtImageUrl" type="hidden" value="">
-                        <div class="flex items-center gap-2 mt-1">
-                            <div class="flex-1 h-px bg-gray-200"></div>
-                            <span class="text-xs text-gray-400 px-2">ou cole um link direto</span>
-                            <div class="flex-1 h-px bg-gray-200"></div>
-                        </div>
-                        <input id="evtImageUrlDirect" type="url" placeholder="https://... (URL de imagem já hospedada)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" oninput="onEvtImageUrlInput(this)">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Erro de validação -->
-            <div id="evtFormError" class="hidden mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700"></div>
-
-            <!-- Botões -->
-            <div class="flex gap-3 mt-4">
-                <button onclick="saveEventForm()" class="px-5 py-2 bg-orange-600 text-white rounded-lg text-sm font-semibold hover:bg-orange-700">
-                    <i class="fas fa-save mr-1"></i>Salvar Evento
-                </button>
-                <button onclick="cancelEventForm()" class="px-5 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-50">
-                    Cancelar
-                </button>
-            </div>
-        </div>
-
-        <!-- Botão novo evento -->
-        <div class="flex justify-between items-center mb-3">
-            <h4 id="evtListTitle" class="font-bold text-base text-gray-800">Campeonatos Criados</h4>
-            <button onclick="openNewEventForm()" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700">
-                <i class="fas fa-plus mr-1"></i>Novo Evento
-            </button>
-        </div>
-
-        <!-- Lista de eventos -->
-        <div id="evtList" class="space-y-3">
-            <div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl"></i></div>
-        </div>
-    </div>
-</div>
-
-<!-- Modal: Gerenciar Grupos do Camp -->
-<div id="campGroupsModal" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden items-center justify-center p-4">
-    <div class="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-            <h3 id="campGroupsTitle" class="font-bold text-base text-gray-900 flex items-center gap-2">
-                <i class="fas fa-users text-orange-500"></i> Grupos do Campeonato
-            </h3>
-            <button onclick="closeCampGroupsModal()" class="text-gray-400 hover:text-gray-700 text-xl"><i class="fas fa-times"></i></button>
-        </div>
-
-        <!-- Phase tabs (dynamic) -->
-        <div class="px-6 pt-4 pb-2 border-b border-gray-100">
-            <!-- Tabs gerados dinamicamente pelo JS -->
-            <div id="campPhaseTabs" class="flex items-center gap-1 flex-wrap mb-3 min-h-[28px]">
-                <span class="text-xs text-gray-400 italic">Carregando fases...</span>
-            </div>
-
-            <!-- Descrição da fase ativa -->
-            <div id="campPhaseDesc" class="text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 mb-3">
-                <i class="fas fa-info-circle mr-1"></i>
-                <span id="campPhaseDescText">Fase 1: 12 times por grupo, agrupados pela ordem de inscrição.</span>
-            </div>
-
-            <!-- Controls: gerar próxima fase -->
-            <div class="flex flex-wrap items-end gap-2 mb-2">
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Gerar fase</label>
-                    <select id="campNextPhaseSelect" onchange="_onNextPhaseSelectChange()"
-                        class="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
-                    </select>
-                </div>
-                <div id="campAdvancingWrapper">
-                    <label class="block text-xs font-medium text-gray-600 mb-1" id="campAdvancingLabel">Times que avançam</label>
-                    <input id="campAdvancingInput" type="number" min="1" max="999" value="30" placeholder="Ex: 30"
-                        class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-28 focus:outline-none focus:ring-2 focus:ring-orange-400">
-                </div>
-                <button id="campGenerateBtn" onclick="generateCampGroups()"
-                    class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-bold rounded-lg flex items-center gap-2 transition-colors">
-                    <i class="fas fa-list-ol"></i> Gerar Fase 1
-                </button>
-                <button id="campReorganizeBtn" onclick="reorganizarGrupos()"
-                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg flex items-center gap-2 transition-colors" title="Reorganizar fase atual pela ordem de inscrição">
-                    <i class="fas fa-redo"></i> Reorganizar
-                </button>
-                <button onclick="loadCampPhaseList(true)" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-lg transition-colors" title="Recarregar fases">
-                    <i class="fas fa-sync-alt"></i>
-                </button>
-            </div>
-
-            <!-- Resultado da geração -->
-            <p id="campPhaseInfo" class="hidden text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5 mb-1 font-medium"></p>
-        </div>
-
-        <!-- Groups content -->
-        <div id="campGroupsContent" class="overflow-y-auto flex-1 px-6 py-4">
-            <div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl"></i></div>
-        </div>
-    </div>
-</div>
-
-<!-- Modal: Notificar Participantes do Evento -->
-<div id="eventSlotsModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
-    <div class="bg-white rounded-xl max-w-2xl w-full p-6 shadow-2xl max-h-[85vh] flex flex-col">
-        <div class="flex items-center justify-between mb-4 flex-shrink-0">
-            <h3 class="font-bold text-base flex items-center gap-2">
-                <i class="fas fa-hashtag text-orange-500"></i>
-                Slots por Horário
-            </h3>
-            <button onclick="closeEventSlotsModal()" class="text-gray-400 hover:text-black text-lg">✕</button>
-        </div>
-        <input type="hidden" id="eventSlotsEventId">
-        <p class="text-sm text-gray-500 mb-4 flex-shrink-0">Evento: <span class="font-semibold text-gray-800" id="eventSlotsEventName"></span></p>
-        <div id="eventSlotsBody" class="overflow-y-auto flex-1"></div>
-        <div class="mt-4 flex justify-between items-center flex-shrink-0">
-            <button id="repairSlotsBtn" onclick="repairEventSlots()" class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-semibold transition-colors flex items-center gap-2">
-                <i class="fas fa-wrench"></i>Corrigir Slots Duplicados
-            </button>
-            <button onclick="closeEventSlotsModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Fechar</button>
-        </div>
-    </div>
-</div>
-
-<div id="eventNotifyModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
-    <div class="bg-white rounded-xl max-w-lg w-full p-6 shadow-2xl">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="font-bold text-base flex items-center gap-2">
-                <i class="fas fa-paper-plane text-purple-500"></i>
-                Notificar Participantes
-            </h3>
-            <button onclick="closeEventNotifyModal()" class="text-gray-400 hover:text-black text-lg">✕</button>
-        </div>
-        <input type="hidden" id="eventNotifyEventId">
-        <p class="text-sm text-gray-700 mb-1">Evento: <span class="font-semibold text-purple-700" id="eventNotifyEventName"></span></p>
-        <p class="text-xs text-gray-400 mb-4" id="eventNotifyCount"><i class="fas fa-spinner fa-spin mr-1"></i>Carregando participantes...</p>
-
-        <div class="space-y-3">
-            <div>
-                <label class="text-xs font-semibold text-gray-600 mb-1 block">Data e Horário <span class="text-gray-400 font-normal">(filtrar por dia específico)</span></label>
-                <select id="eventNotifySchedule" onchange="onEventNotifyScheduleChange()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400 bg-white">
-                    <option value="all">Carregando...</option>
-                </select>
-            </div>
-            <div>
-                <label class="text-xs font-semibold text-gray-600 mb-1 block">Tipo de mensagem</label>
-                <select id="eventNotifyType" onchange="onEventNotifyTypeChange()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
-                    <option value="custom">Mensagem personalizada</option>
-                    <option value="credentials">Enviar ID e Senha do evento</option>
-                    <option value="room_link">Enviar link da sala</option>
-                </select>
-            </div>
-            <!-- Link da sala (aparece só quando room_link selecionado) -->
-            <div id="eventNotifyRoomLinkSection" class="hidden">
-                <label class="text-xs font-semibold text-gray-600 mb-1 block">URL da sala <span class="text-gray-400 font-normal">(ex: https://meet.google.com/...)</span></label>
-                <input type="url" id="eventNotifyRoomLink" placeholder="https://..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
-            </div>
-            <div>
-                <label class="text-xs font-semibold text-gray-600 mb-1 block">Título</label>
-                <input type="text" id="eventNotifyTitle" placeholder="Ex: Credenciais do Evento" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
-            </div>
-            <div>
-                <label class="text-xs font-semibold text-gray-600 mb-1 block">Mensagem</label>
-                <textarea id="eventNotifyMessage" rows="4" placeholder="Digite sua mensagem para os participantes..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-purple-400"></textarea>
-            </div>
-        </div>
-
-        <div class="mt-5 flex justify-end gap-2">
-            <button onclick="closeEventNotifyModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancelar</button>
-            <button id="eventNotifySendBtn" onclick="sendEventNotification()" class="px-5 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition-colors">
-                <i class="fas fa-paper-plane mr-2"></i>Enviar para todos
             </button>
         </div>
     </div>

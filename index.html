@@ -92,21 +92,16 @@
                 
                 <!-- Desktop Menu -->
                 <div class="hidden md:flex items-center space-x-8">
-                    <a href="#" onclick="switchMainTab('home');return false;" class="tab-main-link text-black hover:text-blue-matte transition-colors" data-tab="home">HOME</a>
-                    <a href="#" onclick="switchMainTab('eventos');return false;" class="tab-main-link text-black hover:text-blue-matte transition-colors" data-tab="eventos">EVENTOS</a>
-                    <a href="#" onclick="switchMainTab('loja');return false;" class="tab-main-link text-black hover:text-blue-matte transition-colors" data-tab="loja">LOJA</a>
-                    <a href="#" onclick="switchMainTab('sobre');return false;" class="tab-main-link text-black hover:text-blue-matte transition-colors" data-tab="sobre">SOBRE NÓS</a>
-                    <a href="#" onclick="switchMainTab('contato');return false;" class="tab-main-link text-black hover:text-blue-matte transition-colors" data-tab="contato">CONTATO</a>
+                    <a href="#home" class="text-black hover:text-blue-matte transition-colors">HOME</a>
+                    <a href="#xtreinos" class="text-black hover:text-blue-matte transition-colors">TREINO/CAMP</a>
+                    <a href="#loja" class="text-black hover:text-blue-matte transition-colors">LOJA</a>
+                    <a href="#sobre" class="text-black hover:text-blue-matte transition-colors">SOBRE NÓS</a>
+                    <a href="#contato" class="text-black hover:text-blue-matte transition-colors">CONTATO</a>
                     <a href="#" onclick="requestAdminAccess()" id="adminLink" class="text-black hover:text-blue-matte transition-colors hidden">ADMIN</a>
                     <button id="loginBtnDesktop" onclick="openLoginModal()" class="bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold transition-colors">
                         LOGIN
                     </button>
                     <span id="tokenBadgeDesktop" class="hidden bg-yellow-400 text-[var(--brand-black)] px-3 py-1 rounded-full text-xs font-bold shadow-sm">💎 0</span>
-                    <!-- Sininho de Notificações Desktop -->
-                    <button id="notifBellDesktop" onclick="toggleNotifDropdown()" title="Notificações" class="hidden relative text-gray-600 hover:text-blue-600 transition-colors p-2 rounded-full hover:bg-gray-100">
-                        <i class="fas fa-bell text-xl"></i>
-                        <span id="notifBadgeDesktop" class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 hidden"></span>
-                    </button>
                     <div id="accountSectionDesktop" class="hidden flex items-center space-x-3">
                         <button id="accountBtnDesktop" onclick="window.location.href='client.html'" class="bg-blue-matte hover-blue-matte px-6 py-2 rounded-lg text-white font-semibold transition-colors">
                             MINHA CONTA
@@ -120,31 +115,39 @@
                     </div>
                 </div>
                 
-                <!-- Mobile: só login/avatar no header -->
-                <div class="md:hidden flex items-center gap-2 ml-auto">
-                    <a href="#" onclick="requestAdminAccess()" id="adminLinkMobile" class="text-black text-xs font-semibold px-2 py-1 hidden">ADMIN</a>
-                    <span id="tokenBadgeMobile" class="hidden bg-yellow-400 text-[var(--brand-black)] px-2 py-1 rounded-full text-xs font-bold shadow-sm">💎 0</span>
-                    <!-- Sininho Mobile -->
-                    <button id="notifBellMobile" onclick="toggleNotifDropdown()" title="Notificações" class="hidden relative text-gray-600 p-1 rounded-full">
-                        <i class="fas fa-bell text-lg"></i>
-                        <span id="notifBadgeMobile" class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-0.5 hidden"></span>
-                    </button>
-                    <button id="loginBtnMobile" onclick="openLoginModal()" class="bg-blue-matte px-4 py-2 rounded-xl text-white text-xs font-bold transition-colors">
+                <!-- Mobile Menu - Always Visible -->
+                <div class="md:hidden flex items-center space-x-2 overflow-x-auto flex-1 ml-4">
+                    <a href="#xtreinos" class="text-black hover:text-blue-matte transition-colors whitespace-nowrap text-sm font-medium px-2">TREINO/CAMP</a>
+                    <a href="#loja" class="text-black hover:text-blue-matte transition-colors whitespace-nowrap text-sm font-medium px-2">LOJA</a>
+                    <a href="#" onclick="requestAdminAccess()" id="adminLinkMobile" class="text-black hover:text-blue-matte transition-colors whitespace-nowrap text-sm font-medium px-2 hidden">ADMIN</a>
+                    <button id="loginBtnMobile" onclick="openLoginModal()" class="bg-blue-matte hover-blue-matte px-3 py-1.5 rounded-lg text-white text-xs font-semibold transition-colors whitespace-nowrap flex-shrink-0">
                         LOGIN
                     </button>
-                    <button onclick="window.location.href='client.html'" class="relative w-9 h-9 rounded-full overflow-hidden border-2 border-blue-matte flex-shrink-0 bg-gradient-to-br from-blue-500 to-purple-600" id="profileAvatarMobile" title="Meu Perfil">
-                        <img id="profileAvatarImageMobile" src="" alt="Foto de perfil" class="absolute inset-0 w-full h-full object-cover hidden">
-                        <div id="profileAvatarInitialsMobile" class="w-full h-full flex items-center justify-center text-white font-bold text-xs">U</div>
+                    <span id="tokenBadgeMobile" class="hidden bg-yellow-400 text-[var(--brand-black)] px-2 py-1 rounded-full text-xs font-bold shadow-sm whitespace-nowrap flex-shrink-0">💎 0</span>
+                    <!-- Avatar apenas - sem botão CONTA -->
+                    <button onclick="window.location.href='client.html'" class="relative w-8 h-8 rounded-full overflow-hidden border-2 border-blue-matte hover:border-blue-600 transition-all cursor-pointer shadow-md hover:shadow-lg flex-shrink-0 bg-gradient-to-br from-blue-500 to-purple-600" id="profileAvatarMobile" title="Meu Perfil" style="aspect-ratio: 1/1; border-radius: 50%;">
+                        <img id="profileAvatarImageMobile" src="" alt="Foto de perfil" class="absolute inset-0 w-full h-full object-cover hidden" style="aspect-ratio: 1/1; border-radius: 50%;">
+                        <div id="profileAvatarInitialsMobile" class="w-full h-full flex items-center justify-center text-white font-bold text-xs">
+                            U
+                        </div>
                     </button>
+                </div>
+                
+                <!-- Mobile Menu Expandido (aparece ao rolar para baixo) -->
+                <div id="mobileMenuExpanded" class="md:hidden hidden border-t border-gray-200 mt-2 pt-3 pb-2">
+                    <div class="flex flex-col space-y-2">
+                        <button id="accountBtnMobileExpanded" onclick="window.location.href='client.html'" class="bg-blue-matte hover-blue-matte px-4 py-2 rounded-lg text-white text-sm font-semibold transition-colors w-full text-left hidden">
+                            MINHA CONTA
+                        </button>
+                        <a href="#" onclick="requestAdminAccess()" id="adminLinkMobileExpanded" class="text-black hover:text-blue-matte transition-colors text-sm font-medium px-2 hidden">ADMIN</a>
+                    </div>
                 </div>
             </div>
         </nav>
     </header>
 
-    <!-- ====== PAINEL: HOME ====== -->
-    <div class="main-tab-panel tab-active" id="panel-home">
     <!-- Hero Section -->
-    <section id="home" class="pt-24 md:pt-24 h-[calc(100vh-5rem)] md:h-[calc(100vh-6rem)] bg-white flex items-start md:items-center">
+    <section id="home" class="pt-24 md:pt-24 h-[calc(100vh-5rem)] md:h-[calc(100vh-6rem)] bg-white flex items-center">
         <div class="container mx-auto px-6">
             <div class="grid md:grid-cols-2 gap-12 items-center">
                 <div class="space-y-8">
@@ -159,10 +162,10 @@
                         Desenvolva suas habilidades com os melhores coaches do cenário.
                     </p>
                     <div class="flex flex-col sm:flex-row gap-4">
-                        <button onclick="switchMainTab('eventos')" class="btn-primary px-8 py-4 rounded-lg font-bold text-lg transition-colors neon-glow">
+                        <button onclick="scrollToSection('eventos')" class="btn-primary px-8 py-4 rounded-lg font-bold text-lg transition-colors neon-glow">
                             COMEÇAR AGORA
                         </button>
-                        <button onclick="switchMainTab('sobre')" class="border-2 border-[var(--brand-yellow)] text-[var(--brand-black)] hover:bg-brand-yellow px-8 py-4 rounded-lg font-bold text-lg transition-colors">
+                        <button onclick="scrollToSection('sobre')" class="border-2 border-[var(--brand-yellow)] text-[var(--brand-black)] hover:bg-brand-yellow px-8 py-4 rounded-lg font-bold text-lg transition-colors">
                             SAIBA MAIS
                         </button>
                     </div>
@@ -187,8 +190,8 @@
     </section>
 
     <!-- Destaques (Carrossel) -->
-    <section class="py-16 bg-white overflow-hidden">
-        <div class="container mx-auto px-6 overflow-hidden">
+    <section class="py-16 bg-white">
+        <div class="container mx-auto px-6">
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-2xl font-bold">Destaques</h2>
                 <div class="flex space-x-3">
@@ -200,10 +203,10 @@
                     </button>
                 </div>
             </div>
-            <div id="carouselViewport" class="overflow-hidden rounded-2xl border border-gray-200">
-                <div id="carouselTrack" class="flex transition-transform duration-500" style="will-change:transform;">
+            <div class="overflow-hidden rounded-2xl border border-gray-200">
+                <div id="carouselTrack" class="flex transition-transform duration-500">
                     <!-- Os destaques serão carregados dinamicamente aqui -->
-                    <div class="carousel-slide p-8 bg-white flex items-center justify-center" style="min-width:100%;">
+                    <div class="min-w-full p-8 bg-white flex items-center justify-center">
                         <p class="text-gray-500">Carregando destaques...</p>
                     </div>
                 </div>
@@ -211,104 +214,20 @@
         </div>
     </section>
 
-    </div><!-- /panel-home -->
-
-    <!-- ====== PAINEL: EVENTOS ====== -->
-    <div class="main-tab-panel" id="panel-eventos">
-    <!-- Eventos -->
+    <!-- Treino e Campeonatos -->
     <section id="xtreinos" class="py-20 bg-white">
         <div class="container mx-auto px-6">
-            <div class="text-center mb-8">
-                <h2 class="text-4xl md:text-5xl font-bold mb-4 text-blue-matte">EVENTOS</h2>
+            <div class="text-center mb-12">
+                <h2 class="text-4xl md:text-5xl font-bold mb-4 text-blue-matte">Treino e Campeonatos</h2>
                 <p class="text-lg text-gray-700">Eventos de Segunda a Sexta</p>
                 <p class="text-sm text-gray-500">Participa e concorra a um PC Gamer + Kit Periféricos + Troféu!</p>
             </div>
-
-            <!-- Sub-tabs de categoria -->
-            <div class="flex flex-wrap gap-3 justify-center mb-8" id="eventSubTabs">
-                <button class="event-sub-tab active" data-cat="all" onclick="filterEventsByCategory('all')">TODOS</button>
-                <button class="event-sub-tab" data-cat="camp" onclick="filterEventsByCategory('camp')">CAMP</button>
-                <button class="event-sub-tab" data-cat="xtreino" onclick="filterEventsByCategory('xtreino')">XTREINO</button>
-                <button class="event-sub-tab" data-cat="diario" onclick="filterEventsByCategory('diario')">DIÁRIO</button>
-            </div>
-
-            <!-- Eventos dinâmicos do Firestore (adminEvents) -->
-            <div id="dynamicEventsGrid" class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div class="col-span-full text-center py-12 text-gray-400">
-                    <i class="fas fa-spinner fa-spin text-2xl"></i>
-                    <p class="mt-2 text-sm">Carregando eventos...</p>
-                </div>
-            </div>
-
-            <!-- Fallback estático (exibido somente se não houver eventos dinâmicos) -->
-            <div id="staticEventsGrid" class="hidden grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <article class="product-card">
-                    <div class="product-media">
-                        <div class="absolute top-4 right-4 bg-[var(--brand-yellow)] text-[var(--brand-black)] text-xs font-bold px-2 py-1 rounded">Novidade!</div>
-                        <img src="assets/images/events/CAMP.jpeg" alt="Camp Freitas" referrerpolicy="no-referrer">
-                    </div>
-                    <div class="product-title">CAMPEONATO FREITAS SEASON⁴</div>
-                    <div class="product-desc">
-                        <div class="space-y-1">
-                            <div><strong>Valor:</strong> R$ 8,00</div>
-                            <div><strong>Horários:</strong> Segunda a Sexta • 19h - 20h - 21h - 22h - 23h</div>
-                            <div><strong>Formato:</strong> Misto | Squad | 2 quedas por fase</div>
-                            <div><strong>Premiação:</strong> R$ 4.000,00</div>
-                        </div>
-                    </div>
-                    <button onclick="openScheduleModal('camp-freitas')" class="w-full btn-primary py-2 rounded-lg font-semibold">RESERVAR VAGA</button>
-                </article>
-                <article class="product-card">
-                    <div class="product-media relative">
-                        <span class="absolute top-2 left-2 bg-yellow-400 text-black text-xs font-bold px-2 py-1 rounded">TOKENS</span>
-                        <img src="assets/images/events/DIVULGAÇÃO TREINO FREITAS FORMATO YOUTUBE.jpg.jpeg" loading="lazy" referrerpolicy="no-referrer">
-                    </div>
-                    <div class="product-title">XTREINO FREITAS</div>
-                    <div class="product-desc">
-                        <div class="space-y-1">
-                            <div><strong>Valor:</strong> R$ 1,00 (1 token)</div>
-                            <div><strong>Horários:</strong> 14h às 23h</div>
-                            <div><strong>Modalidade:</strong> Misto | Squad | 2 quedas</div>
-                        </div>
-                    </div>
-                    <button onclick="openScheduleModal('xtreino-tokens')" class="w-full btn-primary py-2 rounded-lg font-semibold">USAR TOKENS</button>
-                </article>
-                <article class="product-card">
-                    <div class="product-media">
-                        <img src="assets/images/events/MODO LIGA FREITAS FORMATO YOUTUBE.jpg.jpeg" alt="Modo Liga" loading="lazy" referrerpolicy="no-referrer">
-                    </div>
-                    <div class="product-title">XTREINO FREITAS MODO LIGA</div>
-                    <div class="product-desc">
-                        <div class="space-y-1">
-                            <div><strong>Valor:</strong> R$ 3,00</div>
-                            <div><strong>Horários:</strong> 14h às 23h</div>
-                            <div><strong>Modalidade:</strong> Misto | Squad | 2 quedas | 15 slots</div>
-                        </div>
-                    </div>
-                    <button onclick="openScheduleModal('modo-liga')" class="w-full btn-primary py-2 rounded-lg font-semibold">RESERVAR VAGA</button>
-                </article>
-                <article class="product-card">
-                    <div class="product-media">
-                        <img src="assets/images/events/SEMANAL FREITAS FORMATO YOUTUBE.png" alt="Semanal Freitas" loading="lazy" referrerpolicy="no-referrer">
-                    </div>
-                    <div class="product-title">SEMANAL FREITAS</div>
-                    <div class="product-desc">
-                        <div class="space-y-1">
-                            <div><strong>Valor:</strong> R$ 3,50</div>
-                            <div><strong>Modalidade:</strong> Misto | Squad | 2 quedas</div>
-                            <div><strong>Premiação:</strong> R$ 65,00</div>
-                        </div>
-                    </div>
-                    <button onclick="openScheduleModal('semanal-freitas')" class="w-full btn-primary py-2 rounded-lg font-semibold">INSCREVER</button>
-                </article>
+            <div id="eventsContainer" class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Os cards serão carregados dinamicamente -->
             </div>
         </div>
     </section>
 
-    </div><!-- /panel-eventos -->
-
-    <!-- ====== PAINEL: LOJA ====== -->
-    <div class="main-tab-panel" id="panel-loja">
     <!-- Loja Section -->
     <section id="loja" class="py-20 bg-white">
         <div class="container mx-auto px-6">
@@ -326,10 +245,6 @@
         </div>
     </section>
 
-    </div><!-- /panel-loja -->
-
-    <!-- ====== PAINEL: SOBRE NÓS ====== -->
-    <div class="main-tab-panel" id="panel-sobre">
     <!-- Sobre Nós Section -->
     <section id="sobre" class="py-24 bg-gradient-to-br from-gray-50 to-white">
         <div class="container mx-auto px-6">
@@ -579,10 +494,6 @@
         </div>
     </section>
 
-    </div><!-- /panel-sobre -->
-
-    <!-- ====== PAINEL: CONTATO ====== -->
-    <div class="main-tab-panel" id="panel-contato">
     <!-- Contato Section -->
     <section id="contato" class="py-20" style="background-color: #f1f1f1;">
         <div class="container mx-auto px-6">
@@ -632,11 +543,11 @@
                     <div class="bg-white rounded-2xl p-8 shadow-lg">
                         <h3 class="text-2xl font-bold mb-8 text-center text-blue-matte">Redes Sociais</h3>
                         <div class="grid grid-cols-1 gap-4">
-                            <a href="https://www.instagram.com/xtreino_freitas" target="_blank" rel="noopener noreferrer" class="rounded-lg p-6 text-center transition-colors flex items-center space-x-4" style="background-color: #ecd414;">
+                            <a href="#" class="rounded-lg p-6 text-center transition-colors flex items-center space-x-4" style="background-color: #ecd414;">
                                 <i class="fab fa-instagram text-2xl text-black"></i>
                                 <span class="text-lg font-semibold text-black">Instagram</span>
                             </a>
-                            <a href="https://www.youtube.com/@Organiza%C3%A7%C3%A3oFreitas" target="_blank" rel="noopener noreferrer" class="rounded-lg p-6 text-center transition-colors flex items-center space-x-4" style="background-color: #ecd414;">
+                            <a href="#" class="rounded-lg p-6 text-center transition-colors flex items-center space-x-4" style="background-color: #ecd414;">
                                 <i class="fab fa-youtube text-2xl text-black"></i>
                                 <span class="text-lg font-semibold text-black">YouTube</span>
                             </a>
@@ -669,8 +580,6 @@
             </div>
         </div>
     </section>
-
-    </div><!-- /panel-contato -->
 
     <!-- Footer -->
     <footer class="bg-white py-16">
@@ -730,7 +639,7 @@
                     © 2025 X-TREINO FREITAS
                 </p>
                 <p class="text-white mt-2">
-                    Feito com ❤️ para a comunidade!
+                    Desenvolvido por <a href="https://agenciaelevare.netlify.app/" target="_blank" rel="noopener noreferrer" class="text-white hover:text-gray-200 underline">Agência Elevare</a>
                 </p>
             </div>
         </div>
@@ -936,7 +845,6 @@
             <div class="grid md:grid-cols-2">
                 <div class="bg-gray-100 p-4 flex items-center justify-center">
                     <img id="purchaseImage" src="" alt="Produto" class="max-h-80 rounded-lg object-cover">
-                    <span id="purchaseHeaderTitle" class="hidden text-white font-bold text-sm leading-tight ml-2"></span>
                 </div>
                 <div class="p-6">
                     <h2 id="purchaseTitle" class="text-2xl font-bold mb-2">Produto</h2>
@@ -1001,21 +909,21 @@
     <div id="scheduleModal" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
         <div class="bg-white rounded-3xl max-w-4xl max-w-[calc(100vw-2rem)] w-full max-h-[90vh] overflow-hidden relative shadow-2xl mx-auto">
             <!-- Header -->
-            <div class="schedule-modal-header text-white relative" style="background: linear-gradient(135deg, var(--brand-green-2) 0%, var(--brand-green-3) 100%); padding: 1.5rem;">
+            <div class="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 relative">
                 <button onclick="closeScheduleModal()" class="absolute top-4 right-4 text-white hover:text-gray-200 transition-colors">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                 </button>
                 <div class="flex items-center space-x-3">
-                    <div class="schedule-modal-icon w-12 h-12 bg-white bg-opacity-20 rounded-xl flex items-center justify-center">
+                    <div class="w-12 h-12 bg-white bg-opacity-20 rounded-xl flex items-center justify-center">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                         </svg>
                     </div>
                     <div>
-                        <h3 class="schedule-modal-title text-2xl font-bold">Reservar Horário</h3>
-                        <p class="schedule-modal-sub text-white text-sm" style="opacity:.85;">Escolha a data e horário para seu evento</p>
+                        <h3 class="text-2xl font-bold">Reservar Horário</h3>
+                        <p class="text-blue-100 text-sm">Escolha a data e horário para seu evento</p>
                     </div>
                 </div>
             </div>
@@ -1190,19 +1098,6 @@
                         </form>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Dropdown de Notificações -->
-    <div id="notifDropdown" class="hidden fixed inset-0 z-[150]" onclick="closeNotifDropdown()">
-        <div class="absolute top-16 right-3 md:right-10 bg-white rounded-2xl shadow-2xl border border-gray-200 w-80 max-h-[420px] overflow-hidden flex flex-col" onclick="event.stopPropagation()">
-            <div class="p-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-blue-600 to-purple-600 rounded-t-2xl">
-                <h3 class="font-bold text-white flex items-center gap-2"><i class="fas fa-bell"></i> Notificações</h3>
-                <button onclick="closeNotifDropdown()" class="text-white/80 hover:text-white text-lg leading-none">✕</button>
-            </div>
-            <div id="notifList" class="overflow-y-auto flex-1 divide-y divide-gray-100">
-                <p class="text-center text-gray-400 text-sm py-8">Carregando...</p>
             </div>
         </div>
     </div>
@@ -1448,61 +1343,6 @@
             }
         }
     </style>
-
-    <!-- ===== SISTEMA DE ABAS JS ===== -->
-    <script>
-    function switchMainTab(tabId) {
-        document.querySelectorAll('.main-tab-panel').forEach(function(p) {
-            p.classList.remove('tab-active');
-        });
-        var panel = document.getElementById('panel-' + tabId);
-        if (panel) panel.classList.add('tab-active');
-
-        // Desktop nav
-        document.querySelectorAll('.tab-main-link').forEach(function(a) {
-            a.classList.toggle('tab-nav-active', a.dataset.tab === tabId);
-        });
-
-        // Mobile bottom nav
-        document.querySelectorAll('.mobile-nav-btn').forEach(function(b) {
-            b.classList.toggle('active', b.dataset.tab === tabId);
-        });
-
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-
-        if (tabId === 'eventos') {
-            filterEventsByCategory('all');
-        }
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        switchMainTab('home');
-    });
-    </script>
-
-    <!-- ===== BARRA DE NAVEGAÇÃO INFERIOR MOBILE ===== -->
-    <nav class="mobile-bottom-nav md:hidden">
-        <button class="mobile-nav-btn active" data-tab="home" onclick="switchMainTab('home')">
-            <i class="fas fa-home"></i>
-            <span>HOME</span>
-        </button>
-        <button class="mobile-nav-btn" data-tab="eventos" onclick="switchMainTab('eventos')">
-            <i class="fas fa-trophy"></i>
-            <span>EVENTOS</span>
-        </button>
-        <button class="mobile-nav-btn" data-tab="loja" onclick="switchMainTab('loja')">
-            <i class="fas fa-store"></i>
-            <span>LOJA</span>
-        </button>
-        <button class="mobile-nav-btn" data-tab="sobre" onclick="switchMainTab('sobre')">
-            <i class="fas fa-users"></i>
-            <span>SOBRE</span>
-        </button>
-        <button class="mobile-nav-btn" data-tab="contato" onclick="switchMainTab('contato')">
-            <i class="fas fa-envelope"></i>
-            <span>CONTATO</span>
-        </button>
-    </nav>
 </body>
 </html>
 <!-- Modal Confirmação de Pagamento -->

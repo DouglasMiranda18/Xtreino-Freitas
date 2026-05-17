@@ -254,7 +254,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
         return true;
       }
       
-      const isAuthorized = ['admin', 'staff', 'gerente', 'vendedor', 'design', 'designer', 'desgin'].includes(role);
+      const isAuthorized = ['admin', 'gerente', 'vendedor', 'design', 'designer', 'desgin'].includes(role);
       
       
       return isAuthorized;
@@ -309,95 +309,21 @@ window.showWarningToast = function(message, title = 'Atenção') {
   // Expor showDashboard globalmente imediatamente
   window.showDashboard = showDashboard;
 
-  // ===== MATRIZ DE PERMISSÕES POR CARGO =====
-  const ROLE_SECTIONS = {
-    // CEO: acesso total
-    ceo: ['sectionKPIs','sectionFilters','sectionCharts','sectionUsers','sectionOrders',
-          'sectionTokenStats','sectionUsersManagement','sectionTokens','sectionCoupons',
-          'sectionCouponUsage','sectionAffiliates','sectionAffiliateSales','sectionPasseBooyah',
-          'sectionHighlights','sectionNews','sectionProducts','sectionEvents','sectionShirtOrders',
-          'sectionWhatsAppLinks','sectionSchedules','sectionNotificationsAdmin',
-          'sectionAdminHistory','sectionResetData'],
-    // SOCIO: acesso total, só visualização
-    socio: ['sectionKPIs','sectionFilters','sectionCharts','sectionUsers','sectionOrders',
-            'sectionTokenStats','sectionUsersManagement','sectionTokens','sectionCoupons',
-            'sectionCouponUsage','sectionAffiliates','sectionAffiliateSales','sectionPasseBooyah',
-            'sectionHighlights','sectionNews','sectionProducts','sectionEvents','sectionShirtOrders',
-            'sectionWhatsAppLinks','sectionSchedules','sectionNotificationsAdmin','sectionAdminHistory'],
-    // VENDEDOR: pedidos, tokens, passes, notificações
-    vendedor: ['sectionOrders','sectionTokens','sectionPasseBooyah','sectionNotificationsAdmin',
-               'sectionShirtOrders','sectionWhatsAppLinks'],
-    // GERENTE: tudo menos dashboard e pagamentos
-    gerente: ['sectionUsers','sectionOrders','sectionUsersManagement','sectionTokens',
-              'sectionAffiliates','sectionAffiliateSales','sectionPasseBooyah','sectionHighlights',
-              'sectionNews','sectionProducts','sectionEvents','sectionShirtOrders',
-              'sectionWhatsAppLinks','sectionSchedules','sectionNotificationsAdmin','sectionAdminHistory'],
-    // DESIGNER: produtos, eventos, notícias, destaques
-    designer: ['sectionProducts','sectionEvents','sectionHighlights','sectionNews'],
-    // STAFF: notificações e eventos
-    staff: ['sectionEvents','sectionNotificationsAdmin'],
-    // ADMIN (legado) → mesmo que staff
-    admin: ['sectionEvents','sectionNotificationsAdmin'],
-    // Aliases
-    'sócio': null, // tratado abaixo
-    'desgin': null,
-    'design': null,
-  };
-  window.ROLE_SECTIONS = ROLE_SECTIONS;
-
-  const ALL_SECTIONS = ['sectionKPIs','sectionFilters','sectionCharts','sectionUsers','sectionOrders',
-    'sectionTokenStats','sectionUsersManagement','sectionTokens','sectionCoupons','sectionCouponUsage',
-    'sectionAffiliates','sectionAffiliateSales','sectionAffiliatePanel','sectionPasseBooyah',
-    'sectionHighlights','sectionNews','sectionProducts','sectionEvents','sectionShirtOrders',
-    'sectionWhatsAppLinks','sectionSchedules','sectionNotificationsAdmin','sectionAdminHistory','sectionResetData'];
-
   // Control section visibility based on role
   function controlSectionVisibility(userRole) {
     const role = (userRole || '').toLowerCase().trim();
-
-    if (window.lastAppliedRole === role && window.visibilityApplied) return;
+    
+    // Prevenir múltiplas chamadas conflitantes - se já foi aplicado para este role, não aplicar novamente
+    if (window.lastAppliedRole === role && window.visibilityApplied) {
+      
+      return;
+    }
+    
+    
     window.lastAppliedRole = role;
     window.visibilityApplied = true;
     
-    // Resolve aliases
-    const resolvedRole = (role === 'sócio') ? 'socio'
-      : (role === 'desgin' || role === 'design') ? 'designer'
-      : role;
-
-    // Ocultar todas as seções primeiro
-    ALL_SECTIONS.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.style.display = 'none';
-    });
-
-    // Determinar seções permitidas para o cargo
-    const allowed = ROLE_SECTIONS[resolvedRole] || [];
-
-    // Mostrar seções permitidas
-    allowed.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) {
-        el.style.display = 'block';
-        el.classList.remove('hidden');
-        // Carregar eventos se necessário
-        if (id === 'sectionEvents' && typeof loadEventsPreview === 'function') {
-          loadEventsPreview();
-        }
-      }
-    });
-
-    // Atualizar sidebar: ocultar links sem permissão
-    document.querySelectorAll('.sidebar-link[onclick*="sidebarScroll"]').forEach(btn => {
-      const match = btn.getAttribute('onclick').match(/sidebarScroll\('(\w+)'/);
-      if (match) {
-        const sectionId = match[1];
-        const hasAccess = allowed.includes(sectionId)
-          || sectionId === 'sectionResetData' && resolvedRole === 'ceo';
-        btn.parentElement.style.display = hasAccess ? '' : 'none';
-      }
-    });
-
-    // Para compatibilidade - manter variáveis antigas
+    // Get all section elements
     const sectionKPIs = document.getElementById('sectionKPIs');
     const sectionFilters = document.getElementById('sectionFilters');
     const sectionCharts = document.getElementById('sectionCharts');
@@ -413,76 +339,318 @@ window.showWarningToast = function(message, title = 'Atenção') {
     const sectionHighlights = document.getElementById('sectionHighlights');
     const sectionNews = document.getElementById('sectionNews');
     const sectionProducts = document.getElementById('sectionProducts');
-    const sectionEventsSection = document.getElementById('sectionEvents');
     const sectionSchedules = document.getElementById('sectionSchedules');
     const sectionAdminHistory = document.getElementById('sectionAdminHistory');
     const sectionAffiliatePanel = document.getElementById('sectionAffiliatePanel');
     
-    // Afiliado: Apenas painel de afiliado (mantido para compatibilidade)
-    if (role === 'afiliado') {
-      ALL_SECTIONS.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
-      const panel = document.getElementById('sectionAffiliatePanel');
-      if (panel) { panel.style.display = 'block'; panel.classList.remove('hidden'); }
+    // Ocultar todas as seções por padrão
+    if (sectionKPIs) sectionKPIs.style.display = 'none';
+    if (sectionFilters) sectionFilters.style.display = 'none';
+    if (sectionCharts) sectionCharts.style.display = 'none';
+    if (sectionUsers) sectionUsers.style.display = 'none';
+    if (sectionTokenStats) sectionTokenStats.style.display = 'none';
+    if (sectionUsersManagement) sectionUsersManagement.style.display = 'none';
+    if (sectionTokens) sectionTokens.style.display = 'none';
+    if (sectionCoupons) sectionCoupons.style.display = 'none';
+    if (sectionCouponUsage) sectionCouponUsage.style.display = 'none';
+    if (sectionAffiliates) sectionAffiliates.style.display = 'none';
+    if (sectionAffiliateSales) sectionAffiliateSales.style.display = 'none';
+    if (sectionPasseBooyah) sectionPasseBooyah.style.display = 'none';
+    if (sectionProducts) sectionProducts.style.display = 'none';
+    if (sectionSchedules) sectionSchedules.style.display = 'none';
+    if (sectionHighlights) sectionHighlights.style.display = 'none';
+    if (sectionNews) sectionNews.style.display = 'none';
+    if (sectionAdminHistory) sectionAdminHistory.style.display = 'none';
+    if (sectionAffiliatePanel) sectionAffiliatePanel.style.display = 'none';
+    
+    // Staff: Apenas seção de agendamentos (14h às 18h, xtreino-tokens)
+    if (role === 'staff') {
+      // Mostrar apenas seção de agendamentos
+      if (sectionSchedules) {
+        sectionSchedules.style.display = 'block';
+        sectionSchedules.classList.remove('hidden');
+      }
+      
+      // Ocultar todas as outras seções
+      if (sectionKPIs) sectionKPIs.style.display = 'none';
+      if (sectionFilters) sectionFilters.style.display = 'none';
+      if (sectionCharts) sectionCharts.style.display = 'none';
+      if (sectionUsers) sectionUsers.style.display = 'none';
+      if (sectionTokenStats) sectionTokenStats.style.display = 'none';
+      if (sectionUsersManagement) sectionUsersManagement.style.display = 'none';
+      if (sectionTokens) sectionTokens.style.display = 'none';
+      if (sectionCoupons) sectionCoupons.style.display = 'none';
+      if (sectionCouponUsage) sectionCouponUsage.style.display = 'none';
+      if (sectionAffiliates) sectionAffiliates.style.display = 'none';
+      if (sectionAffiliateSales) sectionAffiliateSales.style.display = 'none';
+      if (sectionAffiliatePanel) sectionAffiliatePanel.style.display = 'none';
+      if (sectionPasseBooyah) sectionPasseBooyah.style.display = 'none';
+      if (sectionProducts) sectionProducts.style.display = 'none';
+      if (sectionHighlights) sectionHighlights.style.display = 'none';
+      if (sectionNews) sectionNews.style.display = 'none';
+      if (sectionAdminHistory) sectionAdminHistory.style.display = 'none';
+      
+      
+      return; // Sair da função para não aplicar outras regras
     }
+    
+    // Afiliado: Apenas painel de afiliado
+    if (role === 'afiliado') {
+      // Mostrar apenas painel do afiliado
+      if (sectionAffiliatePanel) {
+        sectionAffiliatePanel.style.display = 'block';
+        sectionAffiliatePanel.classList.remove('hidden');
+      }
+      
+      // Ocultar todas as outras seções
+      if (sectionKPIs) sectionKPIs.style.display = 'none';
+      if (sectionFilters) sectionFilters.style.display = 'none';
+      if (sectionCharts) sectionCharts.style.display = 'none';
+      if (sectionUsers) sectionUsers.style.display = 'none';
+      if (sectionTokenStats) sectionTokenStats.style.display = 'none';
+      if (sectionUsersManagement) sectionUsersManagement.style.display = 'none';
+      if (sectionTokens) sectionTokens.style.display = 'none';
+      if (sectionCoupons) sectionCoupons.style.display = 'none';
+      if (sectionCouponUsage) sectionCouponUsage.style.display = 'none';
+      if (sectionAffiliates) sectionAffiliates.style.display = 'none';
+      if (sectionAffiliateSales) sectionAffiliateSales.style.display = 'none';
+      if (sectionPasseBooyah) sectionPasseBooyah.style.display = 'none';
+      if (sectionProducts) sectionProducts.style.display = 'none';
+      if (sectionSchedules) sectionSchedules.style.display = 'none';
+      if (sectionHighlights) sectionHighlights.style.display = 'none';
+      if (sectionNews) sectionNews.style.display = 'none';
+      if (sectionAdminHistory) sectionAdminHistory.style.display = 'none';
+      
+      
+
+          
+      return; // Sair da função para não aplicar outras regras
+    }
+    
+    // Design: Apenas destaques e notícias
+    if (role === 'design' || role === 'desgin' || role === 'designer') {
+      // Mostrar apenas Notícias e Destaques
+      if (sectionHighlights) sectionHighlights.style.display = 'block';
+      if (sectionNews) sectionNews.style.display = 'block';
+      
+      // Ocultar todas as outras seções
+      if (sectionKPIs) sectionKPIs.style.display = 'none';
+      if (sectionFilters) sectionFilters.style.display = 'none';
+      if (sectionCharts) sectionCharts.style.display = 'none';
+      if (sectionUsers) sectionUsers.style.display = 'none';
+      if (sectionTokenStats) sectionTokenStats.style.display = 'none';
+      if (sectionUsersManagement) sectionUsersManagement.style.display = 'none';
+      if (sectionTokens) sectionTokens.style.display = 'none';
+      if (sectionCoupons) sectionCoupons.style.display = 'none';
+      if (sectionCouponUsage) sectionCouponUsage.style.display = 'none';
+      if (sectionPasseBooyah) sectionPasseBooyah.style.display = 'none';
+      if (sectionProducts) sectionProducts.style.display = 'none';
+      if (sectionSchedules) sectionSchedules.style.display = 'none';
+      if (sectionAdminHistory) sectionAdminHistory.style.display = 'none';
+    }
+    // Sócio: Limited access - only basic sections
+    else if (role === 'socio' || role === 'sócio') {
+      // Mostrar apenas seções básicas para sócio
+      if (sectionKPIs) sectionKPIs.style.display = 'block';
+      if (sectionFilters) sectionFilters.style.display = 'block';
+      if (sectionCharts) sectionCharts.style.display = 'block';
+      if (sectionUsers) sectionUsers.style.display = 'block';
+      if (sectionTokenStats) sectionTokenStats.style.display = 'block';
+      if (sectionCouponUsage) sectionCouponUsage.style.display = 'block';
+      
+      if (sectionPasseBooyah) {
+        sectionPasseBooyah.style.display = 'block';
+        
+      }
+      
+      if (sectionSchedules) {
+        sectionSchedules.style.display = 'block';
+        
+      } 
+      
+      // Ocultar seções administrativas
+      if (sectionUsersManagement) sectionUsersManagement.style.display = 'none';
+      if (sectionTokens) sectionTokens.style.display = 'none';
+      if (sectionCoupons) sectionCoupons.style.display = 'none';
+      if (sectionProducts) sectionProducts.style.display = 'none';
+      if (sectionHighlights) sectionHighlights.style.display = 'none';
+      if (sectionNews) sectionNews.style.display = 'none';
+      if (sectionAdminHistory) sectionAdminHistory.style.display = 'none';
+      
+      
+    }
+    // CEO: Can see and edit everything
+    else if (role === 'ceo' || role === 'ceo') {
+      
+      // Mostrar todas as seções
+      if (sectionKPIs) sectionKPIs.style.display = 'block';
+      if (sectionFilters) sectionFilters.style.display = 'block';
+      if (sectionCharts) sectionCharts.style.display = 'block';
+      if (sectionUsers) sectionUsers.style.display = 'block';
+      if (sectionTokenStats) sectionTokenStats.style.display = 'block';
+      if (sectionUsersManagement) sectionUsersManagement.style.display = 'block';
+      if (sectionTokens) sectionTokens.style.display = 'block';
+      if (sectionCoupons) sectionCoupons.style.display = 'block';
+      if (sectionCouponUsage) sectionCouponUsage.style.display = 'block';
+      if (sectionAffiliates) sectionAffiliates.style.display = 'block';
+      if (sectionAffiliateSales) sectionAffiliateSales.style.display = 'block';
+      if (sectionPasseBooyah) sectionPasseBooyah.style.display = 'block';
+      if (sectionProducts) sectionProducts.style.display = 'block';
+      if (sectionSchedules) sectionSchedules.style.display = 'block';
+      if (sectionHighlights) sectionHighlights.style.display = 'block';
+      if (sectionNews) sectionNews.style.display = 'block';
+      if (sectionAdminHistory) sectionAdminHistory.style.display = 'block';
+      
+    }
+    // Admin: Can see and edit everything
+    else if (role === 'admin') {
+      // Mostrar todas as seções
+      if (sectionKPIs) sectionKPIs.style.display = 'block';
+      if (sectionFilters) sectionFilters.style.display = 'block';
+      if (sectionCharts) sectionCharts.style.display = 'block';
+      if (sectionUsers) sectionUsers.style.display = 'block';
+      if (sectionTokenStats) sectionTokenStats.style.display = 'block';
+      if (sectionUsersManagement) sectionUsersManagement.style.display = 'block';
+      if (sectionTokens) sectionTokens.style.display = 'block';
+      if (sectionCoupons) sectionCoupons.style.display = 'block';
+      if (sectionCouponUsage) sectionCouponUsage.style.display = 'block';
+      if (sectionAffiliates) sectionAffiliates.style.display = 'block';
+      if (sectionAffiliateSales) sectionAffiliateSales.style.display = 'block';
+      if (sectionPasseBooyah) sectionPasseBooyah.style.display = 'block';
+      if (sectionProducts) sectionProducts.style.display = 'block';
+      if (sectionSchedules) sectionSchedules.style.display = 'block';
+      if (sectionHighlights) sectionHighlights.style.display = 'block';
+      if (sectionNews) sectionNews.style.display = 'block';
+      if (sectionAdminHistory) sectionAdminHistory.style.display = 'block';
+    }
+    // Gerente: Acesso a vendas gerais do mês
+    else if (role === 'gerente') {
+      // Mostrar seções de vendas e relatórios gerais
+      if (sectionKPIs) sectionKPIs.style.display = 'block';
+      if (sectionFilters) sectionFilters.style.display = 'block';
+      if (sectionCharts) sectionCharts.style.display = 'block';
+      if (sectionTokenStats) sectionTokenStats.style.display = 'block';
+      if (sectionUsers) sectionUsers.style.display = 'block';
+      if (sectionAdminHistory) sectionAdminHistory.style.display = 'block';
+      
+      // Ocultar seções administrativas específicas
+      if (sectionUsersManagement) sectionUsersManagement.style.display = 'none';
+      if (sectionTokens) sectionTokens.style.display = 'none';
+      if (sectionCoupons) sectionCoupons.style.display = 'none';
+      if (sectionCouponUsage) sectionCouponUsage.style.display = 'none';
+      if (sectionPasseBooyah) sectionPasseBooyah.style.display = 'none';
+      if (sectionProducts) sectionProducts.style.display = 'none';
+      // Gerente também pode ver e operar o controle de horários
+      if (sectionSchedules) sectionSchedules.style.display = 'block';
+      // Exibir Notícias e Destaques para leitura (edições já são limitadas por permissões)
+      if (sectionHighlights) sectionHighlights.style.display = 'block';
+      if (sectionNews) sectionNews.style.display = 'block';
+    }
+    // Vendedor: Vendas recentes, cupons, vendas para aprovação, controle de passe e gerenciamento de tokens
+    else if (role === 'vendedor') {
+      // Mostrar seções específicas para vendedor
+      if (sectionKPIs) sectionKPIs.style.display = 'block';
+      if (sectionCharts) sectionCharts.style.display = 'block';
+      if (sectionTokenStats) sectionTokenStats.style.display = 'block';
+      if (sectionTokens) sectionTokens.style.display = 'block';
+      if (sectionCoupons) sectionCoupons.style.display = 'block';
+      if (sectionCouponUsage) sectionCouponUsage.style.display = 'block';
+      if (sectionPasseBooyah) sectionPasseBooyah.style.display = 'block';
+      if (sectionUsers) sectionUsers.style.display = 'block';
+      
+      // Ocultar seções administrativas
+      if (sectionFilters) sectionFilters.style.display = 'none';
+      if (sectionUsersManagement) sectionUsersManagement.style.display = 'none';
+      if (sectionProducts) sectionProducts.style.display = 'none';
+      if (sectionSchedules) sectionSchedules.style.display = 'none';
+      if (sectionHighlights) sectionHighlights.style.display = 'none';
+      if (sectionNews) sectionNews.style.display = 'none';
+      if (sectionAdminHistory) sectionAdminHistory.style.display = 'none';
+    }
+    
   }
-  // ===== SEÇÕES EDITÁVEIS POR CARGO =====
-  // null = readonly total | [] = todas as seções visíveis | [...] = seções específicas
-  const ROLE_EDIT_SECTIONS = {
-    ceo:      null,     // acesso total de edição (null = sem restrição)
-    socio:    [],       // somente leitura (lista vazia = nenhuma seção editável)
-    gerente:  null,     // edição total nas seções visíveis
-    vendedor: ['#sectionOrders','#sectionTokens','#sectionPasseBooyah',
-               '#sectionNotificationsAdmin','#sectionShirtOrders','#sectionWhatsAppLinks'],
-    designer: ['#sectionProducts','#sectionEvents','#sectionHighlights','#sectionNews'],
-    staff:    ['#sectionEvents','#sectionNotificationsAdmin'],
-    admin:    ['#sectionEvents','#sectionNotificationsAdmin'],
-  };
-
+  // Control edit permissions based on role
   function controlEditPermissions(userRole) {
-    const role = (userRole || '').toLowerCase()
-      .replace('sócio','socio').replace('desgin','designer').replace('design','designer');
-
-    const allEditable = [
-      ...document.querySelectorAll('input, textarea, select'),
-      ...document.querySelectorAll('button'),
-      ...document.querySelectorAll('.edit-btn,.save-btn,.delete-btn,.add-btn,[class*="btn"]'),
-      ...document.querySelectorAll('[contenteditable="true"]'),
-    ];
-
-    const editSections = ROLE_EDIT_SECTIONS[role];
-
-    if (editSections === null) {
-      // Acesso total
-      allEditable.forEach(el => {
-        if (!el.hasAttribute('data-temp-disabled')) {
-          el.disabled = false; el.readOnly = false;
-          el.style.pointerEvents = 'auto'; el.style.opacity = '1';
+    const role = (userRole || '').toLowerCase();
+    
+    // Get all input elements, buttons, and editable elements
+    const inputs = document.querySelectorAll('input, textarea, select');
+    const buttons = document.querySelectorAll('button');
+    const editButtons = document.querySelectorAll('.edit-btn, .save-btn, .delete-btn, .add-btn, [class*="btn"]');
+    const editableElements = document.querySelectorAll('[contenteditable="true"]');
+    
+    // Combine all editable elements
+    const allEditableElements = [...inputs, ...buttons, ...editButtons, ...editableElements];
+    
+    
+    // Design: Can only edit highlights and news sections
+    if (role === 'design' || role === 'desgin' || role === 'designer') {
+      
+      allEditableElements.forEach((element, index) => {
+        // Check if element is in highlights or news sections
+        const isInHighlights = element.closest('#sectionHighlights');
+        const isInNews = element.closest('#sectionNews');
+        
+        if (isInHighlights || isInNews) {
+          // Enable editing for highlights and news
+          element.disabled = false;
+          element.readOnly = false;
+          element.style.pointerEvents = 'auto';
+          element.style.opacity = '1';
+        } else {
+          // Disable editing for all other sections
+          element.disabled = true;
+          element.readOnly = true;
+          element.style.pointerEvents = 'none';
+          element.style.opacity = '0.5';
         }
       });
-      return;
+      
     }
-
-    if (editSections.length === 0) {
-      // Somente leitura total (SOCIO)
-      allEditable.forEach(el => {
-        el.disabled = true; el.readOnly = true;
-        el.style.pointerEvents = 'none'; el.style.opacity = '0.5';
+    // Sócio: acesso somente leitura (CEO NÃO entra aqui)
+    else if (role === 'socio' || role === 'sócio') {
+      
+      allEditableElements.forEach(element => {
+        element.disabled = true;
+        element.readOnly = true;
+        element.style.pointerEvents = 'none';
+        element.style.opacity = '0.5';
       });
-      return;
+      
     }
-
-    // Edição limitada a seções específicas
-    const selectorStr = editSections.join(',');
-    allEditable.forEach(el => {
-      const inAllowed = el.closest(selectorStr);
-      if (inAllowed && !el.hasAttribute('data-temp-disabled')) {
-        el.disabled = false; el.readOnly = false;
-        el.style.pointerEvents = 'auto'; el.style.opacity = '1';
-      } else {
-        el.disabled = true; el.readOnly = true;
-        el.style.pointerEvents = 'none'; el.style.opacity = '0.5';
-      }
-    });
+    // CEO, Admin, Gerente: acesso total de edição
+    else if (role === 'ceo' || role === 'admin' || role === 'gerente') {
+      
+      allEditableElements.forEach(element => {
+        element.disabled = false;
+        element.readOnly = false;
+        element.style.pointerEvents = 'auto';
+        element.style.opacity = '1';
+      });
+      
+    }
+    // Vendedor: Limited edit access
+    else if (role === 'vendedor') {
+      
+      allEditableElements.forEach(element => {
+        // Vendedor can edit in specific sections: tokens, coupons, passe, users
+        const isInAllowedSection = element.closest('#sectionTokens, #sectionCoupons, #sectionCouponUsage, #sectionPasseBooyah, #sectionUsers, #sectionKPIs, #sectionCharts');
+        
+        if (isInAllowedSection) {
+          element.disabled = false;
+          element.readOnly = false;
+          element.style.pointerEvents = 'auto';
+          element.style.opacity = '1';
+        } else {
+          element.disabled = true;
+          element.readOnly = true;
+          element.style.pointerEvents = 'none';
+          element.style.opacity = '0.5';
+        }
+      });
+      
+    }
+    
   }
 
   // Security: Show login error
@@ -563,11 +731,26 @@ window.showWarningToast = function(message, title = 'Atenção') {
     const salesChartCard = document.getElementById('salesChart')?.closest('.bg-white');
     const topProductsCard = document.getElementById('topProductsChart')?.closest('.bg-white');
     
-    // KPI card visibility per role
-    if (role === 'vendedor' || role === 'designer' || role === 'staff' || role === 'admin'){
+    if (role === 'vendedor'){
+      // Vendedor: vê pedidos recentes e KPIs (visibilidade controlada por controlSectionVisibility)
+      // Removido: ocultação de KPIs - agora controlado por controlSectionVisibility
       if (productsCard) productsCard.classList.add('hidden');
       if (salesChartCard) salesChartCard.classList.add('hidden');
       if (topProductsCard) topProductsCard.classList.add('hidden');
+    } else if (role === 'gerente'){
+      // Gerente: vê financeiro, exceto fluxo total mensal e gráfico de Vendas 30d
+      const kpiMonthCard = document.getElementById('kpiMonth')?.closest('.bg-white');
+      if (kpiMonthCard) kpiMonthCard.classList.add('hidden');
+      if (salesChartCard) salesChartCard.classList.add('hidden');
+    } else if (role === 'design'){
+      // Design: esconde todos os KPIs e gráficos
+      kpiCards.forEach(e => e && (e.closest('.bg-white').classList.add('hidden')));
+      if (productsCard) productsCard.classList.add('hidden');
+      if (salesChartCard) salesChartCard.classList.add('hidden');
+      if (topProductsCard) topProductsCard.classList.add('hidden');
+    } else if (role === 'socio' || role === 'ceo'){
+      // Sócio: vê tudo (read-only)
+      // Nenhuma ocultação de elementos
     }
   }
 
@@ -646,12 +829,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
         <td class="py-2 px-2">${user.email || 'Email não informado'}</td>
         <td class="py-2 px-2">
           <select class="role-select border border-gray-300 rounded px-2 py-1 text-xs" data-uid="${user.id}">
-            <option value="Ceo" ${(user.role||'').toLowerCase() === 'ceo' ? 'selected' : ''}>CEO – Acesso Total</option>
-            <option value="Socio" ${(user.role||'').toLowerCase() === 'socio' ? 'selected' : ''}>SOCIO – Visualização Total</option>
-            <option value="Gerente" ${(user.role||'').toLowerCase() === 'gerente' ? 'selected' : ''}>Gerente – Sem Dashboard/Pagamentos</option>
-            <option value="Vendedor" ${(user.role||'').toLowerCase() === 'vendedor' ? 'selected' : ''}>Vendedor – Pedidos/Tokens/Passes</option>
-            <option value="Designer" ${['designer','design','desgin'].includes((user.role||'').toLowerCase()) ? 'selected' : ''}>Designer – Produtos/Eventos/Conteúdo</option>
-            <option value="Staff" ${['staff','admin'].includes((user.role||'').toLowerCase()) ? 'selected' : ''}>Staff – Notificações/Eventos</option>
+            <option value="Vendedor" ${user.role === 'Vendedor' ? 'selected' : ''}>Vendedor</option>
+            <option value="Gerente" ${user.role === 'Gerente' ? 'selected' : ''}>Gerente</option>
+            <option value="Ceo" ${user.role === 'Ceo' ? 'selected' : ''}>Ceo</option>
           </select>
         </td>
       `;
@@ -1025,70 +1205,59 @@ window.showWarningToast = function(message, title = 'Atenção') {
   }
 
   // Submissão manual de equipe/cadastro rápido (confirma vaga sem pagamento)
-  let _isSavingTeam = false;
   async function submitAddTeam(e){
-    if (_isSavingTeam) { e?.preventDefault(); return; }
     try{
       e?.preventDefault();
-          const hourEl = document.getElementById('addHour');
-          const teamEl = document.getElementById('addTeamName');
-          const contactEl = document.getElementById('addContact');
-          const personEl = document.getElementById('addPerson');
-          const notesEl = document.getElementById('addNotes');
-          const msgEl = document.getElementById('addTeamMsg');
-          const dateEl = document.getElementById('boardDate');
-          const typeEl = document.getElementById('boardEventType');
-          const schedule = (hourEl?.value || '').trim();
-          const teamName = (teamEl?.value || '').trim();
-          const contact = (contactEl?.value || '').trim();
-          const person = (personEl?.value || '').trim();
-          const notes = (notesEl?.value || '').trim();
-          const date = (dateEl?.value || '').trim();
-          const eventType = (typeEl?.value || '').trim();
-          if (!teamName || !contact){
-            alert('Informe ao menos Time/Org e Contato.');
-            return;
-          }
-          if (!date){
-            alert('Selecione uma data no painel de horários.');
-            return;
-          }
-          const submitBtn = document.querySelector('#formAddTeam button[type="submit"], #formAddTeam button:not([type="button"])');
-          const originalBtnText = submitBtn ? submitBtn.textContent : null;
-          _isSavingTeam = true;
-          if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Salvando...'; }
-          if (msgEl) msgEl.textContent = '';
-          // Se horário não estiver definido, cria sem horário específico
-          const payload = {
-            teamName,
-            contact,
-            person: person || null,
-            notes: notes || null,
-            date,
-            schedule: schedule || '—',
-            eventType: eventType || null,
-            status: 'confirmed',
-            userId: window.firebaseAuth?.currentUser?.uid || null
-          };
-          try{
-            const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-            await addDoc(collection(window.firebaseDb,'registrations'), { ...payload, createdAt: serverTimestamp() });
-            if (msgEl) msgEl.textContent = 'Time adicionado com sucesso!';
-            // limpar campos
-            if (teamEl) teamEl.value = '';
-            if (contactEl) contactEl.value = '';
-            if (personEl) personEl.value = '';
-            if (notesEl) notesEl.value = '';
-            // Atualiza quadro e pendências
-            try { await loadBoard(); } catch(_){}
-            try { await loadPending(true); } catch(_){}
-          }catch(err){
-            alert('Falha ao salvar time.');
-          } finally {
-            _isSavingTeam = false;
-            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = originalBtnText || 'Adicionar'; }
-          }
-    }catch(_){ _isSavingTeam = false; }
+  	  const hourEl = document.getElementById('addHour');
+  	  const teamEl = document.getElementById('addTeamName');
+  	  const contactEl = document.getElementById('addContact');
+  	  const personEl = document.getElementById('addPerson');
+  	  const notesEl = document.getElementById('addNotes');
+  	  const msgEl = document.getElementById('addTeamMsg');
+  	  const dateEl = document.getElementById('boardDate');
+  	  const typeEl = document.getElementById('boardEventType');
+  	  const schedule = (hourEl?.value || '').trim();
+  	  const teamName = (teamEl?.value || '').trim();
+  	  const contact = (contactEl?.value || '').trim();
+  	  const person = (personEl?.value || '').trim();
+  	  const notes = (notesEl?.value || '').trim();
+  	  const date = (dateEl?.value || '').trim();
+  	  const eventType = (typeEl?.value || '').trim();
+  	  if (!teamName || !contact){
+  	    alert('Informe ao menos Time/Org e Contato.');
+  	    return;
+  	  }
+  	  if (!date){
+  	    alert('Selecione uma data no painel de horários.');
+  	    return;
+  	  }
+  	  // Se horário não estiver definido, cria sem horário específico
+  	  const payload = {
+  	    teamName,
+  	    contact,
+  	    person: person || null,
+  	    notes: notes || null,
+  	    date,
+  	    schedule: schedule || '—',
+  	    eventType: eventType || null,
+  	    status: 'confirmed'
+  	  };
+  	  try{
+  	    const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+  	    await addDoc(collection(window.firebaseDb,'registrations'), { ...payload, createdAt: serverTimestamp() });
+  	    if (msgEl) msgEl.textContent = 'Time adicionado com sucesso!';
+  	    // limpar campos
+  	    if (teamEl) teamEl.value = '';
+  	    if (contactEl) contactEl.value = '';
+  	    if (personEl) personEl.value = '';
+  	    if (notesEl) notesEl.value = '';
+  	    // Atualiza quadro e pendências
+  	    try { await loadBoard(); } catch(_){}
+  	    try { await loadPending(true); } catch(_){}
+  	  }catch(err){
+  	    alert('Falha ao salvar time.');
+  	  }
+    }catch(_){ }
   }
   // Expor submitAddTeam globalmente
   window.submitAddTeam = submitAddTeam;
@@ -1111,7 +1280,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
     }catch(e){}
 
     // 
-    if (!['admin','ceo','gerente','vendedor','design','designer','desgin','socio','sócio','afiliado','staff','Socio','Gerente','Designer','Staff','Vendedor','Ceo'].includes((role||''))){
+    if (!['ceo','gerente','vendedor','design','designer','desgin','socio','sócio','afiliado','staff'].includes((role||'').toLowerCase())){
       authGate.classList.remove('hidden');
       dashboard.classList.add('hidden');
       return;
@@ -1231,14 +1400,6 @@ window.showWarningToast = function(message, title = 'Atenção') {
     if (btnSch) btnSch.onclick = exportSchedulesCsv;
     const btnLoadBoard = document.getElementById('btnLoadBoard');
     if (btnLoadBoard) btnLoadBoard.onclick = loadBoard;
-    // Carrega eventos dinâmicos no dropdown do board ao iniciar e quando Firebase estiver pronto
-    if (window.firebaseDb) {
-      loadDynamicEventsIntoBoard();
-    } else {
-      const _waitFb = setInterval(() => {
-        if (window.firebaseDb) { clearInterval(_waitFb); loadDynamicEventsIntoBoard(); }
-      }, 300);
-    }
     const formAddTeam = document.getElementById('formAddTeam');
     if (formAddTeam) formAddTeam.onsubmit = submitAddTeam;
     // Bind filtros do histórico de cupons - configurar após DOM estar pronto
@@ -2704,43 +2865,8 @@ window.showWarningToast = function(message, title = 'Atenção') {
 
   // Retorna horários padrão para tipo de evento
   function getDefaultHoursForEvent(eventType, isCampFinalDate) {
-    return ['00:00','01:00','02:00','03:00','04:00','05:00','06:00','07:00','08:00','09:00',
-            '10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00',
-            '20:00','21:00','22:00','23:00'];
+    return ['14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00','23:00'];
   }
-
-  // Carrega eventos dinâmicos (adminEvents) no dropdown do board de horários
-  async function loadDynamicEventsIntoBoard() {
-    const typeEl = document.getElementById('boardEventType');
-    if (!typeEl || !window.firebaseDb) return;
-    // Remove opções dinâmicas anteriores
-    Array.from(typeEl.querySelectorAll('option[data-dynamic]')).forEach(o => o.remove());
-    try {
-      const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-      const snap = await getDocs(query(
-        collection(window.firebaseDb, 'adminEvents'),
-        where('status', '==', 'Aberto')
-      ));
-      if (snap.empty) return;
-      const sep = document.createElement('option');
-      sep.disabled = true;
-      sep.textContent = '── Eventos Criados ──';
-      sep.dataset.dynamic = '1';
-      typeEl.appendChild(sep);
-      snap.forEach(d => {
-        const ev = d.data();
-        const opt = document.createElement('option');
-        opt.value = d.id;
-        opt.textContent = ev.name || d.id;
-        opt.dataset.dynamic = '1';
-        opt.dataset.canonicalType = d.id;
-        typeEl.appendChild(opt);
-      });
-    } catch (err) {
-      console.warn('Erro ao carregar eventos dinâmicos no board:', err);
-    }
-  }
-  window.loadDynamicEventsIntoBoard = loadDynamicEventsIntoBoard;
 
   // Busca registrations pelo dia
   async function fetchRegistrationsByDate(date, eventType) {
@@ -2856,32 +2982,22 @@ window.showWarningToast = function(message, title = 'Atenção') {
   }
 
   // Renderiza linha da tabela
-  function createBoardTableRow(hour, capacity, occupied, overrides, eventType, permLockedHours) {
+  function createBoardTableRow(hour, capacity, occupied, overrides, eventType) {
     const tr = document.createElement('tr');
     const ovData = overrides[hour] || {};
-    const isFixedLock = false;
+    const isFixedLock = false; //(canonicalType(eventType) === 'modo-liga' && (hour === '16:00' || hour === '17:00'));
     const locked = isFixedLock ? true : !!(ovData.lockedAny === undefined ? ovData.locked : ovData.lockedAny);
     const isStaff = window.adminRoleLower === 'staff';
-
-    // Trava permanente deste horário
-    const hNum = parseInt(String(hour).match(/^(\d+)/)?.[1] || '', 10);
-    const permLocked = !!(permLockedHours && permLockedHours.has(hNum));
     
     const remaining = Math.max(0, capacity - occupied);
     const occupiedText = remaining === 0 ? 'Lotado' : `Restam ${remaining}`;
-
-    // Badge de trava permanente na coluna hora
-    const permBadge = permLocked ? ' <span class="text-[10px] font-bold text-red-600 bg-red-100 rounded px-1">∞ FIXO</span>' : '';
-
-    const lockButton = isStaff ? '' : `<button class="px-2 py-1 ${locked?'bg-red-600 text-white':'bg-yellow-400 text-black'} rounded text-xs" data-toggle-lock="${hour}">${locked?'Destravar':'Travar'}</button>`;
-    const permLockButton = isStaff ? '' : `<button class="px-2 py-1 ${permLocked?'bg-purple-700 text-white':'bg-gray-400 text-white'} rounded text-xs font-bold" data-toggle-perm-lock="${hour}" title="${permLocked?'Remover trava permanente deste horário':'Travar este horário permanentemente (todas as datas)'}">∞ ${permLocked?'Destrav. Fixo':'Fixar'}</button>`;
+    const lockButton = isStaff ? '' : `<button class="px-2 py-1 ${locked?'bg-red-600 text-white':'bg-yellow-400 text-black'} rounded text-xs" data-toggle-lock="${hour}" ${isFixedLock ? 'title="Horário fixo - confirmação necessária para destravar"' : ''}>${locked?'Destravar':'Travar'}</button>`;
     
-    tr.innerHTML = `<td class="py-2">${hour}${permBadge}</td><td class="py-2">${occupiedText}</td><td class="py-2 flex flex-wrap gap-1">
+    tr.innerHTML = `<td class="py-2">${hour}</td><td class="py-2">${occupiedText}</td><td class="py-2 space-x-2">
       <button class="px-2 py-1 bg-blue-600 text-white rounded text-xs" data-add-hour="${hour}">Adicionar</button>
       <button class="px-2 py-1 bg-gray-200 text-gray-800 rounded text-xs" data-manage-hour="${hour}">Gerenciar</button>
       <button class="px-2 py-1 bg-emerald-600 text-white rounded text-xs" data-export-hour="${hour}">Exportar</button>
       ${lockButton}
-      ${permLockButton}
     </td>`;
     
     return tr;
@@ -3079,10 +3195,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
     }
   })();
 
-  let _isLoadingBoard = false;
   async function loadBoard(){
-    if (_isLoadingBoard) return;
-    _isLoadingBoard = true;
     try {
       // Validação de elementos DOM
       const dateEl = document.getElementById('boardDate');
@@ -3103,8 +3216,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
         return
       }
 
-      const selectedOpt = typeEl.options[typeEl.selectedIndex];
-      const ovEventType = selectedOpt?.dataset?.canonicalType || canonicalType(eventType);
+      const ovEventType = canonicalType(eventType);
       const isCampSemifinalDate = CAMP_SEMIFINAL_DATES.includes(date);
       const isCampFinalDate = CAMP_FINAL_DATES.includes(date);
 
@@ -3131,32 +3243,6 @@ window.showWarningToast = function(message, title = 'Atenção') {
 
       // ===== Bind do botão de destravar tudo do dia =====
       bindClearLocksButton(btnClearLocks, date, ovEventType);
-
-      // ===== Bind do botão Travar dia inteiro =====
-      const btnLockAllDay = document.getElementById('btnLockAllDay');
-      if (btnLockAllDay && window.adminRoleLower !== 'staff') {
-        btnLockAllDay.style.display = '';
-        const newBtnLock = btnLockAllDay.cloneNode(true);
-        btnLockAllDay.parentNode.replaceChild(newBtnLock, btnLockAllDay);
-        newBtnLock.addEventListener('click', () => handleLockAllDay(date, ovEventType));
-      } else if (btnLockAllDay) {
-        btnLockAllDay.style.display = 'none';
-      }
-
-      // ===== Bind e status do botão Trava Geral =====
-      const btnGlobalLock = document.getElementById('btnGlobalLock');
-      if (btnGlobalLock && window.adminRoleLower !== 'staff') {
-        await loadGlobalLockStatus(ovEventType);
-        const newBtnGlobal = btnGlobalLock.cloneNode(true);
-        // copiar dataset
-        newBtnGlobal.dataset.globalLocked = btnGlobalLock.dataset.globalLocked;
-        newBtnGlobal.textContent = btnGlobalLock.textContent;
-        newBtnGlobal.className = btnGlobalLock.className;
-        btnGlobalLock.parentNode.replaceChild(newBtnGlobal, btnGlobalLock);
-        newBtnGlobal.addEventListener('click', () => handleGlobalLock(ovEventType));
-      } else if (btnGlobalLock) {
-        btnGlobalLock.style.display = 'none';
-      }
 
       // ===== Determinar horários e capacidade =====
       const defaultHours = getDefaultHoursForEvent(eventType, isCampFinalDate);
@@ -3211,24 +3297,10 @@ window.showWarningToast = function(message, title = 'Atenção') {
         return;
       }
 
-      // ===== Carregar travas permanentes por horário =====
-      let permLockedHours = new Set();
-      try {
-        const { collection: _c, query: _q, where: _w, getDocs: _g } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const hlRef = _c(window.firebaseDb, 'event_hour_locks');
-        // Usar apenas 1 filtro (eventType) para evitar índice composto no Firestore
-        const hlSnap = await _g(_q(hlRef, _w('eventType', '==', ovEventType)));
-        hlSnap.forEach(d => {
-          if (d.data().locked !== true) return; // filtrar locked em JS
-          const h = parseInt(String(d.data().hour || '').match(/^(\d+)/)?.[1] || '', 10);
-          if (!isNaN(h)) permLockedHours.add(h);
-        });
-      } catch(_) {}
-
       entries.forEach(hour => {
         const cap = getCapacityForHour(eventType, hour, isCampFinalDate, isCampSemifinalDate);
         const occupied = mergedMap[hour] || 0;
-        const tr = createBoardTableRow(hour, cap, occupied, overridesMap, ovEventType, permLockedHours);
+        const tr = createBoardTableRow(hour, cap, occupied, overridesMap, ovEventType);
         tbody.appendChild(tr);
       });
 
@@ -3236,16 +3308,14 @@ window.showWarningToast = function(message, title = 'Atenção') {
       bindBoardTableActions(tbody, date, eventType, ovEventType);
 
     } catch (e) {
-      console.error('❌ Erro em loadBoard:', e.message || e);
-    } finally {
-      _isLoadingBoard = false;
+      console.error('❌ Erro em loadBoard:', e);
+      alert('Erro ao carregar o quadro de horários. Verifique o console.');
     }
   }
 
   // Binda ações dos botões da tabela
   function bindBoardTableActions(tbody, date, eventType, ovEventType) {
     // Remover listeners antigos para evitar duplicação
-    if (!tbody || !tbody.parentNode) return;
     const newTbody = tbody.cloneNode(true);
     tbody.parentNode.replaceChild(newTbody, tbody);
     
@@ -3282,47 +3352,10 @@ window.showWarningToast = function(message, title = 'Atenção') {
           const h = btnToggle.getAttribute('data-toggle-lock');
           await handleToggleLock(h, date, eventType, ovEventType);
         }
-        const btnPermLock = e.target.closest('[data-toggle-perm-lock]');
-        if (btnPermLock) {
-          const h = btnPermLock.getAttribute('data-toggle-perm-lock');
-          await handleTogglePermanentLock(h, ovEventType);
-        }
       } catch (e) {
         console.error('Erro ao processar ação da tabela:', e);
       }
     });
-  }
-
-  // Trava permanente de horário individual (sem data)
-  async function handleTogglePermanentLock(hour, ovEventType) {
-    const hNum = parseInt(String(hour).match(/^(\d+)/)?.[1] || '', 10);
-    console.log('[Fixar] chamado', { hour, hNum, ovEventType });
-    if (isNaN(hNum)) { showToast('error','Horário inválido.','Erro'); return; }
-    const docId = `${ovEventType}__${hNum}`;
-    try {
-      const { doc, getDoc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-      const ref = doc(window.firebaseDb, 'event_hour_locks', docId);
-      console.log('[Fixar] lendo estado atual, docId:', docId);
-      const snap = await getDoc(ref);
-      const isCurrentlyLocked = snap.exists() && snap.data().locked === true;
-      console.log('[Fixar] estado atual:', { exists: snap.exists(), isCurrentlyLocked });
-      const msg = isCurrentlyLocked
-        ? `🔓 Destravar o horário ${hNum}h de "${ovEventType}" em TODAS as datas?`
-        : `🔒 Travar o horário ${hNum}h de "${ovEventType}" em TODAS as datas permanentemente?\n\nOs clientes não poderão reservar este horário em nenhuma data até você destravar.`;
-      const ok = await showConfirm('Confirmar', msg);
-      console.log('[Fixar] confirmação:', ok);
-      if (!ok) return;
-      console.log('[Fixar] gravando no Firestore...');
-      await setDoc(ref, { eventType: ovEventType, hour: String(hNum), locked: !isCurrentlyLocked, updatedAt: Date.now() });
-      console.log('[Fixar] gravado com sucesso');
-      showToast('success', isCurrentlyLocked ? `Horário ${hNum}h destravado em todas as datas.` : `Horário ${hNum}h travado permanentemente em todas as datas.`, isCurrentlyLocked ? 'Destravado' : 'Fixado');
-      await loadBoard();
-    } catch(err) {
-      console.error('[Fixar] ERRO:', err);
-      const msg = 'Falha ao fixar horário: ' + (err.message || String(err));
-      showToast('error', msg, 'Erro');
-      alert('❌ ' + msg + '\n\nAbra o console do navegador (F12) para mais detalhes.');
-    }
   }
 
   // Handler para toggle de travamento de horário
@@ -3499,95 +3532,6 @@ window.showWarningToast = function(message, title = 'Atenção') {
     });
   }
 
-  // ── Travar dia inteiro ─────────────────────────────────────────────────────
-  async function handleLockAllDay(date, ovEventType) {
-    if (!date || !ovEventType) { showToast('error','Selecione evento e data antes de travar.','Erro'); return; }
-    const ok = await confirm(`🔒 Travar TODOS os horários de ${date} para "${ovEventType}"?\nOs clientes não conseguirão reservar nenhum horário deste dia.`);
-    if (!ok) return;
-    try {
-      const { collection, query, where, getDocs, doc, addDoc, writeBatch } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-      const defaultHours = getDefaultHoursForEvent(ovEventType, false);
-      const ovRef = collection(window.firebaseDb, 'schedule_overrides');
-      const canon = canonicalType(ovEventType);
-
-      // Buscar docs existentes para o dia
-      const existing = {};
-      const snap = await getDocs(query(ovRef, where('date','==',date)));
-      snap.forEach(d => {
-        const r = d.data();
-        const h = String(r.hour || r.hh || '').replace(/\D/g,'');
-        if (h) existing[h] = d.id;
-      });
-
-      const batch = writeBatch(window.firebaseDb);
-      const toCreate = [];
-
-      defaultHours.forEach(hour => {
-        const hh = String(hour).replace(/\D/g,'').padStart(2,'0');
-        const h = parseInt(hh,10);
-        const hStr = String(h);
-        if (existing[hStr] || existing[hh]) {
-          const id = existing[hStr] || existing[hh];
-          batch.update(doc(window.firebaseDb,'schedule_overrides',id), { locked: true, eventType: canon });
-        } else {
-          toCreate.push({ date, eventType: canon, hour: hStr, hh: hStr, locked: true, extraOccupied: 0, createdAt: Date.now() });
-        }
-      });
-
-      await batch.commit();
-      for (const d of toCreate) await addDoc(ovRef, d);
-
-      showToast('success',`Todos os horários de ${date} foram travados.`,'Travado');
-      await loadBoard();
-    } catch (err) {
-      console.error(err);
-      showToast('error','Falha ao travar o dia: ' + (err.message||err),'Erro');
-    }
-  }
-
-  // ── Trava geral (permanente até destravar) ──────────────────────────────────
-  async function loadGlobalLockStatus(ovEventType) {
-    const btn = document.getElementById('btnGlobalLock');
-    if (!btn || window.adminRoleLower === 'staff') { if (btn) btn.style.display = 'none'; return; }
-    btn.style.display = '';
-    if (!window.firebaseDb || !ovEventType) { btn.textContent = '🔒 Trava Geral'; return; }
-    try {
-      const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-      const snap = await getDoc(doc(window.firebaseDb, 'event_global_locks', ovEventType));
-      const isLocked = snap.exists() && snap.data().locked === true;
-      btn.textContent = isLocked ? '🔴 Destavar Geral (travado)' : '🔒 Travar Geral';
-      btn.className = `px-3 py-2 rounded font-semibold text-white ${isLocked ? 'bg-red-700' : 'bg-gray-700 hover:bg-gray-900'}`;
-      btn.dataset.globalLocked = isLocked ? '1' : '0';
-    } catch(e) {
-      btn.textContent = '🔒 Travar Geral';
-    }
-  }
-
-  async function handleGlobalLock(ovEventType) {
-    const btn = document.getElementById('btnGlobalLock');
-    const isCurrentlyLocked = btn?.dataset.globalLocked === '1';
-    const action = isCurrentlyLocked ? 'DESTRAVAR' : 'TRAVAR';
-    const msg = isCurrentlyLocked
-      ? `🔓 Destravar o evento "${ovEventType}" permanentemente?\nOs clientes voltarão a ver os horários normalmente.`
-      : `🔒 TRAVAR GERAL o evento "${ovEventType}"?\n\nIsso bloqueia TODOS os horários em TODAS as datas até você destravar manualmente.`;
-    const ok = await confirm(msg);
-    if (!ok) return;
-    try {
-      const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-      await setDoc(doc(window.firebaseDb,'event_global_locks',ovEventType), {
-        locked: !isCurrentlyLocked,
-        eventType: ovEventType,
-        updatedAt: Date.now()
-      });
-      showToast('success', isCurrentlyLocked ? 'Evento destravado globalmente.' : 'Evento travado globalmente em todos os horários.', isCurrentlyLocked ? 'Destravado' : 'Travado');
-      await loadGlobalLockStatus(ovEventType);
-      await loadBoard();
-    } catch(err) {
-      console.error(err);
-      showToast('error','Falha na trava geral: ' + (err.message||err),'Erro');
-    }
-  }
-
   async function openManageHourModal(date, eventType, hour){
     try{
       const title = document.getElementById('manageHourTitle');
@@ -3637,12 +3581,12 @@ window.showWarningToast = function(message, title = 'Atenção') {
   // Usuários ativos nos últimos 30 dias (baseado em lastLogin em users)
   async function renderActiveUsers(){
     try{
-          const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+  	  const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
       const snap = await getDocs(collection(window.firebaseDb,'users'));
       const thirtyDaysAgo = Date.now() - 30*24*60*60*1000;
       let active = 0; snap.forEach(d=>{ const u=d.data(); if (Number(u.lastLogin||0) >= thirtyDaysAgo) active++; });
-          const kpiActiveEl = document.getElementById('kpiActiveUsers');
-          if (kpiActiveEl) kpiActiveEl.textContent = String(active);
+  	  const kpiActiveEl = document.getElementById('kpiActiveUsers');
+  	  if (kpiActiveEl) kpiActiveEl.textContent = String(active);
     }catch(e){  }
   }
 
@@ -4208,20 +4152,16 @@ async function main() {
 
     const { onAuthStateChanged, signInWithEmailAndPassword, signOut } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
 
-    if (emailForm && !emailForm.dataset.listenerAttached) {
-        emailForm.dataset.listenerAttached = '1';
-        emailForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('adminEmail').value;
-            const password = document.getElementById('adminPassword').value;
-            const errEl = document.getElementById('loginError');
-            try {
-                await signInWithEmailAndPassword(window.firebaseAuth, email, password);
-            } catch (err) {
-                if (errEl) { errEl.textContent = 'E-mail ou senha inválidos.'; errEl.classList.remove('hidden'); }
-            }
-        });
-    }
+    emailForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('adminEmail').value;
+        const password = document.getElementById('adminPassword').value;
+        try {
+            await signInWithEmailAndPassword(window.firebaseAuth, email, password);
+        } catch (err) {
+            alert('Credenciais inválidas.');
+        }
+    });
 
     btnLogout?.addEventListener('click', async () => {
         try { await signOut(window.firebaseAuth); } catch {}
@@ -5168,7 +5108,7 @@ window.addEventListener('load', () => {
         const role = (newUserData.role || '').toLowerCase().trim();        
         
         // Continuar com o processo de login
-        const authorizedRoles = ['admin', 'ceo', 'gerente', 'vendedor', 'design', 'designer', 'desgin', 'socio', 'sócio'];
+        const authorizedRoles = ['admin', 'gerente', 'vendedor', 'design', 'designer', 'desgin', 'socio', 'sócio'];
         const isAuthorized = authorizedRoles.includes(role);
         
         if (!isAuthorized) {
@@ -5177,7 +5117,7 @@ window.addEventListener('load', () => {
           return;
         }
         
-        // Para socio/ceo, permitir qualquer email
+        // Para socio, permitir qualquer email
         if (role === 'socio' || role === 'sócio' || role === 'ceo') {   
           
           // Save session
@@ -5221,7 +5161,7 @@ window.addEventListener('load', () => {
       const cleanRole = role.trim();     
       
       // Check if role is authorized (including variations and typos)
-      const authorizedRoles = ['admin', 'ceo', 'gerente', 'vendedor', 'design', 'designer', 'desgin', 'socio', 'sócio'];
+      const authorizedRoles = ['admin', 'gerente', 'vendedor', 'design', 'designer', 'desgin', 'socio', 'sócio'];
       const isAuthorized = authorizedRoles.includes(cleanRole);
             
       if (!isAuthorized) {        
@@ -5230,16 +5170,15 @@ window.addEventListener('load', () => {
         return;
       }      
     
-      // Gerente/design/socio/ceo não precisam estar na whitelist - apenas precisam ter o role correto
-      if (['admin', 'vendedor'].includes(cleanRole)) {
+      // Gerente não precisa estar na whitelist - apenas precisa ter o role correto
+      if (['admin', 'vendedor', 'ceo'].includes(cleanRole)) {
         
         const ADMIN_EMAILS = [
           'cleitondouglass@gmail.com',
           'cleitondouglass123@hotmail.com',
           'gilmariofreitas378@gmail.com',
           'gilmariofreitas387@gmail.com',
-          'flavetyr@gmail.com',
-          'admin@xtreino.dev'
+          'flavetyr@gmail.com'
         ];                
         
         if (!ADMIN_EMAILS.includes(user.email.toLowerCase())) {
@@ -6189,173 +6128,155 @@ let permissionsUsersData = [];
 let permissionsCurrentPage = 1;
 const permissionsPerPage = 10;
 
-// Filter state for Usuários & Permissões
-window._permFilter = { search: '', role: '' };
-
-function getPermissionsDisplayData() {
-  const { search, role } = window._permFilter;
-  if (!search && !role) return permissionsUsersData;
-  const q = search.toLowerCase();
-  return permissionsUsersData.filter(u => {
-    const matchRole   = !role || (u.role || '').toLowerCase() === role;
-    const matchSearch = !q ||
-      (u.email || '').toLowerCase().includes(q) ||
-      (u.displayName || '').toLowerCase().includes(q);
-    return matchRole && matchSearch;
-  });
+async function loadPermissionsUsers() {
+    try {
+        const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const usersRef = collection(window.firebaseDb, 'users');
+        const snapshot = await getDocs(usersRef);
+        
+        permissionsUsersData = [];
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            permissionsUsersData.push({
+                id: doc.id,
+                email: data.email || 'N/A',
+                displayName: data.displayName || data.name || 'N/A',
+                role: data.role || 'user',
+                lastLogin: data.lastLoginAt ? data.lastLoginAt.toDate() : null
+            });
+        });
+        
+        // Inicializar dados filtrados (sem busca)
+        permissionsFilteredData = [...permissionsUsersData];
+        permissionsSearchTerm = '';
+        
+        // Renderizar tabela e configurar busca
+        renderPermissionsTable();
+        updatePermissionsPagination();
+        setupPermissionsSearch();
+    } catch (error) {
+        console.error('Error loading permissions users:', error);
+    }
 }
 
-window.setPermissionsRoleFilter = function(role, btn) {
-  window._permFilter.role = role;
-  permissionsCurrentPage = 1;
-  document.querySelectorAll('.perm-role-btn').forEach(b => {
-    b.className = b.className.replace('bg-blue-600 text-white', 'bg-gray-200 text-gray-700');
-    if (!b.className.includes('hover:bg-gray-300')) b.className += ' hover:bg-gray-300';
-  });
-  if (btn) {
-    btn.className = btn.className.replace('bg-gray-200 text-gray-700', 'bg-blue-600 text-white');
-    btn.className = btn.className.replace(' hover:bg-gray-300', '');
-  }
-  renderPermissionsTable();
-  updatePermissionsPagination();
-};
+function renderPermissionsTable() {
+    const tbody = document.getElementById('permissionsTableBody');
+    if (!tbody) return;
+    
+    // Fallback seguro: se permissionsFilteredData não existir ou estiver vazio, usar todos os dados
+    const dataSource = (permissionsFilteredData && permissionsFilteredData.length >= 0) 
+        ? permissionsFilteredData 
+        : permissionsUsersData;
+        
+    const totalItems = dataSource.length;
+    
+    if (totalItems === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-gray-500">Nenhum usuário encontrado</td></tr>`;
+        updatePermissionsCountAndPageInfo(totalItems);
+        return;
+    }
+    
+    const startIndex = (permissionsCurrentPage - 1) * permissionsPerPage;
+    const endIndex = startIndex + permissionsPerPage;
+    const pageUsers = dataSource.slice(startIndex, endIndex);
+    
+    const currentUserRole = (window.adminRoleLower || getCurrentAdminRole() || '').toLowerCase();
+    const canEdit = ['ceo', 'gerente'].includes(currentUserRole);
+    
+    function getRoleOptions(userRole) {
+        const allRoles = [
+            { value: 'user', label: 'Usuário' },
+            { value: 'vendedor', label: 'Vendedor' },
+            { value: 'gerente', label: 'Gerente' },
+            { value: 'design', label: 'Design' },
+            //{ value: 'admin', label: 'Admin' },
+            { value: 'socio', label: 'Sócio' },
+            { value: 'ceo', label: 'Ceo' }
+        ];
+        if (currentUserRole === 'ceo') {
+            return allRoles.map(r => `<option value="${r.value}" ${userRole === r.value ? 'selected' : ''}>${r.label}</option>`).join('');
+        } else if (currentUserRole === 'gerente') {
+            return allRoles.filter(r => r.value === 'vendedor')
+                .map(r => `<option value="${r.value}" ${userRole === r.value ? 'selected' : ''}>${r.label}</option>`).join('');
+        } else {
+            return `<option value="${userRole}" selected>${getRoleDisplayName(userRole)}</option>`;
+        }
+    }
+    
+    tbody.innerHTML = pageUsers.map(user => `
+        <tr class="border-b border-gray-100 hover:bg-gray-50">
+            <td class="py-3 px-2 text-gray-700 font-medium">${user.displayName || user.name || '—'}</td>
+            <td class="py-3 px-2 text-gray-600">${user.email}</td>
+            <td class="py-3 px-2">
+                <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">${getRoleDisplayName(user.role)}</span>
+            </td>
+            <td class="py-3 px-2">
+                <select class="w-full text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                        data-user-id="${user.id}" data-current-role="${user.role}" ${!canEdit ? 'disabled' : ''}>
+                    ${getRoleOptions(user.role)}
+                </select>
+            </td>
+            <td class="py-3 px-2">
+                ${canEdit ? `
+                    <button onclick="updatePermissionsUserRole('${user.id}')" 
+                            class="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 transition-colors">
+                        Salvar
+                    </button>
+                ` : currentUserRole === 'socio' ? `
+                    <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium cursor-not-allowed">
+                        Sócio - Somente Leitura
+                    </span>
+                ` : `
+                    <span class="px-3 py-1 bg-gray-300 text-gray-600 rounded text-xs font-medium cursor-not-allowed">
+                        Somente Leitura
+                    </span>
+                `}
+            </td>
+        </tr>
+    `).join('');
+    
+    // Atualizar contadores e info de página
+    updatePermissionsCountAndPageInfo(totalItems);
+}
 
-window.filterPermissionsTable = function() {
-  const input = document.getElementById('permissionsSearchInput');
-  window._permFilter.search = input ? input.value.trim() : '';
-  permissionsCurrentPage = 1;
-  renderPermissionsTable();
-  updatePermissionsPagination();
-};
-
-// Carregar usuários especificamente para o card de permissões
-async function loadPermissionsUsers() {
-  try {
-    
-    const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-    
-    const usersRef = collection(window.firebaseDb, 'users');
-    const snapshot = await getDocs(usersRef);
-    
-    permissionsUsersData = [];
-    snapshot.forEach(doc => {
-      const userData = doc.data();
-      permissionsUsersData.push({
-        id: doc.id,
-        email: userData.email || 'N/A',
-        displayName: userData.displayName || userData.name || 'N/A',
-        role: userData.role || 'user',
-        lastLogin: userData.lastLoginAt ? userData.lastLoginAt.toDate() : null
-      });
-    });
-    
-    
+function filterPermissionsUsers() {
+    const term = permissionsSearchTerm.trim().toLowerCase();
+    if (!term) {
+        permissionsFilteredData = [...permissionsUsersData];
+    } else {
+        permissionsFilteredData = permissionsUsersData.filter(user => {
+            const name = (user.displayName || user.name || '').toLowerCase();
+            const email = (user.email || '').toLowerCase();
+            const role = getRoleDisplayName(user.role).toLowerCase();
+            const id = (user.id || '').toLowerCase();
+            return name.includes(term) || email.includes(term) || role.includes(term) || id.includes(term);
+        });
+    }
+    permissionsCurrentPage = 1;
     renderPermissionsTable();
     updatePermissionsPagination();
-  } catch (error) {
-    console.error('❌ Erro ao carregar usuários para permissões:', error);
-  }
 }
 
-// Renderizar tabela de permissões
-function renderPermissionsTable() {
-  const tbody = document.getElementById('permissionsTableBody');
-  if (!tbody) {
+function setupPermissionsSearch() {
+    const searchInput = document.getElementById('permissionsSearchInput');
+    if (!searchInput) return;
     
-    return;
-  }
-  
-  const displayData = getPermissionsDisplayData();
-  if (displayData.length === 0) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="5" class="py-6 text-center text-gray-500">Nenhum usuário encontrado</td>
-      </tr>
-    `;
-    return;
-  }
-  
-  const startIndex = (permissionsCurrentPage - 1) * permissionsPerPage;
-  const endIndex = startIndex + permissionsPerPage;
-  const usersPage = displayData.slice(startIndex, endIndex);
-  
-  // Verificar se o usuário atual pode editar e quais cargos pode atribuir
-  const roleFromWindow = (window.adminRoleLower || '').toLowerCase();
-  const roleFromSession = (getCurrentAdminRole() || '').toLowerCase();
-  const currentUserRole = roleFromWindow || roleFromSession;
-  
-  const canEdit = ['ceo', 'gerente'].includes(currentUserRole.toLowerCase()); // CEO e Gerente podem editar
-  
-  // Função para gerar opções de cargo baseado na permissão do usuário
-  function getRoleOptions(userRole) {
-    const allRoles = [
-      { value: 'user', label: 'Usuário' },
-      { value: 'vendedor', label: 'Vendedor' },
-      { value: 'gerente', label: 'Gerente' },
-      { value: 'design', label: 'Design' },
-      { value: 'admin', label: 'Admin' },
-      { value: 'socio', label: 'Sócio' },
-      { value: 'ceo', label: 'Ceo' }
-    ];
+    searchInput.addEventListener('input', (e) => {
+        if (permissionsSearchDebounceTimer) clearTimeout(permissionsSearchDebounceTimer);
+        permissionsSearchDebounceTimer = setTimeout(() => {
+            permissionsSearchTerm = e.target.value;
+            filterPermissionsUsers();
+        }, 300);
+    });
+}
+
+function updatePermissionsCountAndPageInfo(totalItems) {
+    const countEl = document.getElementById('permissionsUsersCount');
+    if (countEl) countEl.textContent = `${totalItems} usuário${totalItems !== 1 ? 's' : ''}`;
     
-    if (currentUserRole === 'ceo') {
-      // CEO pode atribuir qualquer cargo
-      return allRoles.map(role => 
-        `<option value="${role.value}" ${userRole === role.value ? 'selected' : ''}>${role.label}</option>`
-      ).join('');
-    } else if (currentUserRole === 'socio') {
-      // Sócio vê todos os cargos mas não pode editar (somente leitura)
-      return allRoles.map(role => 
-        `<option value="${role.value}" ${userRole === role.value ? 'selected' : ''}>${role.label}</option>`
-      ).join('');
-    } else if (currentUserRole === 'gerente') {
-      // Gerente pode atribuir apenas Vendedor
-      return allRoles
-        .filter(role => role.value === 'vendedor')
-        .map(role => 
-          `<option value="${role.value}" ${userRole === role.value ? 'selected' : ''}>${role.label}</option>`
-        ).join('');
-    } else {
-      // Outros não podem atribuir nenhum cargo
-      return allRoles
-        .filter(role => role.value === userRole) // Apenas o cargo atual
-        .map(role => 
-          `<option value="${role.value}" selected>${role.label}</option>`
-        ).join('');
-    }
-  }
-  
-  tbody.innerHTML = usersPage.map(user => `
-    <tr class="border-b border-gray-100 hover:bg-gray-50">
-      <td class="py-3 px-2 text-gray-700 font-medium">${user.displayName}</td>
-      <td class="py-3 px-2 text-gray-600">${user.email}</td>
-      <td class="py-3 px-2">
-        <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">${getRoleDisplayName(user.role)}</span>
-      </td>
-      <td class="py-3 px-2">
-        <select class="w-full text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                data-user-id="${user.id}" data-current-role="${user.role}" ${!canEdit ? 'disabled' : ''}>
-          ${getRoleOptions(user.role)}
-        </select>
-      </td>
-      <td class="py-3 px-2">
-        ${canEdit ? `
-          <button onclick="updatePermissionsUserRole('${user.id}')" 
-                  class="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-1">
-            Salvar
-          </button>
-        ` : currentUserRole === 'socio' ? `
-          <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium cursor-not-allowed">
-            Sócio - Somente Leitura
-          </span>
-        ` : `
-          <span class="px-3 py-1 bg-gray-300 text-gray-600 rounded text-xs font-medium cursor-not-allowed">
-            Somente Leitura
-          </span>
-        `}
-      </td>
-    </tr>
-  `).join('');
+    const totalPages = Math.ceil(totalItems / permissionsPerPage);
+    const pageInfoEl = document.getElementById('permissionsUsersPageInfo');
+    if (pageInfoEl) pageInfoEl.textContent = `Página ${permissionsCurrentPage} de ${totalPages || 1}`;
 }
 
 // Função para obter nome de exibição da função
@@ -6372,115 +6293,107 @@ function getRoleDisplayName(role) {
   return roleNames[role] || role;
 }
 
-// Atualizar função do usuário (específico para permissões)
 async function updatePermissionsUserRole(userId) {
-  try {
     const selectElement = document.querySelector(`select[data-user-id="${userId}"]`);
     if (!selectElement) {
-      console.error('❌ Select element não encontrado para o usuário:', userId);
-      return;
+        console.error('Select element not found for user', userId);
+        return;
     }
-    
     const newRole = selectElement.value;
     const currentRole = selectElement.getAttribute('data-current-role');
+    if (newRole === currentRole) return;
     
-    if (newRole === currentRole) {
-      
-      return;
-    }
-    
-    // Verificar se o usuário atual tem permissão para atribuir este cargo
     if (!canAssignRole(newRole)) {
-      alert('❌ Você não tem permissão para atribuir este cargo.');
-      // Reverter o select para o valor anterior
-      selectElement.value = currentRole;
-      return;
+        alert('❌ Você não tem permissão para atribuir este cargo.');
+        selectElement.value = currentRole;
+        return;
     }
     
-    // Atualizar estado local primeiro
-    const userIndex = permissionsUsersData.findIndex(user => user.id === userId);
-    if (userIndex !== -1) {
-      permissionsUsersData[userIndex].role = newRole;
-      selectElement.setAttribute('data-current-role', newRole);
+    try {
+        const { updateDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const userRef = doc(window.firebaseDb, 'users', userId);
+        await updateDoc(userRef, { role: newRole, updatedAt: new Date() });
+        
+        // Atualizar array principal
+        const index = permissionsUsersData.findIndex(u => u.id === userId);
+        if (index !== -1) permissionsUsersData[index].role = newRole;
+        
+        // Atualizar também o array de usuários ativos (se existir)
+        if (window.activeUsersData) {
+            const activeIndex = window.activeUsersData.findIndex(u => u.id === userId);
+            if (activeIndex !== -1) window.activeUsersData[activeIndex].role = newRole;
+        }
+        
+        // Reaplicar filtro (mantém termo de busca)
+        filterPermissionsUsers();
+        
+        // Se o usuário alterou o próprio cargo, atualizar sessão e permissões
+        const currentUid = window.firebaseAuth?.currentUser?.uid;
+        if (currentUid === userId) {
+            const session = JSON.parse(sessionStorage.getItem('adminSession') || '{}');
+            session.role = newRole;
+            sessionStorage.setItem('adminSession', JSON.stringify(session));
+            window.adminRoleLower = newRole;
+            controlSectionVisibility(newRole);
+            controlEditPermissions(newRole);
+        }
+        
+        // Log da ação
+        const user = permissionsUsersData.find(u => u.id === userId);
+        if (user) await logAdminAction('change_role', `Alterou cargo de ${user.email} para ${getRoleDisplayName(newRole)}`);
+        
+        // Feedback visual
+        const button = selectElement.parentElement.nextElementSibling.querySelector('button');
+        const originalText = button.textContent;
+        button.textContent = 'Salvo!';
+        button.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+        button.classList.add('bg-green-600');
+        setTimeout(() => {
+            button.textContent = originalText;
+            button.classList.remove('bg-green-600');
+            button.classList.add('bg-blue-600', 'hover:bg-blue-700');
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Error updating role:', error);
+        alert('Erro ao atualizar função do usuário');
+        selectElement.value = currentRole;
     }
-    
-    // Atualizar no Firestore
-    const { updateDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-    const userRef = doc(window.firebaseDb, 'users', userId);
-    await updateDoc(userRef, { role: newRole });
-    
-    // Log da ação
-    const user = permissionsUsersData.find(u => u.id === userId);
-    if (user) {
-      await logAdminAction('change_role', `Alterou cargo de ${user.email} para ${getRoleDisplayName(newRole)}`);
-    }
-    
-    
-    
-    // Mostrar feedback visual
-    const button = selectElement.parentElement.nextElementSibling.querySelector('button');
-    const originalText = button.textContent;
-    button.textContent = 'Salvo!';
-    button.className = 'px-3 py-1 bg-green-600 text-white rounded text-xs font-medium transition-colors';
-    
-    setTimeout(() => {
-      button.textContent = originalText;
-      button.className = 'px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-1';
-    }, 2000);
-    
-  } catch (error) {
-    console.error('❌ Erro ao atualizar função do usuário:', error);
-    alert('Erro ao atualizar função do usuário');
-    
-    // Reverter mudança local em caso de erro
-    loadPermissionsUsers();
-  }
 }
 
-// Atualizar paginação do card de permissões
 function updatePermissionsPagination() {
-  const displayData = getPermissionsDisplayData();
-  const totalPages = Math.ceil(displayData.length / permissionsPerPage);
-  const paginationContainer = document.getElementById('permissionsPagination');
-  const countElement = document.getElementById('permissionsUsersCount');
-  
-  if (countElement) {
-    const total = permissionsUsersData.length;
-    const showing = displayData.length;
-    countElement.textContent = showing < total
-      ? `${showing} de ${total} usuários`
-      : `${total} usuários`;
-  }
-  
-  if (!paginationContainer || totalPages <= 1) {
-    if (paginationContainer) paginationContainer.innerHTML = '';
-    return;
-  }
-  
-  let paginationHTML = '';
-  
-  // Botão anterior
-  if (permissionsCurrentPage > 1) {
-    paginationHTML += `<button onclick="changePermissionsPage(${permissionsCurrentPage - 1})" class="px-2 py-1 text-xs border rounded hover:bg-gray-50">‹</button>`;
-  }
-  
-  // Páginas
-  for (let i = 1; i <= totalPages; i++) {
-    if (i === permissionsCurrentPage) {
-      paginationHTML += `<button class="px-2 py-1 text-xs bg-blue-600 text-white rounded">${i}</button>`;
-    } else {
-      paginationHTML += `<button onclick="changePermissionsPage(${i})" class="px-2 py-1 text-xs border rounded hover:bg-gray-50">${i}</button>`;
+    const totalItems = (permissionsFilteredData && permissionsFilteredData.length >= 0) 
+        ? permissionsFilteredData.length 
+        : permissionsUsersData.length;
+    const totalPages = Math.ceil(totalItems / permissionsPerPage);
+    const paginationContainer = document.getElementById('permissionsPagination');
+    const pageInfoElement = document.getElementById('permissionsUsersPageInfo');
+    
+    if (pageInfoElement) {
+        pageInfoElement.textContent = `Página ${permissionsCurrentPage} de ${totalPages || 1}`;
     }
-  }
-  
-  // Botão próximo
-  if (permissionsCurrentPage < totalPages) {
-    paginationHTML += `<button onclick="changePermissionsPage(${permissionsCurrentPage + 1})" class="px-2 py-1 text-xs border rounded hover:bg-gray-50">›</button>`;
-  }
-  
-  paginationContainer.innerHTML = paginationHTML;
+    
+    if (!paginationContainer || totalPages <= 1) {
+        if (paginationContainer) paginationContainer.innerHTML = '';
+        return;
+    }
+    
+    let paginationHTML = '';
+    if (permissionsCurrentPage > 1) {
+        paginationHTML += `<button onclick="changePermissionsPage(${permissionsCurrentPage - 1})" class="px-2 py-1 text-xs border rounded hover:bg-gray-50">‹</button>`;
+    }
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === permissionsCurrentPage) {
+            paginationHTML += `<button class="px-2 py-1 text-xs bg-blue-600 text-white rounded">${i}</button>`;
+        } else {
+            paginationHTML += `<button onclick="changePermissionsPage(${i})" class="px-2 py-1 text-xs border rounded hover:bg-gray-50">${i}</button>`;
+        }
+    }
+    if (permissionsCurrentPage < totalPages) {
+        paginationHTML += `<button onclick="changePermissionsPage(${permissionsCurrentPage + 1})" class="px-2 py-1 text-xs border rounded hover:bg-gray-50">›</button>`;
+    }
+    paginationContainer.innerHTML = paginationHTML;
 }
-
 // Mudar página do card de permissões
 function changePermissionsPage(page) {
   permissionsCurrentPage = page;
@@ -7724,9 +7637,9 @@ async function loadAffiliates() {
         try {
             const q = query(usersRef, where('role', '==', 'Afiliado'), orderBy('createdAt', 'desc'));
             snapshot = await getDocs(q);
-        } catch (error) {
-            // Se não houver índice, buscar sem orderBy
-            console.warn('Índice não encontrado, buscando sem orderBy:', error);
+        } catch (indexError) {
+            // Índice ausente: tentar sem orderBy e sem logar erro
+            console.debug('Índice não encontrado, buscando sem orderBy');
             const q = query(usersRef, where('role', '==', 'Afiliado'));
             snapshot = await getDocs(q);
         }
@@ -8392,24 +8305,18 @@ window.deleteCoupon = deleteCoupon;
 
 // Carregar usuários quando o admin for inicializado
 document.addEventListener('DOMContentLoaded', function() {
-  // Aguardar Firebase E usuário autenticado antes de carregar dados protegidos
-  const waitForFirebaseAndAuth = () => {
-    if (window.firebaseReady && window.firebaseDb && window.firebaseAuth) {
-      const { onAuthStateChanged } = window.firebaseAuthModule || {};
-      // Usar import dinâmico para aguardar auth state
-      import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js').then(({ onAuthStateChanged }) => {
-        onAuthStateChanged(window.firebaseAuth, (user) => {
-          if (user) {
-            loadUsersForTables();
-            loadAdminWhatsAppLinks();
-          }
-        });
-      }).catch(() => {});
+  // Aguardar o Firebase estar pronto
+  const waitForFirebase = () => {
+    if (window.firebaseReady && window.firebaseDb) {
+      loadUsersForTables();
+      // Carregar links do WhatsApp automaticamente
+      loadAdminWhatsAppLinks();
+      // loadPermissionsUsers será chamada depois do login via setView
     } else {
-      setTimeout(waitForFirebaseAndAuth, 150);
+      setTimeout(waitForFirebase, 100);
     }
   };
-  waitForFirebaseAndAuth();
+  waitForFirebase();
   
   // Event listener para formulário de criação de cupons
   const createCouponForm = document.getElementById('createCouponForm');
@@ -8417,7 +8324,24 @@ document.addEventListener('DOMContentLoaded', function() {
     createCouponForm.addEventListener('submit', createCoupon);
   }
   
-  // Listener de formAddTeam já registrado via onsubmit dentro de initAdmin — não duplicar aqui
+  // Listener: adicionar time manualmente no quadro de horários
+  const addTeamForm = document.getElementById('formAddTeam');
+  if (addTeamForm) {
+    addTeamForm.addEventListener('submit', (e) => {
+      try {
+        if (typeof window.submitAddTeam === 'function') {
+          return window.submitAddTeam(e);
+        }
+      } catch (_) {}
+      // Função ainda não exposta — prevenir submissão e avisar o usuário
+      e.preventDefault();
+      if (typeof showNotification === 'function') {
+        showNotification('Aguardando inicialização do formulário. Tente novamente em instantes.', 'warning');
+      } else {
+        alert('Aguardando inicialização do admin. Tente novamente em instantes.');
+      }
+    });
+  }
   
   // Listeners de filtros do uso de cupons
   // Event listeners já configurados acima na função initAdmin
@@ -9441,24 +9365,33 @@ window.submitPaymentRequest = submitPaymentRequest;
 // ===== GERENCIAMENTO DE PRODUTOS =====
 
 let productsData = [];
+let productCounter = 1;
 
+// Abrir modal de produtos
 function openProductsModal() {
     loadProducts();
     const modal = document.getElementById('modalProducts');
     if (modal) modal.classList.remove('hidden');
 }
 
+// Fechar modal de produtos
 function closeProductsModal() {
     const modal = document.getElementById('modalProducts');
     if (modal) modal.classList.add('hidden');
 }
 
+// Carregar produtos do Firestore
 async function loadProducts() {
     try {
         const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const snapshot = await getDocs(collection(window.firebaseDb, 'products'));
+        const productsRef = collection(window.firebaseDb, 'products');
+        const snapshot = await getDocs(productsRef);
+        
         productsData = [];
-        snapshot.forEach(d => productsData.push({ id: d.id, ...d.data() }));
+        snapshot.forEach(doc => {
+            productsData.push({ id: doc.id, ...doc.data() });
+        });
+        
         renderProducts();
     } catch (error) {
         console.error('Erro ao carregar produtos:', error);
@@ -9567,11 +9500,14 @@ function updateProdBannerPreview(idx, url) {
 function renderProducts() {
     const container = document.getElementById('productsContainer');
     if (!container) return;
+    
     container.innerHTML = '';
+    
     if (productsData.length === 0) {
-        container.innerHTML = '<div class="text-center py-10 text-gray-400"><i class="fas fa-box-open text-4xl mb-3 block opacity-40"></i><p>Nenhum produto cadastrado.</p><p class="text-sm mt-1">Clique em "Adicionar" para criar um novo.</p></div>';
+        container.innerHTML = '<div class="text-center py-8 text-gray-500">Nenhum produto cadastrado. Clique em "Adicionar" para criar um novo.</div>';
         return;
     }
+    
     productsData.forEach((product, index) => {
         const cat = (product.category || 'digital').toLowerCase();
         const isActive = product.active !== false;
@@ -9769,6 +9705,7 @@ function renderProducts() {
     });
 }
 
+// Adicionar novo produto
 function addProduct() {
     const existing = document.getElementById('_catSelectorOverlay');
     if (existing) existing.remove();
@@ -9829,11 +9766,11 @@ function _createProductWithCat(cat) {
         name: '',
         description: '',
         price: 0,
-        priceOptions: [{ label: 'Padrão', price: 0 }],
-        category: cat,
+        category: 'digital',
         image: '',
         downloadLink: '',
         active: true,
+        stock: 0,
         createdAt: new Date()
     };
     if (cat === 'aereas') {
@@ -9844,12 +9781,15 @@ function _createProductWithCat(cat) {
     }
     productsData.push(base);
     renderProducts();
+    
+    // Scroll para o novo produto
     setTimeout(() => {
-        const c = document.getElementById('productsContainer');
-        if (c) c.scrollTop = c.scrollHeight;
+        const container = document.getElementById('productsContainer');
+        if (container) container.scrollTop = container.scrollHeight;
     }, 100);
 }
 
+// Deletar produto
 function deleteProduct(index) {
     if (confirm('Tem certeza que deseja deletar este produto?')) {
         productsData.splice(index, 1);
@@ -9857,1698 +9797,479 @@ function deleteProduct(index) {
     }
 }
 
-async function uploadProductBanner(index) {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = async () => {
-        const file = input.files[0];
-        if (!file) return;
-        const card = document.getElementById(`prod-card-${index}`);
-        const btn = card ? card.querySelector('button[onclick^="uploadProductBanner"]') : null;
-        try {
-            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Enviando...'; }
-            const { ref, uploadBytes, getDownloadURL } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js');
-            const storage = window.firebaseStorage;
-            if (!storage) throw new Error('Firebase Storage não disponível');
-            const storageRef = ref(storage, `products/${productsData[index].id}/banner`);
-            const snap = await uploadBytes(storageRef, file);
-            const url = await getDownloadURL(snap.ref);
-            productsData[index].image = url;
-            const bannerEl = document.getElementById(`prod-banner-${index}`);
-            if (bannerEl) bannerEl.innerHTML = `<img src="${url}" class="w-full h-full object-cover" alt="Banner">`;
-            showToast('success', 'Banner enviado com sucesso!', 'Sucesso');
-        } catch (e) {
-            console.error('Erro upload banner:', e);
-            showToast('error', 'Erro ao enviar banner: ' + e.message, 'Erro');
-        } finally {
-            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-upload mr-1"></i>Upload Banner'; }
-        }
-    };
-    input.click();
-}
-
+// Salvar produtos no Firestore
 async function saveProducts() {
     try {
-        if (productsData.length === 0) { showToast('warning', 'Nenhum produto para salvar', 'Aviso'); return; }
-        // Sincronizar price com o primeiro priceOption antes de salvar
-        for (const product of productsData) {
-            if (Array.isArray(product.priceOptions) && product.priceOptions.length > 0) {
-                product.price = Number(product.priceOptions[0].price) || 0;
-            }
+        if (productsData.length === 0) {
+            showToast('warning', 'Nenhum produto para salvar', 'Aviso');
+            return;
         }
+        
         const { collection, doc, setDoc, deleteDoc, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const productsRef = collection(window.firebaseDb, 'products');
+        
+        // Primeiro, deletar produtos que foram removidos
         const existingSnap = await getDocs(productsRef);
-        const keepIds = new Set(productsData.map(p => p.id));
-        for (const ed of existingSnap.docs) {
-            if (!keepIds.has(ed.id)) await deleteDoc(doc(window.firebaseDb, 'products', ed.id));
+        const existingIds = new Set(productsData.map(p => p.id));
+        
+        for (const existingDoc of existingSnap.docs) {
+            if (!existingIds.has(existingDoc.id)) {
+                await deleteDoc(doc(window.firebaseDb, 'products', existingDoc.id));
+            }
         }
+        
+        // Salvar/atualizar produtos
         for (const product of productsData) {
-            const { id, ...data } = product;
-            await setDoc(doc(window.firebaseDb, 'products', id), { ...data, updatedAt: new Date() });
+            const productRef = doc(window.firebaseDb, 'products', product.id);
+            const { id, ...productData } = product;
+            await setDoc(productRef, {
+                ...productData,
+                updatedAt: new Date()
+            });
         }
+        
         showToast('success', `${productsData.length} produto(s) salvo(s) com sucesso!`, 'Sucesso');
         closeProductsModal();
     } catch (error) {
         console.error('Erro ao salvar produtos:', error);
-        showToast('error', 'Erro ao salvar: ' + error.message, 'Erro');
+        showToast('error', 'Erro ao salvar produtos: ' + error.message, 'Erro');
     }
 }
 
-async function sendDownloadLink(orderId, userId, downloadLink, productName) {
-    if (!orderId || !downloadLink) { showToast('error', 'Pedido ou link inválido.', 'Erro'); return; }
+
+
+
+// ==================== GERENCIAMENTO DE EVENTOS ====================
+let eventsData = [];
+let eventCounter = 1;
+
+async function loadEvents() {
     try {
-        const { doc, collection, addDoc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        // Marca o pedido como link enviado manualmente
-        await updateDoc(doc(window.firebaseDb, 'orders', orderId), {
-            downloadSent: true,
-            downloadSentAt: Date.now(),
-            downloadSentBy: window.firebaseAuth?.currentUser?.uid || null
+        const { collection, getDocs, query, orderBy } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const eventsRef = collection(window.firebaseDb, 'events');
+        const q = query(eventsRef, orderBy('order', 'asc'));
+        const snapshot = await getDocs(q);
+        eventsData = [];
+        snapshot.forEach(doc => {
+            eventsData.push({ id: doc.id, ...doc.data() });
         });
-        // Envia notificação ao usuário no app
-        if (userId) {
-            await addDoc(collection(window.firebaseDb, 'notifications'), {
-                userId,
-                title: '📦 Seu produto digital está pronto!',
-                message: `Olá! Seu produto "${productName || 'digital'}" está disponível para download. Acesse o link abaixo.`,
-                link: downloadLink,
-                type: 'download_ready',
-                read: false,
-                createdAt: serverTimestamp()
-            });
-        }
-        // Copia o link para área de transferência também
-        try { await navigator.clipboard.writeText(downloadLink); } catch(_) {}
-        showToast('success', 'Link enviado ao cliente! Link também copiado para área de transferência.', 'Enviado');
-    } catch (e) {
-        console.error('Erro ao enviar link:', e);
-        showToast('error', 'Erro ao enviar link: ' + (e.message || e), 'Erro');
+        renderEventsForm();
+    } catch (error) {
+        console.error('Erro ao carregar eventos:', error);
     }
 }
-
-window.openProductsModal = openProductsModal;
-window.closeProductsModal = closeProductsModal;
-window.addProduct = addProduct;
-window._createProductWithCat = _createProductWithCat;
-window.deleteProduct = deleteProduct;
-window.uploadProductBanner = uploadProductBanner;
-window.saveProducts = saveProducts;
-window.sendDownloadLink = sendDownloadLink;
-window.updateProdStatus = updateProdStatus;
-window.updateProdTitle = updateProdTitle;
-window.addPriceOption = addPriceOption;
-window.removePriceOption = removePriceOption;
-window.updatePriceOption = updatePriceOption;
-window.updateMapLink = updateMapLink;
-window.setProdCategory = setProdCategory;
-window.updateProdBannerPreview = updateProdBannerPreview;
-
-// ==================== ADMIN NOTIFICATION SYSTEM ====================
-
-function toggleNotifUserField() {
-    const target = document.getElementById('notifTarget');
-    const row = document.getElementById('notifUserIdRow');
-    if (!target || !row) return;
-    if (target.value === 'user') {
-        row.classList.remove('hidden');
-    } else {
-        row.classList.add('hidden');
-    }
-}
-
-async function sendAdminNotification() {
-    const titleEl = document.getElementById('notifTitle');
-    const messageEl = document.getElementById('notifMessage');
-    const targetEl = document.getElementById('notifTarget');
-    const userIdEl = document.getElementById('notifUserId');
-
-    if (!titleEl || !messageEl || !targetEl) return;
-
-    const title = titleEl.value.trim();
-    const message = messageEl.value.trim();
-    const target = targetEl.value;
-    const targetUserId = (target === 'user' && userIdEl) ? userIdEl.value.trim() : null;
-
-    if (!title) { showToast('warning', 'Informe o título da notificação.', 'Atenção'); return; }
-    if (!message) { showToast('warning', 'Informe a mensagem da notificação.', 'Atenção'); return; }
-    if (target === 'user' && !targetUserId) { showToast('warning', 'Informe o UID do usuário destinatário.', 'Atenção'); return; }
-
-    if (!window.firebaseDb) { showToast('error', 'Firebase não inicializado.', 'Erro'); return; }
-
-    const btn = document.querySelector('[onclick="sendAdminNotification()"]');
-    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Enviando...'; }
-
-    try {
-        const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const user = window.firebaseAuth?.currentUser;
-
-        await addDoc(collection(window.firebaseDb, 'notifications'), {
-            title,
-            message,
-            type: target,
-            targetUserId: targetUserId || null,
-            createdAt: serverTimestamp(),
-            createdBy: user ? (user.displayName || user.email || user.uid) : 'Admin',
-            createdByUid: user ? user.uid : null
-        });
-
-        showToast('success', `Notificação enviada para ${target === 'all' ? 'todos os usuários' : 'usuário específico'}.`, 'Sucesso');
-        titleEl.value = '';
-        messageEl.value = '';
-        if (userIdEl) userIdEl.value = '';
-        await loadAdminNotifications();
-    } catch (err) {
-        console.error('Erro ao enviar notificação:', err);
-        showToast('error', 'Erro ao enviar notificação: ' + (err.message || err), 'Erro');
-    } finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Enviar Notificação'; }
-    }
-}
-
-async function loadAdminNotifications() {
-    const listEl = document.getElementById('adminNotifList');
-    if (!listEl) return;
-    if (!window.firebaseDb) { listEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Firebase não disponível.</p>'; return; }
-
-    listEl.innerHTML = '<div class="text-center text-gray-400 py-4 text-sm"><i class="fas fa-spinner fa-spin mr-2"></i>Carregando...</div>';
-
-    try {
-        const { collection, getDocs, query, orderBy, limit, deleteDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const q = query(collection(window.firebaseDb, 'notifications'), orderBy('createdAt', 'desc'), limit(30));
-        const snap = await getDocs(q);
-
-        if (snap.empty) {
-            listEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-6">Nenhuma notificação enviada ainda.</p>';
-            return;
-        }
-
-        listEl.innerHTML = snap.docs.map(d => {
-            const n = d.data();
-            const dateStr = n.createdAt ? new Date(n.createdAt.toDate ? n.createdAt.toDate() : n.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
-            const targetLabel = n.type === 'all' ? '<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Todos</span>' : `<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-mono">${n.targetUserId || 'Específico'}</span>`;
-            return `<div class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                <div class="flex-1 min-w-0">
-                    <div class="flex flex-wrap items-center gap-2 mb-1">
-                        <span class="font-semibold text-sm text-gray-900">${escapeAdminHtml(n.title || '-')}</span>
-                        ${targetLabel}
-                    </div>
-                    <p class="text-xs text-gray-600 leading-relaxed">${escapeAdminHtml(n.message || '')}</p>
-                    <div class="text-xs text-gray-400 mt-1">Enviado em ${dateStr} por ${escapeAdminHtml(n.createdBy || 'Admin')}</div>
-                </div>
-                <button onclick="deleteAdminNotification('${d.id}')" title="Excluir" class="flex-shrink-0 text-red-400 hover:text-red-600 p-1">
-                    <i class="fas fa-trash text-xs"></i>
-                </button>
-            </div>`;
-        }).join('');
-    } catch (err) {
-        console.error('Erro ao carregar notificações:', err);
-        listEl.innerHTML = '<p class="text-red-400 text-sm text-center py-4">Erro ao carregar notificações.</p>';
-    }
-}
-
-async function deleteAdminNotification(notifId) {
-    if (!notifId || !window.firebaseDb) return;
-    if (!confirm('Tem certeza que deseja excluir esta notificação?')) return;
-    try {
-        const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        await deleteDoc(doc(window.firebaseDb, 'notifications', notifId));
-        showToast('success', 'Notificação excluída.', 'Sucesso');
-        await loadAdminNotifications();
-    } catch (err) {
-        console.error('Erro ao excluir notificação:', err);
-        showToast('error', 'Erro ao excluir notificação.', 'Erro');
-    }
-}
-
-function escapeAdminHtml(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-window.toggleNotifUserField = toggleNotifUserField;
-window.sendAdminNotification = sendAdminNotification;
-window.loadAdminNotifications = loadAdminNotifications;
-window.deleteAdminNotification = deleteAdminNotification;
-window.saveProducts = saveProducts;
-
-// ============================================================
-// GERENCIAR EVENTOS
-// ============================================================
-
-let currentEventTab = 'camp';
 
 function openEventsModal() {
     const modal = document.getElementById('modalEvents');
-    if (!modal) return;
-    modal.classList.remove('hidden');
-    switchEventTab('camp');
+    if (modal) {
+        modal.classList.remove('hidden');
+        loadEvents();
+    }
 }
 
 function closeEventsModal() {
     const modal = document.getElementById('modalEvents');
     if (modal) modal.classList.add('hidden');
-    cancelEventForm();
 }
 
-function switchEventTab(tab) {
-    currentEventTab = tab;
-    const tabs = ['camp', 'xtreino', 'diario'];
-    const titles = { camp: 'Campeonatos Criados', xtreino: 'X-Treinos Criados', diario: 'Diário Criados' };
-    const activeClass = 'bg-white shadow text-orange-600';
-    const inactiveClass = 'text-gray-600 hover:bg-white';
-
-    tabs.forEach(t => {
-        const btn = document.getElementById('evtTab-' + t);
-        if (!btn) return;
-        btn.className = 'flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all ' + (t === tab ? activeClass : inactiveClass);
-    });
-
-    const listTitle = document.getElementById('evtListTitle');
-    if (listTitle) listTitle.textContent = titles[tab];
-
-    // SOLO só disponível em CAMP
-    const tipoWrapper = document.getElementById('evtTipoWrapper');
-    const tipoSelect = document.getElementById('evtTipo');
-    if (tab === 'camp') {
-        if (tipoWrapper) tipoWrapper.style.display = '';
-        if (tipoSelect) {
-            tipoSelect.innerHTML = '<option value="SOLO">SOLO</option><option value="DUO">DUO</option><option value="SQUAD">SQUAD</option>';
-        }
-        const gruposWrapper = document.getElementById('evtGruposWrapper');
-        if (gruposWrapper) gruposWrapper.style.display = '';
-    } else {
-        if (tipoWrapper) tipoWrapper.style.display = '';
-        if (tipoSelect) {
-            tipoSelect.innerHTML = '<option value="DUO">DUO</option><option value="SQUAD">SQUAD</option>';
-        }
-        const gruposWrapper = document.getElementById('evtGruposWrapper');
-        if (gruposWrapper) gruposWrapper.style.display = 'none';
-    }
-
-    cancelEventForm();
-    loadEventsList(tab);
+function addEvent() {
+    const newEvent = {
+        id: `event_${Date.now()}`,
+        eventType: '',
+        title: '',
+        badge: '',
+        imageUrl: '',
+        price: 0,
+        schedules: '',
+        startDate: '',
+        format: '',
+        slots: '',
+        prize: '',
+        differential: '',
+        buttonText: 'RESERVAR VAGA',
+        active: true,
+        order: eventsData.length,
+        allowedWeekdays: [1,2,3,4,5],
+        defaultCapacity: 12,
+        createdAt: new Date(),
+        updatedAt: new Date()
+    };
+    eventsData.push(newEvent);
+    renderEventsForm();
+    setTimeout(() => {
+        const container = document.getElementById('eventsContainer');
+        if (container) container.scrollTop = container.scrollHeight;
+    }, 100);
 }
 
-function onEvtModoChange() {
-    const modo = document.getElementById('evtModo')?.value;
-    const hint = document.getElementById('evtVagasHint');
-    if (!hint) return;
-    if (modo === 'LIGA') {
-        hint.textContent = 'Modo LIGA: deve ser 12 ou 15';
-    } else {
-        hint.textContent = 'Modo NORMAL: múltiplos de 12';
+function deleteEvent(index) {
+    if (confirm('Tem certeza que deseja deletar este evento?')) {
+        eventsData.splice(index, 1);
+        renderEventsForm();
     }
 }
 
-function openNewEventForm() {
-    document.getElementById('evtEditId').value = '';
-    document.getElementById('evtEditCategory').value = currentEventTab;
-    document.getElementById('evtFormTitle').textContent = 'Novo Evento';
-    document.getElementById('evtName').value = '';
-    document.getElementById('evtTipo').value = currentEventTab === 'camp' ? 'SOLO' : 'DUO';
-    document.getElementById('evtModo').value = 'NORMAL';
-    const fmtElNew = document.getElementById('evtFormato');
-    if (fmtElNew) fmtElNew.value = 'Misto';
-    document.getElementById('evtStatus').value = 'Aberto';
-    document.getElementById('evtPremiado').value = 'NÃO';
-    document.getElementById('evtEntrada').value = 'GRÁTIS';
-    document.getElementById('evtVagas').value = '';
-    const gruposEl = document.getElementById('evtGrupos');
-    if (gruposEl) gruposEl.value = '';
-    document.getElementById('evtData').value = '';
-    document.getElementById('evtDescricao').value = '';
-    document.getElementById('evtFormError').classList.add('hidden');
-    onEvtModoChange();
-    document.getElementById('evtFormArea').scrollIntoView({ behavior: 'smooth' });
-}
-
-function cancelEventForm() {
-    document.getElementById('evtEditId').value = '';
-    document.getElementById('evtFormTitle').textContent = 'Novo Evento';
-    document.getElementById('evtName').value = '';
-    document.getElementById('evtVagas').value = '';
-    const gruposEl = document.getElementById('evtGrupos');
-    if (gruposEl) gruposEl.value = '';
-    document.getElementById('evtData').value = '';
-    document.getElementById('evtDescricao').value = '';
-    document.getElementById('evtFormError').classList.add('hidden');
-    // Limpar campos novos
-    const precoInput = document.getElementById('evtPreco');
-    if (precoInput) precoInput.value = '';
-    const precoWrapper = document.getElementById('evtPrecoWrapper');
-    if (precoWrapper) precoWrapper.style.display = 'none';
-    clearEvtImage();
-    const firstSize = document.querySelector('input[name="evtBannerSize"][value="1920x1080"]');
-    if (firstSize) firstSize.checked = true;
-    const regrasEl = document.getElementById('evtRegras');
-    if (regrasEl) regrasEl.value = '';
-    const rodadasEl = document.getElementById('evtRodadas');
-    if (rodadasEl) rodadasEl.value = '';
-    const pontuacaoEl = document.getElementById('evtPontuacao');
-    if (pontuacaoEl) pontuacaoEl.value = '';
-    const youtubeEl = document.getElementById('evtYoutubeUrl');
-    if (youtubeEl) youtubeEl.value = '';
-}
-
-function validateEventForm(category) {
-    const name = document.getElementById('evtName').value.trim();
-    const modo = document.getElementById('evtModo').value;
-    const vagas = parseInt(document.getElementById('evtVagas').value, 10);
-
-    if (!name) return 'Informe o nome do evento.';
-    if (!vagas || vagas < 1) return 'Informe a quantidade de vagas.';
-
-    if (modo === 'NORMAL') {
-        if (vagas % 12 !== 0) return `Modo NORMAL: a quantidade de vagas deve ser múltiplo de 12. Você informou ${vagas}.`;
-    } else if (modo === 'LIGA') {
-        if (vagas !== 12 && vagas !== 15) return `Modo LIGA: a quantidade de vagas deve ser 12 ou 15. Você informou ${vagas}.`;
-    }
-
-    if (category === 'camp') {
-        const grupos = parseInt(document.getElementById('evtGrupos')?.value, 10);
-        if (!grupos || grupos < 1) return 'Informe a quantidade de grupos para o Campeonato.';
-    }
-
-    return null;
-}
-
-let _isSavingEvent = false;
-
-// ---- Helpers de upload de imagem do evento ----
-function onEvtEntradaChange() {
-    const isPago = document.getElementById('evtEntrada').value === 'PAGO';
-    const wrapper = document.getElementById('evtPrecoWrapper');
-    if (wrapper) wrapper.style.display = isPago ? '' : 'none';
-}
-
-function onEvtImageSelected(input) {
-    const file = input.files && input.files[0];
-    if (!file) return;
-    const preview = document.getElementById('evtImagePreview');
-    const previewImg = document.getElementById('evtImagePreviewImg');
-    const previewName = document.getElementById('evtImagePreviewName');
-    if (preview && previewImg) {
-        previewImg.src = URL.createObjectURL(file);
-        if (previewName) previewName.textContent = file.name;
-        preview.classList.remove('hidden');
-    }
-    document.getElementById('evtImageUrl').value = '';
-    const urlDirect = document.getElementById('evtImageUrlDirect');
-    if (urlDirect) urlDirect.value = '';
-}
-
-function onEvtImageUrlInput(input) {
-    const url = input.value.trim();
-    const preview = document.getElementById('evtImagePreview');
-    const previewImg = document.getElementById('evtImagePreviewImg');
-    const previewName = document.getElementById('evtImagePreviewName');
-    const fileInput = document.getElementById('evtImageInput');
-    if (url) {
-        if (fileInput) fileInput.value = '';
-        document.getElementById('evtImageUrl').value = url;
-        if (previewImg) previewImg.src = url;
-        if (previewName) previewName.textContent = 'Link direto';
-        if (preview) preview.classList.remove('hidden');
-    } else {
-        document.getElementById('evtImageUrl').value = '';
-        if (preview) preview.classList.add('hidden');
-    }
-}
-
-function clearEvtImage() {
-    const input = document.getElementById('evtImageInput');
-    const preview = document.getElementById('evtImagePreview');
-    const previewImg = document.getElementById('evtImagePreviewImg');
-    if (input) input.value = '';
-    if (previewImg) previewImg.src = '';
-    if (preview) preview.classList.add('hidden');
-    const urlField = document.getElementById('evtImageUrl');
-    if (urlField) urlField.value = '';
-    const urlDirect = document.getElementById('evtImageUrlDirect');
-    if (urlDirect) urlDirect.value = '';
-}
-
-async function uploadEvtImage(file, eventId) {
-    const { ref, uploadBytes, getDownloadURL } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js');
-    const { getAuth } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
-
-    // Diagnóstico: verificar auth e bucket
-    const auth = getAuth(window.firebaseApp);
-    const currentUser = auth.currentUser;
-    const bucketUrl = window.firebaseStorage?._url || window.firebaseStorage?.app?.options?.storageBucket || 'desconhecido';
-    console.log('[Storage Upload] Auth user:', currentUser ? currentUser.email : 'NÃO AUTENTICADO');
-    console.log('[Storage Upload] Bucket:', bucketUrl);
-    console.log('[Storage Upload] File:', file.name, file.size, 'bytes');
-
-    if (!currentUser) {
-        throw new Error('Usuário não autenticado. Faça login novamente.');
-    }
-
-    const path = `events/${eventId || ('new_' + Date.now())}_${file.name}`;
-    console.log('[Storage Upload] Path:', path);
-    const storageRef = ref(window.firebaseStorage, path);
-    await uploadBytes(storageRef, file);
-    const url = await getDownloadURL(storageRef);
-    console.log('[Storage Upload] Sucesso! URL:', url);
-    return url;
-}
-// ---- Fim helpers ----
-
-async function saveEventForm() {
-    if (_isSavingEvent) return;
-
-    const category = currentEventTab;
-    const error = validateEventForm(category);
-    const errorEl = document.getElementById('evtFormError');
-
-    if (error) {
-        errorEl.textContent = error;
-        errorEl.classList.remove('hidden');
+function renderEventsForm() {
+    const container = document.getElementById('eventsContainer');
+    if (!container) return;
+    if (eventsData.length === 0) {
+        container.innerHTML = '<div class="text-center py-8 text-gray-500">Nenhum evento cadastrado. Clique em "Adicionar" para criar um novo.</div>';
         return;
     }
-    errorEl.classList.add('hidden');
-
-    const saveBtn = document.querySelector('#evtFormArea button[onclick="saveEventForm()"]');
-    const originalHtml = saveBtn ? saveBtn.innerHTML : null;
-
-    _isSavingEvent = true;
-    if (saveBtn) {
-        saveBtn.disabled = true;
-        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Salvando...';
-    }
-
-    const editId = document.getElementById('evtEditId').value;
-    const bannerSizeEl = document.querySelector('input[name="evtBannerSize"]:checked');
-    const entrada = document.getElementById('evtEntrada').value;
-
-    const data = {
-        category,
-        name: document.getElementById('evtName').value.trim(),
-        tipo: document.getElementById('evtTipo').value,
-        modo: document.getElementById('evtModo').value,
-        formato: (document.getElementById('evtFormato')?.value || 'MISTO').toUpperCase(),
-        status: document.getElementById('evtStatus').value,
-        premiado: document.getElementById('evtPremiado').value,
-        premiacao: (document.getElementById('evtPremiacao')?.value || '').trim(),
-        entrada,
-        vagas: parseInt(document.getElementById('evtVagas').value, 10),
-        quedas: parseInt(document.getElementById('evtQuedas')?.value, 10) || null,
-        mapas: Array.from(document.querySelectorAll('input[name="evtMapas"]:checked')).map(el => el.value),
-        descricao: document.getElementById('evtDescricao').value.trim(),
-        regras: (document.getElementById('evtRegras')?.value || '').trim(),
-        rodadas: (document.getElementById('evtRodadas')?.value || '').trim(),
-        pontuacao: (document.getElementById('evtPontuacao')?.value || '').trim(),
-        youtubeUrl: (document.getElementById('evtYoutubeUrl')?.value || '').trim(),
-        bannerSize: bannerSizeEl ? bannerSizeEl.value : '1920x1080',
-        updatedAt: new Date().toISOString()
-    };
-
-    if (entrada === 'PAGO') {
-        const preco = parseFloat(document.getElementById('evtPreco').value);
-        if (preco > 0) data.preco = preco;
-    } else {
-        data.preco = null;
-    }
-
-    const dataVal = document.getElementById('evtData').value;
-    if (dataVal) data.eventDate = new Date(dataVal).toISOString();
-
-    if (category === 'camp') {
-        data.grupos = parseInt(document.getElementById('evtGrupos')?.value, 10) || 0;
-    }
-
-    if (!editId) data.createdAt = new Date().toISOString();
-
-    // Manter imageUrl existente como default
-    const existingImageUrl = document.getElementById('evtImageUrl').value;
-    if (existingImageUrl) data.imageUrl = existingImageUrl;
-
-    try {
-        // Fazer upload da imagem se uma nova foi selecionada
-        const imageFile = document.getElementById('evtImageInput').files?.[0];
-        if (imageFile && window.firebaseStorage) {
-            if (saveBtn) saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Enviando imagem...';
-            const tempId = editId || ('tmp_' + Date.now());
-            try {
-                data.imageUrl = await uploadEvtImage(imageFile, tempId);
-            } catch (uploadErr) {
-                console.error('Erro no upload da imagem:', uploadErr);
-                showToast('warning', 'Imagem não enviada (permissão negada). O evento será salvo sem imagem. Verifique as regras do Firebase Storage.', 'Atenção');
-                // Continua sem imageUrl — o evento é salvo mesmo assim
-            }
-        }
-
-        const { collection, doc, addDoc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        if (editId) {
-            await updateDoc(doc(window.firebaseDb, 'adminEvents', editId), data);
-            showToast('success', 'Evento atualizado com sucesso.', 'Salvo');
-        } else {
-            await addDoc(collection(window.firebaseDb, 'adminEvents'), data);
-            showToast('success', 'Evento criado com sucesso.', 'Criado');
-        }
-        cancelEventForm();
-        await loadEventsList(category);
-    } catch (err) {
-        console.error('Erro ao salvar evento:', err);
-        errorEl.textContent = 'Erro ao salvar evento: ' + (err.message || err);
-        errorEl.classList.remove('hidden');
-    } finally {
-        _isSavingEvent = false;
-        if (saveBtn) {
-            saveBtn.disabled = false;
-            saveBtn.innerHTML = originalHtml || '<i class="fas fa-save mr-1"></i>Salvar Evento';
-        }
-    }
-}
-
-async function loadEventsList(category) {
-    const listEl = document.getElementById('evtList');
-    if (!listEl || !window.firebaseDb) return;
-    listEl.innerHTML = '<div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl"></i></div>';
-
-    try {
-        const { collection, query, where, orderBy, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const colRef = collection(window.firebaseDb, 'adminEvents');
-        let snap;
-        try {
-            snap = await getDocs(query(colRef, where('category', '==', category), orderBy('createdAt', 'desc')));
-        } catch (indexErr) {
-            if (indexErr?.code === 'failed-precondition') {
-                snap = await getDocs(query(colRef, where('category', '==', category)));
-            } else {
-                throw indexErr;
-            }
-        }
-
-        if (snap.empty) {
-            listEl.innerHTML = '<div class="text-center py-10 text-gray-400"><i class="fas fa-calendar-times text-3xl mb-2 block"></i>Nenhum evento cadastrado ainda.</div>';
-            return;
-        }
-
-        const categoryLabels = { camp: 'CAMP', xtreino: 'XTREINO', diario: 'DIÁRIO' };
-        const statusColors = {
-            'Aberto': 'bg-green-100 text-green-700',
-            'Em andamento': 'bg-blue-100 text-blue-700',
-            'Fechado': 'bg-red-100 text-red-700'
-        };
-
-        listEl.innerHTML = snap.docs.map(d => {
-            const ev = d.data();
-            const statusCls = statusColors[ev.status] || 'bg-gray-100 text-gray-600';
-            const dateStr = ev.eventDate ? new Date(ev.eventDate).toLocaleString('pt-BR') : '—';
-            const gruposStr = category === 'camp' && ev.grupos ? `<span class="text-xs text-gray-500">Grupos: <b>${ev.grupos}</b></span>` : '';
-            return `<div class="bg-white border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-                <div class="flex-1 min-w-0">
-                    <div class="flex flex-wrap items-center gap-2 mb-1">
-                        <span class="font-bold text-sm text-gray-800 truncate">${escapeAdminHtml(ev.name)}</span>
-                        <span class="text-xs px-2 py-0.5 rounded-full font-semibold ${statusCls}">${ev.status || 'Aberto'}</span>
-                        <span class="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-semibold">${ev.tipo}</span>
-                        <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">${ev.modo}</span>
-                    </div>
-                    <div class="flex flex-wrap gap-3 text-xs text-gray-500">
-                        <span>Vagas: <b>${ev.vagas}</b></span>
-                        ${gruposStr}
-                        <span>Premiado: <b>${ev.premiado}</b></span>
-                        <span>Entrada: <b>${ev.entrada}</b></span>
-                        <span>Data: <b>${dateStr}</b></span>
-                    </div>
-                    ${ev.descricao ? `<p class="text-xs text-gray-400 mt-1 truncate">${escapeAdminHtml(ev.descricao)}</p>` : ''}
+    container.innerHTML = '';
+    eventsData.forEach((event, idx) => {
+        const div = document.createElement('div');
+        div.className = 'bg-white border border-gray-200 rounded-lg p-6 mb-4';
+        div.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Chave (eventType)</label>
+                    <input type="text" value="${escapeHtml(event.eventType || '')}" class="w-full border rounded px-3 py-2 text-sm" onchange="eventsData[${idx}].eventType = this.value" placeholder="ex: camp-freitas">
                 </div>
-                <div class="flex gap-2 flex-shrink-0 flex-wrap">
-                    ${category === 'camp' ? `<button onclick="openCampGroupsModal('${d.id}', this.dataset.name)" data-name="${escapeAdminHtml(ev.name || '')}" title="Gerenciar grupos" class="px-3 py-1.5 bg-orange-50 text-orange-600 rounded-lg text-xs font-semibold hover:bg-orange-100"><i class="fas fa-users mr-1"></i>Grupos</button>` : ''}
-                    <a href="evento.html#${d.id}" target="_blank" class="px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-100 inline-flex items-center" title="Ver página do evento">
-                        <i class="fas fa-external-link-alt mr-1"></i>Ver Página
-                    </a>
-                    <button onclick="openEventSlotsModal('${d.id}', this.dataset.name)" data-name="${escapeAdminHtml(ev.name || '')}" title="Ver slots por horário" class="px-3 py-1.5 bg-green-50 text-green-700 rounded-lg text-xs font-semibold hover:bg-green-100">
-                        <i class="fas fa-hashtag mr-1"></i>Slots
-                    </button>
-                    <button onclick="openEventNotifyModal('${d.id}', this.dataset.name)" data-name="${escapeAdminHtml(ev.name || '')}" title="Enviar mensagem aos participantes" class="px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-semibold hover:bg-purple-100">
-                        <i class="fas fa-paper-plane mr-1"></i>Notificar
-                    </button>
-                    <button onclick="editEventItem('${d.id}')" title="Editar" class="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-100">
-                        <i class="fas fa-pen mr-1"></i>Editar
-                    </button>
-                    <button onclick="deleteEventItem('${d.id}')" title="Excluir" class="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-100">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Título</label>
+                    <input type="text" value="${escapeHtml(event.title || '')}" class="w-full border rounded px-3 py-2 text-sm" onchange="eventsData[${idx}].title = this.value" placeholder="CAMPEONATO FREITAS">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Badge / Selo</label>
+                    <input type="text" value="${escapeHtml(event.badge || '')}" class="w-full border rounded px-3 py-2 text-sm" onchange="eventsData[${idx}].badge = this.value" placeholder="Novidade!">
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">URL da Imagem</label>
+                    <input type="url" value="${escapeHtml(event.imageUrl || '')}" class="w-full border rounded px-3 py-2 text-sm" onchange="eventsData[${idx}].imageUrl = this.value" placeholder="https://...">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Preço (R$)</label>
+                    <input type="number" step="0.01" value="${event.price || 0}" class="w-full border rounded px-3 py-2 text-sm" onchange="eventsData[${idx}].price = parseFloat(this.value)">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Horários</label>
+                    <input type="text" value="${escapeHtml(event.schedules || '')}" class="w-full border rounded px-3 py-2 text-sm" onchange="eventsData[${idx}].schedules = this.value" placeholder="14h - 15h - 16h ...">
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Data de Início</label>
+                    <input type="date" value="${event.startDate || ''}" class="w-full border rounded px-3 py-2 text-sm" onchange="eventsData[${idx}].startDate = this.value">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Formato</label>
+                    <input type="text" value="${escapeHtml(event.format || '')}" class="w-full border rounded px-3 py-2 text-sm" onchange="eventsData[${idx}].format = this.value" placeholder="Misto | Squad | 2 quedas">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Vagas</label>
+                    <input type="text" value="${escapeHtml(event.slots || '')}" class="w-full border rounded px-3 py-2 text-sm" onchange="eventsData[${idx}].slots = this.value" placeholder="Limitadas">
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Premiação</label>
+                    <input type="text" value="${escapeHtml(event.prize || '')}" class="w-full border rounded px-3 py-2 text-sm" onchange="eventsData[${idx}].prize = this.value" placeholder="R$ 4.000,00">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Diferencial</label>
+                    <input type="text" value="${escapeHtml(event.differential || '')}" class="w-full border rounded px-3 py-2 text-sm" onchange="eventsData[${idx}].differential = this.value" placeholder="Transmissão ao vivo + Troféu">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Texto do Botão</label>
+                    <input type="text" value="${escapeHtml(event.buttonText || 'RESERVAR VAGA')}" class="w-full border rounded px-3 py-2 text-sm" onchange="eventsData[${idx}].buttonText = this.value">
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Status</label>
+                    <select onchange="eventsData[${idx}].active = this.value === 'true'" class="w-full border rounded px-3 py-2 text-sm">
+                        <option value="true" ${event.active !== false ? 'selected' : ''}>Ativo</option>
+                        <option value="false" ${event.active === false ? 'selected' : ''}>Inativo</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Ordem</label>
+                    <input type="number" value="${event.order || idx}" class="w-full border rounded px-3 py-2 text-sm" onchange="eventsData[${idx}].order = parseInt(this.value)">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Capacidade Padrão</label>
+                    <input type="number" value="${event.defaultCapacity || 12}" class="w-full border rounded px-3 py-2 text-sm" onchange="eventsData[${idx}].defaultCapacity = parseInt(this.value)">
+                </div>
+                <div class="flex items-end">
+                    <button onclick="deleteEvent(${idx})" class="px-3 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200">
                         <i class="fas fa-trash mr-1"></i>Excluir
                     </button>
                 </div>
-            </div>`;
-        }).join('');
-    } catch (err) {
-        console.error('Erro ao carregar eventos:', err);
-        listEl.innerHTML = '<div class="text-center py-8 text-red-400">Erro ao carregar eventos.</div>';
-    }
-}
-
-async function editEventItem(eventId) {
-    if (!window.firebaseDb) return;
-    try {
-        const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const snap = await getDoc(doc(window.firebaseDb, 'adminEvents', eventId));
-        if (!snap.exists()) { showToast('error', 'Evento não encontrado.', 'Erro'); return; }
-        const ev = snap.data();
-
-        document.getElementById('evtEditId').value = eventId;
-        document.getElementById('evtFormTitle').textContent = 'Editar Evento';
-        document.getElementById('evtName').value = ev.name || '';
-        document.getElementById('evtTipo').value = ev.tipo || 'SOLO';
-        document.getElementById('evtModo').value = ev.modo || 'NORMAL';
-        const fmtEl = document.getElementById('evtFormato');
-        if (fmtEl) fmtEl.value = (ev.formato || 'MISTO').toUpperCase();
-        document.getElementById('evtStatus').value = ev.status || 'Aberto';
-        document.getElementById('evtPremiado').value = ev.premiado || 'NÃO';
-        const premiacaoEl = document.getElementById('evtPremiacao');
-        if (premiacaoEl) premiacaoEl.value = ev.premiacao || '';
-        document.getElementById('evtEntrada').value = ev.entrada || 'GRÁTIS';
-        document.getElementById('evtVagas').value = ev.vagas || '';
-        const gruposEl = document.getElementById('evtGrupos');
-        if (gruposEl) gruposEl.value = ev.grupos || '';
-        if (ev.eventDate) {
-            const dt = new Date(ev.eventDate);
-            const pad = n => String(n).padStart(2, '0');
-            document.getElementById('evtData').value = `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
-        } else {
-            document.getElementById('evtData').value = '';
-        }
-        document.getElementById('evtDescricao').value = ev.descricao || '';
-        const regrasEl = document.getElementById('evtRegras');
-        if (regrasEl) regrasEl.value = ev.regras || '';
-        const rodadasEl = document.getElementById('evtRodadas');
-        if (rodadasEl) rodadasEl.value = ev.rodadas || '';
-        const pontuacaoEl = document.getElementById('evtPontuacao');
-        if (pontuacaoEl) pontuacaoEl.value = ev.pontuacao || '';
-        const youtubeEl = document.getElementById('evtYoutubeUrl');
-        if (youtubeEl) youtubeEl.value = ev.youtubeUrl || '';
-
-        // Quedas
-        const quedasEl = document.getElementById('evtQuedas');
-        if (quedasEl) quedasEl.value = ev.quedas || '';
-
-        // Mapas — desmarcar tudo e marcar os salvos
-        document.querySelectorAll('input[name="evtMapas"]').forEach(cb => {
-            cb.checked = Array.isArray(ev.mapas) && ev.mapas.includes(cb.value);
-        });
-
-        // Preço
-        const precoInput = document.getElementById('evtPreco');
-        if (precoInput) precoInput.value = ev.preco || '';
-        onEvtEntradaChange();
-
-        // Banner size
-        if (ev.bannerSize) {
-            const sizeRadio = document.querySelector(`input[name="evtBannerSize"][value="${ev.bannerSize}"]`);
-            if (sizeRadio) sizeRadio.checked = true;
-        }
-
-        // Imagem existente
-        clearEvtImage();
-        if (ev.imageUrl) {
-            const preview = document.getElementById('evtImagePreview');
-            const previewImg = document.getElementById('evtImagePreviewImg');
-            const previewName = document.getElementById('evtImagePreviewName');
-            const urlField = document.getElementById('evtImageUrl');
-            if (previewImg) previewImg.src = ev.imageUrl;
-            if (previewName) previewName.textContent = 'Imagem atual';
-            if (preview) preview.classList.remove('hidden');
-            if (urlField) urlField.value = ev.imageUrl;
-        }
-
-        document.getElementById('evtFormError').classList.add('hidden');
-        onEvtModoChange();
-        document.getElementById('evtFormArea').scrollIntoView({ behavior: 'smooth' });
-    } catch (err) {
-        console.error('Erro ao carregar evento para edição:', err);
-        showToast('error', 'Erro ao carregar evento.', 'Erro');
-    }
-}
-
-// ===== CAMP GRUPOS (Multi-Phase) =====
-let _campGroupsEventId = null;
-let _campGroupsPhase = 'fase1';
-let _campPhaseList = []; // phases found in Firestore for this event, sorted
-
-function _phaseLabel(key) {
-    if (!key) return '';
-    if (key === 'semifinal') return 'Semifinal';
-    if (key === 'final') return 'Final 🏆';
-    if (key === 'classificatoria') return 'Fase 1';
-    const m = key.match(/^fase(\d+)$/i);
-    if (m) return `Fase ${m[1]}`;
-    return key;
-}
-function _phaseOrder(key) {
-    if (key === 'final') return 99;
-    if (key === 'semifinal') return 98;
-    if (key === 'classificatoria') return 1;
-    const m = key.match(/^fase(\d+)$/i);
-    return m ? parseInt(m[1]) : 50;
-}
-function _phaseTeamSize(key) {
-    return (key === 'semifinal' || key === 'final') ? 15 : 12;
-}
-function _prevPhaseKey(key) {
-    if (key === 'final') return 'semifinal';
-    if (key === 'semifinal') {
-        const fases = _campPhaseList.filter(p => /^fase\d+$/.test(p.key));
-        return fases.length ? fases[fases.length - 1].key : 'fase1';
-    }
-    const m = key.match(/^fase(\d+)$/i);
-    if (m) { const n = parseInt(m[1]); return n > 1 ? `fase${n - 1}` : null; }
-    return null;
-}
-
-function openCampGroupsModal(eventId, eventName) {
-    _campGroupsEventId = eventId;
-    _campGroupsPhase = 'fase1';
-    _campPhaseList = [];
-    const modal = document.getElementById('campGroupsModal');
-    if (!modal) return;
-    const titleEl = document.getElementById('campGroupsTitle');
-    if (titleEl) titleEl.innerHTML = `<i class="fas fa-users text-orange-500 mr-2"></i>Grupos — ${escapeAdminHtml(eventName || 'Campeonato')}`;
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    loadCampPhaseList(false);
-}
-
-function closeCampGroupsModal() {
-    const modal = document.getElementById('campGroupsModal');
-    if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
-    _campGroupsEventId = null;
-    _campPhaseList = [];
-}
-
-async function loadCampPhaseList(keepCurrentPhase = false) {
-    const tabsEl = document.getElementById('campPhaseTabs');
-    if (!window.firebaseDb || !_campGroupsEventId) return;
-    if (tabsEl) tabsEl.innerHTML = '<span class="text-xs text-gray-400"><i class="fas fa-spinner fa-spin mr-1"></i>Carregando...</span>';
-
-    try {
-        const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        // Probe known keys directly — no index needed, no collection query
-        const keysToProbe = [
-            'classificatoria', // legacy alias
-            'fase1','fase2','fase3','fase4','fase5','fase6','fase7','fase8',
-            'semifinal','final'
-        ];
-        const seen = new Set();
-        const phases = [];
-        const reads = keysToProbe.map(k =>
-            getDoc(doc(window.firebaseDb, 'camp_groups', `${_campGroupsEventId}_${k}`))
-                .then(snap => ({ k, snap }))
-                .catch(() => ({ k, snap: null }))
-        );
-        const results = await Promise.all(reads);
-        results.forEach(({ k, snap }) => {
-            if (!snap || !snap.exists()) return;
-            let key = k === 'classificatoria' ? 'fase1' : k;
-            if (seen.has(key)) return;
-            seen.add(key);
-            phases.push({ key, label: _phaseLabel(key), order: _phaseOrder(key) });
-        });
-        phases.sort((a, b) => a.order - b.order);
-        _campPhaseList = phases;
-
-        _renderCampPhaseTabs(phases);
-        _updateNextPhaseSelect(phases);
-
-        const toSelect = keepCurrentPhase && phases.find(p => p.key === _campGroupsPhase)
-            ? _campGroupsPhase : (phases[0]?.key || 'fase1');
-        setCampGroupsPhase(toSelect, true);
-
-    } catch (err) {
-        console.error('Erro ao carregar fases:', err);
-        if (tabsEl) tabsEl.innerHTML = '<span class="text-xs text-red-400">Erro ao carregar fases.</span>';
-    }
-}
-
-function _renderCampPhaseTabs(phases) {
-    const tabsEl = document.getElementById('campPhaseTabs');
-    if (!tabsEl) return;
-    if (!phases.length) {
-        tabsEl.innerHTML = '<span class="text-xs text-gray-400 italic">Nenhuma fase gerada ainda.</span>';
-        return;
-    }
-    let html = '';
-    phases.forEach((p, i) => {
-        html += `<button id="campPhaseBtn_${p.key}" onclick="setCampGroupsPhase('${p.key}')"
-            class="px-3 py-1.5 rounded-lg font-bold text-xs bg-gray-100 text-gray-700 transition-colors whitespace-nowrap">
-            ${escapeAdminHtml(p.label.toUpperCase())}
-        </button>`;
-        if (i < phases.length - 1) html += `<i class="fas fa-arrow-right text-gray-400 text-xs self-center"></i>`;
+            </div>
+        `;
+        container.appendChild(div);
     });
-    tabsEl.innerHTML = html;
 }
 
-function _updateNextPhaseSelect(phases) {
-    const sel = document.getElementById('campNextPhaseSelect');
-    if (!sel) return;
-    const existingKeys = new Set(phases.map(p => p.key));
-    const opts = [];
-
-    if (!existingKeys.has('fase1')) {
-        opts.push({ key: 'fase1', label: 'Fase 1 (inscritos)' });
-    } else {
-        const lastN = phases.filter(p => /^fase\d+$/.test(p.key))
-            .reduce((mx, p) => Math.max(mx, parseInt(p.key.replace('fase', ''))), 0);
-        if (lastN > 0 && !existingKeys.has('semifinal')) {
-            opts.push({ key: `fase${lastN + 1}`, label: `Fase ${lastN + 1}` });
-            opts.push({ key: 'semifinal', label: 'Semifinal (direto)' });
-        }
-        if (existingKeys.has('semifinal') && !existingKeys.has('final')) {
-            opts.push({ key: 'final', label: 'Final' });
-        }
-    }
-    if (!opts.length) opts.push({ key: 'regenerar', label: '— Regenerar fase atual —' });
-
-    sel.innerHTML = opts.map(o => `<option value="${o.key}">${o.label}</option>`).join('');
-    _onNextPhaseSelectChange();
-}
-
-function _onNextPhaseSelectChange() {
-    const sel = document.getElementById('campNextPhaseSelect');
-    const key = sel?.value || '';
-    const advWrapper = document.getElementById('campAdvancingWrapper');
-    const labelEl = document.getElementById('campAdvancingLabel');
-    const genBtn = document.getElementById('campGenerateBtn');
-    const isFinal = key === 'final';
-    if (advWrapper) advWrapper.style.display = isFinal ? 'none' : '';
-    if (labelEl) {
-        if (key === 'semifinal' || key === 'final') labelEl.textContent = `Times que avançam para a ${_phaseLabel(key)}`;
-        else { const n = key.match(/^fase(\d+)$/)?.[1]; labelEl.textContent = n ? `Times que avançam para Fase ${n}` : 'Times que avançam'; }
-    }
-    if (genBtn) genBtn.innerHTML = `<i class="fas fa-list-ol mr-1"></i>Gerar ${_phaseLabel(key)}`;
-}
-
-function setCampGroupsPhase(phase, reload = true) {
-    _campGroupsPhase = phase;
-    document.querySelectorAll('[id^="campPhaseBtn_"]').forEach(btn => {
-        const isActive = btn.id === `campPhaseBtn_${phase}`;
-        btn.className = isActive
-            ? 'px-3 py-1.5 rounded-lg font-bold text-xs bg-orange-600 text-white transition-colors whitespace-nowrap'
-            : 'px-3 py-1.5 rounded-lg font-bold text-xs bg-gray-100 text-gray-700 transition-colors whitespace-nowrap';
-    });
-    const teamSize = _phaseTeamSize(phase);
-    const phaseLabel = _phaseLabel(phase);
-    const descTextEl = document.getElementById('campPhaseDescText');
-    if (descTextEl) {
-        if (phase === 'final') descTextEl.textContent = `Final: ${teamSize} times por grupo. Times vêm dos que avançaram na Semifinal.`;
-        else if (phase === 'semifinal') descTextEl.textContent = `Semifinal: ${teamSize} times por grupo, vindos da fase anterior. Informe quantos avançam para a Final.`;
-        else { const n = phase.match(/^fase(\d+)$/)?.[1] || '1'; descTextEl.textContent = `${phaseLabel}: ${teamSize} times por grupo${n === '1' ? ', ordem de inscrição' : ', top 6 de cada grupo anterior'}. 6 avançam por grupo.`; }
-    }
-    const infoEl = document.getElementById('campPhaseInfo');
-    if (infoEl) infoEl.classList.add('hidden');
-    if (reload) loadCampGroups();
-}
-
-async function loadCampGroups() {
-    const container = document.getElementById('campGroupsContent');
-    if (!container || !window.firebaseDb || !_campGroupsEventId) return;
-    container.innerHTML = '<div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl"></i></div>';
+async function saveEvents() {
     try {
-        const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const phase = _campGroupsPhase;
-        // Try the phase key; also try 'classificatoria' as alias when phase=fase1
-        const keysToTry = [phase];
-        if (phase === 'fase1') keysToTry.push('classificatoria');
-        let data = null;
-        for (const k of keysToTry) {
-            const snap = await getDoc(doc(window.firebaseDb, 'camp_groups', `${_campGroupsEventId}_${k}`));
-            if (snap.exists()) { data = snap.data(); break; }
-        }
-        if (!data) {
-            container.innerHTML = `<div class="text-center py-8 text-gray-400 text-sm">Nenhum grupo gerado para esta fase.<br>Use o seletor abaixo para gerar.</div>`;
+        if (eventsData.length === 0) {
+            showToast('warning', 'Nenhum evento para salvar', 'Aviso');
             return;
         }
-        renderCampGroups(data.groups || [], data.advancingPerGroup || 0, data.generatedAt, data.teamSize);
-    } catch (err) {
-        console.error('Erro ao carregar grupos:', err);
-        container.innerHTML = '<div class="text-center py-4 text-red-400 text-sm">Erro ao carregar grupos.</div>';
-    }
-}
+        const { collection, doc, setDoc, deleteDoc, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const eventsRef = collection(window.firebaseDb, 'events');
+        const existingSnap = await getDocs(eventsRef);
+        const existingIds = new Set(eventsData.map(e => e.id));
+        for (const docSnap of existingSnap.docs) {
+            if (!existingIds.has(docSnap.id)) {
+                await deleteDoc(doc(window.firebaseDb, 'events', docSnap.id));
+            }
+        }
+        for (const event of eventsData) {
 
-function renderCampGroups(groups, advancingPerGroup, generatedAt, teamSize) {
-    const container = document.getElementById('campGroupsContent');
-    if (!container) return;
-    if (!groups || !groups.length) {
-        container.innerHTML = '<div class="text-center py-8 text-gray-400 text-sm">Nenhum grupo gerado.</div>';
-        return;
-    }
-    const capacity = teamSize || (_campGroupsPhase === 'classificatoria' ? 12 : 15);
-    const totalTeams = groups.reduce((s, g) => s + g.teams.length, 0);
-    const dateStr = generatedAt?.toDate ? generatedAt.toDate().toLocaleString('pt-BR') : (generatedAt ? new Date(generatedAt).toLocaleString('pt-BR') : '');
-    const advInfo = advancingPerGroup
-        ? `<div class="flex items-center gap-2 mb-4 p-3 bg-blue-50 border border-blue-100 rounded-xl text-sm text-blue-700">
-               <i class="fas fa-arrow-up"></i>
-               <span><b>${advancingPerGroup}</b> time(s) avançam por grupo</span>
-               <span class="ml-auto text-xs text-blue-400">${totalTeams} times · ${groups.length} grupos</span>
-           </div>` : '';
-    const dateInfo = dateStr ? `<p class="text-xs text-gray-400 mb-3">Gerado em: ${dateStr}</p>` : '';
-    container.innerHTML = advInfo + dateInfo + groups.map(g => {
-        const count = g.teams.length;
-        const isFull = count >= capacity;
-        const statusBadge = isFull
-            ? `<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">COMPLETO</span>`
-            : `<span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-bold">AGUARDANDO</span>`;
-        return `
-        <div class="border border-gray-200 rounded-xl overflow-hidden mb-3">
-            <div class="bg-orange-50 border-b border-orange-100 px-4 py-2 flex justify-between items-center gap-2">
-                <span class="font-bold text-orange-700 text-sm">${g.name} <span class="font-normal text-gray-500">(${count}/${capacity})</span></span>
-                ${statusBadge}
-            </div>
-            <ul class="divide-y divide-gray-100">
-                ${g.teams.map((t, j) => `
-                <li class="flex items-center gap-3 px-4 py-2">
-                    <span class="w-6 h-6 rounded-full bg-gray-200 text-gray-600 text-xs font-bold flex items-center justify-center flex-shrink-0">${j + 1}</span>
-                    <span class="text-sm text-gray-800 flex-1">${escapeAdminHtml(t)}</span>
-                    ${advancingPerGroup && j < advancingPerGroup ? '<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold whitespace-nowrap">Avança ↑</span>' : ''}
-                </li>`).join('')}
-            </ul>
-        </div>`;
-    }).join('');
-}
-
-async function _getTeamsFromPrevPhase(eventId, prevKey) {
-    const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-    const keysToTry = [prevKey];
-    if (prevKey === 'fase1') keysToTry.push('classificatoria');
-    for (const k of keysToTry) {
-        const snap = await getDoc(doc(window.firebaseDb, 'camp_groups', `${eventId}_${k}`));
-        if (snap.exists()) return snap.data();
-    }
-    return null;
-}
-
-async function generateCampGroups() {
-    const eventId = _campGroupsEventId;
-    if (!eventId) return;
-
-    // Phase to generate comes from the selector
-    const sel = document.getElementById('campNextPhaseSelect');
-    const phase = sel?.value || 'fase1';
-    if (phase === 'regenerar') { await reorganizarGrupos(); return; }
-
-    const advancingInput = document.getElementById('campAdvancingInput');
-    const totalAdvancing = parseInt(advancingInput?.value || '0', 10) || 0;
-    const teamSize = _phaseTeamSize(phase);
-
-    const btn = document.getElementById('campGenerateBtn');
-    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Gerando...'; }
-
-    try {
-        const { collection, query, where, getDocs, doc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        let teams = [];
-
-        const isFirstPhase = phase === 'fase1' || phase === 'classificatoria';
-        if (isFirstPhase) {
-            // Fase 1: from registrations sorted by inscription date
-            const regsSnap = await getDocs(query(
-                collection(window.firebaseDb, 'registrations'),
-                where('eventType', '==', eventId)
-            ));
-            const validSt = new Set(['confirmed', 'paid', 'approved', 'pending']);
-            const entries = []; const seen = new Set();
-            regsSnap.docs.forEach(d => {
-                const data = d.data();
-                if (!validSt.has(data.status) || !data.teamName) return;
-                const norm = data.teamName.trim().toLowerCase().replace(/\s+/g, ' ');
-                if (seen.has(norm)) return;
-                seen.add(norm);
-                const ts = data.createdAt?.toMillis?.() || (data.createdAt?.seconds || 0) * 1000;
-                entries.push({ name: data.teamName, ts });
-            });
-            entries.sort((a, b) => a.ts - b.ts);
-            teams = entries.map(e => e.name);
-        } else {
-            // Subsequent phases: top-N from previous phase groups
-            const prevKey = _prevPhaseKey(phase);
-            if (!prevKey) { showToast('warning', 'Fase anterior não encontrada.', 'Atenção'); return; }
-            const prevData = await _getTeamsFromPrevPhase(eventId, prevKey);
-            if (!prevData) {
-                showToast('warning', `Gere os grupos de "${_phaseLabel(prevKey)}" primeiro.`, 'Atenção');
+            // Validação: título e eventType são obrigatórios
+            if (!event.title || !event.title.trim()) {
+                showToast('error', `Evento sem título. Preencha o título antes de salvar.`, 'Erro');
                 return;
             }
-            const prevAdv = prevData.advancingPerGroup || 6;
-            if (!prevAdv) { showToast('warning', 'Defina quantos avançam na fase anterior antes de gerar a próxima.', 'Atenção'); return; }
-            (prevData.groups || []).forEach(g => g.teams.slice(0, prevAdv).forEach(t => { if (t) teams.push(t); }));
-        }
-
-        if (!teams.length) { showToast('warning', 'Nenhum time encontrado para esta fase.', 'Sem times'); return; }
-
-        const groups = [];
-        const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        for (let i = 0; i < teams.length; i += teamSize) {
-            const gIdx = groups.length;
-            const letter = letters[gIdx] || String(gIdx + 1);
-            groups.push({ name: `Grupo ${letter}`, teams: teams.slice(i, i + teamSize) });
-        }
-
-        const defaultAdv = phase === 'final' ? 0 : 6;
-        const advancingPerGroup = totalAdvancing > 0 && groups.length > 0
-            ? Math.ceil(totalAdvancing / groups.length) : defaultAdv;
-
-        await setDoc(doc(window.firebaseDb, 'camp_groups', `${eventId}_${phase}`), {
-            eventId, phaseKey: phase, phaseOrder: _phaseOrder(phase),
-            teamSize, advancingPerGroup, totalAdvancing: totalAdvancing || advancingPerGroup * groups.length,
-            groups, generatedAt: serverTimestamp()
-        });
-
-        const advMsg = advancingPerGroup ? ` · ${advancingPerGroup} avançam por grupo` : '';
-        showToast('success', `${_phaseLabel(phase)}: ${groups.length} grupo(s) · ${teams.length} times${advMsg}.`, 'Gerado');
-        _updatePhaseInfo(phase, groups.length, teams.length, advancingPerGroup);
-
-        await loadCampPhaseList(false);
-        setCampGroupsPhase(phase, false);
-        renderCampGroups(groups, advancingPerGroup, null, teamSize);
-
-    } catch (err) {
-        console.error('Erro ao gerar grupos:', err);
-        showToast('error', 'Erro ao gerar grupos: ' + (err.message || ''), 'Erro');
-    } finally {
-        if (btn) { btn.disabled = false; _onNextPhaseSelectChange(); }
-    }
-}
-
-async function reorganizarGrupos() {
-    const eventId = _campGroupsEventId;
-    const phase = _campGroupsPhase;
-    if (!eventId) return;
-    if (!confirm(`Reorganizar redistribuirá todos os grupos de "${_phaseLabel(phase)}" pela ordem atual. Confirmar?`)) return;
-
-    const btn = document.getElementById('campReorganizeBtn');
-    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Reorganizando...'; }
-
-    try {
-        const { collection, query, where, getDocs, doc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const teamSize = _phaseTeamSize(phase);
-        const advancingInput = document.getElementById('campAdvancingInput');
-        const totalAdvancing = parseInt(advancingInput?.value || '0', 10) || 0;
-        let teams = [];
-
-        const isFirst = phase === 'fase1' || phase === 'classificatoria';
-        if (isFirst) {
-            const regsSnap = await getDocs(query(
-                collection(window.firebaseDb, 'registrations'),
-                where('eventType', '==', eventId)
-            ));
-            const validSt = new Set(['confirmed', 'paid', 'approved', 'pending']);
-            const entries = []; const seen = new Set();
-            regsSnap.docs.forEach(d => {
-                const data = d.data();
-                if (!validSt.has(data.status) || !data.teamName) return;
-                const norm = data.teamName.trim().toLowerCase().replace(/\s+/g, ' ');
-                if (seen.has(norm)) return; seen.add(norm);
-                const ts = data.createdAt?.toMillis?.() || (data.createdAt?.seconds || 0) * 1000;
-                entries.push({ name: data.teamName, ts });
-            });
-            entries.sort((a, b) => a.ts - b.ts);
-            teams = entries.map(e => e.name);
-        } else {
-            const prevKey = _prevPhaseKey(phase);
-            const prevData = prevKey ? await _getTeamsFromPrevPhase(eventId, prevKey) : null;
-            if (!prevData) { showToast('warning', 'Fase anterior não encontrada.', 'Atenção'); return; }
-            const prevAdv = prevData.advancingPerGroup || 6;
-            (prevData.groups || []).forEach(g => g.teams.slice(0, prevAdv).forEach(t => { if (t) teams.push(t); }));
-        }
-
-        if (!teams.length) { showToast('warning', 'Nenhum time encontrado.', 'Sem times'); return; }
-
-        const groups = [];
-        const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        for (let i = 0; i < teams.length; i += teamSize) {
-            const gIdx = groups.length;
-            const letter = letters[gIdx] || String(gIdx + 1);
-            groups.push({ name: `Grupo ${letter}`, teams: teams.slice(i, i + teamSize) });
-        }
-        const advancingPerGroup = totalAdvancing > 0 && groups.length > 0 ? Math.ceil(totalAdvancing / groups.length) : (phase === 'final' ? 0 : 6);
-
-        await setDoc(doc(window.firebaseDb, 'camp_groups', `${eventId}_${phase}`), {
-            eventId, phaseKey: phase, phaseOrder: _phaseOrder(phase),
-            teamSize, advancingPerGroup, totalAdvancing: totalAdvancing || advancingPerGroup * groups.length,
-            groups, generatedAt: serverTimestamp()
-        });
-
-        renderCampGroups(groups, advancingPerGroup, null, teamSize);
-        _updatePhaseInfo(phase, groups.length, teams.length, advancingPerGroup);
-        showToast('success', `Grupos reorganizados: ${groups.length} grupo(s), ${teams.length} time(s).`, 'Reorganizado');
-
-    } catch (err) {
-        console.error('Erro ao reorganizar grupos:', err);
-        showToast('error', 'Erro ao reorganizar: ' + (err.message || ''), 'Erro');
-    } finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-redo mr-1"></i>Reorganizar'; }
-    }
-}
-
-function _updatePhaseInfo(phase, numGroups, numTeams, advancingPerGroup) {
-    const infoEl = document.getElementById('campPhaseInfo');
-    if (!infoEl) return;
-    const totalAdv = advancingPerGroup * numGroups;
-    if (phase === 'final') {
-        infoEl.textContent = `Final: ${numTeams} times em ${numGroups} grupo(s).`;
-    } else if (phase === 'semifinal') {
-        infoEl.textContent = `Semifinal: ${numGroups} grupo(s) · ${numTeams} times · ${totalAdv} avançam para a Final`;
-    } else {
-        const nextLabel = _phaseLabel(`fase${(_phaseOrder(phase) || 1) + 1}`);
-        infoEl.textContent = `${numGroups} grupo(s) · ${numTeams} times · ${totalAdv} avançam → ${nextLabel}`;
-    }
-    infoEl.classList.remove('hidden');
-}
-
-async function deleteEventItem(eventId) {
-    if (!confirm('Tem certeza que deseja excluir este evento?')) return;
-    try {
-        const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        await deleteDoc(doc(window.firebaseDb, 'adminEvents', eventId));
-        showToast('success', 'Evento excluído.', 'Excluído');
-        await loadEventsList(currentEventTab);
-    } catch (err) {
-        console.error('Erro ao excluir evento:', err);
-        showToast('error', 'Erro ao excluir evento.', 'Erro');
-    }
-}
-
-async function loadEventsPreview() {
-    const previewEl = document.getElementById('eventsPreview');
-    if (!previewEl || !window.firebaseDb) return;
-
-    try {
-        const { collection, getDocs, query, orderBy, limit } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const colRef = collection(window.firebaseDb, 'adminEvents');
-        let snap;
-        try {
-            snap = await getDocs(query(colRef, orderBy('createdAt', 'desc'), limit(6)));
-        } catch (indexErr) {
-            if (indexErr?.code === 'failed-precondition') {
-                snap = await getDocs(query(colRef, limit(6)));
-            } else {
-                throw indexErr;
+            
+            if (!event.eventType || !event.eventType.trim()) {
+                showToast('error', `Evento "${event.title || 'sem nome'}" sem chave (eventType). Preencha a chave.`, 'Erro');
+                return;
             }
-        }
+            // Se price for inválido, define 0
+            if (isNaN(event.price)) event.price = 0;
 
-        if (snap.empty) {
-            previewEl.innerHTML = '<p class="text-sm text-gray-400 text-center py-3">Nenhum evento cadastrado. Clique em "Criar / Gerenciar" para começar.</p>';
-            return;
-        }
-
-        const catLabel = { camp: '🏆 Campeonato', xtreino: '🎮 X-Treino', diario: '📅 Diário' };
-        const statusColors = { 'Aberto': 'bg-green-100 text-green-700', 'Em andamento': 'bg-blue-100 text-blue-700', 'Fechado': 'bg-red-100 text-red-700' };
-
-        previewEl.innerHTML = snap.docs.map(d => {
-            const ev = d.data();
-            const statusCls = statusColors[ev.status] || 'bg-gray-100 text-gray-600';
-            const catStr = catLabel[ev.category] || ev.category;
-            return `<div class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                <div class="flex items-center gap-2 min-w-0">
-                    <span class="text-xs text-gray-500 whitespace-nowrap">${catStr}</span>
-                    <span class="font-medium text-sm truncate">${escapeAdminHtml(ev.name)}</span>
-                    <span class="text-xs px-1.5 py-0.5 rounded-full ${statusCls} whitespace-nowrap">${ev.status || 'Aberto'}</span>
-                </div>
-                <span class="text-xs text-gray-400 whitespace-nowrap ml-2">${ev.tipo} · ${ev.modo} · ${ev.vagas} vagas</span>
-            </div>`;
-        }).join('');
-    } catch (err) {
-        const previewEl2 = document.getElementById('eventsPreview');
-        if (previewEl2) previewEl2.innerHTML = '<p class="text-sm text-gray-400 text-center py-3">Não foi possível carregar eventos.</p>';
-    }
-}
-
-// ===== NOTIFICAR PARTICIPANTES DO EVENTO =====
-let _notifyEventDocs = []; // cache das inscrições carregadas
-
-async function openEventNotifyModal(eventId, eventName) {
-    const modal = document.getElementById('eventNotifyModal');
-    if (!modal) return;
-    _notifyEventDocs = [];
-    document.getElementById('eventNotifyEventId').value = eventId;
-    document.getElementById('eventNotifyEventName').textContent = eventName;
-    document.getElementById('eventNotifyTitle').value = '';
-    document.getElementById('eventNotifyMessage').value = '';
-    document.getElementById('eventNotifyType').value = 'custom';
-    document.getElementById('eventNotifyCount').innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Carregando participantes...';
-    const schedSel = document.getElementById('eventNotifySchedule');
-    if (schedSel) schedSel.innerHTML = '<option value="all">Carregando horários...</option>';
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-
-    try {
-        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        // Buscar apenas por eventType (campo único) e filtrar status em JS para evitar
-        // erros de índice composto (failed-precondition) que silenciam eventos pagos/tokens
-        const snap = await getDocs(query(
-            collection(window.firebaseDb, 'registrations'),
-            where('eventType', '==', eventId)
-        ));
-        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
-        _notifyEventDocs = snap.docs.filter(d => validStatuses.has(d.data().status));
-
-        // Montar mapa de data+horário → usuários únicos
-        // Chave: "YYYY-MM-DD||schedule" para distinguir mesmo horário em dias diferentes
-        const scheduleMap = {}; // key → { label, users: Set }
-        for (const d of _notifyEventDocs) {
-            const r = d.data();
-            const uid = r.userId;
-            if (!uid) continue;
-            const sched = r.schedule || r.slotDisplay || '—';
-            const date = r.date || '';
-            const key = date ? `${date}||${sched}` : `||${sched}`;
-            if (!scheduleMap[key]) {
-                // Formatar data como DD/MM para exibição
-                let dateLabel = '';
-                if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
-                    const [y, m, dd] = date.split('-');
-                    dateLabel = `${dd}/${m}`;
-                } else if (date) {
-                    dateLabel = date;
-                }
-                const label = dateLabel ? `${dateLabel} — ${sched}` : sched;
-                scheduleMap[key] = { label, users: new Set(), date, sched };
-            }
-            scheduleMap[key].users.add(uid);
-        }
-
-        const totalUnique = new Set(_notifyEventDocs.map(d => d.data().userId).filter(Boolean)).size;
-        document.getElementById('eventNotifyCount').textContent = `${totalUnique} participante(s) no total`;
-
-        // Popular select de data+horários ordenados por data
-        if (schedSel) {
-            const keys = Object.keys(scheduleMap).sort();
-            if (keys.length === 0) {
-                schedSel.innerHTML = '<option value="all">Todos (sem filtro)</option>';
-            } else {
-                schedSel.innerHTML = `<option value="all">Todos os participantes (${totalUnique} total)</option>` +
-                    keys.map(k => {
-                        const entry = scheduleMap[k];
-                        return `<option value="${k.replace(/"/g, '&quot;')}">${entry.label} — ${entry.users.size} participante(s)</option>`;
-                    }).join('');
-            }
-        }
-    } catch(e) {
-        document.getElementById('eventNotifyCount').textContent = 'Não foi possível carregar participantes';
-        if (schedSel) schedSel.innerHTML = '<option value="all">Todos os horários</option>';
-    }
-}
-
-function onEventNotifyScheduleChange() {
-    const schedSel = document.getElementById('eventNotifySchedule');
-    const selected = schedSel ? schedSel.value : 'all';
-    const countEl = document.getElementById('eventNotifyCount');
-    if (!countEl) return;
-
-    if (selected === 'all') {
-        const total = new Set(_notifyEventDocs.map(d => d.data().userId).filter(Boolean)).size;
-        countEl.textContent = `${total} participante(s) no total`;
-    } else {
-        // Chave composta "YYYY-MM-DD||schedule" — separar para comparar individualmente
-        const [selDate, ...schedParts] = selected.split('||');
-        const selSched = schedParts.join('||');
-        const filtered = new Set(
-            _notifyEventDocs
-                .filter(d => {
-                    const r = d.data();
-                    if (!r.userId) return false;
-                    const rDate = r.date || '';
-                    const rSched = r.schedule || r.slotDisplay || '—';
-                    return rDate === selDate && rSched === selSched;
-                })
-                .map(d => d.data().userId)
-        );
-        countEl.textContent = `${filtered.size} participante(s) neste dia/horário`;
-    }
-}
-
-function closeEventNotifyModal() {
-    const modal = document.getElementById('eventNotifyModal');
-    if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
-    _notifyEventDocs = [];
-}
-
-function onEventNotifyTypeChange() {
-    const type = document.getElementById('eventNotifyType').value;
-    const titleEl = document.getElementById('eventNotifyTitle');
-    const msgEl = document.getElementById('eventNotifyMessage');
-    const roomSection = document.getElementById('eventNotifyRoomLinkSection');
-    if (roomSection) roomSection.classList.toggle('hidden', type !== 'room_link');
-    if (type === 'credentials') {
-        titleEl.value = 'Credenciais do Evento';
-        msgEl.placeholder = 'ID do evento: xxxxxx\nSenha: xxxxxx\n\nUse as credenciais acima para acessar o evento.';
-    } else if (type === 'room_link') {
-        titleEl.value = 'Link da Sala Disponível';
-        msgEl.placeholder = 'Ex: A sala está aberta! Clique no botão abaixo para entrar.';
-    } else {
-        titleEl.value = '';
-        msgEl.placeholder = 'Digite sua mensagem para os participantes...';
-    }
-}
-
-async function sendEventNotification() {
-    const eventId = document.getElementById('eventNotifyEventId').value;
-    const eventName = document.getElementById('eventNotifyEventName').textContent;
-    const title = document.getElementById('eventNotifyTitle').value.trim();
-    const message = document.getElementById('eventNotifyMessage').value.trim();
-    const schedSel = document.getElementById('eventNotifySchedule');
-    const selectedSchedule = schedSel ? schedSel.value : 'all';
-
-    if (!title) { showToast('warning', 'Informe o título da notificação.', 'Atenção'); return; }
-    if (!message) { showToast('warning', 'Informe a mensagem.', 'Atenção'); return; }
-
-    const btn = document.getElementById('eventNotifySendBtn');
-    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Enviando...'; }
-
-    try {
-        const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-
-        // Filtrar por data+horário se necessário (chave composta "YYYY-MM-DD||schedule")
-        let docsToNotify = _notifyEventDocs;
-        let filterLabel = '';
-        if (selectedSchedule !== 'all') {
-            const [selDate, ...schedParts] = selectedSchedule.split('||');
-            const selSched = schedParts.join('||');
-            docsToNotify = _notifyEventDocs.filter(d => {
-                const r = d.data();
-                const rDate = r.date || '';
-                const rSched = r.schedule || r.slotDisplay || '—';
-                return rDate === selDate && rSched === selSched;
-            });
-            // Montar label legível para o log: "DD/MM — horário"
-            if (selDate && /^\d{4}-\d{2}-\d{2}$/.test(selDate)) {
-                const [, m, dd] = selDate.split('-');
-                filterLabel = `${dd}/${m} — ${selSched}`;
-            } else {
-                filterLabel = selSched;
-            }
-        }
-
-        const uniqueUsers = [...new Set(docsToNotify.map(d => d.data().userId).filter(Boolean))];
-
-        if (uniqueUsers.length === 0) {
-            showToast('warning', 'Nenhum participante encontrado para o dia/horário selecionado.', 'Atenção');
-            return;
-        }
-
-        const user = window.firebaseAuth?.currentUser;
-        const createdBy = user ? (user.displayName || user.email || user.uid) : 'Admin';
-
-        const scheduleLabel = filterLabel ? ` [${filterLabel}]` : '';
-        const notifyType = document.getElementById('eventNotifyType')?.value || 'custom';
-        const roomLink = notifyType === 'room_link' ? (document.getElementById('eventNotifyRoomLink')?.value?.trim() || null) : null;
-
-        if (notifyType === 'room_link' && !roomLink) {
-            showToast('warning', 'Informe a URL da sala.', 'Atenção');
-            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Enviar'; }
-            return;
-        }
-
-        await Promise.all(uniqueUsers.map(uid =>
-            addDoc(collection(window.firebaseDb, 'notifications'), {
-                title: `[${eventName}]${scheduleLabel} ${title}`,
-                message,
-                type: 'user',
-                targetUserId: uid,
-                eventId,
-                eventName,
-                schedule: filterLabel || null,
-                roomLink: roomLink || null,
-                notifyType,
-                createdAt: serverTimestamp(),
-                createdBy,
-                createdByUid: user?.uid || null,
-            })
-        ));
-
-        const horarioMsg = filterLabel ? ` (${filterLabel})` : '';
-        showToast('success', `Notificação enviada para ${uniqueUsers.length} participante(s)${horarioMsg}!`, 'Sucesso');
-        closeEventNotifyModal();
-    } catch (err) {
-        console.error('Erro ao enviar notificação de evento:', err);
-        showToast('error', 'Erro ao enviar: ' + (err.message || err), 'Erro');
-    } finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Enviar'; }
-    }
-}
-
-// ===== SLOTS POR HORÁRIO =====
-async function openEventSlotsModal(eventId, eventName) {
-    const modal = document.getElementById('eventSlotsModal');
-    if (!modal) return;
-    document.getElementById('eventSlotsEventName').textContent = eventName;
-    document.getElementById('eventSlotsEventId').value = eventId;
-    document.getElementById('eventSlotsBody').innerHTML =
-        '<div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl"></i><p class="mt-2 text-sm">Carregando slots...</p></div>';
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-
-    try {
-        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const snap = await getDocs(query(
-            collection(window.firebaseDb, 'registrations'),
-            where('eventType', '==', eventId)
-        ));
-        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
-        const docs = snap.docs.filter(d => validStatuses.has(d.data().status));
-
-        if (docs.length === 0) {
-            document.getElementById('eventSlotsBody').innerHTML =
-                '<div class="text-center py-8 text-gray-400"><i class="fas fa-users text-3xl mb-2 block"></i><p class="text-sm">Nenhum participante inscrito ainda.</p></div>';
-            return;
-        }
-
-        // Agrupar por horário
-        const bySchedule = {};
-        docs.forEach(d => {
-            const r = d.data();
-            const sched = r.schedule || '—';
-            if (!bySchedule[sched]) bySchedule[sched] = [];
-            bySchedule[sched].push(r);
-        });
-
-        // Ordenar cada horário por slot crescente (null vai pro final)
-        Object.values(bySchedule).forEach(arr => {
-            arr.sort((a, b) => {
-                const sa = a.slot != null ? Number(a.slot) : Infinity;
-                const sb = b.slot != null ? Number(b.slot) : Infinity;
-                return sa - sb;
-            });
-        });
-
-        // Ordenar horários alfabeticamente
-        const schedKeys = Object.keys(bySchedule).sort();
-
-        const statusLabel = { confirmed: 'Confirmado', paid: 'Pago', approved: 'Aprovado', pending: 'Pendente' };
-        const statusCls = {
-            confirmed: 'bg-green-100 text-green-700',
-            paid: 'bg-blue-100 text-blue-700',
-            approved: 'bg-emerald-100 text-emerald-700',
-            pending: 'bg-yellow-100 text-yellow-700'
-        };
-
-        let html = '';
-        for (const sched of schedKeys) {
-            const regs = bySchedule[sched];
-            html += `
-            <div class="mb-6">
-                <div class="flex items-center gap-2 mb-3">
-                    <span class="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-clock mr-1"></i>${escapeAdminHtml(sched)}</span>
-                    <span class="text-xs text-gray-400">${regs.length} inscrito(s)</span>
-                </div>
-                <div class="overflow-x-auto rounded-lg border border-gray-200">
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="bg-gray-50 text-xs text-gray-500 uppercase">
-                            <th class="px-3 py-2 text-left w-20">Slot</th>
-                            <th class="px-3 py-2 text-left">Equipe / Nome</th>
-                            <th class="px-3 py-2 text-left w-24">Data</th>
-                            <th class="px-3 py-2 text-left w-28">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${regs.map(r => {
-                            const slotNum = r.slotNumber != null ? r.slotNumber : r.slot;
-                            const slotLabel = r.slotDisplay || (slotNum != null ? `#${slotNum}` : '—');
-                            const st = r.status || 'pending';
-                            const dateFmt = r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date)
-                                ? r.date.split('-').reverse().join('/') : (r.date || '—');
-                            const leaderName = r.leaderName && r.leaderName !== r.teamName ? r.leaderName : null;
-                            return `<tr class="border-t border-gray-100 hover:bg-orange-50 transition-colors">
-                                <td class="px-3 py-2 font-bold text-orange-600 text-base">${escapeAdminHtml(slotLabel)}</td>
-                                <td class="px-3 py-2">
-                                    <p class="font-medium text-gray-800">${escapeAdminHtml(r.teamName || r.email || '—')}</p>
-                                    ${leaderName ? `<p class="text-xs text-gray-400">Líder: ${escapeAdminHtml(leaderName)}</p>` : ''}
-                                </td>
-                                <td class="px-3 py-2 text-gray-500 text-xs">${dateFmt}</td>
-                                <td class="px-3 py-2"><span class="px-2 py-0.5 rounded-full text-xs font-semibold ${statusCls[st] || 'bg-gray-100 text-gray-500'}">${statusLabel[st] || st}</span></td>
-                            </tr>`;
-                        }).join('')}
-                    </tbody>
-                </table>
-                </div>
-            </div>`;
-        }
-
-        document.getElementById('eventSlotsBody').innerHTML = html;
-    } catch(e) {
-        document.getElementById('eventSlotsBody').innerHTML =
-            '<div class="text-center py-8 text-red-400"><i class="fas fa-exclamation-circle text-2xl mb-2 block"></i><p class="text-sm">Erro ao carregar slots.</p></div>';
-    }
-}
-
-function closeEventSlotsModal() {
-    const modal = document.getElementById('eventSlotsModal');
-    if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
-}
-
-async function repairEventSlots() {
-    const eventId = document.getElementById('eventSlotsEventId').value;
-    const eventName = document.getElementById('eventSlotsEventName').textContent;
-    if (!eventId) return;
-
-    const btn = document.getElementById('repairSlotsBtn');
-    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Corrigindo...'; }
-
-    try {
-        const { collection, query, where, getDocs, writeBatch, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const snap = await getDocs(query(
-            collection(window.firebaseDb, 'registrations'),
-            where('eventType', '==', eventId)
-        ));
-        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
-        const docs = snap.docs.filter(d => validStatuses.has(d.data().status));
-
-        if (docs.length === 0) {
-            alert('Nenhum participante encontrado para corrigir.');
-            return;
-        }
-
-        // Agrupar por horário
-        const bySchedule = {};
-        docs.forEach(d => {
-            const r = d.data();
-            const sched = r.schedule || '—';
-            if (!bySchedule[sched]) bySchedule[sched] = [];
-            bySchedule[sched].push({ id: d.id, data: r });
-        });
-
-        // Dentro de cada horário, ordenar por createdAt crescente → slot mais antigo = #1
-        Object.values(bySchedule).forEach(arr => {
-            arr.sort((a, b) => {
-                const ta = a.data.createdAt?.seconds ?? 0;
-                const tb = b.data.createdAt?.seconds ?? 0;
-                return ta - tb;
-            });
-        });
-
-        // Reassignar slots únicos e sequenciais por horário
-        const batch = writeBatch(window.firebaseDb);
-        let updateCount = 0;
-
-        for (const regs of Object.values(bySchedule)) {
-            regs.forEach((entry, idx) => {
-                const newSlot = idx + 1;
-                const newSlotDisplay = `Vaga #${newSlot}`;
-                // Só atualiza se mudou
-                if (entry.data.slot !== newSlot || entry.data.slotDisplay !== newSlotDisplay) {
-                    batch.update(doc(window.firebaseDb, 'registrations', entry.id), {
-                        slot: newSlot,
-                        slotDisplay: newSlotDisplay
-                    });
-                    updateCount++;
-                }
+            const eventRef = doc(window.firebaseDb, 'events', event.id);
+            const { id, ...data } = event;
+            await setDoc(eventRef, {
+                ...data,
+                updatedAt: new Date()
             });
         }
-
-        if (updateCount === 0) {
-            alert('Nenhum slot duplicado encontrado — tudo certo!');
-            return;
+        showToast('success', `${eventsData.length} evento(s) salvo(s) com sucesso!`, 'Sucesso');
+        closeEventsModal();
+        // Recarregar eventos no frontend (via script.js)
+        if (typeof window.loadEventsFromFirestore === 'function') {
+            await window.loadEventsFromFirestore();
         }
-
-        await batch.commit();
-
-        // Sincronizar slotCounters com a contagem real após o reparo
-        try {
-            const { doc: _doc, setDoc: _setDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-            const counterData = {};
-            for (const [sched, regs] of Object.entries(bySchedule)) {
-                counterData[sched] = regs.length; // total de slots usados neste horário
-            }
-            await _setDoc(_doc(window.firebaseDb, 'slotCounters', eventId), counterData);
-        } catch(_se) { console.warn('slotCounters sync falhou após reparo:', _se.message); }
-
-        alert(`✅ ${updateCount} registro(s) corrigido(s) com sucesso!`);
-        // Recarregar o modal para exibir os slots atualizados
-        await openEventSlotsModal(eventId, eventName);
-
-    } catch(e) {
-        console.error('Erro ao corrigir slots:', e);
-        alert('Erro ao corrigir slots: ' + (e.message || 'tente novamente.'));
-    } finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-wrench mr-1"></i>Corrigir Slots Duplicados'; }
+    } catch (error) {
+        console.error('Erro ao salvar eventos:', error);
+        showToast('error', 'Erro ao salvar eventos: ' + error.message, 'Erro');
     }
 }
 
-window.openEventSlotsModal = openEventSlotsModal;
-window.closeEventSlotsModal = closeEventSlotsModal;
-window.repairEventSlots = repairEventSlots;
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
 
-window.openEventNotifyModal = openEventNotifyModal;
-window.closeEventNotifyModal = closeEventNotifyModal;
-window.onEventNotifyTypeChange = onEventNotifyTypeChange;
-window.onEventNotifyScheduleChange = onEventNotifyScheduleChange;
-window.sendEventNotification = sendEventNotification;
 
-window.loadEventsPreview = loadEventsPreview;
-window.openEventsModal = openEventsModal;
-window.closeEventsModal = closeEventsModal;
-window.switchEventTab = switchEventTab;
-window.onEvtModoChange = onEvtModoChange;
-window.openNewEventForm = openNewEventForm;
-window.cancelEventForm = cancelEventForm;
-window.saveEventForm = saveEventForm;
-window.editEventItem = editEventItem;
-window.deleteEventItem = deleteEventItem;
-window.onEvtImageSelected = onEvtImageSelected;
-window.onEvtImageUrlInput = onEvtImageUrlInput;
-window.clearEvtImage = clearEvtImage;
-window.onEvtEntradaChange = onEvtEntradaChange;
-// ========== ADMIN PAGE LAZY LOADING ==========
-// Tracks which pages have had their data loaded so each page only fetches
-// Firebase data the first time it becomes visible.
-window._adminPages = { initialized: new Set() };
 
-window.loadPageData = async function(page) {
-    if (!window.firebaseDb) return;
-    if (window._adminPages.initialized.has(page)) return;
-    window._adminPages.initialized.add(page);
+// ==================== UNIFICAÇÃO E CORREÇÃO DE PERMISSÕES ====================
 
-    const role = (window.adminRoleLower || '').toLowerCase();
+// Variáveis globais para busca
+let permissionsFilteredData = [];     // Dados filtrados para a tabela de permissões
+let permissionsSearchTerm = '';
+let permissionsSearchDebounceTimer = null;
 
-    if (page === 'principal') {
-        try { await loadKPIs(); } catch(e) { console.warn('[page:principal] KPIs', e); }
-        try { await loadCharts(); } catch(e) { console.warn('[page:principal] Charts', e); }
-        try { await loadTables(true); } catch(e) { console.warn('[page:principal] Tables', e); }
-        try { await loadPendingOrders(); } catch(e) { console.warn('[page:principal] PendingOrders', e); }
-        try { await loadEventOptions(); } catch(e) {}
-        try { renderPopularHours(); } catch(e) {}
-        try { setupPopularHoursFilters(); } catch(e) {}
 
-    } else if (page === 'usuarios') {
-        try { await loadUsersAndRoles({ role: role || 'ceo' }); } catch(e) { console.warn('[page:usuarios] UsersAndRoles', e); }
-        try { await loadUsers(); } catch(e) { console.warn('[page:usuarios] loadUsers', e); }
-        try { setupRoleGuards(); } catch(e) {}
-        try { recomputeTokenTotals(); } catch(e) {}
+// Filtra usuários com base no termo de busca
 
-    } else if (page === 'financeiro') {
-        try { loadPasseBooyahControls(); } catch(e) {}
-        try { setupCouponUsageFilters(); } catch(e) {}
 
-    } else if (page === 'conteudo') {
-        try { await loadHighlights(); } catch(e) { console.warn('[page:conteudo] Highlights', e); }
-        try { await loadNews(); } catch(e) { console.warn('[page:conteudo] News', e); }
-        try { loadProducts(); } catch(e) {}
-        try { loadEventsPreview(); } catch(e) {}
-        try { loadShirtOrders(); } catch(e) {}
+// Evento de busca com debounce
+function setupPermissionsSearch() {
+    const searchInput = document.getElementById('permissionsSearchInput');
+    if (!searchInput) return;
+    
+    searchInput.addEventListener('input', (e) => {
+        if (permissionsSearchDebounceTimer) clearTimeout(permissionsSearchDebounceTimer);
+        permissionsSearchDebounceTimer = setTimeout(() => {
+            permissionsSearchTerm = e.target.value;
+            filterPermissionsUsers();
+        }, 300);
+    });
+}
 
-    } else if (page === 'operacoes') {
-        try { loadWhatsAppLinks(); } catch(e) {}
-        try { loadAdminNotifications(); } catch(e) {}
+
+
+// Sobrescrever updatePermissionsUserRole para re-renderizar e sincronizar
+window.updatePermissionsUserRole = async function(userId) {
+    const selectElement = document.querySelector(`select[data-user-id="${userId}"]`);
+    if (!selectElement) {
+        console.error('Select element not found');
+        return;
+    }
+    const newRole = selectElement.value;
+    const currentRole = selectElement.getAttribute('data-current-role');
+    if (newRole === currentRole) return;
+    
+    if (!canAssignRole(newRole)) {
+        alert('❌ Você não tem permissão para atribuir este cargo.');
+        selectElement.value = currentRole;
+        return;
+    }
+    
+    try {
+        // Atualizar Firestore
+        const { updateDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const userRef = doc(window.firebaseDb, 'users', userId);
+        await updateDoc(userRef, { role: newRole, updatedAt: new Date() });
+        
+        // Atualizar arrays locais
+        const index = permissionsUsersData.findIndex(u => u.id === userId);
+        if (index !== -1) permissionsUsersData[index].role = newRole;
+        
+        // Atualizar também activeUsersData se existir
+        if (typeof activeUsersData !== 'undefined') {
+            const activeIndex = activeUsersData.findIndex(u => u.id === userId);
+            if (activeIndex !== -1) activeUsersData[activeIndex].role = newRole;
+        }
+        
+        // Atualizar atributo do select
+        selectElement.setAttribute('data-current-role', newRole);
+        
+        // Re-renderizar tabelas
+        filterPermissionsUsers(); // mantém busca atual
+        if (typeof renderActiveUsersTable === 'function') {
+            // Recarregar dados ativos para garantir consistência
+            loadUsersForTables();
+        }
+        
+        // Log da ação
+        const user = permissionsUsersData.find(u => u.id === userId);
+        if (user) await logAdminAction('change_role', `Alterou cargo de ${user.email} para ${getRoleDisplayName(newRole)}`);
+        
+        // Se o usuário alterou o próprio cargo, atualizar permissões da sessão
+        const currentUid = window.firebaseAuth?.currentUser?.uid;
+        if (currentUid === userId) {
+            // Atualizar sessão e recarregar permissões do admin
+            const session = JSON.parse(sessionStorage.getItem('adminSession') || '{}');
+            session.role = newRole;
+            sessionStorage.setItem('adminSession', JSON.stringify(session));
+            window.adminRoleLower = newRole;
+            // Reaplicar visibilidade e permissões
+            controlSectionVisibility(newRole);
+            controlEditPermissions(newRole);
+        }
+        
+        // Feedback visual
+        const button = selectElement.parentElement.nextElementSibling.querySelector('button');
+        const originalText = button.textContent;
+        button.textContent = 'Salvo!';
+        button.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+        button.classList.add('bg-green-600');
+        setTimeout(() => {
+            button.textContent = originalText;
+            button.classList.remove('bg-green-600');
+            button.classList.add('bg-blue-600', 'hover:bg-blue-700');
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Erro ao atualizar cargo:', error);
+        alert('Erro ao atualizar função do usuário');
+        // Reverter select
+        selectElement.value = currentRole;
     }
 };
+
+// Ajustar paginação para usar dados filtrados no cálculo de total de páginas
+function updatePermissionsPagination() {
+    const totalItems = (permissionsFilteredData && permissionsFilteredData.length >= 0) ? permissionsFilteredData.length : permissionsUsersData.length;
+    const totalPages = Math.ceil(totalItems / permissionsPerPage);
+    const paginationContainer = document.getElementById('permissionsPagination');
+    const pageInfoElement = document.getElementById('permissionsUsersPageInfo');
+    
+    if (pageInfoElement) {
+        pageInfoElement.textContent = `Página ${permissionsCurrentPage} de ${totalPages || 1}`;
+    }
+    
+    if (!paginationContainer || totalPages <= 1) {
+        if (paginationContainer) paginationContainer.innerHTML = '';
+        return;
+    }
+    
+    let paginationHTML = '';
+    if (permissionsCurrentPage > 1) {
+        paginationHTML += `<button onclick="changePermissionsPage(${permissionsCurrentPage - 1})" class="px-2 py-1 text-xs border rounded hover:bg-gray-50">‹</button>`;
+    }
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === permissionsCurrentPage) {
+            paginationHTML += `<button class="px-2 py-1 text-xs bg-blue-600 text-white rounded">${i}</button>`;
+        } else {
+            paginationHTML += `<button onclick="changePermissionsPage(${i})" class="px-2 py-1 text-xs border rounded hover:bg-gray-50">${i}</button>`;
+        }
+    }
+    if (permissionsCurrentPage < totalPages) {
+        paginationHTML += `<button onclick="changePermissionsPage(${permissionsCurrentPage + 1})" class="px-2 py-1 text-xs border rounded hover:bg-gray-50">›</button>`;
+    }
+    paginationContainer.innerHTML = paginationHTML;
+}
+
+// Inicializar busca após carregar usuários
+function initPermissionsSearch() {
+    setupPermissionsSearch();
+}
+
+// Garantir que o filtro seja reiniciado ao mudar a página
+window.changePermissionsPage = function(page) {
+    permissionsCurrentPage = page;
+    renderPermissionsTable();
+    updatePermissionsPagination();
+};
+
+// Modificar loadPermissionsUsers para também inicializar busca e dados filtrados
+const originalLoadPermissionsUsers = loadPermissionsUsers;
+window.loadPermissionsUsers = async function() {
+    await originalLoadPermissionsUsers();
+    // Inicializar dados filtrados
+    permissionsFilteredData = [...permissionsUsersData];
+    setupPermissionsSearch();
+    renderPermissionsTable();
+    updatePermissionsPagination();
+};
+
+// Ajustar loadUsersForTables para manter sincronia (chamada após alterações)
+window.loadUsersForTables = async function() {
+    try {
+        const { getDocs, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const usersSnapshot = await getDocs(collection(window.firebaseDb, 'users'));
+        const users = [];
+        usersSnapshot.forEach(doc => {
+            const userData = doc.data();
+            users.push({
+                id: doc.id,
+                email: userData.email || 'N/A',
+                role: userData.role || 'user',
+                lastLogin: userData.lastLogin || null,
+                createdAt: userData.createdAt || null,
+                name: userData.name || userData.displayName || userData.email?.split('@')[0] || 'Usuário'
+            });
+        });
+        // Atualizar activeUsersData (global)
+        window.activeUsersData = users;
+        renderActiveUsersTable(users);
+        updateActiveUsersStats(users);
+    } catch (error) {
+        console.error('Erro ao carregar usuários ativos:', error);
+    }
+};
+
+// Aplicar flex-wrap na paginação para evitar quebra de layout
+document.addEventListener('DOMContentLoaded', () => {
+    const paginationDivs = document.querySelectorAll('#permissionsPagination, #activeUsersPagination, #tokensPagination, #adminHistoryPagination');
+    paginationDivs.forEach(div => {
+        if (div) div.classList.add('flex-wrap');
+    });
+});
+// Expor funções globalmente
+window.openProductsModal = openProductsModal;
+window.closeProductsModal = closeProductsModal;
+window.addProduct = addProduct;
+window.deleteProduct = deleteProduct;
+window.saveProducts = saveProducts;
+
+window.openEventsModal = openEventsModal;
+window.closeEventsModal = closeEventsModal;
+window.addEvent = addEvent;
+window.deleteEvent = deleteEvent;
+window.saveEvents = saveEvents;

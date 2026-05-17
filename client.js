@@ -1,6 +1,18 @@
 // ==================== TOAST NOTIFICATION SYSTEM ====================
 let confirmResolve = null;
 
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+        return c;
+    });
+}
+
 function showToast(type, message, title = null, duration = 5000) {
     const container = document.getElementById('toastContainer');
     if (!container) return;
@@ -128,7 +140,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
 // Client Area JavaScript
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import { getAuth, onAuthStateChanged, signOut, browserLocalPersistence, setPersistence } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
-import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, orderBy, limit, addDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, orderBy, limit, addDoc } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js';
 
 // Reuse global Firebase app/auth/db initialized in firebase.js
@@ -230,8 +242,6 @@ async function checkAuthState() {
             await reconcilePendingPayments();
             // Verificar role de afiliado após carregar perfil (já é chamado no loadDashboard, mas garantir)
             await checkAffiliateRole();
-            // Iniciar contador de notificações não lidas
-            initNotificationCounter().catch(() => {});
             // Verificar novamente após um delay para garantir que o DOM está pronto
             setTimeout(async () => {
                 await checkAffiliateRole();
@@ -261,8 +271,6 @@ function setupEventListeners() {
     if (tokensTab) tokensTab.addEventListener('click', async () => await switchTab('tokens'));
     if (profileTab) profileTab.addEventListener('click', async () => await switchTab('profile'));
     if (affiliateTab) affiliateTab.addEventListener('click', async () => await switchTab('affiliate'));
-    const notificationsTab = document.getElementById('notificationsTab');
-    if (notificationsTab) notificationsTab.addEventListener('click', async () => await switchTab('notifications'));
 
     // Logout button
     const logoutBtn = document.getElementById('logoutBtn');
@@ -316,9 +324,6 @@ async function switchTab(tabName) {
             // Verificar novamente se é afiliado antes de carregar
             await checkAffiliateRole();
             await loadAffiliateData();
-            break;
-        case 'notifications':
-            await loadNotifications();
             break;
     }
 }
@@ -566,48 +571,98 @@ async function loadOrders() {
     }
 }
 
-// Load products (loja virtual items)
+// ========== CARREGAR PRODUTOS DO USUÁRIO COM DATA CORRETA ==========
 async function loadProducts() {
     try {
-        const ordersData = await fetchUserDocs('orders', 200, true);
-        const productsData = ordersData.map(d => ({
-            id: d.id,
-            date: d.data.createdAt?.toDate?.() || new Date(),
-            title: d.data.title || d.data.item || 'Produto',
-            status: d.data.status || 'pending',
-            price: d.data.amount ?? d.data.total ?? 0,
-            eventType: d.data.eventType || '',
-            type: d.data.type || ''
-        }));
+        if (!db || !currentUser) return;
 
-        // Filter only products (not events or tokens)
-        const productsOnly = productsData.filter(order => {
-            const title = (order.title || '').toLowerCase();
-            const item = (order.item || '').toLowerCase();
-            const eventType = (order.eventType || '').toLowerCase();
-            const type = (order.type || '').toLowerCase();
-            
-            // Include if explicitly marked as digital product
-            if (type === 'digital_product') return true;
+        const { collection, getDocs, query, where, doc, getDoc } = await 
+            import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
 
-            // Otherwise, exclude events/tokens and keep product-like titles
-            return !title.includes('xtreino') && 
-                   !title.includes('camp') && 
-                   !title.includes('semanal') && 
-                   !title.includes('modo liga') &&
-                   !title.includes('tokens') &&
-                   !item.includes('xtreino') && 
-                   !item.includes('camp') && 
-                   !item.includes('semanal') && 
-                   !item.includes('modo liga') &&
-                   !item.includes('tokens') &&
-                   eventType !== 'xtreino-tokens';
+        // 1. Buscar pedidos digitais do usuário
+        const ordersSnap = await getDocs(
+            query(collection(db, 'orders'), where('userId', '==', currentUser.uid))
+        );
+
+        const digitalOrders = [];
+        ordersSnap.forEach(docSnap => {
+            const data = docSnap.data();
+            if (data.type === 'digital_product' || data.productId) {
+                digitalOrders.push({ id: docSnap.id, ...data });
+            }
         });
 
-        displayAllProductsPaginated(productsOnly);
+        if (digitalOrders.length === 0) {
+            document.getElementById('allProducts').innerHTML = 
+                '<p class="text-gray-500 text-center">Nenhum produto adquirido ainda.</p>';
+            return;
+        }
+
+        // 2. Mapear productId → dados do produto (cache)
+        const productsMap = new Map();
+        for (const order of digitalOrders) {
+            const productId = order.productId;
+            if (!productId) continue;
+            if (!productsMap.has(productId)) {
+                const prodSnap = await getDoc(doc(db, 'products', productId));
+                if (prodSnap.exists()) {
+                    productsMap.set(productId, { id: productId, ...prodSnap.data() });
+                }
+            }
+        }
+
+        // 3. Montar lista final de produtos adquiridos com data correta
+        const productsList = [];
+        for (const order of digitalOrders) {
+            const productId = order.productId;
+            if (!productId) continue;
+            const prod = productsMap.get(productId);
+            if (!prod || prod.active === false) continue;
+
+            // EXTRAIR DATA CORRETAMENTE
+            let purchaseDate = null;
+            if (order.createdAt) {
+                if (typeof order.createdAt.toDate === 'function') {
+                    purchaseDate = order.createdAt.toDate();      // Firestore Timestamp
+                } else if (order.createdAt instanceof Date) {
+                    purchaseDate = order.createdAt;               // Já é Date
+                } else if (typeof order.createdAt === 'number') {
+                    purchaseDate = new Date(order.createdAt);     // timestamp ms
+                } else {
+                    purchaseDate = new Date(order.createdAt);     // string ISO
+                }
+            } else if (order.timestamp) {
+                purchaseDate = new Date(order.timestamp);
+            } else {
+                purchaseDate = new Date(); // fallback (nunca deve ocorrer)
+            }
+
+            // Validar se a data é válida
+            if (isNaN(purchaseDate.getTime())) {
+                console.warn('Data inválida para o pedido', order.id);
+                purchaseDate = new Date(); // fallback
+            }
+
+            productsList.push({
+                orderId: order.id,
+                product: prod,
+                purchaseDate: purchaseDate
+            });
+        }
+
+        // 4. ORDENAR: mais recente primeiro
+        productsList.sort((a, b) => b.purchaseDate - a.purchaseDate);
+
+        window.allProductsData = productsList;
+        window.currentProductsPage = 1;
+        displayProductsPaginated();
+
     } catch (error) {
-        
-        document.getElementById('allProducts').innerHTML = '<p class="text-gray-500 text-center">Erro ao carregar produtos</p>';
+        console.error('❌ Erro ao carregar produtos:', error);
+        const container = document.getElementById('allProducts');
+        if (container) {
+            container.innerHTML = '<p class="text-red-500 text-center">Erro ao carregar produtos. Tente novamente.</p>';
+        }
     }
 }
 
@@ -739,6 +794,105 @@ async function displayAllOrdersPaginated() {
     container.innerHTML = ordersHTML.join('') + paginationHTML;
 }
 
+function displayProductsPaginated() {
+    const container = document.getElementById('allProducts');
+    const products = window.allProductsData || [];
+    const perPage = 5;
+    const totalPages = Math.ceil(products.length / perPage);
+    const currentPage = window.currentProductsPage || 1;
+    const start = (currentPage - 1) * perPage;
+    const pageProducts = products.slice(start, start + perPage);
+
+    if (pageProducts.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-center">Nenhum produto encontrado.</p>';
+        return;
+    }
+
+    let html = '';
+    for (const item of pageProducts) {
+        const product = item.product;
+        const downloadUrl = normalizeDownloadUrl(product.downloadLink || '');
+        const isValid = downloadUrl && isValidUrl(downloadUrl);
+
+        const statusBadge = isValid 
+            ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Disponível</span>'
+            : '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Link indisponível</span>';
+
+        // Data formatada corretamente
+        const formattedDate = formatDate(item.purchaseDate);
+
+        html += `
+            <div class="bg-gray-50 rounded-lg p-4 mb-4 border border-gray-200">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div class="flex-1">
+                        <h4 class="font-bold text-gray-900">${escapeHtml(product.name)}</h4>
+                        <p class="text-sm text-gray-600 mt-1">${escapeHtml(product.description || '')}</p>
+                        <div class="flex gap-2 mt-2">
+                            ${statusBadge}
+                        </div>
+                    </div>
+                    <div class="flex flex-col items-end gap-2">
+                        <button 
+                            ${isValid ? `onclick="downloadProduct('${product.id}', '${escapeHtml(downloadUrl)}')"` : 'disabled'}
+                            class="px-5 py-2 rounded-lg font-semibold transition ${isValid ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}">
+                            <i class="fas fa-download mr-2"></i>
+                            Baixar
+                        </button>
+                        <span class="text-xs text-gray-400">Adquirido em: ${formattedDate}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // Paginação
+    let paginationHtml = '';
+    if (totalPages > 1) {
+        paginationHtml = '<div class="flex justify-center items-center mt-6 space-x-2">';
+        if (currentPage > 1) {
+            paginationHtml += `<button onclick="changeProductsPage(${currentPage - 1})" class="px-3 py-2 text-sm bg-white border rounded-md hover:bg-gray-50">Anterior</button>`;
+        }
+        for (let i = 1; i <= totalPages; i++) {
+            paginationHtml += `<button onclick="changeProductsPage(${i})" class="px-3 py-2 text-sm ${i === currentPage ? 'bg-blue-600 text-white' : 'bg-white border'} rounded-md">${i}</button>`;
+        }
+        if (currentPage < totalPages) {
+            paginationHtml += `<button onclick="changeProductsPage(${currentPage + 1})" class="px-3 py-2 text-sm bg-white border rounded-md hover:bg-gray-50">Próximo</button>`;
+        }
+        paginationHtml += '</div>';
+    }
+
+    container.innerHTML = html + paginationHtml;
+}
+
+window.downloadProduct = async function(productId, downloadUrl) {
+    if (!downloadUrl || !isValidUrl(downloadUrl)) {
+        showErrorToast('Link de download inválido ou não disponível. Entre em contato com o suporte.', 'Erro');
+        return;
+    }
+
+    // Normaliza novamente (por segurança)
+    const finalUrl = normalizeDownloadUrl(downloadUrl);
+    
+    // Abre em nova aba – funciona para 99% dos links (Google Drive, GitHub, arquivos diretos)
+    try {
+        const win = window.open(finalUrl, '_blank');
+        if (!win) {
+            // Fallback: criar elemento <a> e clicar
+            const a = document.createElement('a');
+            a.href = finalUrl;
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+        showSuccessToast('Download iniciado! Verifique sua nova aba.', 'Sucesso');
+    } catch (err) {
+        console.error('Erro ao tentar download:', err);
+        showErrorToast('Não foi possível iniciar o download. Tente copiar o link manualmente.', 'Erro');
+    }
+};
+
 // Generate pagination HTML
 function generatePaginationHTML(currentPage, totalPages) {
     if (totalPages <= 1) return '';
@@ -826,6 +980,60 @@ function displayAllProductsPaginated(productsData) {
     container.innerHTML = productsHTML + paginationHTML;
 }
 
+function isValidUrl(url) {
+    if (!url || typeof url !== 'string') return false;
+    const trimmed = url.trim();
+    // Suporta http://, https:// e até protocolos relativos (//)
+    const pattern = /^(https?:\/\/|ftp:\/\/|mailto:|tel:|\/\/)/i;
+    if (!pattern.test(trimmed)) return false;
+    try {
+        new URL(trimmed);
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+
+function normalizeDownloadUrl(url) {
+    if (!url || typeof url !== 'string') return '';
+    let u = url.trim();
+    
+    // 1. Corrigir links do GitHub Releases (página de tag → download direto)
+    const githubTagMatch = u.match(/github\.com\/([^\/]+)\/([^\/]+)\/releases\/tag\/([^\/]+)/i);
+    if (githubTagMatch) {
+        const [, user, repo, tag] = githubTagMatch;
+        // Tenta adivinhar o nome do arquivo (geralmente .zip)
+        const archiveUrl = `https://github.com/${user}/${repo}/archive/refs/tags/${tag}.zip`;
+        console.warn('[Normalização] Convertendo página de release para download direto:', archiveUrl);
+        return archiveUrl;
+    }
+
+    // 2. Corrigir links do GitHub que apontam para blob → raw
+    const githubBlobMatch = u.match(/github\.com\/([^\/]+)\/([^\/]+)\/blob\/([^\/]+)\/(.+)/i);
+    if (githubBlobMatch) {
+        const [, user, repo, branch, filePath] = githubBlobMatch;
+        const rawUrl = `https://raw.githubusercontent.com/${user}/${repo}/${branch}/${filePath}`;
+        console.warn('[Normalização] Convertendo blob para raw:', rawUrl);
+        return rawUrl;
+    }
+
+    // 3. Corrigir links do Google Drive compartilhado (extrair ID)
+    const driveMatch = u.match(/drive\.google\.com\/file\/d\/([^\/]+)/);
+    if (driveMatch) {
+        const fileId = driveMatch[1];
+        const directDownload = `https://drive.google.com/uc?export=download&id=${fileId}`;
+        console.warn('[Normalização] Convertendo link do Google Drive para download direto:', directDownload);
+        return directDownload;
+    }
+
+    // 4. Se for uma URL "//exemplo.com", completa com https:
+    if (u.startsWith('//')) {
+        return 'https:' + u;
+    }
+
+    return u;
+}
 
 // Generate pagination HTML for products
 function generateProductsPaginationHTML(currentPage, totalPages) {
@@ -1239,20 +1447,17 @@ function getProductActionButton(product) {
         `;
     }
     
-    // Check if it's Imagens Aéreas (categoria 'aereas' ou por título)
-    const isAereas = (product.productCategory === 'aereas') ||
-                     title.includes('imagens') || title.includes('aéreas') ||
-                     item.includes('imagens')  || item.includes('aéreas');
-    if (isAereas) {
+    // Check if it's Imagens Aéreas
+    if (title.includes('imagens') || title.includes('aéreas') || item.includes('imagens') || item.includes('aéreas')) {
         return `
             <div class="mt-3">
-                <button onclick="openImagesSelect('${product.id}')" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-orange-700 bg-orange-100 hover:bg-orange-200">
+                <button onclick="openImagesSelect('${product.id}')" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
                     Selecionar Mapas
                 </button>
-            </div>
+        </div>
         `;
     }
     
@@ -1461,15 +1666,7 @@ function downloadImagensAereas(orderId) {
       });
 }
 
-// Modal de seleção de mapas — lê mapLinks direto do Firestore (sem Netlify)
-const MAP_NAMES_CLIENT = {
-    bermuda: 'Bermuda',
-    purgatorio: 'Purgatório',
-    solara: 'Solara',
-    kalahari: 'Kalahari',
-    novaTerra: 'Nova Terra'
-};
-
+// Modal de seleção de mapas comprados
 function ensureImagesModal(){
     let modal = document.getElementById('imagesSelectModal');
     if (modal) return modal;
@@ -1480,14 +1677,14 @@ function ensureImagesModal(){
         <div class="bg-white rounded-2xl max-w-lg w-full p-6">
             <div class="flex items-center justify-between mb-4">
                 <h3 class="text-lg font-semibold text-gray-900">Selecionar Mapas</h3>
-                <button id="imagesSelectClose" class="text-gray-500 hover:text-black text-xl">✕</button>
+                <button id="imagesSelectClose" class="text-gray-500 hover:text-black">✕</button>
             </div>
             <div id="imagesSelectBody" class="space-y-2 max-h-72 overflow-auto"></div>
             <div class="mt-5 flex items-center justify-between">
                 <button id="imagesSelectAll" class="px-3 py-2 rounded bg-gray-100 text-gray-700 text-sm">Selecionar todos</button>
                 <div class="space-x-2">
                     <button id="imagesSelectCancel" class="px-3 py-2 rounded border text-sm">Cancelar</button>
-                    <button id="imagesSelectConfirm" class="px-3 py-2 rounded bg-blue-600 text-white text-sm font-semibold">Baixar selecionados</button>
+                    <button id="imagesSelectConfirm" class="px-3 py-2 rounded bg-blue-matte text-white text-sm">Abrir selecionados</button>
                 </div>
             </div>
         </div>`;
@@ -1495,170 +1692,123 @@ function ensureImagesModal(){
     return modal;
 }
 
-async function openImagesSelect(orderId) {
+function openImagesSelect(orderId){
     const modal = ensureImagesModal();
     const body = modal.querySelector('#imagesSelectBody');
-    const close = () => { modal.classList.add('hidden'); modal.classList.remove('flex'); };
-
-    body.innerHTML = '<p class="text-sm text-gray-500 text-center py-4"><i class="fas fa-spinner fa-spin mr-2"></i>Carregando mapas...</p>';
+    body.innerHTML = '<p class="text-sm text-gray-500">Carregando mapas...</p>';
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 
-    try {
-        // Buscar o pedido no Firestore para pegar o productId
-        const { doc, getDoc, collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-
-        let productId = null;
-        let mapLinks = null;
-
-        // Tentar pegar direto pela ordem
-        const orderSnap = await getDoc(doc(window.firebaseDb, 'orders', orderId));
-        if (orderSnap.exists()) {
-            const od = orderSnap.data();
-            productId = od.productId || od.itemId || null;
-            // Se o próprio pedido já tem mapLinks (legado), usar
-            if (od.mapLinks && typeof od.mapLinks === 'object') {
-                mapLinks = od.mapLinks;
+    const listUrl = `/.netlify/functions/download?orderId=${encodeURIComponent(orderId)}&list=1`;
+    fetch(listUrl)
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(data => {
+            const files = Array.isArray(data?.files) ? data.files : [];
+            if (files.length === 0){
+                body.innerHTML = '<p class="text-sm text-red-600">Nenhum mapa disponível para este pedido.</p>';
+                return;
             }
-        }
+            body.innerHTML = files.map(f => {
+                const name = (f.name || '').replace(/imagens\s+aéreas\s+-\s+/i, '').trim();
+                const id = `imgopt_${orderId}_${f.index}`;
+                return `
+                    <label for="${id}" class="flex items-center gap-3 p-2 border rounded">
+                        <input id="${id}" type="checkbox" data-index="${f.index}" class="w-4 h-4">
+                        <span class="text-sm text-gray-800">${name || (f.name || `Mapa ${f.index+1}`)}</span>
+                    </label>`;
+            }).join('');
 
-        // Se não tem mapLinks ainda, buscar do produto
-        if (!mapLinks && productId) {
-            const prodSnap = await getDoc(doc(window.firebaseDb, 'products', productId));
-            if (prodSnap.exists()) {
-                mapLinks = prodSnap.data().mapLinks || null;
-            }
-        }
+            const btnAll = modal.querySelector('#imagesSelectAll');
+            btnAll.onclick = () => {
+                body.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
+            };
 
-        // Fallback: buscar o produto por nome (Imagens Aéreas) na coleção
-        if (!mapLinks) {
-            const prodQuery = query(collection(window.firebaseDb, 'products'),
-                where('category', '==', 'aereas'));
-            const prodSnap = await getDocs(prodQuery);
-            if (!prodSnap.empty) {
-                mapLinks = prodSnap.docs[0].data().mapLinks || null;
-            }
-        }
+            const btnCancel = modal.querySelector('#imagesSelectCancel');
+            const btnClose = modal.querySelector('#imagesSelectClose');
+            const close = ()=>{ modal.classList.add('hidden'); modal.classList.remove('flex'); };
+            btnCancel.onclick = close; btnClose.onclick = close;
 
-        // Normaliza chaves de mapa (compatibilidade legado: novaterra→novaTerra, alpina→solara)
-        const _normalizeMapKey = k => {
-            const m = { novaterra: 'novaTerra', alpina: 'solara' };
-            return m[k] || k;
-        };
+            const btnConfirm = modal.querySelector('#imagesSelectConfirm');
+            btnConfirm.onclick = () => {
+                const selected = Array.from(body.querySelectorAll('input[type="checkbox"]:checked'));
+                if (selected.length === 0){
+                    alert('Selecione pelo menos um mapa.');
+                    return;
+                }
+                // Estratégia anti-bloqueio: abrir o primeiro link agora,
+                // e oferecer um botão "Abrir próximo" para os restantes
+                const indices = selected.map(cb => cb.getAttribute('data-index'));
 
-        // Mapas que o cliente comprou (ordem.productOptions.maps)
-        let purchasedKeys = null;
-        if (orderSnap.exists()) {
-            const opts = orderSnap.data().productOptions;
-            if (Array.isArray(opts?.maps) && opts.maps.length > 0) {
-                purchasedKeys = new Set(opts.maps.map(_normalizeMapKey));
-            }
-        }
+                const openViaAnchor = (idx) => {
+                    const url = `/.netlify/functions/download?orderId=${encodeURIComponent(orderId)}&i=${encodeURIComponent(idx)}`;
+                    const a = document.createElement('a');
+                    a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.style.display = 'none';
+                    document.body.appendChild(a); a.click(); a.remove();
+                };
 
-        // Monta lista: deve ter link no produto E ter sido comprado (se tiver lista de compra)
-        const availableMaps = Object.entries(MAP_NAMES_CLIENT)
-            .filter(([key]) => {
-                const hasLink = mapLinks && mapLinks[key] && mapLinks[key].trim() !== '';
-                const wasPurchased = !purchasedKeys || purchasedKeys.has(key);
-                return hasLink && wasPurchased;
-            })
-            .map(([key, name]) => ({ key, name, url: mapLinks[key] }));
+                // abrir o primeiro imediatamente
+                openViaAnchor(indices[0]);
 
-        if (availableMaps.length === 0) {
-            const reason = purchasedKeys
-                ? 'Os mapas comprados ainda não tiveram os links configurados. Contate o suporte.'
-                : 'Nenhum mapa disponível no momento. Contate o suporte.';
-            body.innerHTML = `<p class="text-sm text-red-600 text-center py-4"><i class="fas fa-exclamation-triangle mr-2"></i>${reason}</p>`;
-            return;
-        }
-
-        body.innerHTML = availableMaps.map(m => `
-            <label class="flex items-center gap-3 p-3 border rounded-xl hover:bg-orange-50 cursor-pointer">
-                <input type="checkbox" data-url="${m.url.replace(/"/g,'&quot;')}" data-name="${m.name}" class="w-4 h-4 accent-orange-500">
-                <i class="fas fa-map-marker-alt text-orange-400"></i>
-                <span class="text-sm font-medium text-gray-800">${m.name}</span>
-            </label>`).join('');
-
-        const btnAll    = modal.querySelector('#imagesSelectAll');
-        const btnCancel = modal.querySelector('#imagesSelectCancel');
-        const btnClose  = modal.querySelector('#imagesSelectClose');
-        const btnConfirm = modal.querySelector('#imagesSelectConfirm');
-
-        btnAll.onclick = () => body.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
-        btnCancel.onclick = close;
-        btnClose.onclick  = close;
-
-        btnConfirm.onclick = () => {
-            const selected = Array.from(body.querySelectorAll('input[type="checkbox"]:checked'));
-            if (selected.length === 0) { alert('Selecione pelo menos um mapa.'); return; }
-
-            // Abrir primeiro imediatamente; restantes via fila
-            const links = selected.map(cb => ({ url: cb.getAttribute('data-url'), name: cb.getAttribute('data-name') }));
-            const first = links[0];
-            const a = document.createElement('a');
-            a.href = first.url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.style.display = 'none';
-            document.body.appendChild(a); a.click(); a.remove();
-
-            if (links.length > 1) {
-                window._mapLinksQueue = links.slice(1);
-                _showMapQueueModal();
-            }
-            close();
-        };
-
-    } catch (err) {
-        console.error('openImagesSelect erro:', err);
-        body.innerHTML = `<p class="text-sm text-red-600 text-center py-4"><i class="fas fa-exclamation-triangle mr-2"></i>Falha ao carregar mapas.<br><span class="text-xs text-gray-400">${err.message || ''}</span></p>`;
-    }
+                // guardar fila para abrir manualmente (um clique por aba)
+                window.imagesOpenQueue = indices.slice(1);
+                ensureImagesQueueModal();
+                showImagesQueueModal(orderId);
+                close();
+            };
+        })
+        .catch(() => {
+            body.innerHTML = '<p class="text-sm text-red-600">Falha ao carregar mapas.</p>';
+        });
 }
 
-// Fila de mapas restantes
-function _showMapQueueModal() {
-    let modal = document.getElementById('_mapQueueModal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = '_mapQueueModal';
-        modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4';
-        modal.innerHTML = `
-            <div class="bg-white rounded-2xl max-w-sm w-full p-6 text-center">
-                <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <i class="fas fa-map text-orange-500 text-lg"></i>
-                </div>
-                <h3 class="text-base font-semibold text-gray-900 mb-1">Baixar próximo mapa</h3>
-                <p id="_mqInfo" class="text-sm text-gray-500 mb-4"></p>
-                <div class="flex gap-2 justify-center">
-                    <button id="_mqNext" class="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-semibold hover:bg-orange-600">Abrir próximo</button>
-                    <button id="_mqClose" class="px-4 py-2 border rounded-lg text-sm text-gray-600">Fechar</button>
-                </div>
-            </div>`;
-        document.body.appendChild(modal);
-    }
-    const info  = modal.querySelector('#_mqInfo');
-    const btnNext  = modal.querySelector('#_mqNext');
-    const btnClose = modal.querySelector('#_mqClose');
-    const update = () => {
-        const rem = Array.isArray(window._mapLinksQueue) ? window._mapLinksQueue.length : 0;
-        info.textContent = rem > 0 ? `Restam ${rem} mapa(s). Clique para abrir o próximo.` : 'Todos os mapas foram abertos!';
-        btnNext.disabled = rem === 0;
-        btnNext.classList.toggle('opacity-40', rem === 0);
+// Modal "Abrir Próximo" (fila de mapas restantes)
+function ensureImagesQueueModal(){
+    let modal = document.getElementById('imagesQueueModal');
+    if (modal) return modal;
+    modal = document.createElement('div');
+    modal.id = 'imagesQueueModal';
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4';
+    modal.innerHTML = `
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-lg font-semibold text-gray-900">Abrir mapas restantes</h3>
+                <button id="imagesQueueClose" class="text-gray-500 hover:text-black">✕</button>
+            </div>
+            <p id="imagesQueueInfo" class="text-sm text-gray-600 mb-4"></p>
+            <div class="flex items-center justify-end gap-2">
+                <button id="imagesQueueNext" class="px-3 py-2 rounded bg-blue-matte text-white text-sm">Abrir próximo</button>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+    return modal;
+}
+
+function showImagesQueueModal(orderId){
+    const modal = ensureImagesQueueModal();
+    const info = modal.querySelector('#imagesQueueInfo');
+    const btnNext = modal.querySelector('#imagesQueueNext');
+    const btnClose = modal.querySelector('#imagesQueueClose');
+    const updateInfo = () => {
+        const remaining = Array.isArray(window.imagesOpenQueue) ? window.imagesOpenQueue.length : 0;
+        info.textContent = remaining > 0 ? `Restam ${remaining} mapa(s) para abrir.` : 'Todos os mapas foram abertos.';
+        btnNext.disabled = remaining === 0;
+        if (remaining === 0) btnNext.classList.add('opacity-50', 'cursor-not-allowed');
     };
-    btnNext.onclick = () => {
-        if (!window._mapLinksQueue || window._mapLinksQueue.length === 0) return;
-        const item = window._mapLinksQueue.shift();
+    const openNext = () => {
+        if (!Array.isArray(window.imagesOpenQueue) || window.imagesOpenQueue.length === 0) return;
+        const idx = window.imagesOpenQueue.shift();
         const a = document.createElement('a');
-        a.href = item.url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.style.display = 'none';
+        a.href = `/.netlify/functions/download?orderId=${encodeURIComponent(orderId)}&i=${encodeURIComponent(idx)}`;
+        a.target = '_blank'; a.rel = 'noopener noreferrer'; a.style.display = 'none';
         document.body.appendChild(a); a.click(); a.remove();
-        update();
+        updateInfo();
     };
+    btnNext.onclick = openNext;
     btnClose.onclick = () => { modal.classList.add('hidden'); modal.classList.remove('flex'); };
-    update();
+    updateInfo();
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 }
-
-// Mantidas por compatibilidade com código existente
-function ensureImagesQueueModal() { return document.getElementById('_mapQueueModal') || { querySelector: () => null }; }
-function showImagesQueueModal()   { _showMapQueueModal(); }
 
 // Expor funções de download no escopo global (para onclick do HTML)
 try {
@@ -2068,6 +2218,13 @@ async function handlePhotoUpload(event) {
     }
     const file = event.target.files[0];
     if (!file) return;
+    
+    // Validar tamanho (máximo 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+        alert('A imagem deve ter no máximo 5MB');
+        event.target.value = '';
+        return;
+    }
     
     // Validar tipo
     if (!file.type.startsWith('image/')) {
@@ -3339,9 +3496,10 @@ window.changePage = async function(page) {
     await displayAllOrdersPaginated();
 };
 
+// ========== AJUSTE NA PAGINAÇÃO (exposta globalmente) ==========
 window.changeProductsPage = function(page) {
-    currentProductsPage = page;
-    loadProducts();
+    window.currentProductsPage = page;
+    displayProductsPaginated();
 };
 
 window.changeWhatsAppPage = function(page) {
@@ -3455,171 +3613,3 @@ window.purchaseTokensQuick = async function(quantity) {
         showToast('error', `Erro ao processar compra rápida: ${error && error.message ? error.message : String(error)}`, 'Erro');
     }
 }
-
-// ==================== NOTIFICATION SYSTEM ====================
-let _notifUnsubscribe = null;
-
-async function loadNotifications() {
-    if (!currentUser || !db) return;
-    const listEl = document.getElementById('notificationsList');
-    if (!listEl) return;
-
-    listEl.innerHTML = `<div class="flex items-center justify-center py-12 text-gray-400">
-        <div class="text-center"><i class="fas fa-spinner fa-spin text-3xl mb-3 block"></i><p class="text-sm">Carregando...</p></div>
-    </div>`;
-
-    try {
-        const notifRef = collection(db, 'notifications');
-        const q = query(notifRef, orderBy('createdAt', 'desc'), limit(50));
-        const snap = await getDocs(q);
-
-        const readsRef = collection(db, 'notificationReads');
-        const readsQ = query(readsRef, where('userId', '==', currentUser.uid));
-        const readsSnap = await getDocs(readsQ);
-        const readIds = new Set(readsSnap.docs.map(d => d.data().notifId));
-
-        const notifs = [];
-        snap.forEach(d => {
-            const data = d.data();
-            if (data.type === 'all' || data.targetUserId === currentUser.uid) {
-                notifs.push({ id: d.id, ...data, isRead: readIds.has(d.id) });
-            }
-        });
-
-        renderNotifications(notifs, readIds);
-        updateBellCounter(notifs.filter(n => !n.isRead).length);
-    } catch (err) {
-        console.error('Erro ao carregar notificações:', err);
-        listEl.innerHTML = `<div class="flex items-center justify-center py-12 text-gray-400">
-            <p class="text-sm">Não foi possível carregar notificações.</p>
-        </div>`;
-    }
-}
-
-function renderNotifications(notifs, readIds) {
-    const listEl = document.getElementById('notificationsList');
-    if (!listEl) return;
-
-    if (notifs.length === 0) {
-        listEl.innerHTML = `<div class="flex items-center justify-center py-16 text-gray-400">
-            <div class="text-center">
-                <i class="fas fa-bell-slash text-4xl mb-3 block"></i>
-                <p class="text-sm font-medium">Nenhuma notificação</p>
-                <p class="text-xs mt-1">Você será notificado sobre novidades e eventos aqui</p>
-            </div>
-        </div>`;
-        return;
-    }
-
-    listEl.innerHTML = notifs.map(n => {
-        const isRead = n.isRead || readIds.has(n.id);
-        const dateStr = n.createdAt ? new Date(n.createdAt.toDate ? n.createdAt.toDate() : n.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
-        return `<div class="flex items-start gap-4 px-6 py-4 ${isRead ? 'bg-white' : 'bg-blue-50 border-l-4 border-l-blue-500'} hover:bg-gray-50 transition-colors" data-notif-id="${n.id}">
-            <div class="flex-shrink-0 mt-1">
-                <div class="w-9 h-9 rounded-full flex items-center justify-center ${isRead ? 'bg-gray-100 text-gray-400' : 'bg-blue-100 text-blue-600'}">
-                    <i class="fas fa-bell text-sm"></i>
-                </div>
-            </div>
-            <div class="flex-1 min-w-0">
-                <div class="flex items-start justify-between gap-2">
-                    <p class="font-semibold text-sm text-gray-900 ${isRead ? '' : 'text-blue-900'}">${escapeHtml(n.title || 'Notificação')}</p>
-                    <span class="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">${dateStr}</span>
-                </div>
-                <p class="text-sm text-gray-600 mt-1 leading-relaxed">${escapeHtml(n.message || '')}</p>
-                ${!isRead ? `<button onclick="markNotificationRead('${n.id}')" class="mt-2 text-xs text-blue-600 hover:text-blue-800 font-medium">Marcar como lida</button>` : `<span class="text-xs text-gray-400 mt-1 inline-block">Lida</span>`}
-            </div>
-        </div>`;
-    }).join('');
-}
-
-async function markNotificationRead(notifId) {
-    if (!currentUser || !db || !notifId) return;
-    try {
-        const readDocId = `${currentUser.uid}_${notifId}`;
-        const readRef = doc(db, 'notificationReads', readDocId);
-        await setDoc(readRef, {
-            userId: currentUser.uid,
-            notifId: notifId,
-            readAt: new Date()
-        }, { merge: true });
-        await loadNotifications();
-    } catch (err) {
-        console.error('Erro ao marcar notificação como lida:', err);
-    }
-}
-
-async function markAllNotificationsRead() {
-    if (!currentUser || !db) return;
-    const items = document.querySelectorAll('[data-notif-id]');
-    if (items.length === 0) { showToast('info', 'Nenhuma notificação para marcar.', 'Notificações'); return; }
-    try {
-        const promises = [];
-        items.forEach(el => {
-            const notifId = el.getAttribute('data-notif-id');
-            if (notifId) {
-                const readDocId = `${currentUser.uid}_${notifId}`;
-                const readRef = doc(db, 'notificationReads', readDocId);
-                promises.push(setDoc(readRef, { userId: currentUser.uid, notifId, readAt: new Date() }, { merge: true }));
-            }
-        });
-        await Promise.all(promises);
-        await loadNotifications();
-        showToast('success', 'Todas as notificações foram marcadas como lidas.', 'Notificações');
-    } catch (err) {
-        console.error('Erro ao marcar todas como lidas:', err);
-        showToast('error', 'Erro ao marcar notificações.', 'Erro');
-    }
-}
-
-function updateBellCounter(count) {
-    const badge = document.getElementById('notifBadge');
-    const tabBadge = document.getElementById('notifTabBadge');
-    if (badge) {
-        if (count > 0) {
-            badge.textContent = count > 99 ? '99+' : count;
-            badge.classList.remove('hidden');
-        } else {
-            badge.classList.add('hidden');
-        }
-    }
-    if (tabBadge) {
-        if (count > 0) {
-            tabBadge.textContent = count > 99 ? '99+' : count;
-            tabBadge.classList.remove('hidden');
-        } else {
-            tabBadge.classList.add('hidden');
-        }
-    }
-}
-
-async function initNotificationCounter() {
-    if (!currentUser || !db) return;
-    try {
-        const notifRef = collection(db, 'notifications');
-        const q = query(notifRef, orderBy('createdAt', 'desc'), limit(50));
-        const snap = await getDocs(q);
-
-        const readsRef = collection(db, 'notificationReads');
-        const readsQ = query(readsRef, where('userId', '==', currentUser.uid));
-        const readsSnap = await getDocs(readsQ);
-        const readIds = new Set(readsSnap.docs.map(d => d.data().notifId));
-
-        let unread = 0;
-        snap.forEach(d => {
-            const data = d.data();
-            if ((data.type === 'all' || data.targetUserId === currentUser.uid) && !readIds.has(d.id)) {
-                unread++;
-            }
-        });
-        updateBellCounter(unread);
-    } catch (_) {}
-}
-
-function escapeHtml(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-window.markNotificationRead = markNotificationRead;
-window.markAllNotificationsRead = markAllNotificationsRead;
-window.switchTab = switchTab;
