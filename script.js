@@ -4528,8 +4528,57 @@ function addProductOptions(productId) {
             const prodName = (prodData.name || prodData.label || '').toLowerCase();
             const isPasse = prodCat === 'passe' || prodName.includes('passe') || prodName.includes('pass booyah');
             const isFisico = prodCat === 'fisico' || prodCat === 'physical';
-
             const isAereas = prodCat === 'aereas';
+            const isSensib = prodCat === 'sensibilidade';
+
+            if (isSensib) {
+                const dlLinks = prodData.downloadLinks || {};
+                const hasPC  = !!(dlLinks.pc && dlLinks.pc.trim());
+                const hasIOS = !!(dlLinks.ios && dlLinks.ios.trim());
+                const hasLG  = !!(dlLinks.lg && dlLinks.lg.trim());
+                const hasMoto= !!(dlLinks.motorola && dlLinks.motorola.trim());
+                const hasSam = !!(dlLinks.samsung && dlLinks.samsung.trim());
+                const hasXia = !!(dlLinks.xiaomi && dlLinks.xiaomi.trim());
+                const hasAndroid = hasLG || hasMoto || hasSam || hasXia;
+                const platforms = [];
+                if (hasPC) platforms.push(`<option value="pc">🖥️ PC (Windows)</option>`);
+                if (hasAndroid) platforms.push(`<option value="android">📱 Android</option>`);
+                if (hasIOS) platforms.push(`<option value="ios">🍎 iOS (iPhone/iPad)</option>`);
+                const androidBrands = [];
+                if (hasLG)   androidBrands.push(`<option value="lg">LG</option>`);
+                if (hasMoto) androidBrands.push(`<option value="motorola">Motorola</option>`);
+                if (hasSam)  androidBrands.push(`<option value="samsung">Samsung</option>`);
+                if (hasXia)  androidBrands.push(`<option value="xiaomi">Xiaomi / Realme</option>`);
+                container.innerHTML = `
+                    <div class="bg-gradient-to-r from-cyan-50 to-blue-50 rounded-xl p-6 border border-cyan-100">
+                        <div class="flex items-center mb-4">
+                            <div class="w-10 h-10 bg-cyan-500 rounded-lg flex items-center justify-center mr-3">
+                                <i class="fas fa-sliders-h text-white"></i>
+                            </div>
+                            <h4 class="text-lg font-semibold text-gray-800">Configuração de Sensibilidade</h4>
+                        </div>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Plataforma <span class="text-red-500">*</span></label>
+                                <select id="platformSelect" onchange="handlePlatformChange()"
+                                        class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 focus:outline-none bg-white">
+                                    <option value="">Selecione a plataforma</option>
+                                    ${platforms.join('')}
+                                </select>
+                            </div>
+                            <div id="androidBrandContainer" class="hidden">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Marca do celular <span class="text-red-500">*</span></label>
+                                <select id="androidBrandSelect"
+                                        class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 focus:outline-none bg-white">
+                                    <option value="">Selecione a marca</option>
+                                    ${androidBrands.join('')}
+                                </select>
+                            </div>
+                            <p class="text-xs text-gray-500">O link de download será liberado conforme sua plataforma e marca escolhidas.</p>
+                        </div>
+                    </div>`;
+                break;
+            }
 
             if (isAereas) {
                 // Imagens Aéreas do admin — checkboxes com mapas disponíveis
@@ -4777,8 +4826,10 @@ function openScheduleModal(eventType) {
     (function () {
         const couponSection = document.getElementById('scheduleCouponSection');
         if (couponSection) {
-            // Esconde cupom quando pagamento é via tokens
-            couponSection.style.display = cfg.payWithToken ? 'none' : 'block';
+            // Esconde cupom: tokens, camisas/produtos físicos
+            const isFisicoOrShirt = eventType === 'camisa'
+                || (cfg.category === 'fisico' || cfg.category === 'physical');
+            couponSection.style.display = (cfg.payWithToken || isFisicoOrShirt) ? 'none' : 'block';
         }
         if (cfg.payWithToken) {
             // Garante que nenhum cupom de agendamento fique aplicado
@@ -4803,6 +4854,12 @@ function openScheduleModal(eventType) {
 
     // Se for produto da loja, esconder seleção de data/hora e adicionar opções específicas
     if (cfg.isProduct) {
+        // Mudar título do modal para "Finalizar Compra" (não é agendamento)
+        const modalTitle = document.querySelector('#scheduleModal .schedule-modal-title');
+        const modalSub   = document.querySelector('#scheduleModal .schedule-modal-sub');
+        if (modalTitle) modalTitle.textContent = 'Finalizar Compra';
+        if (modalSub)   modalSub.textContent   = cfg.label || 'Complete as informações do seu pedido';
+
         // Esconder TODAS as seções de data e horários para produtos
         const grid = document.querySelector('#scheduleModal .lg\\:grid-cols-2');
         const leftColumn = document.querySelector('#scheduleModal .lg\\:grid-cols-2 > div:first-child');
@@ -4845,6 +4902,12 @@ function openScheduleModal(eventType) {
         modal.classList.remove('hidden');
         return;
     }
+
+    // Restaurar título do modal para evento (reserva de horário)
+    const _mTitle = document.querySelector('#scheduleModal .schedule-modal-title');
+    const _mSub   = document.querySelector('#scheduleModal .schedule-modal-sub');
+    if (_mTitle) _mTitle.textContent = 'Reservar Horário';
+    if (_mSub)   _mSub.textContent   = 'Escolha a data e horário para seu evento';
 
     // Para eventos, mostrar seleção de data/hora
     const leftColumn = document.querySelector('#scheduleModal .lg\\:grid-cols-2 > div:first-child');
@@ -6097,8 +6160,6 @@ async function handleProductPurchase(productId, cfg) {
                 return;
             }
             productOptions.platform = platform;
-
-            // Se for Android, coletar também a marca
             if (platform === 'android') {
                 const brand = document.getElementById('androidBrandSelect').value;
                 if (!brand) {
@@ -6107,6 +6168,21 @@ async function handleProductPurchase(productId, cfg) {
                 }
                 productOptions.brand = brand;
             }
+        } else if ((window.scheduleConfig?.[productId]?.category || '').toLowerCase() === 'sensibilidade') {
+            // Produto de sensibilidade criado pelo admin via Firestore
+            const platform = document.getElementById('platformSelect')?.value || '';
+            if (!platform) { alert('Por favor, selecione uma plataforma.'); return; }
+            productOptions.platform = platform;
+            if (platform === 'android') {
+                const brand = document.getElementById('androidBrandSelect')?.value || '';
+                if (!brand) { alert('Por favor, selecione a marca do celular.'); return; }
+                productOptions.brand = brand;
+            }
+            // Selecionar o link correspondente para entregar automaticamente
+            const dlLinks = window.scheduleConfig[productId].downloadLinks || {};
+            const linkKey = platform === 'android' ? (productOptions.brand || '') : platform;
+            finalPrice = cfg.price;
+            productOptions.downloadLink = dlLinks[linkKey] || dlLinks[platform] || '';
         } else if (productId === 'imagens') {
             const selected = Array.from(document.querySelectorAll('input[name="mapOption"]:checked')).map(i => i.value);
             productOptions.maps = selected;
@@ -8064,7 +8140,8 @@ function setScheduleConfig(productId, product) {
         benefits: product.benefits,
         image: product.image,
         category: product.category,
-        downloadLink: product.downloadLink
+        downloadLink: product.downloadLink,
+        downloadLinks: product.downloadLinks || {}
     };
     if (scheduleConfig[productId]) {
         scheduleConfig[productId] = { ...scheduleConfig[productId], ...base,
@@ -8258,6 +8335,7 @@ async function loadDynamicEvents() {
                 isFree: _isFreeEv,
                 modo: (ev.modo || '').toUpperCase(),
                 category: ev.category || '',
+                regras: ev.regras || '',
                 // Padrão: segunda a sexta, 14h-23h, sem data de corte automática
                 allowedWeekdays: [1, 2, 3, 4, 5],
                 slots: ['14h','15h','16h','17h','18h','19h','20h','21h','22h','23h'],
@@ -8270,11 +8348,17 @@ async function loadDynamicEvents() {
             const modoStr = (ev.modo || '').toUpperCase();
             const tipoStr = (ev.tipo || '').toUpperCase();
             const btnLabel = ev.entrada === 'PAGO' && ev.preco ? `INSCREVER — ${preco}` : 'RESERVAR VAGA';
+            const hasRegras = !!(ev.regras && ev.regras.trim());
             const btnHtml = `<div class="flex flex-col gap-2">
                 <button onclick="openScheduleModal('${d.id}')" class="w-full btn-primary py-2 rounded-lg font-semibold">${btnLabel}</button>
-                <a href="evento.html#${d.id}" class="w-full text-center border border-gray-300 hover:border-orange-400 text-gray-600 hover:text-orange-600 py-2 rounded-lg font-semibold text-sm transition-colors block">
-                    <i class="fas fa-info-circle mr-1"></i>Ver Detalhes
-                </a>
+                <div class="flex gap-2">
+                    <a href="evento.html#${d.id}" class="flex-1 text-center border border-gray-300 hover:border-orange-400 text-gray-600 hover:text-orange-600 py-2 rounded-lg font-semibold text-sm transition-colors block">
+                        <i class="fas fa-info-circle mr-1"></i>Ver Detalhes
+                    </a>
+                    ${hasRegras ? `<button onclick="openEventRulesModal('${d.id}')" class="flex-1 border border-cyan-300 hover:border-cyan-500 text-cyan-700 hover:text-cyan-900 py-2 rounded-lg font-semibold text-sm transition-colors">
+                        <i class="fas fa-scroll mr-1"></i>Ver Regras
+                    </button>` : ''}
+                </div>
             </div>`;
 
             const quedasStr = ev.quedas ? `${ev.quedas}x` : null;
@@ -8311,6 +8395,26 @@ async function loadDynamicEvents() {
         if (fallback) { fallback.classList.remove('hidden'); fallback.classList.add('grid'); }
     }
 }
+
+function openEventRulesModal(eventId) {
+    const cfg = scheduleConfig[eventId];
+    const regras = (cfg && cfg.regras) ? cfg.regras.trim() : '';
+    if (!regras) return;
+    const modal = document.getElementById('eventRulesModal');
+    const titleEl = document.getElementById('eventRulesTitle');
+    const bodyEl  = document.getElementById('eventRulesBody');
+    if (!modal || !bodyEl) return;
+    if (titleEl) titleEl.textContent = (cfg.label || 'Evento') + ' — Regras';
+    bodyEl.innerHTML = regras.replace(/\n/g, '<br>');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+function closeEventRulesModal() {
+    const modal = document.getElementById('eventRulesModal');
+    if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+}
+window.openEventRulesModal = openEventRulesModal;
+window.closeEventRulesModal = closeEventRulesModal;
 
 function filterEventsByCategory(cat) {
     const grid = document.getElementById('dynamicEventsGrid');

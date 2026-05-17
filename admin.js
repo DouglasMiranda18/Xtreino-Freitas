@@ -9492,6 +9492,7 @@ function _prodCatConfig(cat) {
     if (c === 'passe') return { label: 'Passe de Elite', icon: 'fas fa-gamepad', headerClass: 'bg-gradient-to-r from-green-600 to-emerald-500', badgeClass: 'bg-white/20 text-white' };
     if (c === 'fisico' || c === 'physical') return { label: 'Produto Físico', icon: 'fas fa-box', headerClass: 'bg-gradient-to-r from-purple-600 to-pink-500', badgeClass: 'bg-white/20 text-white' };
     if (c === 'aereas') return { label: 'Imagens Aéreas', icon: 'fas fa-map', headerClass: 'bg-gradient-to-r from-orange-500 to-amber-400', badgeClass: 'bg-white/20 text-white' };
+    if (c === 'sensibilidade') return { label: 'Sensibilidade', icon: 'fas fa-sliders-h', headerClass: 'bg-gradient-to-r from-cyan-600 to-blue-500', badgeClass: 'bg-white/20 text-white' };
     return { label: 'Produto Digital', icon: 'fas fa-download', headerClass: 'bg-gradient-to-r from-blue-600 to-indigo-500', badgeClass: 'bg-white/20 text-white' };
 }
 
@@ -9544,6 +9545,13 @@ function updateMapLink(idx, key, val) {
     productsData[idx].mapLinks[key] = val;
 }
 
+function updateSensibLink(idx, platform, val) {
+    if (!productsData[idx]) return;
+    if (!productsData[idx].downloadLinks || typeof productsData[idx].downloadLinks !== 'object') productsData[idx].downloadLinks = {};
+    productsData[idx].downloadLinks[platform] = val;
+}
+window.updateSensibLink = updateSensibLink;
+
 function updateProdBannerPreview(idx, url) {
     const el = document.getElementById(`prod-banner-preview-${idx}`);
     if (!el) return;
@@ -9583,6 +9591,7 @@ function renderProducts() {
         const isFisico  = cat === 'fisico' || cat === 'physical';
         const isPasse   = cat === 'passe';
         const isAereas  = cat === 'aereas';
+        const isSensib  = cat === 'sensibilidade';
         const MAP_KEYS  = ['bermuda','purgatorio','solara','kalahari','novaTerra'];
         const MAP_NAMES = { bermuda: 'Bermuda', purgatorio: 'Purgatório', solara: 'Solara', kalahari: 'Kalahari', novaTerra: 'Nova Terra' };
         if (!product.mapLinks || typeof product.mapLinks !== 'object') product.mapLinks = {};
@@ -9622,7 +9631,7 @@ function renderProducts() {
 
     <div>
         <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider">Categoria</label>
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
             <button onclick="setProdCategory(${index},'passe')"
                     class="flex flex-col items-center gap-1 py-2 px-1 rounded-lg border-2 text-xs font-semibold transition-colors ${isPasse ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 text-gray-500 hover:border-green-300'}">
                 <i class="fas fa-gamepad text-base"></i>Passe Elite
@@ -9639,12 +9648,17 @@ function renderProducts() {
                     class="flex flex-col items-center gap-1 py-2 px-1 rounded-lg border-2 text-xs font-semibold transition-colors ${isAereas ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-500 hover:border-orange-300'}">
                 <i class="fas fa-map text-base"></i>Img. Aéreas
             </button>
+            <button onclick="setProdCategory(${index},'sensibilidade')"
+                    class="flex flex-col items-center gap-1 py-2 px-1 rounded-lg border-2 text-xs font-semibold transition-colors ${isSensib ? 'border-cyan-500 bg-cyan-50 text-cyan-700' : 'border-gray-200 text-gray-500 hover:border-cyan-300'}">
+                <i class="fas fa-sliders-h text-base"></i>Sensibilidade
+            </button>
         </div>
         <p class="text-xs text-gray-400 mt-1">
-            ${isPasse   ? '<i class="fas fa-gamepad text-green-500 mr-1"></i>Coleta Nick, ID e WhatsApp do jogador após compra.' : ''}
-            ${isFisico  ? '<i class="fas fa-box text-purple-500 mr-1"></i>Coleta nome, endereço, CPF e tamanho após compra.' : ''}
-            ${isDigital ? '<i class="fas fa-download text-blue-500 mr-1"></i>Link único liberado automaticamente após pagamento.' : ''}
-            ${isAereas  ? '<i class="fas fa-map text-orange-500 mr-1"></i>5 mapas com links individuais. Cliente escolhe qual baixar na área do cliente.' : ''}
+            ${isPasse    ? '<i class="fas fa-gamepad text-green-500 mr-1"></i>Coleta Nick, ID e WhatsApp do jogador após compra.' : ''}
+            ${isFisico   ? '<i class="fas fa-box text-purple-500 mr-1"></i>Coleta nome, endereço, CPF e tamanho após compra.' : ''}
+            ${isDigital  ? '<i class="fas fa-download text-blue-500 mr-1"></i>Link único liberado automaticamente após pagamento.' : ''}
+            ${isAereas   ? '<i class="fas fa-map text-orange-500 mr-1"></i>5 mapas com links individuais. Cliente escolhe qual baixar na área do cliente.' : ''}
+            ${isSensib   ? '<i class="fas fa-sliders-h text-cyan-500 mr-1"></i>Links por plataforma: PC, iOS e Android (por marca). Cliente escolhe e recebe o link correspondente.' : ''}
         </p>
     </div>
 
@@ -9675,6 +9689,44 @@ function renderProducts() {
         <p class="text-xs text-blue-600 mt-1">
             <i class="fas fa-bolt mr-1"></i>Liberado automaticamente ao confirmar pagamento. Você também pode enviar manualmente na aba de pedidos.
         </p>
+    </div>` : ''}
+
+    ${isSensib ? `
+    <div class="border border-cyan-200 rounded-xl p-4 bg-cyan-50">
+        <div class="flex items-center gap-2 mb-3">
+            <i class="fas fa-sliders-h text-cyan-500"></i>
+            <span class="text-sm font-semibold text-cyan-700">Links de Download por Plataforma</span>
+        </div>
+        <p class="text-xs text-cyan-600 mb-3">Preencha os links de download para cada plataforma/marca. Apenas as opções com link serão exibidas ao cliente.</p>
+        <div class="space-y-3">
+            <div>
+                <label class="text-xs font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1 mb-1"><i class="fas fa-desktop text-cyan-500"></i> PC (Windows)</label>
+                <input type="url" value="${((product.downloadLinks?.pc) || '').replace(/"/g,'&quot;')}"
+                       oninput="updateSensibLink(${index},'pc',this.value)"
+                       class="w-full border border-cyan-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-300"
+                       placeholder="https://drive.google.com/...">
+            </div>
+            <div>
+                <label class="text-xs font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1 mb-1"><i class="fab fa-apple text-cyan-500"></i> iOS (iPhone / iPad)</label>
+                <input type="url" value="${((product.downloadLinks?.ios) || '').replace(/"/g,'&quot;')}"
+                       oninput="updateSensibLink(${index},'ios',this.value)"
+                       class="w-full border border-cyan-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-300"
+                       placeholder="https://drive.google.com/...">
+            </div>
+            <div class="border-t border-cyan-200 pt-3">
+                <label class="text-xs font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1 mb-2"><i class="fab fa-android text-cyan-500"></i> Android — Links por Marca</label>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    ${[['lg','LG'],['motorola','Motorola'],['samsung','Samsung'],['xiaomi','Xiaomi / Realme']].map(([key,label]) => `
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs font-semibold text-gray-600 w-28 flex-shrink-0">${label}</label>
+                        <input type="url" value="${((product.downloadLinks?.[key]) || '').replace(/"/g,'&quot;')}"
+                               oninput="updateSensibLink(${index},'${key}',this.value)"
+                               class="flex-1 border border-cyan-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-300"
+                               placeholder="https://drive.google.com/...">
+                    </div>`).join('')}
+                </div>
+            </div>
+        </div>
     </div>` : ''}
 
     ${isAereas ? `
@@ -9756,6 +9808,13 @@ function addProduct() {
                         <div class="text-xs text-gray-500">5 links por mapa: Bermuda, Purgatório, Solara, Kalahari, Nova Terra</div>
                     </div>
                 </button>
+                <button onclick="_createProductWithCat('sensibilidade')" class="w-full flex items-center gap-3 px-4 py-3 bg-cyan-50 border-2 border-cyan-200 rounded-xl hover:border-cyan-400 hover:bg-cyan-100 transition-colors text-left">
+                    <i class="fas fa-sliders-h text-cyan-600 text-xl w-7 text-center flex-shrink-0"></i>
+                    <div>
+                        <div class="font-semibold text-gray-800">Sensibilidade</div>
+                        <div class="text-xs text-gray-500">Links por plataforma: PC, iOS e Android (LG, Motorola, Samsung, Xiaomi/Realme)</div>
+                    </div>
+                </button>
             </div>
             <button onclick="document.getElementById('_catSelectorOverlay').remove()" class="w-full mt-4 py-2 text-sm text-gray-400 hover:text-gray-600 transition-colors">Cancelar</button>
         </div>`;
@@ -9779,6 +9838,9 @@ function _createProductWithCat(cat) {
     };
     if (cat === 'aereas') {
         base.mapLinks = { bermuda: '', purgatorio: '', solara: '', kalahari: '', novaTerra: '' };
+    }
+    if (cat === 'sensibilidade') {
+        base.downloadLinks = { pc: '', ios: '', lg: '', motorola: '', samsung: '', xiaomi: '' };
     }
     productsData.push(base);
     renderProducts();
