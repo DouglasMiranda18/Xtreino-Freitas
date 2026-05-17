@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mockup — Página com Abas</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #fff; color: #0a0a0a; }
+
+    :root {
+      --blue: #07b7b4;
+      --yellow: #ecd414;
+      --black: #0a0a0a;
+    }
+
+    /* ALERT */
+    .top-alert {
+      background: var(--yellow);
+      color: var(--black);
+      text-align: center;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 16px;
+    }
+
+    /* HEADER */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: #fff;
+      box-shadow: 0 2px 12px rgba(0,0,0,.08);
+    }
+    .header-inner {
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+      text-decoration: none;
+    }
+    .logo-icon {
+      width: 44px; height: 44px;
+      background: var(--blue);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-weight: 900; font-size: 18px;
+    }
+    .logo-text { font-weight: 800; font-size: 15px; color: var(--black); line-height: 1.2; }
+    .logo-sub  { font-size: 10px; color: #888; font-weight: 500; }
+
+    /* TAB NAV */
+    nav { display: flex; align-items: center; gap: 4px; flex: 1; justify-content: center; }
+    .tab-btn {
+      padding: 8px 18px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--black);
+      cursor: pointer;
+      transition: background .18s, color .18s;
+      letter-spacing: .5px;
+      position: relative;
+    }
+    .tab-btn:hover { background: #f3f3f3; }
+    .tab-btn.active {
+      background: var(--blue);
+      color: #fff;
+    }
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -3px;
+      left: 50%; transform: translateX(-50%);
+      width: 60%; height: 3px;
+      background: var(--yellow);
+      border-radius: 2px;
+    }
+
+    /* TAB INDICATOR */
+    .tab-bar {
+      height: 3px;
+      background: #f0f0f0;
+      position: relative;
+    }
+    .tab-bar-fill {
+      position: absolute;
+      height: 100%;
+      background: var(--yellow);
+      border-radius: 2px;
+      transition: left .3s cubic-bezier(.4,0,.2,1), width .3s;
+    }
+
+    /* LOGIN BTN */
+    .login-btn {
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      padding: 8px 20px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* CONTENT */
+    main { min-height: calc(100vh - 120px); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ---- HOME ---- */
+    .home-section {
+      max-width: 1140px; margin: 0 auto;
+      padding: 60px 24px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center;
+    }
+    .home-title { font-size: 52px; font-weight: 900; line-height: 1.1; margin-bottom: 20px; }
+    .home-title span { color: var(--blue); }
+    .home-desc { font-size: 17px; color: #555; line-height: 1.7; margin-bottom: 32px; }
+    .btn-row { display: flex; gap: 14px; }
+    .btn-primary { background: var(--blue); color: #fff; border: none; padding: 14px 32px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; }
+    .btn-outline { background: transparent; color: var(--black); border: 2.5px solid var(--yellow); padding: 14px 32px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; }
+    .video-box {
+      aspect-ratio: 16/9; background: linear-gradient(135deg, #e8e8e8, #d0d0d0);
+      border-radius: 18px; display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 10px; color: #aaa;
+    }
+    .video-box .play { font-size: 52px; }
+    .video-box p { font-size: 13px; font-weight: 600; }
+
+    /* ---- TREINO ---- */
+    .section-wrap { max-width: 1140px; margin: 0 auto; padding: 52px 24px; }
+    .section-head { text-align: center; margin-bottom: 36px; }
+    .section-head h2 { font-size: 38px; font-weight: 900; color: var(--blue); margin-bottom: 6px; }
+    .section-head p { color: #777; font-size: 15px; }
+    .events-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+    .event-card { border: 1px solid #e8e8e8; border-radius: 14px; overflow: hidden; transition: box-shadow .2s; }
+    .event-card:hover { box-shadow: 0 6px 24px rgba(0,0,0,.1); }
+    .event-card-img {
+      aspect-ratio: 16/9;
+      background: linear-gradient(135deg, #daeaea, #b8dcdc);
+      display: flex; align-items: center; justify-content: center; font-size: 30px;
+    }
+    .event-card-body { padding: 14px; }
+    .event-card-title { font-weight: 800; font-size: 13px; margin-bottom: 6px; }
+    .event-card-info { font-size: 11px; color: #888; margin-bottom: 12px; line-height: 1.6; }
+    .btn-card { width: 100%; background: var(--blue); color: #fff; border: none; padding: 8px; border-radius: 7px; font-size: 12px; font-weight: 700; cursor: pointer; }
+
+    /* ---- LOJA ---- */
+    .products-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+    .product-card { border: 1px solid #e8e8e8; border-radius: 14px; overflow: hidden; }
+    .product-card-img {
+      aspect-ratio: 1/1;
+      background: linear-gradient(135deg, #f0f0f0, #e0e0e0);
+      display: flex; align-items: center; justify-content: center; font-size: 28px;
+    }
+    .product-card-body { padding: 12px; }
+    .product-card-title { font-weight: 700; font-size: 12px; margin-bottom: 4px; }
+    .product-card-price { font-size: 13px; font-weight: 900; color: var(--blue); margin-bottom: 10px; }
+    .btn-product { width: 100%; background: var(--blue); color: #fff; border: none; padding: 7px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; }
+
+    /* ---- SOBRE ---- */
+    .sub-tabs { display: flex; gap: 8px; justify-content: center; margin-bottom: 36px; flex-wrap: wrap; }
+    .sub-tab {
+      padding: 8px 20px; border-radius: 20px; border: 2px solid var(--blue);
+      font-size: 13px; font-weight: 700; cursor: pointer; background: transparent; color: var(--blue);
+      transition: background .15s, color .15s;
+    }
+    .sub-tab.active { background: var(--blue); color: #fff; }
+    .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
+    .about-text h3 { font-size: 26px; font-weight: 800; color: var(--blue); margin-bottom: 12px; }
+    .about-text p { color: #666; line-height: 1.75; margin-bottom: 20px; }
+    .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .stat-box { border: 1px solid #ebebeb; border-radius: 12px; padding: 18px; text-align: center; }
+    .stat-num { font-size: 30px; font-weight: 900; color: var(--yellow); }
+    .stat-label { font-size: 11px; color: #888; }
+    .about-card { background: #07b7b414; border-radius: 18px; padding: 36px; text-align: center; }
+    .about-card-icon { font-size: 52px; margin-bottom: 14px; }
+    .about-card h4 { font-size: 19px; font-weight: 800; margin-bottom: 10px; }
+    .about-card p { font-size: 14px; color: #666; line-height: 1.65; }
+
+    /* ---- CONTATO ---- */
+    .contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; max-width: 860px; margin: 0 auto; }
+    .contact-box { background: #fff; border-radius: 18px; padding: 32px; box-shadow: 0 2px 20px rgba(0,0,0,.08); border: 1px solid #f0f0f0; }
+    .contact-box h3 { font-size: 19px; font-weight: 800; color: var(--blue); margin-bottom: 22px; }
+    .contact-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 10px; background: #f8f8f8; margin-bottom: 10px; }
+    .contact-item span { font-size: 22px; }
+    .contact-label { font-size: 10px; color: #999; font-weight: 600; }
+    .contact-value { font-size: 13px; font-weight: 700; color: #333; }
+    input, textarea {
+      width: 100%; border: 1.5px solid #e0e0e0; border-radius: 8px;
+      padding: 10px 14px; font-size: 13px; font-family: inherit;
+      outline: none; resize: none; margin-bottom: 12px;
+      transition: border .15s;
+    }
+    input:focus, textarea:focus { border-color: var(--blue); }
+    .btn-send { width: 100%; background: var(--blue); color: #fff; border: none; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
+
+    /* FOOTER */
+    footer { text-align: center; padding: 20px; font-size: 12px; color: #bbb; border-top: 1px solid #f0f0f0; margin-top: 20px; }
+  </style>
+</head>
+<body>
+
+<div class="top-alert">🏆 Participa e concorra a um PC Gamer + Kit Periféricos + Troféu!</div>
+
+<header>
+  <div class="header-inner">
+    <!-- Logo -->
+    <a class="logo" href="#">
+      <div class="logo-icon">X</div>
+      <div>
+        <div class="logo-text">XTREINO FREITAS</div>
+        <div class="logo-sub">eSports · Free Fire</div>
+      </div>
+    </a>
+
+    <!-- Tab Nav -->
+    <nav id="tabNav">
+      <button class="tab-btn active" data-tab="home">HOME</button>
+      <button class="tab-btn" data-tab="treino">TREINO/CAMP</button>
+      <button class="tab-btn" data-tab="loja">LOJA</button>
+      <button class="tab-btn" data-tab="sobre">SOBRE NÓS</button>
+      <button class="tab-btn" data-tab="contato">CONTATO</button>
+    </nav>
+
+    <button class="login-btn">LOGIN</button>
+  </div>
+  <div class="tab-bar">
+    <div class="tab-bar-fill" id="tabBarFill"></div>
+  </div>
+</header>
+
+<main>
+
+  <!-- HOME -->
+  <div class="tab-content active" id="tab-home">
+    <div class="home-section">
+      <div>
+        <h1 class="home-title">ELEVE SEU <span>GAME</span> AO PRÓXIMO <span>NÍVEL</span></h1>
+        <p class="home-desc">Treinamento eSports de alta performance para jogadores profissionais e aspirantes. Desenvolva suas habilidades com os melhores coaches do cenário.</p>
+        <div class="btn-row">
+          <button class="btn-primary" onclick="switchTab('treino')">COMEÇAR AGORA</button>
+          <button class="btn-outline" onclick="switchTab('sobre')">SAIBA MAIS</button>
+        </div>
+      </div>
+      <div class="video-box">
+        <div class="play">▶</div>
+        <p>Vídeo de Apresentação</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- TREINO/CAMP -->
+  <div class="tab-content" id="tab-treino">
+    <div class="section-wrap">
+      <div class="section-head">
+        <h2>Treino e Campeonatos</h2>
+        <p>Eventos de Segunda a Sexta · Participe e concorra a premiações!</p>
+      </div>
+      <div class="events-grid">
+        <div class="event-card">
+          <div class="event-card-img">🏆</div>
+          <div class="event-card-body">
+            <div class="event-card-title">CAMPEONATO FREITAS SEASON 4</div>
+            <div class="event-card-info">R$ 8,00 · Seg a Sex<br>19h · 20h · 21h · 22h · 23h<br>Premiação: R$ 4.000</div>
+            <button class="btn-card">RESERVAR VAGA</button>
+          </div>
+        </div>
+        <div class="event-card">
+          <div class="event-card-img">🎮</div>
+          <div class="event-card-body">
+            <div class="event-card-title">XTREINO FREITAS</div>
+            <div class="event-card-info">R$ 1,00 (1 token)<br>14h às 23h<br>Misto · Squad · 2 quedas</div>
+            <button class="btn-card">USAR TOKENS</button>
+          </div>
+        </div>
+        <div class="event-card">
+          <div class="event-card-img">⚔️</div>
+          <div class="event-card-body">
+            <div class="event-card-title">XTREINO MODO LIGA</div>
+            <div class="event-card-info">R$ 3,00<br>14h às 23h<br>Misto · 15 slots por sala</div>
+            <button class="btn-card">RESERVAR VAGA</button>
+          </div>
+        </div>
+        <div class="event-card">
+          <div class="event-card-img">🥇</div>
+          <div class="event-card-body">
+            <div class="event-card-title">SEMANAL FREITAS</div>
+            <div class="event-card-info">R$ 3,50<br>Semanal<br>Premiação: R$ 65,00</div>
+            <button class="btn-card">INSCREVER</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOJA -->
+  <div class="tab-content" id="tab-loja">
+    <div class="section-wrap">
+      <div class="section-head">
+        <h2>LOJA VIRTUAL</h2>
+        <p>Produtos físicos e digitais para elevar sua performance</p>
+      </div>
+      <div class="products-grid">
+        <div class="product-card">
+          <div class="product-card-img">🎯</div>
+          <div class="product-card-body">
+            <div class="product-card-title">Sensibilidade Pro</div>
+            <div class="product-card-price">R$ 9,90</div>
+            <button class="btn-product">COMPRAR</button>
+          </div>
+        </div>
+        <div class="product-card">
+          <div class="product-card-img">⭐</div>
+          <div class="product-card-body">
+            <div class="product-card-title">Passe Premium</div>
+            <div class="product-card-price">R$ 19,90</div>
+            <button class="btn-product">COMPRAR</button>
+          </div>
+        </div>
+        <div class="product-card">
+          <div class="product-card-img">📦</div>
+          <div class="product-card-body">
+            <div class="product-card-title">Kit Treino</div>
+            <div class="product-card-price">R$ 29,90</div>
+            <button class="btn-product">COMPRAR</button>
+          </div>
+        </div>
+        <div class="product-card">
+          <div class="product-card-img">👕</div>
+          <div class="product-card-body">
+            <div class="product-card-title">Camiseta Org</div>
+            <div class="product-card-price">R$ 39,90</div>
+            <button class="btn-product">COMPRAR</button>
+          </div>
+        </div>
+        <div class="product-card">
+          <div class="product-card-img">💎</div>
+          <div class="product-card-body">
+            <div class="product-card-title">Tokens 10x</div>
+            <div class="product-card-price">R$ 10,00</div>
+            <button class="btn-product">COMPRAR</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SOBRE NÓS -->
+  <div class="tab-content" id="tab-sobre">
+    <div class="section-wrap">
+      <div class="section-head">
+        <h2>SOBRE NÓS</h2>
+        <p>Conheça a história, os objetivos e a metodologia por trás do X-TREINO FREITAS</p>
+      </div>
+      <div class="sub-tabs">
+        <button class="sub-tab active">Quem Somos</button>
+        <button class="sub-tab">FAQ</button>
+        <button class="sub-tab">Nossa Equipe</button>
+        <button class="sub-tab">Patrocinadores</button>
+      </div>
+      <div class="about-grid">
+        <div class="about-text">
+          <h3>Quem Somos</h3>
+          <p>Somos uma organização focada em treinos de alto desempenho, desenvolvimento de talentos e formação de equipes vencedoras no cenário eSports.</p>
+          <h3>Objetivo</h3>
+          <p>Transformar jogadores em verdadeiros profissionais através de metodologia comprovada, treinamento intensivo e mentalidade vencedora.</p>
+          <div class="stats-row">
+            <div class="stat-box">
+              <div class="stat-num">+900</div>
+              <div class="stat-label">Equipes por semana</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-num">50+</div>
+              <div class="stat-label">Pro-Players Formados</div>
+            </div>
+          </div>
+        </div>
+        <div class="about-card">
+          <div class="about-card-icon">🏆</div>
+          <h4>Metodologia Comprovada</h4>
+          <p>Desenvolvemos uma metodologia única que combina treinamento técnico, análise estratégica e preparação mental para formar campeões.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTATO -->
+  <div class="tab-content" id="tab-contato">
+    <div class="section-wrap">
+      <div class="section-head">
+        <h2>CONTATO</h2>
+        <p>Entre em contato para dúvidas, suporte ou parcerias</p>
+      </div>
+      <div class="contact-grid">
+        <div class="contact-box">
+          <h3>Informações de Contato</h3>
+          <div class="contact-item">
+            <span>📱</span>
+            <div>
+              <div class="contact-label">WHATSAPP</div>
+              <div class="contact-value">(19) 9 9787-0816</div>
+            </div>
+          </div>
+          <div class="contact-item">
+            <span>📸</span>
+            <div>
+              <div class="contact-label">INSTAGRAM</div>
+              <div class="contact-value">@OrgFreitas</div>
+            </div>
+          </div>
+          <div class="contact-item">
+            <span>▶️</span>
+            <div>
+              <div class="contact-label">YOUTUBE</div>
+              <div class="contact-value">@OrganizaçãoFreitas</div>
+            </div>
+          </div>
+        </div>
+        <div class="contact-box">
+          <h3>Enviar Mensagem</h3>
+          <input type="text" placeholder="Seu nome">
+          <input type="email" placeholder="Seu e-mail">
+          <textarea placeholder="Sua mensagem" rows="4"></textarea>
+          <button class="btn-send">ENVIAR MENSAGEM</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>© 2025 XTreino Freitas · Todos os direitos reservados</footer>
+
+<script>
+  const tabs = document.querySelectorAll('.tab-btn');
+  const contents = document.querySelectorAll('.tab-content');
+  const fill = document.getElementById('tabBarFill');
+
+  function updateFill(activeBtn) {
+    const nav = document.getElementById('tabNav');
+    const navRect = nav.getBoundingClientRect();
+    const btnRect = activeBtn.getBoundingClientRect();
+    fill.style.left = (btnRect.left - navRect.left) + 'px';
+    fill.style.width = btnRect.width + 'px';
+  }
+
+  function switchTab(tabId) {
+    tabs.forEach(t => {
+      t.classList.toggle('active', t.dataset.tab === tabId);
+      if (t.dataset.tab === tabId) updateFill(t);
+    });
+    contents.forEach(c => c.classList.toggle('active', c.id === 'tab-' + tabId));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  tabs.forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
+
+  // Init fill position
+  window.addEventListener('load', () => {
+    const active = document.querySelector('.tab-btn.active');
+    if (active) updateFill(active);
+  });
+
+  // Sub-tabs (Sobre Nós)
+  document.querySelectorAll('.sub-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.sub-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>

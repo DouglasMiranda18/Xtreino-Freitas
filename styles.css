@@ -1,15 +1,128 @@
+/* ===== SISTEMA DE ABAS - PÁGINA PRINCIPAL ===== */
+.main-tab-panel { display: none; }
+.main-tab-panel.tab-active {
+    display: block;
+    animation: tabFadeIn .22s ease;
+}
+@keyframes tabFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.tab-main-link {
+    position: relative;
+    padding-bottom: 4px;
+    font-weight: 600;
+    transition: color .15s;
+}
+.tab-main-link.tab-nav-active { color: #07b7b4 !important; }
+.tab-main-link.tab-nav-active::after {
+    content: '';
+    position: absolute;
+    bottom: -6px; left: 0; right: 0;
+    height: 3px;
+    background: #ecd414;
+    border-radius: 2px;
+}
+
+/* Sub-tabs de eventos */
+.event-sub-tab {
+    padding: 10px 20px;
+    border-radius: 50px;
+    border: 2px solid #07b7b4;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    background: transparent;
+    color: #07b7b4;
+    transition: background .18s, color .18s, transform .1s;
+    letter-spacing: .4px;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+}
+.event-sub-tab:active { transform: scale(.95); }
+.event-sub-tab.active { background: #07b7b4; color: #fff; }
+
+/* Sub-tabs scroll horizontal no mobile */
+#eventSubTabs {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+    justify-content: flex-start !important;
+}
+#eventSubTabs::-webkit-scrollbar { display: none; }
+@media (min-width: 640px) {
+    #eventSubTabs { flex-wrap: wrap !important; justify-content: center !important; }
+}
+
+/* ===== BARRA DE NAVEGAÇÃO INFERIOR MOBILE ===== */
+.mobile-bottom-nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 100;
+    background: #0f172a;
+    display: flex;
+    align-items: stretch;
+    justify-content: space-around;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-shadow: 0 -2px 24px rgba(0,0,0,.45);
+}
+.mobile-nav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 10px 4px 8px;
+    border: none;
+    background: transparent;
+    color: #6b7280;
+    font-weight: 800;
+    letter-spacing: .5px;
+    cursor: pointer;
+    transition: color .18s, background .18s;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 62px;
+    position: relative;
+}
+.mobile-nav-btn i { font-size: 22px; line-height: 1; transition: transform .18s; }
+.mobile-nav-btn span { font-size: 9px; text-transform: uppercase; }
+
+/* Aba ativa: amarelo da marca com traço superior */
+.mobile-nav-btn.active { color: #ecd414; }
+.mobile-nav-btn.active i { transform: scale(1.18); }
+.mobile-nav-btn.active::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 16%; right: 16%;
+    height: 3px;
+    background: #ecd414;
+    border-radius: 0 0 4px 4px;
+}
+.mobile-nav-btn:active { background: rgba(255,255,255,.06); }
+
+/* Padding inferior do conteúdo no mobile para não esconder atrás da nav */
+@media (max-width: 767px) {
+    body { padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
+    footer { padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px)) !important; }
+}
+/* ============================================ */
+
 /* Rolagem suave global */
 html {
-	scroll-behavior: smooth;
+        scroll-behavior: smooth;
 }
 
 /* Esconder scrollbar mas manter funcionalidade de scroll */
 .scrollbar-hide {
-	-ms-overflow-style: none;  /* IE and Edge */
-	scrollbar-width: none;  /* Firefox */
+        -ms-overflow-style: none;  /* IE and Edge */
+        scrollbar-width: none;  /* Firefox */
 }
 .scrollbar-hide::-webkit-scrollbar {
-	display: none;  /* Chrome, Safari and Opera */
+        display: none;  /* Chrome, Safari and Opera */
 }
 
 /* Ajustes mobile para não sobrepor o header fixo */
@@ -17,11 +130,11 @@ html {
 /* Aplicar scroll padding para âncoras considerando safe-area */
 html, body { scroll-padding-top: calc(var(--header-h) + env(safe-area-inset-top, 0px)); }
 @media (max-width: 767px){
-	#home { padding-top: calc(80px + env(safe-area-inset-top, 0px)); min-height: calc(100dvh - 80px); }
-	#home .container { padding-left: clamp(16px, 5vw, 24px); padding-right: clamp(16px, 5vw, 24px); }
-	#home h1 { font-size: clamp(2.1rem, 6.2vw, 3.2rem); line-height: 1.1; letter-spacing: -0.01em; }
-	#home p { font-size: clamp(0.95rem, 2.8vw, 1.125rem); line-height: 1.6; }
-	#home .btn-primary { width: 100%; }
+        #home { padding-top: calc(80px + env(safe-area-inset-top, 0px)); min-height: calc(100dvh - 80px); }
+        #home .container { padding-left: clamp(16px, 5vw, 24px); padding-right: clamp(16px, 5vw, 24px); }
+        #home h1 { font-size: clamp(2.1rem, 6.2vw, 3.2rem); line-height: 1.1; letter-spacing: -0.01em; }
+        #home p { font-size: clamp(0.95rem, 2.8vw, 1.125rem); line-height: 1.6; }
+        #home .btn-primary { width: 100%; }
 }
 
 /* Compact mode when viewport height < 800px */
@@ -480,51 +593,182 @@ body {
     }
 }
 
-/* Correções para modal no mobile */
+/* Correções para modal no mobile — bottom sheet */
 @media (max-width: 767px) {
     #scheduleModal {
         padding: 0 !important;
-        align-items: flex-start !important;
+        align-items: flex-end !important;
     }
-    
+
     #scheduleModal > div {
-        max-height: 100vh !important;
-        height: 100vh !important;
+        max-height: 93dvh !important;
+        height: auto !important;
         width: 100% !important;
         max-width: 100% !important;
         margin: 0 !important;
-        border-radius: 0 !important;
-        flex-direction: column !important;
+        border-radius: 1.25rem 1.25rem 0 0 !important;
         overflow-y: auto !important;
         -webkit-overflow-scrolling: touch !important;
     }
-    
+
+    /* Alça visual de drag */
+    #scheduleModal > div::before {
+        content: '';
+        display: block;
+        width: 40px;
+        height: 4px;
+        background: #d1d5db;
+        border-radius: 2px;
+        margin: 10px auto 0;
+    }
+
     #scheduleModal .grid.lg\\:grid-cols-2 {
         grid-template-columns: 1fr !important;
-        gap: 0 !important;
+        gap: 0.75rem !important;
     }
-    
-    #scheduleModal .space-y-6 > div:first-child {
-        padding-bottom: 1rem !important;
-    }
-    
-    #scheduleModal .space-y-6 > div:last-child {
-        padding-top: 1rem !important;
-        overflow-y: auto !important;
-        -webkit-overflow-scrolling: touch !important;
-    }
-    
+
     #scheduleModal .p-6 {
-        padding: 1rem !important;
+        padding: 0.875rem !important;
     }
-    
+
+    #scheduleModal .space-y-6 > * + * {
+        margin-top: 0.75rem !important;
+    }
+
     #scheduleModal .rounded-2xl {
-        border-radius: 0.5rem !important;
+        border-radius: 0.75rem !important;
     }
-    
+
     #scheduleModal .max-w-4xl {
         max-width: 100% !important;
     }
+
+    /* Header ultra-compacto no mobile — só as duas linhas de texto */
+    #scheduleModal .schedule-modal-header {
+        padding: 0.45rem 1rem !important;
+    }
+
+    #scheduleModal .schedule-modal-icon {
+        display: none !important;
+    }
+
+    #scheduleModal .schedule-modal-title {
+        font-size: 0.875rem !important;
+        line-height: 1.2 !important;
+        font-weight: 700 !important;
+        margin: 0 !important;
+    }
+
+    #scheduleModal .schedule-modal-sub {
+        font-size: 0.7rem !important;
+        line-height: 1.2 !important;
+        margin: 0 !important;
+    }
+
+    #scheduleModal .schedule-modal-header .flex {
+        gap: 0 !important;
+    }
+
+    #scheduleModal .schedule-modal-header div {
+        gap: 0 !important;
+        line-height: 1 !important;
+    }
+}
+
+/* Cabeçalho compacto do modal de produto no mobile */
+@media (max-width: 767px) {
+    #purchaseModal {
+        padding: 0 !important;
+        align-items: flex-end !important;
+    }
+
+    #purchaseModal > div {
+        max-height: 93dvh !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        border-radius: 1.25rem 1.25rem 0 0 !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+
+    /* Alça visual */
+    #purchaseModal > div::before {
+        content: '';
+        display: block;
+        width: 40px;
+        height: 4px;
+        background: #d1d5db;
+        border-radius: 2px;
+        margin: 10px auto 0;
+    }
+
+    /* Seção de imagem: cabeçalho compacto — só o suficiente para mostrar nome + imagem pequena */
+    #purchaseModal .grid.md\\:grid-cols-2 {
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    #purchaseModal .grid.md\\:grid-cols-2 > div:first-child {
+        background: linear-gradient(135deg, var(--brand-green-2, #16a34a) 0%, var(--brand-green-3, #15803d) 100%) !important;
+        padding: 0.45rem 1rem !important;
+        justify-content: flex-start !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
+        flex-direction: row !important;
+        min-height: unset !important;
+    }
+
+    #purchaseModal #purchaseImage {
+        width: 36px !important;
+        height: 36px !important;
+        min-width: 36px !important;
+        max-height: 36px !important;
+        border-radius: 8px !important;
+        object-fit: cover !important;
+        flex-shrink: 0 !important;
+    }
+
+    /* Mostrar span do título no cabeçalho verde */
+    #purchaseModal #purchaseHeaderTitle {
+        display: inline !important;
+        font-size: 0.875rem !important;
+        font-weight: 700 !important;
+        line-height: 1.25 !important;
+        color: #fff !important;
+    }
+
+    /* Título do produto na seção do formulário — volta ao normal */
+    #purchaseModal #purchaseTitle {
+        font-size: 1.1rem !important;
+        font-weight: 700 !important;
+        color: #111 !important;
+        margin-bottom: 0.25rem !important;
+    }
+
+    /* Esconder descrição longa no mobile — economiza espaço */
+    #purchaseModal #purchaseDescription {
+        display: none !important;
+    }
+
+    /* Botão de fechar fica branco sobre o cabeçalho verde */
+    #purchaseModal > div > button.absolute {
+        color: #fff !important;
+    }
+
+    #purchaseModal .grid.md\\:grid-cols-2 > div:last-child {
+        padding: 0.875rem !important;
+    }
+}
+
+/* Estilos do carousel */
+.carousel-slide {
+    flex-shrink: 0;
+}
+
+/* Destaques - garantir overflow correto */
+#carouselTrack {
+    will-change: transform;
 }
 .slot-btn {
     background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
@@ -620,8 +864,10 @@ body {
     justify-content: center;
     background: #f3f4f6; /* gray-100 */
     margin-bottom: 16px;
+    position: relative;
 }
-.product-media img { width: 100%; height: 100%; object-fit: cover; }
+.product-media img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 0; }
+.product-media .badge { position: absolute; z-index: 10; }
 .product-title { font-weight: 700; font-size: 1.125rem; margin-bottom: 8px; color: var(--brand-black); }
 .product-desc { color: #4b5563; margin-bottom: 12px; flex: 1 1 auto; }
 .product-meta { margin-top: auto; }

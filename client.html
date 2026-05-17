@@ -75,7 +75,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="mobile-optimizations.css">
-    <link rel="icon" type="image/png" href="Logo - Xtreino Freitas.png">
+    <link rel="icon" type="image/png" href="assets/images/Logo - Xtreino Freitas.png">
 </head>
 
 <body class="bg-gray-50">
@@ -96,6 +96,12 @@
                     <span class="hidden sm:inline">Voltar ao Site</span>
                     <span class="sm:hidden">Voltar</span>
                 </a>
+                <button id="notificationBellBtn" onclick="switchTab('notifications')" title="Notificações"
+                    class="relative p-2 rounded-lg border border-gray-300 hover:bg-gray-100 text-gray-600 transition-colors">
+                    <i class="fas fa-bell text-lg"></i>
+                    <span id="notifBadge"
+                        class="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 hidden">0</span>
+                </button>
                 <button id="logoutBtn"
                     class="bg-red-600 text-white px-3 md:px-4 py-2 rounded-md text-xs md:text-sm hover:bg-red-700 whitespace-nowrap">
                     Sair
@@ -139,6 +145,11 @@
                     <button id="affiliateTab"
                         class="tab-button py-4 px-2 md:px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap flex-shrink-0 hidden">
                         <i class="fas fa-handshake mr-1"></i>Afiliados
+                    </button>
+                    <button id="notificationsTab"
+                        class="tab-button py-4 px-2 md:px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap flex-shrink-0">
+                        <i class="fas fa-bell mr-1"></i>Notificações
+                        <span id="notifTabBadge" class="ml-1 bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 hidden">0</span>
                     </button>
                 </nav>
             </div>
@@ -646,6 +657,27 @@
                             </tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notifications Tab -->
+        <div id="notificationsContent" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow-sm">
+                <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                    <h3 class="text-lg font-medium text-gray-900"><i class="fas fa-bell mr-2 text-blue-600"></i>Minhas Notificações</h3>
+                    <button onclick="markAllNotificationsRead()"
+                        class="text-xs text-blue-600 hover:text-blue-800 font-medium px-3 py-1 rounded border border-blue-200 hover:bg-blue-50 transition-colors">
+                        Marcar todas como lidas
+                    </button>
+                </div>
+                <div id="notificationsList" class="divide-y divide-gray-100 min-h-[120px]">
+                    <div class="flex items-center justify-center py-12 text-gray-400">
+                        <div class="text-center">
+                            <i class="fas fa-bell-slash text-4xl mb-3 block"></i>
+                            <p class="text-sm">Carregando notificações...</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

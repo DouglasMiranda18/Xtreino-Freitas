@@ -10,7 +10,6 @@
     "migrate-auth": "node migrate-auth.js"
   },
   "dependencies": {
-    "@google-cloud/firestore": "^8.0.0",
     "firebase-admin": "^12.7.0",
     "node-fetch": "^3.3.2"
   },

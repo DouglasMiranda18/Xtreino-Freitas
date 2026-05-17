@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evento - X-TREINO FREITAS</title>
+    <link rel="icon" type="image/png" href="assets/images/Logo - Xtreino Freitas.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body { background: #0f172a; }
+        .tab-btn { transition: all .2s; border: none; cursor: pointer; }
+        .tab-btn.active { background: #ea580c; color: #fff; }
+        .tab-btn:not(.active) { background: #1e293b; color: #94a3b8; }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        .badge { display:inline-block; font-size:.7rem; font-weight:700; padding:.2rem .6rem; border-radius:4px; }
+        .yt-iframe { width:100%; aspect-ratio:16/9; border-radius:12px; border:none; }
+        pre.regras-text { white-space: pre-wrap; word-break: break-word; font-family: inherit; }
+    </style>
+</head>
+<body class="min-h-screen">
+
+<!-- Header -->
+<header class="sticky top-0 z-50 bg-slate-900 border-b border-slate-700 shadow-xl">
+    <div class="max-w-4xl mx-auto px-4 py-3 flex items-center gap-4">
+        <a href="index.html" class="flex items-center gap-2 text-slate-300 hover:text-white transition-colors">
+            <i class="fas fa-arrow-left"></i>
+            <img src="assets/images/Logo - Xtreino Freitas.png" alt="Logo" class="h-9 w-9 rounded-lg object-contain">
+            <span class="font-bold text-sm hidden sm:block">X-TREINO FREITAS</span>
+        </a>
+        <div class="flex-1"></div>
+        <button onclick="goRegister()" id="headerRegBtn" class="hidden bg-orange-600 hover:bg-orange-700 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors">
+            <i class="fas fa-ticket-alt mr-1"></i> INSCREVER
+        </button>
+    </div>
+</header>
+
+<!-- Loading -->
+<div id="pageLoading" class="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+    <i class="fas fa-spinner fa-spin text-orange-500 text-4xl"></i>
+    <p class="text-slate-400">Carregando evento...</p>
+</div>
+
+<!-- Error state -->
+<div id="pageError" class="hidden flex-col items-center justify-center min-h-[60vh] gap-4 p-8 text-center">
+    <i class="fas fa-exclamation-triangle text-red-400 text-4xl"></i>
+    <h2 class="text-white text-xl font-bold">Evento não encontrado</h2>
+    <p class="text-slate-400" id="errMsg">Este evento pode ter sido removido ou o link está incorreto.</p>
+    <a href="index.html" class="bg-orange-600 hover:bg-orange-700 text-white font-bold px-6 py-3 rounded-xl">Voltar ao início</a>
+</div>
+
+<!-- Event Content -->
+<div id="pageContent" class="hidden max-w-4xl mx-auto pb-28">
+
+    <!-- Banner -->
+    <div class="relative">
+        <img id="evBanner" src="" alt="" class="w-full object-cover max-h-72 md:max-h-96 bg-slate-800" style="min-height:160px;">
+        <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div>
+    </div>
+
+    <!-- Event header -->
+    <div class="px-4 md:px-6 -mt-16 relative z-10">
+        <div id="evBadges" class="flex flex-wrap gap-2 mb-3"></div>
+        <h1 id="evName" class="text-2xl md:text-3xl font-black text-white mb-2 leading-tight"></h1>
+        <div id="evMeta" class="flex flex-wrap gap-3 text-sm text-slate-400 mb-4"></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="px-4 md:px-6 mt-2">
+        <div id="tabNav" class="flex flex-wrap gap-2 mb-6"></div>
+
+        <div id="panelInfo" class="tab-panel">
+            <div id="evDesc" class="text-slate-300 leading-relaxed whitespace-pre-line mb-4"></div>
+            <div id="evInfoGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6"></div>
+            <!-- Regras dentro da aba Informações -->
+            <div id="evRegrasBlock" class="hidden">
+                <div class="bg-slate-800 rounded-2xl p-5 border border-slate-700">
+                    <h3 class="text-orange-400 font-bold text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <i class="fas fa-gavel"></i> Regras do Evento
+                    </h3>
+                    <pre class="regras-text text-slate-200 text-sm leading-relaxed" id="evRegras"></pre>
+                </div>
+            </div>
+        </div>
+
+        <div id="panelRegras" class="tab-panel">
+            <div class="bg-slate-800 rounded-2xl p-5 border border-slate-700">
+                <h3 class="text-orange-400 font-bold text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <i class="fas fa-gavel"></i> Regras do Evento
+                </h3>
+                <pre class="regras-text text-slate-200 text-sm leading-relaxed" id="evRegras"></pre>
+            </div>
+        </div>
+
+        <div id="panelRodadas" class="tab-panel">
+            <div class="bg-slate-800 rounded-2xl p-5 border border-slate-700">
+                <h3 class="text-blue-400 font-bold text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <i class="fas fa-layer-group"></i> Rodadas
+                </h3>
+                <pre class="regras-text text-slate-200 text-sm leading-relaxed" id="evRodadas"></pre>
+            </div>
+        </div>
+
+        <div id="panelPontuacao" class="tab-panel">
+            <div class="bg-slate-800 rounded-2xl p-5 border border-slate-700">
+                <h3 class="text-green-400 font-bold text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <i class="fas fa-trophy"></i> Tabela de Pontuação
+                </h3>
+                <pre class="regras-text text-slate-200 text-sm leading-relaxed" id="evPontuacao"></pre>
+            </div>
+        </div>
+
+        <div id="panelLive" class="tab-panel">
+            <h3 class="text-red-400 font-bold text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
+                <i class="fab fa-youtube"></i> Transmissão ao Vivo
+            </h3>
+            <div id="evYoutube"></div>
+            <p class="text-slate-500 text-xs mt-3 text-center">A transmissão será ativada durante o evento.</p>
+        </div>
+
+        <div id="panelInscritos" class="tab-panel">
+            <div class="bg-slate-800 rounded-2xl p-5 border border-slate-700">
+                <h3 class="text-orange-400 font-bold text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <i class="fas fa-list-ol"></i> Equipes Inscritas por Horário
+                </h3>
+                <div id="inscritosContent">
+                    <div class="text-center py-8 text-slate-500">
+                        <i class="fas fa-spinner fa-spin text-xl mb-2 block"></i>
+                        <p class="text-sm">Carregando inscritos...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="panelGrupos" class="tab-panel">
+            <div class="bg-slate-800 rounded-2xl p-5 border border-slate-700">
+                <h3 class="text-purple-400 font-bold text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <i class="fas fa-users"></i> Divisão de Grupos
+                </h3>
+                <div class="flex gap-2 mb-5 flex-wrap">
+                    <button onclick="loadPublicGroups('classificatoria')" id="pubPhaseBtn_classificatoria"
+                        class="pub-phase-btn px-4 py-2 rounded-lg text-sm font-semibold bg-orange-600 text-white">
+                        CLASSIFICATÓRIA
+                    </button>
+                    <button onclick="loadPublicGroups('semifinal')" id="pubPhaseBtn_semifinal"
+                        class="pub-phase-btn px-4 py-2 rounded-lg text-sm font-semibold bg-slate-700 text-slate-300">
+                        SEMIFINAL
+                    </button>
+                    <button onclick="loadPublicGroups('final')" id="pubPhaseBtn_final"
+                        class="pub-phase-btn px-4 py-2 rounded-lg text-sm font-semibold bg-slate-700 text-slate-300">
+                        FINAL
+                    </button>
+                </div>
+                <div id="publicGroupsContent">
+                    <div class="text-center py-8 text-slate-500">
+                        <i class="fas fa-spinner fa-spin text-xl mb-2 block"></i>Carregando grupos...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Floating CTA -->
+<div id="floatingCta" class="hidden fixed bottom-0 left-0 right-0 z-50 px-4 pb-4 pt-2 bg-gradient-to-t from-slate-900">
+    <div class="max-w-4xl mx-auto">
+        <button onclick="goRegister()" class="w-full bg-orange-600 hover:bg-orange-700 active:scale-95 text-white text-base font-black py-4 rounded-2xl shadow-2xl transition-all">
+            <i class="fas fa-ticket-alt mr-2"></i>FAZER INSCRIÇÃO
+        </button>
+    </div>
+</div>
+
+<script type="module">
+import { initializeApp, getApps, getApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+import { getFirestore, doc, getDoc, deleteDoc, collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+import { getAuth, onAuthStateChanged, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
+
+const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyBzD0iWNIfZwuzWN-Xhjbg22OfCHv1Qwjo",
+    authDomain: "orgfreitas-ofc.firebaseapp.com",
+    projectId: "orgfreitas-ofc",
+    storageBucket: "orgfreitas-ofc.firebasestorage.app",
+    messagingSenderId: "493859004030",
+    appId: "1:493859004030:web:a1cba415344e4a7567822f"
+};
+
+let _db = null;
+let _auth = null;
+
+function initFirebase() {
+    // Usa o app padrão (sem nome) para compartilhar o estado de auth com o site principal.
+    // Isso garante que usuários logados no index.html também estejam autenticados aqui.
+    const existing = getApps().find(a => a.name === '[DEFAULT]') || (getApps().length > 0 ? getApps()[0] : null);
+    const app = existing || initializeApp(FIREBASE_CONFIG);
+    _db = getFirestore(app);
+    _auth = getAuth(app);
+    return _db;
+}
+
+// Suporte a ambos: ?id=X (Netlify) e #X (local/hash)
+const _searchParams = new URLSearchParams(location.search);
+const eventId = _searchParams.get('id') || location.hash.replace('#', '') || '';
+let _currentEventId = '';
+
+function showError(msg) {
+    document.getElementById('pageLoading').classList.add('hidden');
+    const errEl = document.getElementById('pageError');
+    errEl.classList.remove('hidden');
+    errEl.classList.add('flex');
+    if (msg) document.getElementById('errMsg').textContent = msg;
+}
+
+function showContent() {
+    document.getElementById('pageLoading').classList.add('hidden');
+    document.getElementById('pageContent').classList.remove('hidden');
+    // CTA shown by default; checkUserRegistration() can hide it
+    document.getElementById('floatingCta').classList.remove('hidden');
+    document.getElementById('headerRegBtn').classList.remove('hidden');
+}
+
+function hideCtaRegistered() {
+    const cta = document.getElementById('floatingCta');
+    if (cta) cta.innerHTML = `<div class="max-w-4xl mx-auto">
+        <div class="w-full flex items-center justify-center gap-3 bg-green-700 text-white text-base font-black py-4 rounded-2xl shadow-2xl">
+            <i class="fas fa-check-circle text-xl"></i>Você já está inscrito neste evento!
+        </div>
+    </div>`;
+    const hBtn = document.getElementById('headerRegBtn');
+    if (hBtn) { hBtn.textContent = '✓ INSCRITO'; hBtn.disabled = true; hBtn.className = 'bg-green-700 text-white text-sm font-bold px-4 py-2 rounded-lg cursor-default'; }
+}
+
+async function checkUserRegistration(evId) {
+    if (!_auth || !_db) return;
+    const user = _auth.currentUser;
+    if (!user) return;
+    try {
+        const snap = await getDocs(query(
+            collection(_db, 'registrations'),
+            where('eventType', '==', evId),
+            where('userId', '==', user.uid),
+            where('status', 'in', ['confirmed', 'paid', 'approved', 'pending'])
+        ));
+        if (!snap.empty) hideCtaRegistered();
+    } catch (_) { /* sem permissão ou sem dados — manter CTA */ }
+}
+
+function setTab(tabId) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    const btn = document.getElementById('tabBtn_' + tabId);
+    const capId = tabId.charAt(0).toUpperCase() + tabId.slice(1);
+    const panel = document.getElementById('panel' + capId);
+    if (btn) btn.classList.add('active');
+    if (panel) panel.classList.add('active');
+    if (tabId === 'inscritos' && window._currentEventId) {
+        loadInscritos(window._currentEventId);
+    }
+}
+window.setTab = setTab;
+
+function buildTabs(ev) {
+    const tabs = [{ id:'info', icon:'fa-info-circle', label:'INFORMAÇÕES' }];
+    // Regras agora ficam dentro da aba INFORMAÇÕES — não gera tab separada
+    if (ev.rodadas) tabs.push({ id:'rodadas', icon:'fa-layer-group', label:'RODADAS' });
+    if (ev.pontuacao) tabs.push({ id:'pontuacao', icon:'fa-trophy', label:'PONTUAÇÃO' });
+    if (ev.youtubeUrl) tabs.push({ id:'live', icon:'fa-play-circle', label:'AO VIVO' });
+    tabs.push({ id:'inscritos', icon:'fa-list-ol', label:'INSCRITOS' });
+    if (ev.category === 'camp') tabs.push({ id:'grupos', icon:'fa-users', label:'GRUPOS' });
+    document.getElementById('tabNav').innerHTML = tabs.map(t =>
+        `<button id="tabBtn_${t.id}" class="tab-btn px-4 py-2 rounded-lg text-xs font-bold" onclick="setTab('${t.id}')">
+            <i class="fas ${t.icon} mr-1"></i>${t.label}
+        </button>`
+    ).join('');
+    setTab('info');
+}
+
+function buildInfoGrid(ev) {
+    const items = [];
+    if (ev.tipo) items.push({ icon:'fa-gamepad', label:'Tipo', val: ev.tipo });
+    if (ev.modo) items.push({ icon:'fa-sliders-h', label:'Modo', val: ev.modo });
+    if (ev.formato) items.push({ icon:'fa-stream', label:'Formato', val: ev.formato });
+    if (ev.vagas) items.push({ icon:'fa-users', label:'Vagas/Horário', val: ev.vagas });
+    if (ev.quedas) items.push({ icon:'fa-skull', label:'Quedas', val: ev.quedas + 'x' });
+    if (ev.preco) items.push({ icon:'fa-tag', label:'Entrada', val:'R$ ' + Number(ev.preco).toFixed(2) });
+    else if (ev.entrada) items.push({ icon:'fa-tag', label:'Entrada', val: ev.entrada });
+    if (ev.premiado === 'SIM') items.push({ icon:'fa-medal', label:'Premiado', val:'SIM 🏆' });
+    if (ev.premiacao) items.push({ icon:'fa-trophy', label:'Premiação', val: ev.premiacao });
+    if (Array.isArray(ev.mapas) && ev.mapas.length) items.push({ icon:'fa-map', label:'Mapas', val: ev.mapas.join(' · ') });
+    if (ev.eventDate) items.push({ icon:'fa-calendar', label:'Data', val: new Date(ev.eventDate).toLocaleDateString('pt-BR', {day:'2-digit', month:'long', year:'numeric'}) });
+    document.getElementById('evInfoGrid').innerHTML = items.map(i =>
+        `<div class="bg-slate-800 rounded-xl p-3 border border-slate-700">
+            <div class="text-slate-500 text-xs mb-1"><i class="fas ${i.icon} mr-1"></i>${i.label}</div>
+            <div class="text-white font-bold text-sm">${i.val}</div>
+        </div>`
+    ).join('');
+}
+
+function extractYoutubeId(url) {
+    if (!url) return null;
+    const m = url.match(/(?:youtube\.com\/(?:watch\?v=|live\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+    return m ? m[1] : null;
+}
+
+async function loadEvent() {
+    if (!eventId) { showError('Nenhum evento selecionado. Volte à página inicial e abra um evento.'); return; }
+
+    // Timeout de 12s caso Firebase demore muito
+    const timeout = setTimeout(() => showError('Tempo esgotado ao carregar o evento. Verifique sua conexão e tente novamente.'), 12000);
+
+    try {
+        const db = initFirebase();
+        if (!db) { clearTimeout(timeout); showError('Erro ao conectar ao banco de dados.'); return; }
+
+        const snap = await getDoc(doc(db, 'adminEvents', eventId));
+        clearTimeout(timeout);
+        if (!snap.exists()) {
+            showError('Evento não encontrado. Verifique o link ou volte para a home.');
+            return;
+        }
+        const ev = snap.data();
+        _currentEventId = eventId;
+        window._currentEventId = eventId;
+        window._evDb = db;
+
+        // Banner
+        const banner = document.getElementById('evBanner');
+        if (ev.imageUrl) {
+            banner.src = ev.imageUrl;
+        } else {
+            banner.style.display = 'none';
+            document.querySelector('.relative').style.marginTop = '4rem';
+        }
+        banner.alt = ev.name || 'Evento';
+
+        // Title & meta
+        document.getElementById('evName').textContent = ev.name || 'Evento';
+        document.title = (ev.name || 'Evento') + ' — X-TREINO FREITAS';
+
+        const catColors = { camp:'bg-orange-600', xtreino:'bg-blue-600', diario:'bg-green-600' };
+        const badges = [];
+        if (ev.category) badges.push(`<span class="badge ${catColors[ev.category]||'bg-slate-600'} text-white">${ev.category.toUpperCase()}</span>`);
+        const scMap = {Aberto:'bg-green-500',Fechado:'bg-red-500','Em andamento':'bg-blue-500'};
+        if (ev.status) badges.push(`<span class="badge ${scMap[ev.status]||'bg-gray-500'} text-white">${ev.status}</span>`);
+        if (ev.quedas) badges.push(`<span class="badge bg-purple-600 text-white">${ev.quedas}x QUEDAS</span>`);
+        document.getElementById('evBadges').innerHTML = badges.join(' ');
+
+        const meta = [];
+        if (ev.tipo) meta.push(`<span><i class="fas fa-gamepad mr-1"></i>${ev.tipo}</span>`);
+        if (ev.modo) meta.push(`<span><i class="fas fa-sliders-h mr-1"></i>${ev.modo}</span>`);
+        if (ev.vagas) meta.push(`<span><i class="fas fa-users mr-1"></i>${ev.vagas} vagas</span>`);
+        document.getElementById('evMeta').innerHTML = meta.join('<span class="text-slate-600 mx-1">·</span>');
+
+        if (ev.descricao) document.getElementById('evDesc').textContent = ev.descricao;
+        buildInfoGrid(ev);
+        if (ev.regras) {
+            document.getElementById('evRegras').textContent = ev.regras;
+            document.getElementById('evRegrasBlock').classList.remove('hidden');
+        }
+        if (ev.rodadas) document.getElementById('evRodadas').textContent = ev.rodadas;
+        if (ev.pontuacao) document.getElementById('evPontuacao').textContent = ev.pontuacao;
+
+        if (ev.youtubeUrl) {
+            const yid = extractYoutubeId(ev.youtubeUrl);
+            document.getElementById('evYoutube').innerHTML = yid
+                ? `<iframe class="yt-iframe" src="https://www.youtube.com/embed/${yid}?autoplay=0" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>`
+                : `<a href="${ev.youtubeUrl}" target="_blank" rel="noopener" class="block text-center bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl"><i class="fab fa-youtube mr-2"></i>Assistir no YouTube</a>`;
+        }
+
+        buildTabs(ev);
+        showContent();
+
+        // Garantir autenticação (pelo menos anônima) para poder consultar inscrições
+        await new Promise(resolve => {
+            const unsub = onAuthStateChanged(_auth, () => { unsub(); resolve(); });
+        });
+        if (!_auth.currentUser) {
+            try { await signInAnonymously(_auth); } catch(_e) {}
+        }
+        loadInscritos(eventId);
+
+        if (ev.status === 'Fechado') {
+            const cta = document.getElementById('floatingCta');
+            if (cta) cta.innerHTML = '<div class="max-w-4xl mx-auto"><div class="w-full text-center bg-slate-700 text-slate-400 text-base font-bold py-4 rounded-2xl">Inscrições Encerradas</div></div>';
+            const hBtn = document.getElementById('headerRegBtn');
+            if (hBtn) hBtn.classList.add('hidden');
+        } else {
+            // Verificar se usuário já está inscrito (aguarda auth resolver)
+            onAuthStateChanged(_auth, (user) => {
+                if (user) checkUserRegistration(eventId);
+            });
+        }
+
+        if (ev.category === 'camp') loadPublicGroups('classificatoria');
+
+    } catch (err) {
+        console.error('Erro ao carregar evento:', err);
+        showError('Erro ao carregar dados do evento: ' + (err.message || ''));
+    }
+}
+
+window.loadPublicGroups = async function(phase) {
+    const db = window._evDb;
+    const evId = window._currentEventId;
+    ['classificatoria','semifinal','final'].forEach(p => {
+        const btn = document.getElementById('pubPhaseBtn_' + p);
+        if (btn) btn.className = p === phase
+            ? 'pub-phase-btn px-4 py-2 rounded-lg text-sm font-semibold bg-orange-600 text-white'
+            : 'pub-phase-btn px-4 py-2 rounded-lg text-sm font-semibold bg-slate-700 text-slate-300';
+    });
+    const container = document.getElementById('publicGroupsContent');
+    if (!container) return;
+    if (!db || !evId) {
+        container.innerHTML = '<div class="text-center py-8 text-slate-500 text-sm">Dados ainda carregando, aguarde...</div>';
+        return;
+    }
+    container.innerHTML = '<div class="text-center py-8 text-slate-500"><i class="fas fa-spinner fa-spin text-xl mb-2 block"></i>Carregando...</div>';
+    try {
+        const snap = await getDoc(doc(db, 'camp_groups', `${evId}_${phase}`));
+        if (!snap.exists()) {
+            const phaseNames = {classificatoria:'Classificatória',semifinal:'Semifinal',final:'Final'};
+            container.innerHTML = `<div class="text-center py-8 text-slate-500 text-sm">Grupos da ${phaseNames[phase]} ainda não foram divulgados.</div>`;
+            return;
+        }
+        const { groups, advancingPerGroup } = snap.data();
+        if (!groups || !groups.length) {
+            container.innerHTML = '<div class="text-center py-8 text-slate-500">Nenhum grupo gerado.</div>';
+            return;
+        }
+        container.innerHTML = (advancingPerGroup
+            ? `<p class="text-sm text-green-400 mb-4"><i class="fas fa-arrow-up mr-1"></i>${advancingPerGroup} time(s) avançam por grupo</p>` : '')
+            + groups.map(g => `
+            <div class="border border-slate-600 rounded-xl overflow-hidden mb-3">
+                <div class="bg-slate-700 border-b border-slate-600 px-4 py-2 flex justify-between items-center">
+                    <span class="font-bold text-orange-400">${g.name}</span>
+                    <span class="text-xs text-slate-400">${g.teams.length} time(s)</span>
+                </div>
+                <ul class="divide-y divide-slate-700">
+                    ${g.teams.map((t, j) => `
+                    <li class="flex items-center gap-3 px-4 py-2.5">
+                        <span class="w-6 h-6 rounded-full bg-slate-600 text-slate-300 text-xs font-bold flex items-center justify-center flex-shrink-0">${j+1}</span>
+                        <span class="text-sm font-medium text-slate-100">${t}</span>
+                        ${advancingPerGroup && j < advancingPerGroup ? '<span class="ml-auto text-xs bg-green-900 text-green-400 px-2 py-0.5 rounded-full font-semibold">Avança ↑</span>' : ''}
+                    </li>`).join('')}
+                </ul>
+            </div>`).join('');
+    } catch (err) {
+        container.innerHTML = '<div class="text-center py-4 text-red-400 text-sm">Erro ao carregar grupos.</div>';
+    }
+};
+
+async function loadInscritos(evId) {
+    const container = document.getElementById('inscritosContent');
+    if (!container) return;
+    if (!_db) { container.innerHTML = '<div class="text-center py-6 text-slate-500 text-sm">Banco de dados não disponível.</div>'; return; }
+    container.innerHTML = '<div class="text-center py-6 text-slate-500"><i class="fas fa-spinner fa-spin text-xl mb-2 block"></i>Carregando inscritos...</div>';
+    try {
+        const normalizedId = String(evId || '').toLowerCase().trim().replace(/\s+/g, '-');
+        const promises = [getDocs(query(collection(_db, 'registrations'), where('eventType', '==', evId)))];
+        if (normalizedId !== evId) {
+            promises.push(getDocs(query(collection(_db, 'registrations'), where('eventType', '==', normalizedId))));
+        }
+        const snaps = await Promise.all(promises);
+        const seen = new Set();
+        const allDocs = [];
+        snaps.forEach(snap => snap.docs.forEach(d => { if (!seen.has(d.id)) { seen.add(d.id); allDocs.push(d); } }));
+
+        // Auto-deletar inscrições de dias passados (best-effort; silencia erro se sem permissão)
+        const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const pastDocs = allDocs.filter(d => {
+            const dt = d.data().date;
+            return dt && /^\d{4}-\d{2}-\d{2}$/.test(dt) && dt < todayStr;
+        });
+        if (pastDocs.length > 0) {
+            for (const pd of pastDocs) {
+                deleteDoc(doc(_db, 'registrations', pd.id)).catch(() => {});
+            }
+        }
+
+        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
+        // Mostrar apenas inscrições do dia atual (ou sem data definida)
+        const valid = allDocs.filter(d => {
+            const r = d.data();
+            const dt = r.date;
+            const isToday = !dt || !(/^\d{4}-\d{2}-\d{2}$/.test(dt)) || dt === todayStr;
+            return validStatuses.has(r.status) && isToday;
+        });
+
+        if (valid.length === 0) {
+            container.innerHTML = '<div class="text-center py-6 text-slate-500 text-sm">Nenhuma equipe inscrita para hoje.</div>';
+            return;
+        }
+
+        // Agrupar por (data + horário) — chave ordenável: "YYYY-MM-DD|horário"
+        const groups = {};
+        valid.forEach(d => {
+            const r = d.data();
+            const dt = r.date || '';
+            const sched = r.schedule || '—';
+            const key = `${dt}|${sched}`;
+            if (!groups[key]) groups[key] = { date: dt, sched, regs: [] };
+            groups[key].regs.push(r);
+        });
+
+        // Ordenar grupos por data crescente, depois horário crescente
+        const groupKeys = Object.keys(groups).sort();
+
+        // Dentro de cada grupo: ordenar por slot crescente e deduplicar slots
+        for (const key of groupKeys) {
+            const grp = groups[key];
+            grp.regs.sort((a, b) => {
+                const sa = a.slot != null ? Number(a.slot) : (a.slotNumber != null ? Number(a.slotNumber) : Infinity);
+                const sb = b.slot != null ? Number(b.slot) : (b.slotNumber != null ? Number(b.slotNumber) : Infinity);
+                return sa - sb;
+            });
+            const seenSlots = new Set();
+            grp.regs = grp.regs.filter(r => {
+                const slotKey = r.slot != null ? String(r.slot) : (r.slotNumber != null ? String(r.slotNumber) : r.teamName);
+                if (seenSlots.has(slotKey)) return false;
+                seenSlots.add(slotKey);
+                return true;
+            });
+        }
+
+        // Datas e horários únicos para filtros
+        const uniqueDates = [...new Set(groupKeys.map(k => groups[k].date))].filter(Boolean).sort();
+        const uniqueScheds = [...new Set(groupKeys.map(k => groups[k].sched))].sort();
+        const hasDateFilter = uniqueDates.length > 1;
+        const hasSchedFilter = uniqueScheds.length > 1;
+
+        // Renderizar filtros
+        const fmtDate = d => d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d.split('-').reverse().join('/') : d;
+        let filterHtml = '';
+        if (hasDateFilter || hasSchedFilter) {
+            filterHtml = `<div class="mb-5 space-y-2">`;
+            if (hasDateFilter) {
+                filterHtml += `<div class="flex flex-wrap gap-1.5 items-center">
+                    <span class="text-xs text-slate-400 mr-1"><i class="fas fa-calendar-alt mr-1"></i>Dia:</span>
+                    <button class="ins-df active-filter px-3 py-1 text-xs rounded-full font-bold transition-colors" data-fd="all">Todos</button>
+                    ${uniqueDates.map(d => `<button class="ins-df px-3 py-1 text-xs rounded-full font-bold transition-colors" data-fd="${d}">${fmtDate(d)}</button>`).join('')}
+                </div>`;
+            }
+            if (hasSchedFilter) {
+                filterHtml += `<div class="flex flex-wrap gap-1.5 items-center">
+                    <span class="text-xs text-slate-400 mr-1"><i class="fas fa-clock mr-1"></i>Horário:</span>
+                    <button class="ins-sf active-filter px-3 py-1 text-xs rounded-full font-bold transition-colors" data-fs="all">Todos</button>
+                    ${uniqueScheds.map(s => `<button class="ins-sf px-3 py-1 text-xs rounded-full font-bold transition-colors" data-fs="${s}">${s}</button>`).join('')}
+                </div>`;
+            }
+            filterHtml += `</div>`;
+        }
+
+        // Renderizar grupos
+        let groupsHtml = '';
+        for (const key of groupKeys) {
+            const { date, sched, regs } = groups[key];
+            const safeKey = key.replace(/[^a-zA-Z0-9]/g, '_');
+            groupsHtml += `
+            <div class="ins-group mb-5" data-gd="${date}" data-gs="${sched}">
+                <div class="flex items-center gap-2 mb-3 flex-wrap">
+                    ${date ? `<span class="bg-slate-600 text-slate-200 px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-calendar-alt mr-1"></i>${fmtDate(date)}</span>` : ''}
+                    <span class="bg-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-clock mr-1"></i>${sched}</span>
+                    <span class="text-xs text-slate-400">${regs.length} time(s)</span>
+                </div>
+                <div class="space-y-2">
+                    ${regs.map(r => {
+                        const slotNum = r.slotNumber != null ? r.slotNumber : r.slot;
+                        const teamName = r.teamName || r.email || '—';
+                        const leaderName = r.leaderName && r.leaderName !== r.teamName ? r.leaderName : null;
+                        const slotBadge = slotNum != null
+                            ? `<span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-orange-600 text-white text-xs font-black flex-shrink-0">#${slotNum}</span>`
+                            : '';
+                        return `<div class="bg-slate-700 rounded-xl px-4 py-3 border border-slate-600">
+                            <div class="flex items-center gap-3">
+                                ${slotBadge}
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-bold text-slate-100 text-sm leading-tight truncate">${teamName}</p>
+                                    ${leaderName ? `<p class="text-xs text-slate-400 mt-0.5">Líder: ${leaderName}</p>` : ''}
+                                </div>
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>
+            </div>`;
+        }
+
+        container.innerHTML = filterHtml + `<div id="insGrpWrap">${groupsHtml}</div>`;
+
+        // Estilo ativo/inativo dos filtros via classes inline
+        const styleActive = 'ins-df active-filter px-3 py-1 text-xs rounded-full font-bold transition-colors bg-orange-600 text-white';
+        const styleInactive = 'ins-df px-3 py-1 text-xs rounded-full font-bold transition-colors bg-slate-700 text-slate-300 hover:bg-slate-600';
+        const styleSActive = 'ins-sf active-filter px-3 py-1 text-xs rounded-full font-bold transition-colors bg-orange-600 text-white';
+        const styleSInactive = 'ins-sf px-3 py-1 text-xs rounded-full font-bold transition-colors bg-slate-700 text-slate-300 hover:bg-slate-600';
+
+        // Aplicar estilos iniciais
+        container.querySelectorAll('.ins-df').forEach(b => { b.className = b.dataset.fd === 'all' ? styleActive : styleInactive; });
+        container.querySelectorAll('.ins-sf').forEach(b => { b.className = b.dataset.fs === 'all' ? styleSActive : styleSInactive; });
+
+        let activeDate = 'all', activeSched = 'all';
+        function applyFilters() {
+            container.querySelectorAll('.ins-group').forEach(g => {
+                const matchD = activeDate === 'all' || g.dataset.gd === activeDate;
+                const matchS = activeSched === 'all' || g.dataset.gs === activeSched;
+                g.style.display = matchD && matchS ? '' : 'none';
+            });
+        }
+
+        container.addEventListener('click', e => {
+            const df = e.target.closest('.ins-df');
+            if (df) {
+                activeDate = df.dataset.fd;
+                container.querySelectorAll('.ins-df').forEach(b => { b.className = b.dataset.fd === activeDate ? styleActive : styleInactive; });
+                applyFilters();
+                return;
+            }
+            const sf = e.target.closest('.ins-sf');
+            if (sf) {
+                activeSched = sf.dataset.fs;
+                container.querySelectorAll('.ins-sf').forEach(b => { b.className = b.dataset.fs === activeSched ? styleSActive : styleSInactive; });
+                applyFilters();
+            }
+        });
+
+    } catch(e) {
+        console.error('[loadInscritos] erro ao carregar inscritos:', e?.message || e);
+        const isPermission = e?.code === 'permission-denied' || String(e).includes('permission');
+        if (isPermission) {
+            container.innerHTML = '<div class="text-center py-6 text-slate-400 text-sm"><i class="fas fa-lock mr-1"></i>Faça login para ver os times inscritos.</div>';
+        } else {
+            container.innerHTML = '<div class="text-center py-6 text-slate-400 text-sm">Dados de inscritos não disponíveis.</div>';
+        }
+    }
+}
+
+window.goRegister = function() {
+    const eid = window._currentEventId;
+    window.location.href = eid ? `index.html?openEvent=${encodeURIComponent(eid)}#eventos` : 'index.html#eventos';
+};
+
+loadEvent();
+</script>
+</body>
+</html>

@@ -4365,6 +4365,241 @@ function addProductOptions(productId) {
                 </div>
             `;
             break;
+
+        default: {
+            // Produtos criados pelo admin — detecta o tipo pelo dado salvo no Firestore
+            const prodData = (window.scheduleConfig?.[productId]) || (typeof products !== 'undefined' && products[productId]) || {};
+            const prodCat = (prodData.category || '').toLowerCase();
+            const prodName = (prodData.name || prodData.label || '').toLowerCase();
+            const isPasse = prodCat === 'passe' || prodName.includes('passe') || prodName.includes('pass booyah');
+            const isFisico = prodCat === 'fisico' || prodCat === 'physical';
+            const isAereas = prodCat === 'aereas';
+            const isSensib = prodCat === 'sensibilidade';
+
+            if (isSensib) {
+                const dlLinks = prodData.downloadLinks || {};
+                const hasPC  = !!(dlLinks.pc && dlLinks.pc.trim());
+                const hasIOS = !!(dlLinks.ios && dlLinks.ios.trim());
+                const hasLG  = !!(dlLinks.lg && dlLinks.lg.trim());
+                const hasMoto= !!(dlLinks.motorola && dlLinks.motorola.trim());
+                const hasSam = !!(dlLinks.samsung && dlLinks.samsung.trim());
+                const hasXia = !!(dlLinks.xiaomi && dlLinks.xiaomi.trim());
+                const hasAndroid = hasLG || hasMoto || hasSam || hasXia;
+                const platforms = [];
+                if (hasPC) platforms.push(`<option value="pc">🖥️ PC (Windows)</option>`);
+                if (hasAndroid) platforms.push(`<option value="android">📱 Android</option>`);
+                if (hasIOS) platforms.push(`<option value="ios">🍎 iOS (iPhone/iPad)</option>`);
+                const androidBrands = [];
+                if (hasLG)   androidBrands.push(`<option value="lg">LG</option>`);
+                if (hasMoto) androidBrands.push(`<option value="motorola">Motorola</option>`);
+                if (hasSam)  androidBrands.push(`<option value="samsung">Samsung</option>`);
+                if (hasXia)  androidBrands.push(`<option value="xiaomi">Xiaomi / Realme</option>`);
+                container.innerHTML = `
+                    <div class="bg-gradient-to-r from-cyan-50 to-blue-50 rounded-xl p-6 border border-cyan-100">
+                        <div class="flex items-center mb-4">
+                            <div class="w-10 h-10 bg-cyan-500 rounded-lg flex items-center justify-center mr-3">
+                                <i class="fas fa-sliders-h text-white"></i>
+                            </div>
+                            <h4 class="text-lg font-semibold text-gray-800">Configuração de Sensibilidade</h4>
+                        </div>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Plataforma <span class="text-red-500">*</span></label>
+                                <select id="platformSelect" onchange="handlePlatformChange()"
+                                        class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 focus:outline-none bg-white">
+                                    <option value="">Selecione a plataforma</option>
+                                    ${platforms.join('')}
+                                </select>
+                            </div>
+                            <div id="androidBrandContainer" class="hidden">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Marca do celular <span class="text-red-500">*</span></label>
+                                <select id="androidBrandSelect"
+                                        class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 focus:outline-none bg-white">
+                                    <option value="">Selecione a marca</option>
+                                    ${androidBrands.join('')}
+                                </select>
+                            </div>
+                            <p class="text-xs text-gray-500">O link de download será liberado conforme sua plataforma e marca escolhidas.</p>
+                        </div>
+                    </div>`;
+                break;
+            }
+
+            if (isAereas) {
+                // Imagens Aéreas do admin — checkboxes com mapas disponíveis
+                const mapDefs = [
+                    { key: 'bermuda',   label: 'Bermuda' },
+                    { key: 'purgatorio',label: 'Purgatório' },
+                    { key: 'solara',    label: 'Solara' },
+                    { key: 'kalahari',  label: 'Kalahari' },
+                    { key: 'novaTerra', label: 'Nova Terra' }
+                ];
+                const ml = prodData.mapLinks || {};
+                // Mostrar só mapas com link; se nenhum ainda, mostrar todos
+                const displayMaps = mapDefs.filter(m => ml[m.key] && ml[m.key].trim() !== '');
+                const mapsHtml = (displayMaps.length > 0 ? displayMaps : mapDefs)
+                    .map(m => `<label class="flex items-center gap-3 p-3 border border-orange-200 rounded-xl bg-white hover:bg-orange-50 cursor-pointer">
+                        <input type="checkbox" name="aereasMapOption" value="${m.key}" class="w-4 h-4 accent-orange-500">
+                        <i class="fas fa-map-marker-alt text-orange-400 text-sm"></i>
+                        <span class="text-sm font-medium text-gray-800">${m.label}</span>
+                    </label>`).join('');
+                const basePrice = (prodData.priceOptions?.[0]?.price) || prodData.price || 2;
+                container.innerHTML = `
+                    <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-6 border border-orange-100">
+                        <div class="flex items-center mb-4">
+                            <div class="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center mr-3">
+                                <i class="fas fa-map text-white"></i>
+                            </div>
+                            <h4 class="text-lg font-semibold text-gray-800">Selecionar Mapas</h4>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-3 mb-4">${mapsHtml}</div>
+                        <div class="bg-orange-100 rounded-lg p-3">
+                            <span class="text-sm text-orange-800 font-medium">
+                                Selecionados: <b id="aereasCount">0</b> •
+                                Total: <b id="aereasPrice">R$ 0,00</b>
+                            </span>
+                        </div>
+                    </div>`;
+                const updateAereasPrice = () => {
+                    const n = document.querySelectorAll('input[name="aereasMapOption"]:checked').length;
+                    const el = document.getElementById('aereasCount'); if (el) el.textContent = String(n);
+                    const ep = document.getElementById('aereasPrice'); if (ep) ep.textContent = `R$ ${(n * basePrice).toFixed(2)}`;
+                };
+                document.querySelectorAll('input[name="aereasMapOption"]').forEach(i => i.addEventListener('change', updateAereasPrice));
+                updateAereasPrice();
+            } else if (isPasse) {
+                container.innerHTML = `
+                    <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
+                        <div class="flex items-center mb-4">
+                            <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center mr-3">
+                                <i class="fas fa-gamepad text-white"></i>
+                            </div>
+                            <h4 class="text-lg font-semibold text-gray-800">Informações do Jogo</h4>
+                        </div>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nick (Apelido no Free Fire) <span class="text-red-500">*</span></label>
+                                <input type="text" id="gameNick" placeholder="Seu apelido no jogo"
+                                       class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">ID do Jogador (Free Fire) <span class="text-red-500">*</span></label>
+                                <input type="text" id="gameId" placeholder="Ex.: 123456789"
+                                       class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Contato WhatsApp <span class="text-red-500">*</span></label>
+                                <input type="tel" id="gameContact" placeholder="(XX) 9XXXX-XXXX"
+                                       class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 focus:outline-none transition-colors">
+                            </div>
+                        </div>
+                        <div class="mt-4 bg-green-100 rounded-lg p-3 flex items-center gap-2">
+                            <i class="fas fa-info-circle text-green-600 flex-shrink-0"></i>
+                            <span class="text-sm text-green-800 font-medium">Não pedimos senha/email. Apenas Nick, ID e WhatsApp para entrega.</span>
+                        </div>
+                    </div>
+                `;
+            } else if (isFisico) {
+                container.innerHTML = `
+                    <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-100">
+                        <div class="flex items-center mb-4">
+                            <div class="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center mr-3">
+                                <i class="fas fa-box text-white"></i>
+                            </div>
+                            <h4 class="text-lg font-semibold text-gray-800">Dados para Entrega</h4>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-3">
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nome Completo <span class="text-red-500">*</span></label>
+                                <input id="addrNome" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">CPF <span class="text-red-500">*</span></label>
+                                <input id="customerCPF" type="text" placeholder="000.000.000-00" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Tamanho (se aplicável)</label>
+                                <select id="prodTamanho" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                                    <option value="">Não se aplica</option>
+                                    <option value="PP">PP</option>
+                                    <option value="P">P</option>
+                                    <option value="M">M</option>
+                                    <option value="G">G</option>
+                                    <option value="GG">GG</option>
+                                    <option value="XGG">XGG</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">CEP <span class="text-red-500">*</span></label>
+                                <input id="addrCEP" type="text" placeholder="00000-000" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Endereço (Rua) <span class="text-red-500">*</span></label>
+                                <input id="addrRua" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Número</label>
+                                <input id="addrNumero" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Complemento</label>
+                                <input id="addrComplemento" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Bairro <span class="text-red-500">*</span></label>
+                                <input id="addrBairro" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Cidade <span class="text-red-500">*</span></label>
+                                <input id="addrCidade" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Estado <span class="text-red-500">*</span></label>
+                                <input id="addrEstado" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                            </div>
+                        </div>
+                        <div class="mt-4 bg-purple-100 rounded-lg p-3 flex items-center gap-2">
+                            <i class="fas fa-truck text-purple-600 flex-shrink-0"></i>
+                            <span class="text-sm text-purple-800 font-medium">Produto físico — será enviado pelo correio após confirmação do pagamento.</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // Digital — coleta Nome, Email, Telefone
+                container.innerHTML = `
+                    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <i class="fas fa-download text-white"></i>
+                            </div>
+                            <h4 class="text-lg font-semibold text-gray-800">Dados para Recebimento</h4>
+                        </div>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nome Completo <span class="text-red-500">*</span></label>
+                                <input type="text" id="digitalNome" placeholder="Seu nome completo"
+                                       class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">E-mail <span class="text-red-500">*</span></label>
+                                <input type="email" id="digitalEmail" placeholder="seu@email.com"
+                                       class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Telefone / WhatsApp <span class="text-red-500">*</span></label>
+                                <input type="tel" id="digitalTelefone" placeholder="(XX) 9XXXX-XXXX"
+                                       class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-colors">
+                            </div>
+                        </div>
+                        <div class="mt-4 bg-blue-100 rounded-lg p-3 flex items-center gap-2">
+                            <i class="fas fa-bolt text-blue-600 flex-shrink-0"></i>
+                            <span class="text-sm text-blue-800 font-medium">O link de download será liberado automaticamente após a confirmação do pagamento.</span>
+                        </div>
+                    </div>
+                `;
+            }
+            break;
+        }
     }
 
     // Adicionar event listeners para atualizar preço dinamicamente
@@ -4436,8 +4671,10 @@ function openScheduleModal(eventType) {
     (function () {
         const couponSection = document.getElementById('scheduleCouponSection');
         if (couponSection) {
-            // Esconde cupom quando pagamento é via tokens
-            couponSection.style.display = cfg.payWithToken ? 'none' : 'block';
+            // Esconde cupom: tokens, camisas/produtos físicos
+            const isFisicoOrShirt = eventType === 'camisa'
+                || (cfg.category === 'fisico' || cfg.category === 'physical');
+            couponSection.style.display = (cfg.payWithToken || isFisicoOrShirt) ? 'none' : 'block';
         }
         if (cfg.payWithToken) {
             // Garante que nenhum cupom de agendamento fique aplicado
@@ -4462,6 +4699,12 @@ function openScheduleModal(eventType) {
 
     // Se for produto da loja, esconder seleção de data/hora e adicionar opções específicas
     if (cfg.isProduct) {
+        // Mudar título do modal para "Finalizar Compra" (não é agendamento)
+        const modalTitle = document.querySelector('#scheduleModal .schedule-modal-title');
+        const modalSub   = document.querySelector('#scheduleModal .schedule-modal-sub');
+        if (modalTitle) modalTitle.textContent = 'Finalizar Compra';
+        if (modalSub)   modalSub.textContent   = cfg.label || 'Complete as informações do seu pedido';
+
         // Esconder TODAS as seções de data e horários para produtos
         const grid = document.querySelector('#scheduleModal .lg\\:grid-cols-2');
         const leftColumn = document.querySelector('#scheduleModal .lg\\:grid-cols-2 > div:first-child');
@@ -4504,6 +4747,12 @@ function openScheduleModal(eventType) {
         modal.classList.remove('hidden');
         return;
     }
+
+    // Restaurar título do modal para evento (reserva de horário)
+    const _mTitle = document.querySelector('#scheduleModal .schedule-modal-title');
+    const _mSub   = document.querySelector('#scheduleModal .schedule-modal-sub');
+    if (_mTitle) _mTitle.textContent = 'Reservar Horário';
+    if (_mSub)   _mSub.textContent   = 'Escolha a data e horário para seu evento';
 
     // Para eventos, mostrar seleção de data/hora
     const leftColumn = document.querySelector('#scheduleModal .lg\\:grid-cols-2 > div:first-child');
@@ -5693,8 +5942,6 @@ async function handleProductPurchase(productId, cfg) {
                 return;
             }
             productOptions.platform = platform;
-
-            // Se for Android, coletar também a marca
             if (platform === 'android') {
                 const brand = document.getElementById('androidBrandSelect').value;
                 if (!brand) {
@@ -5703,6 +5950,21 @@ async function handleProductPurchase(productId, cfg) {
                 }
                 productOptions.brand = brand;
             }
+        } else if ((window.scheduleConfig?.[productId]?.category || '').toLowerCase() === 'sensibilidade') {
+            // Produto de sensibilidade criado pelo admin via Firestore
+            const platform = document.getElementById('platformSelect')?.value || '';
+            if (!platform) { alert('Por favor, selecione uma plataforma.'); return; }
+            productOptions.platform = platform;
+            if (platform === 'android') {
+                const brand = document.getElementById('androidBrandSelect')?.value || '';
+                if (!brand) { alert('Por favor, selecione a marca do celular.'); return; }
+                productOptions.brand = brand;
+            }
+            // Selecionar o link correspondente para entregar automaticamente
+            const dlLinks = window.scheduleConfig[productId].downloadLinks || {};
+            const linkKey = platform === 'android' ? (productOptions.brand || '') : platform;
+            finalPrice = cfg.price;
+            productOptions.downloadLink = dlLinks[linkKey] || dlLinks[platform] || '';
         } else if (productId === 'imagens') {
             const selected = Array.from(document.querySelectorAll('input[name="mapOption"]:checked')).map(i => i.value);
             productOptions.maps = selected;
@@ -7020,24 +7282,27 @@ function setImageProducts(productId, product){
 }
 
 
-function setScheduleConfig(productId,product){
-            if (scheduleConfig[productId]) {               
-                scheduleConfig[productId].label = product.name || scheduleConfig[productId].label;
-                scheduleConfig[productId].price = product.price || scheduleConfig[productId].price;
-                scheduleConfig[productId].isProduct = true;               
-                scheduleConfig[productId].description = product.description;
-                scheduleConfig[productId].image = product.image;                
-               
-            } else {
-               
-                scheduleConfig[productId] = {
-                    label: product.name,
-                    price: product.price,
-                    isProduct: true,
-                    description: product.description,
-                    image: product.image
-                };
-            }
+function setScheduleConfig(productId, product) {
+    const base = {
+        label: product.name,
+        price: Number(product.price) || 0,
+        isProduct: true,
+        description: product.description,
+        details: product.details,
+        benefits: product.benefits,
+        image: product.image,
+        category: product.category,
+        downloadLink: product.downloadLink,
+        downloadLinks: product.downloadLinks || {}
+    };
+    if (scheduleConfig[productId]) {
+        scheduleConfig[productId] = { ...scheduleConfig[productId], ...base,
+            label: product.name || scheduleConfig[productId].label,
+            price: Number(product.price) || scheduleConfig[productId].price
+        };
+    } else {
+        scheduleConfig[productId] = base;
+    }
 }
 
 function setProducts(productId, product){

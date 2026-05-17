@@ -1461,3 +1461,134 @@
         </div>
     </div>
 </div>
+
+<!-- Modal: Ver Regras do Evento -->
+<div id="eventRulesModal" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden relative">
+        <div class="text-white p-5 relative" style="background: linear-gradient(135deg, #0e7490 0%, #0369a1 100%);">
+            <button onclick="closeEventRulesModal()" class="absolute top-4 right-4 text-white hover:text-gray-200 transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-white bg-opacity-20 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-scroll text-white"></i>
+                </div>
+                <div>
+                    <h3 id="eventRulesTitle" class="text-lg font-bold leading-tight">Regras do Evento</h3>
+                    <p class="text-white text-xs" style="opacity:.8;">Leia com atenção antes de se inscrever</p>
+                </div>
+            </div>
+        </div>
+        <div class="p-6 max-h-[65vh] overflow-y-auto">
+            <div id="eventRulesBody" class="text-gray-700 text-sm leading-relaxed whitespace-pre-line"></div>
+        </div>
+        <div class="px-6 pb-5 flex justify-end">
+            <button onclick="closeEventRulesModal()" class="px-6 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-semibold transition-colors text-sm">
+                Fechar
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+/* ============================================================
+   MOBILE MODAL HEADERS — COMPACT FIX (loaded last = highest priority)
+   ============================================================ */
+@media (max-width: 767px) {
+
+  /* --- Schedule Modal: bottom sheet container --- */
+  #scheduleModal {
+    padding: 0 !important;
+    align-items: flex-end !important;
+    justify-content: center !important;
+    overflow-y: hidden !important;
+  }
+  #scheduleModal > div {
+    max-height: 92dvh !important;
+    height: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    border-radius: 1.25rem 1.25rem 0 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* --- Schedule Modal: green header ultra-compact --- */
+  #scheduleModal .schedule-modal-header {
+    padding: 0.5rem 1rem !important;
+  }
+  #scheduleModal .schedule-modal-icon {
+    display: none !important;
+  }
+  #scheduleModal .schedule-modal-header > div.flex {
+    gap: 0 !important;
+    align-items: center !important;
+  }
+  #scheduleModal .schedule-modal-title {
+    font-size: 0.875rem !important;
+    line-height: 1.25 !important;
+    margin: 0 !important;
+  }
+  #scheduleModal .schedule-modal-sub {
+    font-size: 0.7rem !important;
+    line-height: 1.2 !important;
+    margin: 0 !important;
+  }
+
+  /* --- Purchase Modal: bottom sheet + compact green header --- */
+  #purchaseModal {
+    padding: 0 !important;
+    align-items: flex-end !important;
+    justify-content: center !important;
+    overflow-y: hidden !important;
+  }
+  #purchaseModal > div {
+    max-height: 92dvh !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    border-radius: 1.25rem 1.25rem 0 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  /* image section → compact green header row */
+  #purchaseModal .grid > div:first-child {
+    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%) !important;
+    padding: 0.5rem 1rem !important;
+    flex-direction: row !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    gap: 0.6rem !important;
+    min-height: 0 !important;
+    max-height: none !important;
+  }
+  #purchaseModal #purchaseImage {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    max-height: 36px !important;
+    object-fit: cover !important;
+    border-radius: 8px !important;
+    flex-shrink: 0 !important;
+  }
+  #purchaseModal #purchaseHeaderTitle {
+    display: inline !important;
+    color: #fff !important;
+    font-size: 0.875rem !important;
+    font-weight: 700 !important;
+    line-height: 1.25 !important;
+  }
+  #purchaseModal #purchaseDescription {
+    display: none !important;
+  }
+  #purchaseModal > div > button.absolute {
+    color: #fff !important;
+  }
+  #purchaseModal .grid > div:last-child {
+    padding: 0.875rem !important;
+  }
+}
+</style>

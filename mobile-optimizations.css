@@ -103,6 +103,149 @@
     }
 }
 
+/* ==================== MODAL DE COMPRA (PURCHASE MODAL) ==================== */
+@media (max-width: 767px) {
+    /* Esconder imagem do produto no mobile para economizar espaço */
+    #purchaseModal .grid.md\:grid-cols-2 > div:first-child {
+        display: none !important;
+    }
+    /* Formulário de compra ocupa tela toda */
+    #purchaseModal .grid.md\:grid-cols-2 {
+        grid-template-columns: 1fr !important;
+    }
+    /* Botões de pagamento em coluna no mobile */
+    #purchaseModal .grid.grid-cols-1.sm\:grid-cols-2 {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* ==================== MODAL DE AGENDAMENTO (SCHEDULE MODAL) ==================== */
+@media (max-width: 767px) {
+    #scheduleModal {
+        padding: 0 !important;
+        align-items: flex-start !important;
+    }
+    /* Container principal ocupa tela toda */
+    #scheduleModal > div {
+        max-height: 100vh !important;
+        height: 100vh !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+    /* Header do modal fixo no topo */
+    #scheduleModal > div > div:first-child {
+        flex-shrink: 0;
+    }
+    /* Área de conteúdo scrollável */
+    #scheduleModal > div .p-6 {
+        flex: 1;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Grid de 2 colunas vira 1 coluna no mobile */
+    #scheduleModal .grid.lg\:grid-cols-2,
+    #scheduleModal .grid.lg\\:grid-cols-2 {
+        grid-template-columns: 1fr !important;
+    }
+    /* Botões de pagamento do schedule em coluna no mobile */
+    #scheduleModal .flex.gap-3 {
+        flex-wrap: wrap !important;
+    }
+    #scheduleModal .flex.gap-3 > button {
+        flex: 1 1 calc(50% - 0.375rem) !important;
+        min-width: 120px !important;
+    }
+}
+
+/* ==================== MODAL HERO TOKENS ==================== */
+@media (max-width: 767px) {
+    #heroTokensModal {
+        padding: 0.5rem !important;
+        align-items: flex-start !important;
+    }
+    #heroTokensModal > div {
+        max-height: calc(100vh - 1rem) !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        border-radius: 1rem !important;
+        margin-top: 0.5rem !important;
+    }
+}
+
+/* ==================== MODAL FAQ ==================== */
+@media (max-width: 767px) {
+    #faqModal {
+        padding: 0.5rem !important;
+        align-items: flex-start !important;
+    }
+    #faqModal > div {
+        max-height: calc(100vh - 1rem) !important;
+        width: 100% !important;
+        border-radius: 1rem !important;
+        margin-top: 0.5rem !important;
+        overflow-y: auto !important;
+    }
+}
+
+/* ==================== MODAL DE LOGIN ==================== */
+@media (max-width: 480px) {
+    /* Tabs do login (Entrar / Cadastrar / Recuperar) com scroll horizontal */
+    #loginModal .flex.space-x-4.mb-4 {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        scrollbar-width: none !important;
+        flex-wrap: nowrap !important;
+    }
+    #loginModal .flex.space-x-4.mb-4::-webkit-scrollbar {
+        display: none;
+    }
+    #loginModal .flex.space-x-4.mb-4 button {
+        flex-shrink: 0 !important;
+        white-space: nowrap !important;
+    }
+}
+
+/* ==================== MODAL AREA DO CLIENTE (index.html) ==================== */
+@media (max-width: 767px) {
+    /* Tabs do clientAreaModal com scroll horizontal */
+    #clientAreaModal .flex.space-x-4.mb-8 {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        scrollbar-width: none !important;
+        flex-wrap: nowrap !important;
+    }
+    #clientAreaModal .flex.space-x-4.mb-8::-webkit-scrollbar {
+        display: none;
+    }
+    #clientAreaModal .flex.space-x-4.mb-8 button {
+        flex-shrink: 0 !important;
+        white-space: nowrap !important;
+        padding: 0.5rem 0.75rem !important;
+        font-size: 0.875rem !important;
+    }
+}
+
+/* ==================== MODAL DE CONFIRMAÇÃO DE PAGAMENTO ==================== */
+@media (max-width: 480px) {
+    #paymentConfirmModal .flex.justify-center.gap-3 {
+        flex-wrap: wrap !important;
+        gap: 0.5rem !important;
+    }
+    #paymentConfirmModal .flex.justify-center.gap-3 > * {
+        flex: 1 1 calc(50% - 0.25rem) !important;
+        min-width: 120px !important;
+        text-align: center !important;
+        font-size: 0.8rem !important;
+        padding: 0.6rem 0.5rem !important;
+    }
+}
+
 /* ==================== CARDS E PRODUTOS MOBILE ==================== */
 @media (max-width: 767px) {
     /* Cards de produtos - melhor espaçamento */
@@ -259,33 +402,103 @@
 }
 
 /* ==================== BOTÕES FLUTUANTES (FAB) MOBILE ==================== */
+/* ATENÇÃO: A barra de navegação inferior tem 62px de altura.
+   Todos os FABs devem ficar acima dela. */
 @media (max-width: 767px) {
-    /* FAB do carrinho - melhor posicionamento */
-    #cartFab {
-        bottom: 1rem !important;
-        right: 1rem !important;
-        width: 56px !important;
-        height: 56px !important;
-        min-width: 56px !important;
-        min-height: 56px !important;
+    /* Chat Widget - acima da barra de navegação inferior */
+    #chatWidget {
+        bottom: calc(62px + env(safe-area-inset-bottom, 0px) + 0.75rem) !important;
+        right: 0.75rem !important;
     }
-    
-    /* Botão voltar ao topo - melhor posicionamento */
+
+    /* Botão voltar ao topo - acima do chatWidget */
     #backToTop {
-        bottom: 5rem !important;
-        right: 1rem !important;
+        bottom: calc(62px + env(safe-area-inset-bottom, 0px) + 0.75rem) !important;
+        right: 5rem !important;
         width: 48px !important;
         height: 48px !important;
         min-width: 48px !important;
         min-height: 48px !important;
     }
-    
-    /* Chat FAB - melhor posicionamento */
-    #chatFab {
-        bottom: 1rem !important;
-        left: 1rem !important;
+
+    /* FAB do carrinho (se existir) - acima da nav */
+    #cartFab {
+        bottom: calc(62px + env(safe-area-inset-bottom, 0px) + 0.75rem) !important;
+        right: 0.75rem !important;
         width: 56px !important;
         height: 56px !important;
+        min-width: 56px !important;
+        min-height: 56px !important;
+    }
+
+    /* Chat FAB legado */
+    #chatFab {
+        bottom: calc(62px + env(safe-area-inset-bottom, 0px) + 0.75rem) !important;
+        left: 0.75rem !important;
+        width: 56px !important;
+        height: 56px !important;
+    }
+
+    /* Janela do chat - abrir acima da nav */
+    #chatWindow {
+        bottom: calc(62px + env(safe-area-inset-bottom, 0px) + 4rem) !important;
+    }
+}
+
+/* ==================== CARROSSEL MOBILE ==================== */
+@media (max-width: 767px) {
+    /* O viewport (PAI estático) faz o clipping — NUNCA o track */
+    #carouselViewport {
+        overflow: hidden !important;
+        max-width: 100% !important;
+    }
+
+    /* O track SE MOVE via translateX — NUNCA deve ter overflow:hidden próprio */
+    #carouselTrack {
+        overflow: visible !important;
+        /* largura definida pelo JS via style.width em cada slide */
+    }
+
+    /* Cada slide: padding menor no mobile; JS controla width/minWidth */
+    .carousel-slide {
+        box-sizing: border-box !important;
+        padding: 1.25rem !important;
+    }
+
+    /* Setas do carrossel: menores no mobile */
+    #carouselPrev,
+    #carouselNext {
+        width: 2.25rem !important;
+        height: 2.25rem !important;
+        min-width: 2.25rem !important;
+    }
+
+    /* Imagem do slide: altura menor no mobile */
+    #carouselTrack .h-48 {
+        height: 8rem !important;
+    }
+
+    /* Grid do slide: 1 coluna no mobile */
+    #carouselTrack .grid.md\:grid-cols-2 {
+        grid-template-columns: 1fr !important;
+        gap: 0.75rem !important;
+    }
+}
+
+/* ==================== DROPDOWN DE NOTIFICAÇÕES MOBILE ==================== */
+@media (max-width: 400px) {
+    /* Limitar largura em telas muito pequenas */
+    #notifDropdown > div > div {
+        width: calc(100vw - 1rem) !important;
+        right: 0.5rem !important;
+        left: 0.5rem !important;
+    }
+}
+@media (max-width: 767px) {
+    /* Posicionar dropdown abaixo do header no mobile */
+    #notifDropdown > div > div {
+        top: 4rem !important;
+        max-height: calc(100vh - 5rem) !important;
     }
 }
 
@@ -338,6 +551,55 @@
     [class*="lg:grid-cols-4"],
     [class*="lg:grid-cols-5"] {
         grid-template-columns: 1fr !important;
+    }
+}
+
+/* ==================== SEÇÃO SOBRE NÓS - EQUIPE MOBILE ==================== */
+@media (max-width: 767px) {
+    /* Cards de equipe - layout em coluna para info extra */
+    #panel-sobre .glass-effect.rounded-2xl {
+        padding: 1.5rem !important;
+    }
+    /* Garantir que os cards de equipe tenham texto legível */
+    #panel-sobre .glass-effect p {
+        color: #4b5563 !important;
+        font-size: 0.875rem !important;
+    }
+    /* Texto em negrito menor no mobile */
+    #panel-sobre .mb-32 > h3 {
+        font-size: 2rem !important;
+        margin-bottom: 2rem !important;
+    }
+}
+
+/* ==================== SEÇÃO SOBRE NÓS - FAQ MOBILE ==================== */
+@media (max-width: 767px) {
+    /* Cards de FAQ - padding reduzido */
+    #panel-sobre .grid .bg-white.rounded-2xl {
+        padding: 1.25rem !important;
+    }
+    /* Ícone de FAQ menor no mobile */
+    #panel-sobre .grid .w-16.h-16 {
+        width: 3rem !important;
+        height: 3rem !important;
+        margin-bottom: 1rem !important;
+    }
+    #panel-sobre .grid .w-16.h-16 i {
+        font-size: 1.25rem !important;
+    }
+}
+
+/* ==================== FOOTER MOBILE ==================== */
+@media (max-width: 767px) {
+    footer .grid.md\:grid-cols-4 {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 1.5rem !important;
+    }
+    footer .border-t.border-gray-300 {
+        text-align: center;
+    }
+    footer .flex.space-x-4 {
+        justify-content: flex-start;
     }
 }
 
@@ -408,9 +670,9 @@
         background-position: center;
     }
     
-    /* Vídeos - responsivos */
+    /* Vídeos e iframes (youtube) - responsivos */
     video,
-    iframe {
+    iframe:not(#chatWindow iframe) {
         width: 100%;
         height: auto;
         max-height: 50vh;
@@ -425,7 +687,6 @@
         right: 0.5rem !important;
         height: 70vh !important;
         max-height: 70vh !important;
-        bottom: 5rem !important;
     }
     
     #chatWindow .p-4 {
@@ -480,6 +741,84 @@
     .mt-6 {
         margin-top: 1rem !important;
     }
+
+    /* Títulos de seção com mb-32 muito grandes */
+    .mb-32 {
+        margin-bottom: 2rem !important;
+    }
+    .mb-20 {
+        margin-bottom: 1.5rem !important;
+    }
+    .mb-16 {
+        margin-bottom: 1.25rem !important;
+    }
+}
+
+/* ==================== EVENTO.HTML - MOBILE ==================== */
+@media (max-width: 767px) {
+    /* CTA flutuante do evento - garantir que fica acima do teclado virtual */
+    #floatingCta {
+        padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+    /* Tabs do evento - botões menores no mobile */
+    .tab-btn {
+        font-size: 0.75rem !important;
+        padding: 0.4rem 0.75rem !important;
+    }
+    /* Badges do evento - menor */
+    .badge {
+        font-size: 0.65rem !important;
+        padding: 0.15rem 0.4rem !important;
+    }
+    /* Grid de informações do evento - 2 colunas apenas */
+    #evInfoGrid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 0.5rem !important;
+    }
+    /* Botões de fase dos grupos */
+    #panelGrupos .flex.gap-2 {
+        flex-wrap: wrap !important;
+    }
+    #panelGrupos .pub-phase-btn {
+        font-size: 0.75rem !important;
+        padding: 0.4rem 0.75rem !important;
+    }
+}
+
+/* ==================== CLIENT.HTML - MOBILE ==================== */
+@media (max-width: 767px) {
+    /* Header do perfil - stack no mobile */
+    #profileContent .flex.items-center.space-x-4 {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 1rem !important;
+    }
+    /* Avatar no perfil - centralizado */
+    #profileContent .flex.items-center.justify-between {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 1rem !important;
+    }
+    /* Badges de token e role em linha */
+    #profileContent .flex.items-center.space-x-4.mt-2 {
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 0.5rem !important;
+    }
+    /* Formulário de perfil - 1 coluna */
+    #profileContent .grid.grid-cols-1.md\:grid-cols-2 {
+        grid-template-columns: 1fr !important;
+    }
+    /* Botões de ação do perfil */
+    #profileContent .flex.justify-end.space-x-3 {
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 0.5rem !important;
+    }
+    #profileContent .flex.justify-end.space-x-3 button {
+        flex: 1 !important;
+        min-width: 120px !important;
+    }
 }
 
 /* ==================== SAFE AREA (iPhone notch) ==================== */
@@ -489,10 +828,8 @@
             padding-top: max(0.5rem, env(safe-area-inset-top)) !important;
         }
         
-        #cartFab,
-        #backToTop,
-        #chatFab {
-            bottom: max(1rem, env(safe-area-inset-bottom)) !important;
+        .mobile-bottom-nav {
+            padding-bottom: max(0px, env(safe-area-inset-bottom));
         }
         
         .modal > div {
@@ -523,3 +860,13 @@
     }
 }
 
+/* ==================== PROTEÇÃO GLOBAL CONTRA OVERFLOW HORIZONTAL ==================== */
+/* Garante que nenhum elemento quebre o layout da página horizontalmente */
+@media (max-width: 767px) {
+    body {
+        overflow-x: hidden !important;
+    }
+    html {
+        overflow-x: hidden !important;
+    }
+}
