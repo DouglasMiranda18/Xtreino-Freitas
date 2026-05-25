@@ -12153,3 +12153,35 @@ window.loadPageData = async function(page) {
         try { loadAdminNotifications(); } catch(e) {}
     }
 };
+
+// ===== LIMPEZA: remover inscrições sem horário (schedule == '—') =====
+window.limparInscricoesSemHorario = async function() {
+    if (!window.firebaseDb) { alert('Firebase não conectado.'); return; }
+    const { collection, query, where, getDocs, deleteDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+    const snap = await getDocs(query(
+        collection(window.firebaseDb, 'registrations'),
+        where('schedule', '==', '—')
+    ));
+
+    if (snap.empty) { alert('Nenhuma inscrição sem horário encontrada.'); return; }
+
+    const lista = snap.docs.map(d => {
+        const f = d.data();
+        return `• ${f.teamName || f.email || d.id} — ${f.eventType || '?'} — ${f.date || 'sem data'} — status: ${f.status || '?'}`;
+    }).join('\n');
+
+    const confirmar = confirm(`Encontradas ${snap.docs.length} inscrição(ões) sem horário:\n\n${lista}\n\nDeseja deletar TODAS?`);
+    if (!confirmar) return;
+
+    let deletadas = 0;
+    for (const d of snap.docs) {
+        try {
+            await deleteDoc(doc(window.firebaseDb, 'registrations', d.id));
+            deletadas++;
+        } catch (e) {
+            console.error('Erro ao deletar', d.id, e);
+        }
+    }
+    alert(`✅ ${deletadas} inscrição(ões) removida(s) com sucesso.`);
+};
