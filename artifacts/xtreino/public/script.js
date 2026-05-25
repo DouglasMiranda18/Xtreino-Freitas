@@ -575,6 +575,28 @@ async function loadUserNotifications() {
             const dateStr = n.createdAt ? new Date(n.createdAt.toDate ? n.createdAt.toDate() : n.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
 
             const isCredentials = n.notifyType === 'credentials';
+            const isTabela = n.notifyType === 'tabela';
+            const mostrarTabela = isTabela || !!n.tabelaLink;
+
+            // Card verde "Ver Tabela"
+            let tabelaHtml = '';
+            if (mostrarTabela) {
+                const btnTabela = n.tabelaLink
+                    ? `<a href="${n.tabelaLink}" target="_blank" rel="noopener noreferrer"
+                           style="display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 22px;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;border-radius:50px;font-size:13px;font-weight:800;text-decoration:none;box-shadow:0 4px 12px rgba(22,163,74,0.4);margin-top:8px;transition:opacity 0.2s"
+                           onmouseover="this.style.opacity='0.88'" onmouseout="this.style.opacity='1'">
+                            <i class="fas fa-table"></i> Ver Tabela
+                       </a>`
+                    : '';
+                tabelaHtml = `
+                    <div style="margin-top:8px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid #86efac;border-radius:12px;padding:10px 12px">
+                        <p style="font-size:10px;font-weight:800;color:#166534;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px;display:flex;align-items:center;gap:5px">
+                            <i class="fas fa-table"></i> Tabela de pontuação disponível!
+                        </p>
+                        ${btnTabela}
+                    </div>`;
+            }
+
             let credentialsHtml = '';
             if (isCredentials) {
                 const roomId = n.roomId ? String(n.roomId).trim() : '';
@@ -609,8 +631,9 @@ async function loadUserNotifications() {
 
             return `<div class="p-3 transition-colors cursor-default ${isRead ? 'hover:bg-gray-50' : 'bg-blue-50 border-l-2 border-blue-400'}">
                 <div class="font-semibold text-sm ${isCredentials ? 'text-purple-800' : 'text-gray-900'}">${n.title || ''}</div>
-                ${n.message ? `<div class="text-xs text-gray-600 mt-0.5 leading-relaxed whitespace-pre-line">${n.message}</div>` : ''}
+                ${(!mostrarTabela && n.message) ? `<div class="text-xs text-gray-600 mt-0.5 leading-relaxed whitespace-pre-line">${n.message}</div>` : ''}
                 ${credentialsHtml}
+                ${tabelaHtml}
                 ${roomBtnFallback}
                 <div class="text-xs text-gray-400 mt-1">${dateStr}</div>
             </div>`;

@@ -7147,7 +7147,108 @@ function applyCouponUsageFilters() {
         renderCouponCharts(filteredCouponUsageData);
         renderCouponUsageTable();
     }
+    renderAffiliateRanking(filteredCouponUsageData.length > 0 ? filteredCouponUsageData : couponUsageData);
 }
+
+// ===== RANKING DE AFILIADOS =====
+function renderAffiliateRanking(data) {
+    const container = document.getElementById('affiliateRankingContainer');
+    const cardsEl = document.getElementById('affiliateRankingCards');
+    if (!container || !cardsEl) return;
+
+    // Agrupar por afiliado usando couponUsageData
+    const map = {};
+    (data || []).forEach(u => {
+        const affId = u.affiliateId || u.affiliateName || null;
+        if (!affId) return;
+        if (!map[affId]) {
+            map[affId] = { id: affId, name: null, conversions: 0, commission: 0, discount: 0 };
+        }
+        map[affId].conversions++;
+        map[affId].commission += (u.commissionAmount || 0);
+        map[affId].discount   += (u.discountAmount  || 0);
+        // Tentar pegar nome legível
+        if (!map[affId].name) {
+            const aff = (typeof affiliatesData !== 'undefined' ? affiliatesData : []).find(a => a.id === affId || a.email === affId);
+            map[affId].name = aff ? (aff.name || aff.email?.split('@')[0] || affId) : (u.affiliateName || affId);
+        }
+    });
+
+    const ranked = Object.values(map).sort((a, b) => b.conversions - a.conversions);
+
+    if (ranked.length === 0) {
+        container.classList.add('hidden');
+        return;
+    }
+    container.classList.remove('hidden');
+
+    const medals = ['🥇','🥈','🥉'];
+    const colors = [
+        'border-yellow-300 bg-yellow-50',
+        'border-gray-300 bg-gray-50',
+        'border-orange-200 bg-orange-50'
+    ];
+
+    cardsEl.innerHTML = ranked.map((aff, i) => {
+        const medal  = medals[i] || `#${i+1}`;
+        const color  = colors[i] || 'border-gray-200 bg-white';
+        const barPct = ranked[0].conversions > 0 ? Math.round((aff.conversions / ranked[0].conversions) * 100) : 0;
+        return `
+        <div class="border ${color} rounded-xl p-3 flex flex-col gap-1">
+            <div class="flex items-center justify-between">
+                <span class="text-lg">${medal}</span>
+                <span class="text-xs font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">${aff.conversions} uso${aff.conversions !== 1 ? 's' : ''}</span>
+            </div>
+            <p class="text-xs font-bold text-gray-800 truncate" title="${aff.name}">${aff.name}</p>
+            <div class="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                <div class="bg-purple-500 h-1.5 rounded-full" style="width:${barPct}%"></div>
+            </div>
+            <div class="flex justify-between mt-1">
+                <span class="text-xs text-gray-500">Comissão</span>
+                <span class="text-xs font-semibold text-green-700">R$ ${aff.commission.toFixed(2).replace('.',',')}</span>
+            </div>
+        </div>`;
+    }).join('');
+}
+window.renderAffiliateRanking = renderAffiliateRanking;
+
+// ===== ZERAR COMISSÕES =====
+async function zerarComissoes() {
+    const ok = confirm('⚠️ Isso vai zerar o histórico de uso de cupons e as comissões de todos os afiliados.\n\nEssa ação não pode ser desfeita. Confirmar?');
+    if (!ok) return;
+
+    try {
+        const { collection, getDocs, writeBatch, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const db = window.firebaseDb;
+        let total = 0;
+
+        // 1. Apagar todos os registros de couponUsage
+        const usageSnap = await getDocs(collection(db, 'couponUsage'));
+        if (!usageSnap.empty) {
+            const batch1 = writeBatch(db);
+            usageSnap.forEach(d => { batch1.delete(d.ref); total++; });
+            await batch1.commit();
+        }
+
+        // 2. Zerar commissionAmount em todos os affiliate_sales
+        const salesSnap = await getDocs(collection(db, 'affiliate_sales'));
+        if (!salesSnap.empty) {
+            const batch2 = writeBatch(db);
+            salesSnap.forEach(d => { batch2.update(d.ref, { commissionAmount: 0, status: 'zeroed' }); });
+            await batch2.commit();
+        }
+
+        showToast('success', `Comissões zeradas! ${total} registros de uso de cupons removidos.`, 'Concluído');
+        couponUsageData = [];
+        filteredCouponUsageData = [];
+        renderCouponUsageTable();
+        renderAffiliateRanking([]);
+    } catch (err) {
+        console.error('Erro ao zerar comissões:', err);
+        showToast('error', 'Erro ao zerar: ' + (err.message || err), 'Erro');
+    }
+}
+window.zerarComissoes = zerarComissoes;
 
 // Exportar dados de uso de cupons
 function exportCouponUsageData() {
