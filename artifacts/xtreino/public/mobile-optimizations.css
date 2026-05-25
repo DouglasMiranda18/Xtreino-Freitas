@@ -447,14 +447,41 @@
 
 /* ==================== CARROSSEL MOBILE ==================== */
 @media (max-width: 767px) {
-    /* Esconder setas do carrossel no mobile (usar swipe) */
+    /* O viewport (PAI estático) faz o clipping — NUNCA o track */
+    #carouselViewport {
+        overflow: hidden !important;
+        max-width: 100% !important;
+    }
+
+    /* O track SE MOVE via translateX — NUNCA deve ter overflow:hidden próprio */
+    #carouselTrack {
+        overflow: visible !important;
+        /* largura definida pelo JS via style.width em cada slide */
+    }
+
+    /* Cada slide: padding menor no mobile; JS controla width/minWidth */
+    .carousel-slide {
+        box-sizing: border-box !important;
+        padding: 1.25rem !important;
+    }
+
+    /* Setas do carrossel: menores no mobile */
     #carouselPrev,
     #carouselNext {
-        display: none !important;
+        width: 2.25rem !important;
+        height: 2.25rem !important;
+        min-width: 2.25rem !important;
     }
-    /* Carrossel com swipe via overflow */
-    #carouselTrack {
-        cursor: grab;
+
+    /* Imagem do slide: altura menor no mobile */
+    #carouselTrack .h-48 {
+        height: 8rem !important;
+    }
+
+    /* Grid do slide: 1 coluna no mobile */
+    #carouselTrack .grid.md\:grid-cols-2 {
+        grid-template-columns: 1fr !important;
+        gap: 0.75rem !important;
     }
 }
 
@@ -833,19 +860,13 @@
     }
 }
 
-/* ==================== SWIPE NO CARROSSEL MOBILE ==================== */
+/* ==================== PROTEÇÃO GLOBAL CONTRA OVERFLOW HORIZONTAL ==================== */
+/* Garante que nenhum elemento quebre o layout da página horizontalmente */
 @media (max-width: 767px) {
-    #carouselTrack {
-        overflow-x: auto;
-        scroll-snap-type: x mandatory;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
+    body {
+        overflow-x: hidden !important;
     }
-    #carouselTrack::-webkit-scrollbar {
-        display: none;
-    }
-    #carouselTrack > * {
-        scroll-snap-align: start;
-        flex-shrink: 0;
+    html {
+        overflow-x: hidden !important;
     }
 }

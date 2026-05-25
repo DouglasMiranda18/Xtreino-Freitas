@@ -254,9 +254,8 @@ window.showWarningToast = function(message, title = 'Atenção') {
         return true;
       }
       
-      const isAuthorized = ['admin', 'staff', 'gerente', 'vendedor', 'design', 'designer', 'desgin'].includes(role);
-      
-      
+      const isAuthorized = ['admin', 'staff', 'gerente', 'vendedor', 'design', 'designer', 'desgin',
+                            'moderador', 'operador', 'suporte'].includes(role);
       return isAuthorized;
     } catch (error) {
       console.error('❌ Erro ao verificar cargo:', error);
@@ -311,33 +310,47 @@ window.showWarningToast = function(message, title = 'Atenção') {
 
   // ===== MATRIZ DE PERMISSÕES POR CARGO =====
   const ROLE_SECTIONS = {
-    // CEO: acesso total
+    // CEO: tudo liberado
     ceo: ['sectionKPIs','sectionFilters','sectionCharts','sectionUsers','sectionOrders',
           'sectionTokenStats','sectionUsersManagement','sectionTokens','sectionCoupons',
-          'sectionCouponUsage','sectionAffiliates','sectionAffiliateSales','sectionPasseBooyah',
-          'sectionHighlights','sectionNews','sectionProducts','sectionEvents','sectionShirtOrders',
-          'sectionWhatsAppLinks','sectionSchedules','sectionNotificationsAdmin',
-          'sectionAdminHistory','sectionResetData'],
-    // SOCIO: acesso total, só visualização
+          'sectionCouponUsage','sectionAffiliates','sectionAffiliateSales','sectionAffiliatePayouts',
+          'sectionAffiliatePanel','sectionPasseBooyah','sectionHighlights','sectionNews',
+          'sectionProducts','sectionEvents','sectionShirtOrders','sectionWhatsAppLinks',
+          'sectionSchedules','sectionNotificationsAdmin','sectionAdminHistory','sectionResetData'],
+    // SOCIO: tudo, somente visualização (sem reset)
     socio: ['sectionKPIs','sectionFilters','sectionCharts','sectionUsers','sectionOrders',
             'sectionTokenStats','sectionUsersManagement','sectionTokens','sectionCoupons',
-            'sectionCouponUsage','sectionAffiliates','sectionAffiliateSales','sectionPasseBooyah',
-            'sectionHighlights','sectionNews','sectionProducts','sectionEvents','sectionShirtOrders',
-            'sectionWhatsAppLinks','sectionSchedules','sectionNotificationsAdmin','sectionAdminHistory'],
-    // VENDEDOR: pedidos, tokens, passes, notificações
-    vendedor: ['sectionOrders','sectionTokens','sectionPasseBooyah','sectionNotificationsAdmin',
-               'sectionShirtOrders','sectionWhatsAppLinks'],
-    // GERENTE: tudo menos dashboard e pagamentos
-    gerente: ['sectionUsers','sectionOrders','sectionUsersManagement','sectionTokens',
-              'sectionAffiliates','sectionAffiliateSales','sectionPasseBooyah','sectionHighlights',
-              'sectionNews','sectionProducts','sectionEvents','sectionShirtOrders',
-              'sectionWhatsAppLinks','sectionSchedules','sectionNotificationsAdmin','sectionAdminHistory'],
-    // DESIGNER: produtos, eventos, notícias, destaques
-    designer: ['sectionProducts','sectionEvents','sectionHighlights','sectionNews'],
+            'sectionCouponUsage','sectionAffiliates','sectionAffiliateSales','sectionAffiliatePayouts',
+            'sectionAffiliatePanel','sectionPasseBooyah','sectionHighlights','sectionNews',
+            'sectionProducts','sectionEvents','sectionShirtOrders','sectionWhatsAppLinks',
+            'sectionSchedules','sectionNotificationsAdmin','sectionAdminHistory'],
+    // GERENTE: tudo, EXCETO aba principal completa (KPIs, filtros, gráficos, pedidos, tokenStats)
+    gerente: ['sectionUsers','sectionUsersManagement',
+              'sectionTokens','sectionCoupons','sectionCouponUsage','sectionAffiliates',
+              'sectionAffiliateSales','sectionAffiliatePayouts','sectionAffiliatePanel','sectionPasseBooyah',
+              'sectionHighlights','sectionNews','sectionProducts','sectionEvents',
+              'sectionShirtOrders','sectionWhatsAppLinks','sectionSchedules',
+              'sectionNotificationsAdmin','sectionAdminHistory'],
+    // DESIGNER: apenas conteúdo (destaques, notícias, produtos, eventos) — sem camisas, sem horários
+    designer: ['sectionHighlights','sectionNews','sectionProducts','sectionEvents'],
+    // VENDEDOR: usuários + financeiro (sem aba principal) + camisas + produtos + notificações
+    vendedor: ['sectionUsers','sectionUsersManagement',
+               'sectionTokens','sectionCoupons','sectionCouponUsage','sectionAffiliates',
+               'sectionAffiliateSales','sectionAffiliatePayouts','sectionPasseBooyah','sectionShirtOrders',
+               'sectionProducts','sectionNotificationsAdmin'],
+    // ADMIN: gerenciador de eventos + notificações
+    admin: ['sectionEvents','sectionNotificationsAdmin'],
     // STAFF: notificações e eventos
     staff: ['sectionEvents','sectionNotificationsAdmin'],
-    // ADMIN (legado) → mesmo que staff
-    admin: ['sectionEvents','sectionNotificationsAdmin'],
+    // MODERADOR: igual ao staff
+    moderador: ['sectionEvents','sectionNotificationsAdmin'],
+    // OPERADOR: mesmo acesso do vendedor (sem aba principal)
+    operador: ['sectionUsers','sectionUsersManagement',
+               'sectionTokens','sectionCoupons','sectionCouponUsage','sectionAffiliates',
+               'sectionAffiliateSales','sectionAffiliatePayouts','sectionPasseBooyah','sectionShirtOrders',
+               'sectionProducts','sectionNotificationsAdmin'],
+    // SUPORTE: tokens, notificações, camisas
+    suporte: ['sectionTokens','sectionNotificationsAdmin','sectionShirtOrders'],
     // Aliases
     'sócio': null, // tratado abaixo
     'desgin': null,
@@ -347,7 +360,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
 
   const ALL_SECTIONS = ['sectionKPIs','sectionFilters','sectionCharts','sectionUsers','sectionOrders',
     'sectionTokenStats','sectionUsersManagement','sectionTokens','sectionCoupons','sectionCouponUsage',
-    'sectionAffiliates','sectionAffiliateSales','sectionAffiliatePanel','sectionPasseBooyah',
+    'sectionAffiliates','sectionAffiliateSales','sectionAffiliatePayouts','sectionAffiliatePanel','sectionPasseBooyah',
     'sectionHighlights','sectionNews','sectionProducts','sectionEvents','sectionShirtOrders',
     'sectionWhatsAppLinks','sectionSchedules','sectionNotificationsAdmin','sectionAdminHistory','sectionResetData'];
 
@@ -383,17 +396,29 @@ window.showWarningToast = function(message, title = 'Atenção') {
         if (id === 'sectionEvents' && typeof loadEventsPreview === 'function') {
           loadEventsPreview();
         }
+        if (id === 'sectionAffiliatePayouts' && typeof loadAffiliatePayouts === 'function') {
+          loadAffiliatePayouts();
+        }
       }
     });
 
-    // Atualizar sidebar: ocultar links sem permissão
-    document.querySelectorAll('.sidebar-link[onclick*="sidebarScroll"]').forEach(btn => {
-      const match = btn.getAttribute('onclick').match(/sidebarScroll\('(\w+)'/);
+    // Atualizar sidebar: ocultar links sem permissão (usa adminNav)
+    document.querySelectorAll('.sidebar-link[onclick*="adminNav"]').forEach(btn => {
+      const match = btn.getAttribute('onclick').match(/adminNav\s*\(\s*['"][^'"]*['"]\s*,\s*['"](\w+)['"]/);
       if (match) {
         const sectionId = match[1];
-        const hasAccess = allowed.includes(sectionId)
-          || sectionId === 'sectionResetData' && resolvedRole === 'ceo';
-        btn.parentElement.style.display = hasAccess ? '' : 'none';
+        const hasAccess = allowed.includes(sectionId);
+        const li = btn.closest('li');
+        if (li) li.style.display = hasAccess ? '' : 'none';
+      }
+    });
+
+    // Ocultar labels de categoria quando todos os itens estão escondidos
+    document.querySelectorAll('.sidebar-section-label').forEach(label => {
+      const ul = label.nextElementSibling;
+      if (ul && ul.classList.contains('sidebar-menu')) {
+        const hasVisible = Array.from(ul.querySelectorAll('li')).some(li => li.style.display !== 'none');
+        label.style.display = hasVisible ? '' : 'none';
       }
     });
 
@@ -428,13 +453,21 @@ window.showWarningToast = function(message, title = 'Atenção') {
   // ===== SEÇÕES EDITÁVEIS POR CARGO =====
   // null = readonly total | [] = todas as seções visíveis | [...] = seções específicas
   const ROLE_EDIT_SECTIONS = {
-    ceo:      null,     // acesso total de edição (null = sem restrição)
-    socio:    [],       // somente leitura (lista vazia = nenhuma seção editável)
-    gerente:  null,     // edição total nas seções visíveis
-    vendedor: ['#sectionOrders','#sectionTokens','#sectionPasseBooyah',
-               '#sectionNotificationsAdmin','#sectionShirtOrders','#sectionWhatsAppLinks'],
-    designer: ['#sectionProducts','#sectionEvents','#sectionHighlights','#sectionNews'],
+    ceo:      null,   // edição total
+    socio:    [],     // somente leitura
+    gerente:  null,   // edição total nas seções visíveis
+    vendedor: ['#sectionUsers','#sectionUsersManagement',
+               '#sectionTokens','#sectionCoupons','#sectionCouponUsage','#sectionAffiliates',
+               '#sectionAffiliateSales','#sectionPasseBooyah','#sectionShirtOrders',
+               '#sectionProducts','#sectionNotificationsAdmin'],
+    designer: ['#sectionHighlights','#sectionNews','#sectionProducts','#sectionEvents'],
     staff:    ['#sectionEvents','#sectionNotificationsAdmin'],
+    moderador:['#sectionEvents','#sectionNotificationsAdmin'],
+    operador: ['#sectionUsers','#sectionUsersManagement',
+               '#sectionTokens','#sectionCoupons','#sectionCouponUsage','#sectionAffiliates',
+               '#sectionAffiliateSales','#sectionPasseBooyah','#sectionShirtOrders',
+               '#sectionProducts','#sectionNotificationsAdmin'],
+    suporte:  ['#sectionTokens','#sectionNotificationsAdmin','#sectionShirtOrders'],
     admin:    ['#sectionEvents','#sectionNotificationsAdmin'],
   };
 
@@ -527,48 +560,17 @@ window.showWarningToast = function(message, title = 'Atenção') {
   function setView(authRole){
     const role = (authRole||'').toLowerCase();
     roleBadge.textContent = `Permissão: ${authRole||'desconhecida'}`;
-    
-    // Apply role-based section visibility and edit permissions with a delay to ensure DOM is ready
-    // REMOVIDO: controlSectionVisibility agora é chamada após carregamento de dados no onAuthStateChanged
-    
-    // Apply edit permissions with a longer delay to ensure all elements are loaded
+
+    // Aplicar visibilidade imediatamente (solução definitiva — sem esperar 1500ms)
+    window.visibilityApplied = false;
+    controlSectionVisibility(role);
+
+    // Reaplicar permissões de edição após DOM estabilizar
     setTimeout(() => {
+      window.visibilityApplied = false;
+      controlSectionVisibility(role);
       controlEditPermissions(role);
-      
-      // Verificação adicional para vendedor - garantir que elementos estejam habilitados
-      if (role === 'vendedor') {
-        const allowedSections = ['sectionTokens', 'sectionCoupons', 'sectionCouponUsage', 'sectionPasseBooyah', 'sectionUsers', 'sectionKPIs', 'sectionCharts'];
-        
-        allowedSections.forEach(sectionId => {
-          const section = document.getElementById(sectionId);
-          if (section) {
-            const elements = section.querySelectorAll('input, textarea, select, button, [contenteditable="true"]');
-            elements.forEach(element => {
-              // Só habilitar se não estiver em uma operação temporária
-              if (!element.hasAttribute('data-temp-disabled')) {
-                element.disabled = false;
-                element.readOnly = false;
-                element.style.pointerEvents = 'auto';
-                element.style.opacity = '1';
-              }
-            });
-          }
-        });
-      }
-    }, 500);
-    
-    // Controle de visão
-    const kpiCards = document.querySelectorAll('#kpiToday, #kpiMonth, #kpiReceivable');
-    const productsCard = document.getElementById('popularHoursChart')?.closest('.bg-white');
-    const salesChartCard = document.getElementById('salesChart')?.closest('.bg-white');
-    const topProductsCard = document.getElementById('topProductsChart')?.closest('.bg-white');
-    
-    // KPI card visibility per role
-    if (role === 'vendedor' || role === 'designer' || role === 'staff' || role === 'admin'){
-      if (productsCard) productsCard.classList.add('hidden');
-      if (salesChartCard) salesChartCard.classList.add('hidden');
-      if (topProductsCard) topProductsCard.classList.add('hidden');
-    }
+    }, 800);
   }
 
   // Variáveis de paginação
@@ -1067,7 +1069,8 @@ window.showWarningToast = function(message, title = 'Atenção') {
             date,
             schedule: schedule || '—',
             eventType: eventType || null,
-            status: 'confirmed'
+            status: 'confirmed',
+            userId: window.firebaseAuth?.currentUser?.uid || null
           };
           try{
             const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
@@ -2732,6 +2735,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
         opt.value = d.id;
         opt.textContent = ev.name || d.id;
         opt.dataset.dynamic = '1';
+        opt.dataset.canonicalType = d.id;
         typeEl.appendChild(opt);
       });
     } catch (err) {
@@ -2862,7 +2866,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
     const isStaff = window.adminRoleLower === 'staff';
 
     // Trava permanente deste horário
-    const hNum = parseInt(String(hour).replace(/\D/g,''), 10);
+    const hNum = parseInt(String(hour).match(/^(\d+)/)?.[1] || '', 10);
     const permLocked = !!(permLockedHours && permLockedHours.has(hNum));
     
     const remaining = Math.max(0, capacity - occupied);
@@ -3101,7 +3105,8 @@ window.showWarningToast = function(message, title = 'Atenção') {
         return
       }
 
-      const ovEventType = canonicalType(eventType);
+      const selectedOpt = typeEl.options[typeEl.selectedIndex];
+      const ovEventType = selectedOpt?.dataset?.canonicalType || canonicalType(eventType);
       const isCampSemifinalDate = CAMP_SEMIFINAL_DATES.includes(date);
       const isCampFinalDate = CAMP_FINAL_DATES.includes(date);
 
@@ -3213,9 +3218,11 @@ window.showWarningToast = function(message, title = 'Atenção') {
       try {
         const { collection: _c, query: _q, where: _w, getDocs: _g } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const hlRef = _c(window.firebaseDb, 'event_hour_locks');
-        const hlSnap = await _g(_q(hlRef, _w('eventType', '==', ovEventType), _w('locked', '==', true)));
+        // Usar apenas 1 filtro (eventType) para evitar índice composto no Firestore
+        const hlSnap = await _g(_q(hlRef, _w('eventType', '==', ovEventType)));
         hlSnap.forEach(d => {
-          const h = parseInt(String(d.data().hour || '').replace(/\D/g,''), 10);
+          if (d.data().locked !== true) return; // filtrar locked em JS
+          const h = parseInt(String(d.data().hour || '').match(/^(\d+)/)?.[1] || '', 10);
           if (!isNaN(h)) permLockedHours.add(h);
         });
       } catch(_) {}
@@ -3290,26 +3297,33 @@ window.showWarningToast = function(message, title = 'Atenção') {
 
   // Trava permanente de horário individual (sem data)
   async function handleTogglePermanentLock(hour, ovEventType) {
-    const hNum = parseInt(String(hour).replace(/\D/g,''), 10);
+    const hNum = parseInt(String(hour).match(/^(\d+)/)?.[1] || '', 10);
+    console.log('[Fixar] chamado', { hour, hNum, ovEventType });
     if (isNaN(hNum)) { showToast('error','Horário inválido.','Erro'); return; }
     const docId = `${ovEventType}__${hNum}`;
     try {
       const { doc, getDoc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
       const ref = doc(window.firebaseDb, 'event_hour_locks', docId);
+      console.log('[Fixar] lendo estado atual, docId:', docId);
       const snap = await getDoc(ref);
       const isCurrentlyLocked = snap.exists() && snap.data().locked === true;
-      const action = isCurrentlyLocked ? 'DESTRAVAR permanentemente' : 'TRAVAR permanentemente';
+      console.log('[Fixar] estado atual:', { exists: snap.exists(), isCurrentlyLocked });
       const msg = isCurrentlyLocked
         ? `🔓 Destravar o horário ${hNum}h de "${ovEventType}" em TODAS as datas?`
         : `🔒 Travar o horário ${hNum}h de "${ovEventType}" em TODAS as datas permanentemente?\n\nOs clientes não poderão reservar este horário em nenhuma data até você destravar.`;
-      const ok = await confirm(msg);
+      const ok = await showConfirm('Confirmar', msg);
+      console.log('[Fixar] confirmação:', ok);
       if (!ok) return;
+      console.log('[Fixar] gravando no Firestore...');
       await setDoc(ref, { eventType: ovEventType, hour: String(hNum), locked: !isCurrentlyLocked, updatedAt: Date.now() });
+      console.log('[Fixar] gravado com sucesso');
       showToast('success', isCurrentlyLocked ? `Horário ${hNum}h destravado em todas as datas.` : `Horário ${hNum}h travado permanentemente em todas as datas.`, isCurrentlyLocked ? 'Destravado' : 'Fixado');
       await loadBoard();
     } catch(err) {
-      console.error(err);
-      showToast('error','Falha na trava permanente: ' + (err.message||err),'Erro');
+      console.error('[Fixar] ERRO:', err);
+      const msg = 'Falha ao fixar horário: ' + (err.message || String(err));
+      showToast('error', msg, 'Erro');
+      alert('❌ ' + msg + '\n\nAbra o console do navegador (F12) para mais detalhes.');
     }
   }
 
@@ -3587,14 +3601,12 @@ window.showWarningToast = function(message, title = 'Atenção') {
       const { collection, query, where, getDocs, doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
       const regs = collection(window.firebaseDb,'registrations');
       // Busca reservas PAGAS/CONFIRMADAS do dia; filtra por eventType e hora com normalização (schedule ou hour)
-      // Incluir 'pending' para mostrar clientes recém-comprados (aguardando confirmação de pagamento)
-      const snap = await getDocs(query(regs, where('date','==', date), where('status','in',['paid','confirmed','approved','pending'])));
+      const snap = await getDocs(query(regs, where('date','==', date), where('status','in',['paid','confirmed','approved'])));
       list.innerHTML = '';
       let any = false;
       const evLower = String(eventType||'').toLowerCase();
       const normalizeHour = (s)=>{ const m = String(s||'').match(/(\d{1,2})/); return m? String(parseInt(m[1],10)).padStart(2,'0') : null; };
       const targetHH = normalizeHour(hour);
-      const registeredUserIds = new Set();
       snap.forEach(d=>{
         const r = d.data();
         if (evLower && r.eventType && !String(r.eventType).toLowerCase().includes(evLower)) return;
@@ -3603,84 +3615,13 @@ window.showWarningToast = function(message, title = 'Atenção') {
         const regHH = normalizeHour(schedStr) || normalizeHour(hourStr);
         if (targetHH && regHH && targetHH !== regHH) return;
         any = true;
-        if (r.userId) registeredUserIds.add(r.userId);
-        const isPending = r.status === 'pending';
-        const statusBadge = isPending
-          ? '<span class="text-[10px] bg-yellow-100 text-yellow-700 font-bold rounded px-1 ml-1">Aguardando pagto.</span>'
-          : '<span class="text-[10px] bg-green-100 text-green-700 font-bold rounded px-1 ml-1">Confirmado</span>';
         const row = document.createElement('div');
         row.className = 'flex items-center justify-between border-b py-2';
-        row.innerHTML = `<div class="text-sm"><div class="font-semibold">${r.teamName||r.email||'-'}${statusBadge}</div><div class="text-gray-500">${r.contact||r.phone||r.email||''}</div></div>
+        row.innerHTML = `<div class="text-sm"><div class="font-semibold">${r.teamName||r.email||'-'}</div><div class="text-gray-500">${r.contact||r.phone||''}</div></div>
           <button class="px-2 py-1 bg-red-600 text-white rounded text-xs" data-remove-reg-id="${d.id}">Remover</button>`;
         list.appendChild(row);
       });
       if (!any){ list.innerHTML = '<div class="text-sm text-gray-500">Nenhum time neste horário.</div>'; }
-
-      // Botão "Enviar ID/Senha" para todos os inscritos no horário
-      const sendCredSection = document.createElement('div');
-      sendCredSection.className = 'mt-4 border-t pt-4';
-      sendCredSection.innerHTML = `
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-sm font-semibold text-gray-700">Enviar ID/Senha da Sala</span>
-          <button id="btnToggleCredForm" class="text-xs px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700">
-            <i class="fas fa-key mr-1"></i>Enviar Credenciais
-          </button>
-        </div>
-        <div id="credFormInner" class="hidden space-y-2">
-          <input id="credRoomId" type="text" placeholder="ID da sala (ex: 123456789)" class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:border-indigo-400"/>
-          <input id="credRoomPass" type="text" placeholder="Senha da sala" class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:border-indigo-400"/>
-          <textarea id="credExtraMsg" rows="2" placeholder="Mensagem extra (opcional)" class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:border-indigo-400"></textarea>
-          <button id="btnSendCred" class="w-full py-2 bg-indigo-600 text-white rounded text-sm font-semibold hover:bg-indigo-700">
-            <i class="fas fa-paper-plane mr-1"></i>Enviar para ${registeredUserIds.size} participante(s)
-          </button>
-        </div>`;
-      list.appendChild(sendCredSection);
-
-      document.getElementById('btnToggleCredForm')?.addEventListener('click', () => {
-        document.getElementById('credFormInner')?.classList.toggle('hidden');
-      });
-
-      document.getElementById('btnSendCred')?.addEventListener('click', async () => {
-        const roomId = document.getElementById('credRoomId')?.value?.trim();
-        const roomPass = document.getElementById('credRoomPass')?.value?.trim();
-        const extraMsg = document.getElementById('credExtraMsg')?.value?.trim();
-        if (!roomId || !roomPass) { showToast('warning', 'Preencha o ID e a senha da sala.', 'Atenção'); return; }
-        const sendBtn = document.getElementById('btnSendCred');
-        if (sendBtn) { sendBtn.disabled = true; sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Enviando...'; }
-        try {
-          const { collection: _nc, addDoc: _na, serverTimestamp: _ns } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-          const user = window.firebaseAuth?.currentUser;
-          const createdBy = user ? (user.displayName || user.email || user.uid) : 'Admin';
-          const msgBody = `ID da Sala: ${roomId}\nSenha: ${roomPass}${extraMsg ? '\n\n' + extraMsg : ''}`;
-          await Promise.all([...registeredUserIds].map(uid =>
-            _na(_nc(window.firebaseDb, 'notifications'), {
-              title: `Credenciais do Evento — ${hour} (${date})`,
-              message: msgBody,
-              type: 'user',
-              targetUserId: uid,
-              notifyType: 'credentials',
-              roomId,
-              roomPass,
-              eventType,
-              date,
-              hour,
-              createdAt: _ns(),
-              createdBy,
-              createdByUid: user?.uid || null,
-            })
-          ));
-          showToast('success', `Credenciais enviadas para ${registeredUserIds.size} participante(s)!`, 'Sucesso');
-          document.getElementById('credFormInner')?.classList.add('hidden');
-          if (document.getElementById('credRoomId')) document.getElementById('credRoomId').value = '';
-          if (document.getElementById('credRoomPass')) document.getElementById('credRoomPass').value = '';
-          if (document.getElementById('credExtraMsg')) document.getElementById('credExtraMsg').value = '';
-        } catch(err) {
-          showToast('error', 'Erro ao enviar: ' + (err.message||err), 'Erro');
-        } finally {
-          if (sendBtn) { sendBtn.disabled = false; sendBtn.innerHTML = `<i class="fas fa-paper-plane mr-1"></i>Enviar para ${registeredUserIds.size} participante(s)`; }
-        }
-      });
-
       list.addEventListener('click', async (e)=>{
         const btn = e.target.closest('[data-remove-reg-id]');
         if (!btn) return;
@@ -4529,16 +4470,39 @@ async function loadPendingOrders() {
 // Função para aprovar pedido
 async function approveOrder(orderId) {
     try {
-        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const { doc, getDoc, updateDoc, collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const orderRef = doc(window.firebaseDb, 'orders', orderId);
-        await updateDoc(orderRef, { status: 'approved' });
-        
+        const orderSnap = await getDoc(orderRef);
+        const orderData = orderSnap.exists() ? orderSnap.data() : {};
+
+        // Montar patch base
+        const patch = { status: 'approved', approvedAt: Date.now() };
+
+        // Se for Passe Booyah/Elite, marcar como enviado automaticamente
+        const titleLow = (orderData.title || orderData.item || '').toLowerCase();
+        const pidLow = (orderData.productId || '').toLowerCase();
+        if (titleLow.includes('passe') || titleLow.includes('booyah') || titleLow.includes('elite') || pidLow.includes('passe') || pidLow.includes('booyah')) {
+            patch.booyahConfirmed = true;
+            patch.booyahConfirmedAt = new Date();
+        }
+
+        await updateDoc(orderRef, patch);
+
+        // Atualizar também registrations com o mesmo external_reference (eventos)
+        if (orderData.external_reference) {
+            try {
+                const regsRef = collection(window.firebaseDb, 'registrations');
+                const regsSnap = await getDocs(query(regsRef, where('external_reference', '==', orderData.external_reference)));
+                const { writeBatch } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+                const batch = writeBatch(window.firebaseDb);
+                regsSnap.forEach(d => batch.update(d.ref, { status: 'approved', approvedAt: Date.now() }));
+                if (!regsSnap.empty) await batch.commit();
+            } catch (_) {}
+        }
+
         alert('Pedido aprovado com sucesso!');
-        
-        // Recarregar as listas
         await loadPendingOrders();
         await loadConfirmedOrders();
-        
     } catch (error) {
         console.error('Erro ao aprovar pedido:', error);
         alert('Erro ao aprovar pedido');
@@ -5229,7 +5193,8 @@ window.addEventListener('load', () => {
         const role = (newUserData.role || '').toLowerCase().trim();        
         
         // Continuar com o processo de login
-        const authorizedRoles = ['admin', 'ceo', 'gerente', 'vendedor', 'design', 'designer', 'desgin', 'socio', 'sócio'];
+        const authorizedRoles = ['admin', 'ceo', 'gerente', 'vendedor', 'design', 'designer', 'desgin',
+                                 'socio', 'sócio', 'staff', 'moderador', 'operador', 'suporte'];
         const isAuthorized = authorizedRoles.includes(role);
         
         if (!isAuthorized) {
@@ -5238,40 +5203,25 @@ window.addEventListener('load', () => {
           return;
         }
         
-        // Para socio/ceo, permitir qualquer email
-        if (role === 'socio' || role === 'sócio' || role === 'ceo') {   
-          
-          // Save session
-          const sessionData = {
-            uid: user.uid,
-            email: user.email,
-            role: role,
-            timestamp: Date.now()
-          };
-          sessionStorage.setItem('adminSession', JSON.stringify(sessionData));
+        // Todos os cargos autorizados acedem ao dashboard
+        const sessionData = {
+          uid: user.uid,
+          email: user.email,
+          role: role,
+          timestamp: Date.now()
+        };
+        sessionStorage.setItem('adminSession', JSON.stringify(sessionData));
 
-          // Mostrar dashboard diretamente
-          const authGate = document.getElementById('authGate');
-          const dashboard = document.getElementById('dashboard');
-          if (authGate && dashboard) {
-            authGate.classList.add('hidden');
-            dashboard.classList.remove('hidden');
-
-            // Inicializar dashboard
-            setTimeout(() => {
-              if (typeof setView === 'function') {
-                setView(role);
-              }
-              if (typeof startSessionTimer === 'function') {
-                startSessionTimer();
-              }
-            }, 100);
-          }
-          return;
+        const authGate = document.getElementById('authGate');
+        const dashboard = document.getElementById('dashboard');
+        if (authGate && dashboard) {
+          authGate.classList.add('hidden');
+          dashboard.classList.remove('hidden');
+          setTimeout(() => {
+            if (typeof setView === 'function') setView(role);
+            if (typeof startSessionTimer === 'function') startSessionTimer();
+          }, 100);
         }
-        
-        await signOutFn(window.firebaseAuth);
-        showLoginError('Acesso negado. Você não tem permissão para acessar o painel administrativo.');
         return;
       }
       
@@ -5282,7 +5232,8 @@ window.addEventListener('load', () => {
       const cleanRole = role.trim();     
       
       // Check if role is authorized (including variations and typos)
-      const authorizedRoles = ['admin', 'ceo', 'gerente', 'vendedor', 'design', 'designer', 'desgin', 'socio', 'sócio'];
+      const authorizedRoles = ['admin', 'ceo', 'gerente', 'vendedor', 'design', 'designer', 'desgin',
+                               'socio', 'sócio', 'staff', 'moderador', 'operador', 'suporte'];
       const isAuthorized = authorizedRoles.includes(cleanRole);
             
       if (!isAuthorized) {        
@@ -6787,6 +6738,7 @@ let couponsData = [];
 let couponUsageData = [];
 let filteredCouponUsageData = [];
 let couponUsageFilters = { period: '7d', context: 'all', couponCode: 'all', productName: '' };
+let _couponUsageUnsubscribe = null;
 
 // Carregar cupons
 async function loadCoupons() {
@@ -6921,119 +6873,192 @@ function renderCouponsTable() {
 
 // Carregar histórico de uso de cupons
 async function loadCouponUsage() {
+    // Cancelar listener anterior se existir
+    if (_couponUsageUnsubscribe) { _couponUsageUnsubscribe(); _couponUsageUnsubscribe = null; }
     try {
-        
-        const { collection, getDocs, orderBy, query } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const { collection, query, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const usageRef = collection(window.firebaseDb, 'couponUsage');
-        const q = query(usageRef, orderBy('usedAt', 'desc'));
-        const snapshot = await getDocs(q);
-        
-        couponUsageData = [];
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            couponUsageData.push({
-                id: doc.id,
-                ...data,
-                usedAt: data.usedAt?.toDate() || new Date()
+        const q = query(usageRef);
+
+        _couponUsageUnsubscribe = onSnapshot(q, (snapshot) => {
+            couponUsageData = [];
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                couponUsageData.push({
+                    id: doc.id,
+                    ...data,
+                    usedAt: data.usedAt?.toDate?.() || (data.usedAt ? new Date(data.usedAt) : new Date())
+                });
             });
+            // Ordenar localmente do mais recente
+            couponUsageData.sort((a, b) => b.usedAt - a.usedAt);
+            filteredCouponUsageData = [...couponUsageData];
+            applyCouponUsageFilters();
+        }, (error) => {
+            console.error('❌ Erro no listener de cupons:', error);
+            const tbody = document.getElementById('couponUsageTableBody');
+            if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-red-500">Erro ao carregar histórico</td></tr>';
         });
-        
-        
-        
-        // Popular select de cupons
-        populateCouponCodeFilter();
-        
-        // Inicializar filteredCouponUsageData com todos os dados antes de aplicar filtros
-        filteredCouponUsageData = [...couponUsageData];
-        
-        // Inicializa filtros padrão e aplica
-        applyCouponUsageFilters();
     } catch (error) {
-        console.error('❌ Erro ao carregar histórico de cupons:', error);
+        console.error('❌ Erro ao iniciar listener de cupons:', error);
         const tbody = document.getElementById('couponUsageTableBody');
-        if (tbody) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="8" class="py-6 text-center text-red-500">Erro ao carregar histórico</td>
-                </tr>
-            `;
-        }
+        if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-red-500">Erro ao carregar histórico</td></tr>';
     }
 }
 
-// Popular select de cupons no filtro
-function populateCouponCodeFilter() {
-    const select = document.getElementById('couponUsageCodeFilter');
-    if (!select) return;
-    
-    // Obter códigos únicos de cupons
-    const uniqueCodes = [...new Set(couponUsageData.map(u => u.couponCode).filter(Boolean))].sort();
-    
-    select.innerHTML = '<option value="all" selected>Todos os cupons</option>';
-    uniqueCodes.forEach(code => {
-        const option = document.createElement('option');
-        option.value = code;
-        option.textContent = code;
-        select.appendChild(option);
+// Popular select de cupons no filtro (mantido por compatibilidade, não exibe mais)
+function populateCouponCodeFilter() {}
+// Renderizar gráficos circulares por cupom (com retry se Chart.js ainda não carregou)
+function renderCouponCharts(data, _retryCount) {
+    if (typeof Chart === 'undefined') {
+        const attempt = (_retryCount || 0) + 1;
+        if (attempt <= 20) {
+            setTimeout(() => renderCouponCharts(data, attempt), 500);
+        }
+        return;
+    }
+    const area = document.getElementById('couponChartsArea');
+    if (!area) return;
+
+    // Destruir gráficos anteriores
+    area.querySelectorAll('canvas').forEach(c => {
+        if (window.Chart) { const ch = window.Chart.getChart(c); if (ch) ch.destroy(); }
+    });
+
+    // Agrupar por cupom → evento/produto (a partir dos usos)
+    const byCoupon = {};
+    (data || []).forEach(u => {
+        const code = u.couponCode || u.coupon_code || u.code || u.couponId || 'N/A';
+        if (!byCoupon[code]) byCoupon[code] = {};
+        const label = (u.productName || u.product_name || u.eventName || u.event_name || u.productId || 'Outro').slice(0, 28);
+        byCoupon[code][label] = (byCoupon[code][label] || 0) + 1;
+    });
+
+    // Incluir TODOS os cupons definidos em couponsData (mesmo sem usos)
+    if (Array.isArray(couponsData)) {
+        couponsData.forEach(c => {
+            const code = c.code || c.id;
+            if (code && !byCoupon[code]) byCoupon[code] = {};
+        });
+    }
+
+    const codes = Object.keys(byCoupon).sort();
+    if (codes.length === 0) { area.innerHTML = ''; return; }
+
+    const COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316','#06b6d4'];
+
+    area.innerHTML = `
+        <div class="border border-indigo-100 rounded-xl p-4 bg-gradient-to-br from-indigo-50 to-white mb-2">
+            <h4 class="text-xs font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                <i class="fas fa-chart-pie text-indigo-500"></i>
+                Distribuição por Cupom nos Eventos/Produtos Ativos
+            </h4>
+            <div class="flex flex-wrap gap-8 justify-center" id="couponChartsGrid"></div>
+        </div>`;
+
+    const grid = document.getElementById('couponChartsGrid');
+    codes.forEach(code => {
+        const eventData = byCoupon[code];
+        const labels = Object.keys(eventData);
+        const values = labels.map(l => eventData[l]);
+        const total = values.reduce((a, b) => a + b, 0);
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'flex flex-col items-center gap-1';
+
+        if (total === 0) {
+            // Cupom sem usos: exibe badge "sem usos"
+            wrapper.innerHTML = `
+                <span class="bg-indigo-100 border border-indigo-300 font-mono font-bold text-indigo-700 text-xs px-3 py-1 rounded-full">${escapeAdminHtml(code)}</span>
+                <div style="width:190px;height:190px" class="flex flex-col items-center justify-center bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl">
+                    <i class="fas fa-tag text-gray-300 text-3xl mb-2"></i>
+                    <span class="text-xs text-gray-400 font-medium">Sem usos</span>
+                </div>
+                <span class="text-xs text-gray-400 font-medium">0 uso(s)</span>`;
+            grid.appendChild(wrapper);
+            return;
+        }
+
+        const safeId = `cc_${code.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}`;
+        wrapper.innerHTML = `
+            <span class="bg-indigo-100 border border-indigo-300 font-mono font-bold text-indigo-700 text-xs px-3 py-1 rounded-full">${escapeAdminHtml(code)}</span>
+            <canvas id="${safeId}" width="190" height="190"></canvas>
+            <span class="text-xs text-gray-500 font-medium">${total} uso(s)</span>`;
+        grid.appendChild(wrapper);
+
+        if (typeof Chart === 'undefined') return;
+        const canvas = document.getElementById(safeId);
+        if (!canvas) return;
+        new Chart(canvas, {
+            type: 'doughnut',
+            data: {
+                labels: labels.map((l, i) => `${l} — ${((values[i]/total)*100).toFixed(0)}%`),
+                datasets: [{ data: values, backgroundColor: COLORS.slice(0, labels.length), borderWidth: 2, borderColor: '#fff' }]
+            },
+            options: {
+                responsive: false, cutout: '52%',
+                plugins: {
+                    legend: { position: 'bottom', labels: { font: { size: 9 }, boxWidth: 10, padding: 5 } },
+                    tooltip: { callbacks: { label: ctx => ` ${ctx.label}` } }
+                }
+            }
+        });
     });
 }
-// Renderizar tabela de uso de cupons
+
+// Renderizar tabela de uso de cupons (paginada, 7 colunas)
 function renderCouponUsageTable() {
     const tbody = document.getElementById('couponUsageTableBody');
-    const countElement = document.getElementById('couponUsageCount');
-    
+    const countEl = document.getElementById('couponUsageCount');
+    const showingEl = document.getElementById('couponTableShowing');
+    const totalEl = document.getElementById('couponTableTotal');
+
     if (!tbody) return;
-    
-    // Sempre usar filteredCouponUsageData se existir (mesmo que vazio), senão usar couponUsageData
-    // Isso garante que os filtros sejam respeitados mesmo quando não há resultados
     const data = Array.isArray(filteredCouponUsageData) ? filteredCouponUsageData : couponUsageData;
-    
+
+    if (countEl) countEl.textContent = `${data.length} usos`;
+    if (totalEl) totalEl.textContent = data.length;
+
     if (data.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="8" class="py-6 text-center text-gray-500">Nenhum uso de cupom encontrado</td>
-            </tr>
-        `;
-        if (countElement) countElement.textContent = '0 usos';
+        tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-gray-500">Nenhum uso de cupom encontrado</td></tr>';
+        if (showingEl) showingEl.textContent = '0';
         updateCouponStats([]);
         return;
     }
-    
-    if (countElement) countElement.textContent = `${data.length} usos`;
-    
-    // Estatísticas já são atualizadas em applyCouponUsageFilters
-    // Não atualizar aqui para evitar duplicação
-    
-    tbody.innerHTML = data.map(usage => {
-        // Usar os campos que realmente existem no banco
+
+    const pageSizeEl = document.getElementById('couponUsagePageSize');
+    const pageSize = parseInt(pageSizeEl?.value || '25');
+    const displayData = pageSize > 0 ? data.slice(0, pageSize) : data;
+    if (showingEl) showingEl.textContent = displayData.length;
+
+    tbody.innerHTML = displayData.map(usage => {
         const orderValue = usage.orderValue || 0;
         const discountAmount = usage.discountAmount || 0;
-        const finalValue = usage.finalValue || (orderValue - discountAmount);
-        
-        // Calcular percentual - usar discountPercentage se disponível, senão calcular
-        const discountPercentage = usage.discountPercentage || (orderValue > 0 ? ((discountAmount / orderValue) * 100).toFixed(2) : '0.00');
-        const productName = usage.productName || usage.productId || 'N/A';
-        
-        return `
-            <tr class="border-b border-gray-100 hover:bg-gray-50">
-                <td class="py-2 px-2 text-xs">${usage.usedAt ? formatDateTime(usage.usedAt) : 'N/A'}</td>
-                <td class="py-2 px-2">
-                    <span class="font-mono text-xs bg-blue-100 px-2 py-1 rounded">${usage.couponCode || 'N/A'}</span>
-                </td>
-                <td class="py-2 px-2 text-xs">
-                    <div class="font-medium">${usage.customerName ? usage.customerName.split(' ')[0] : 'N/A'}</div>
-                    <div class="text-gray-500 text-xs">${usage.customerEmail ? usage.customerEmail.split('@')[0] : ''}</div>
-                </td>
-                <td class="py-2 px-2 text-xs">
-                    <div class="font-medium">${productName}</div>
-                    ${usage.productId ? `<div class="text-gray-500 text-xs">ID: ${usage.productId}</div>` : ''}
-                </td>
-                <td class="py-2 px-2 text-xs">R$ ${orderValue.toFixed(2)}</td>
-                <td class="py-2 px-2 text-xs text-green-600 font-medium">${discountPercentage}%</td>
-                <td class="py-2 px-2 text-xs text-green-600">-R$ ${discountAmount.toFixed(2)}</td>
-                <td class="py-2 px-2 text-xs font-medium">R$ ${finalValue.toFixed(2)}</td>
-            </tr>
-        `;
+        const finalValue = usage.finalValue ?? (orderValue - discountAmount);
+        const discountPct = usage.discountPercentage || (orderValue > 0 ? ((discountAmount / orderValue) * 100).toFixed(1) : '0.0');
+        const couponCode = usage.couponCode || usage.coupon_code || usage.code || usage.couponId || 'N/A';
+        const productName = usage.productName || usage.product_name || usage.eventName || usage.event_name || usage.productId || usage.itemName || 'N/A';
+        const customerName = usage.customerName || usage.customer_name || usage.userName || 'N/A';
+        const customerEmail = usage.customerEmail || usage.customer_email || usage.email || '';
+        const ctxBadge = usage.context === 'events'
+            ? '<span class="ml-1 text-[9px] bg-purple-100 text-purple-600 px-1 py-0.5 rounded">evento</span>'
+            : usage.context === 'store'
+            ? '<span class="ml-1 text-[9px] bg-blue-100 text-blue-600 px-1 py-0.5 rounded">loja</span>'
+            : '';
+        return `<tr class="border-b border-gray-100 hover:bg-gray-50">
+            <td class="py-2 px-2 text-xs whitespace-nowrap">${usage.usedAt ? formatDateTime(usage.usedAt) : 'N/A'}</td>
+            <td class="py-2 px-2"><span class="font-mono text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-semibold">${escapeAdminHtml(couponCode)}</span>${ctxBadge}</td>
+            <td class="py-2 px-2 text-xs">
+                <div class="font-medium">${escapeAdminHtml(customerName.split(' ')[0])}</div>
+                <div class="text-gray-400 text-xs">${customerEmail ? customerEmail.split('@')[0] : ''}</div>
+            </td>
+            <td class="py-2 px-2 text-xs max-w-[180px]">
+                <div class="font-medium truncate" title="${escapeAdminHtml(productName)}">${escapeAdminHtml(productName)}</div>
+            </td>
+            <td class="py-2 px-2 text-xs">R$ ${orderValue.toFixed(2).replace('.',',')}</td>
+            <td class="py-2 px-2 text-xs font-medium text-green-700">-R$ ${discountAmount.toFixed(2).replace('.',',')} <span class="text-gray-400 font-normal">(${discountPct}%)</span></td>
+            <td class="py-2 px-2 text-xs font-bold text-gray-800">R$ ${finalValue.toFixed(2).replace('.',',')}</td>
+        </tr>`;
     }).join('');
 }
 
@@ -7055,67 +7080,56 @@ function updateCouponStats(data) {
     if (statsAverage) statsAverage.textContent = `R$ ${averageTicket.toFixed(2).replace('.', ',')}`;
 }
 
-// Aplicar filtros de período e contexto ao histórico de cupons
+// Aplicar filtros de período, contexto e busca ao histórico de cupons
 function applyCouponUsageFilters() {
     try {
-        
-        
-        
+        // Ler valores dos novos controles HTML
+        const period = document.getElementById('couponUsagePeriod')?.value || couponUsageFilters.period || '7d';
+        const context = document.getElementById('couponUsageContext')?.value || couponUsageFilters.context || 'all';
+        const search = (document.getElementById('couponUsageSearch')?.value || '').toLowerCase().trim();
+
+        // Sincronizar objeto de filtros
+        couponUsageFilters.period = period;
+        couponUsageFilters.context = context;
+
         const now = new Date();
         let fromDate = null;
-        switch (couponUsageFilters.period) {
+        switch (period) {
             case '1d': fromDate = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000); break;
             case '7d': fromDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); break;
             case '15d': fromDate = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000); break;
             case '30d': fromDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); break;
             case 'all': default: fromDate = null; break;
         }
-        
+
         filteredCouponUsageData = couponUsageData.filter(u => {
             // Filtro por período
-            let usedAt;
-            if (u.usedAt instanceof Date) {
-                usedAt = u.usedAt;
-            } else if (u.usedAt && typeof u.usedAt.toDate === 'function') {
-                usedAt = u.usedAt.toDate();
-            } else {
-                usedAt = new Date(u.usedAt);
-            }
-            const inPeriod = fromDate ? usedAt >= fromDate && usedAt <= now : true;
-            
-            // Filtro por contexto (events, store ou ambos)
+            let usedAt = u.usedAt instanceof Date ? u.usedAt
+                : (u.usedAt?.toDate ? u.usedAt.toDate() : new Date(u.usedAt));
+            const inPeriod = fromDate ? (usedAt >= fromDate && usedAt <= now) : true;
+
+            // Filtro por contexto
             const ctx = (u.context || '').toLowerCase();
-            const inContext = couponUsageFilters.context === 'all' ? true : ctx === couponUsageFilters.context.toLowerCase();
-            
-            // Filtro por código de cupom
-            const matchesCoupon = couponUsageFilters.couponCode === 'all' || (u.couponCode && u.couponCode === couponUsageFilters.couponCode);
-            
-            // Filtro por nome do produto
-            const productName = (u.productName || u.productId || '').toLowerCase();
-            const productFilter = (couponUsageFilters.productName || '').toLowerCase().trim();
-            const matchesProduct = !productFilter || productName.includes(productFilter);
-            
-            return inPeriod && inContext && matchesCoupon && matchesProduct;
+            const inContext = context === 'all' ? true : ctx === context;
+
+            // Busca combinada: cupom ou produto
+            const searchMatch = !search ||
+                (u.couponCode || '').toLowerCase().includes(search) ||
+                (u.productName || '').toLowerCase().includes(search) ||
+                (u.productId || '').toLowerCase().includes(search) ||
+                (u.customerName || '').toLowerCase().includes(search);
+
+            return inPeriod && inContext && searchMatch;
         });
-        
-        
-        
-        // Atualizar contador visível
-        try {
-            const cnt = document.getElementById('couponUsageCount');
-            if (cnt) cnt.textContent = `${filteredCouponUsageData.length} usos`;
-        } catch(_){}
-        
-        // Atualizar estatísticas com dados filtrados
+
         updateCouponStats(filteredCouponUsageData);
-        
-        // Renderizar tabela
+        renderCouponCharts(filteredCouponUsageData);
         renderCouponUsageTable();
     } catch (e) {
         console.error('❌ Erro ao aplicar filtros de cupons:', e);
-        // fallback
         filteredCouponUsageData = couponUsageData.slice();
         updateCouponStats(filteredCouponUsageData);
+        renderCouponCharts(filteredCouponUsageData);
         renderCouponUsageTable();
     }
 }
@@ -7912,17 +7926,42 @@ function populateAffiliateFilter() {
     });
 }
 
+// Filtrar tabela de afiliados por busca individual
+function filterAffiliatesTable() {
+    const search = (document.getElementById('affiliateSearchInput')?.value || '').toLowerCase().trim();
+    const statusFilter = document.getElementById('affiliateStatusFilter')?.value || 'all';
+
+    const filtered = affiliatesData.filter(a => {
+        const matchSearch = !search ||
+            (a.name || '').toLowerCase().includes(search) ||
+            (a.email || '').toLowerCase().includes(search);
+        const matchStatus = statusFilter === 'all' || (a.status || 'active') === statusFilter;
+        return matchSearch && matchStatus;
+    });
+
+    const tbody = document.getElementById('affiliatesTableBody');
+    if (!tbody) return;
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-gray-500">Nenhum afiliado encontrado para "${search}"</td></tr>`;
+        return;
+    }
+    renderAffiliatesRows(filtered, tbody);
+}
+
 // Renderizar tabela de afiliados
 function renderAffiliatesTable() {
     const tbody = document.getElementById('affiliatesTableBody');
     if (!tbody) return;
-    
+
     if (affiliatesData.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" class="py-6 text-center text-gray-500">Nenhum afiliado encontrado</td></tr>';
         return;
     }
-    
-    tbody.innerHTML = affiliatesData.map(affiliate => {
+    renderAffiliatesRows(affiliatesData, tbody);
+}
+
+function renderAffiliatesRows(affiliatesList, tbody) {
+    tbody.innerHTML = affiliatesList.map(affiliate => {
         // Calcular estatísticas do afiliado
         const sales = affiliateSalesData.filter(s => s.affiliateId === affiliate.id);
         const totalSales = sales.length;
@@ -8226,6 +8265,137 @@ window.editAffiliate = editAffiliate;
 window.viewAffiliateDetails = viewAffiliateDetails;
 window.approveAffiliateCommission = approveAffiliateCommission;
 
+// ============================================================
+// GERENCIAMENTO DE SAQUES DE AFILIADOS
+// ============================================================
+
+let _allPayouts = [];
+
+async function loadAffiliatePayouts() {
+    try {
+        const { collection, getDocs, query, orderBy } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const snap = await getDocs(query(collection(window.firebaseDb, 'affiliate_payouts'), orderBy('createdAt', 'desc')));
+        _allPayouts = [];
+        snap.forEach(d => {
+            const data = d.data();
+            _allPayouts.push({
+                id: d.id,
+                ...data,
+                createdAt: data.createdAt?.toDate?.() || (data.createdAt ? new Date(data.createdAt) : new Date()),
+                processedAt: data.processedAt?.toDate?.() || (data.processedAt ? new Date(data.processedAt) : null)
+            });
+        });
+        _updatePayoutStats();
+        filterAffiliatePayouts();
+    } catch (err) {
+        console.error('Erro ao carregar saques:', err);
+        const tb = document.getElementById('affiliatePayoutsTableBody');
+        if (tb) tb.innerHTML = '<tr><td colspan="8" class="py-6 text-center text-red-500">Erro ao carregar saques</td></tr>';
+    }
+}
+
+function _updatePayoutStats() {
+    const pending = _allPayouts.filter(p => p.status === 'pending');
+    const approved = _allPayouts.filter(p => p.status === 'approved');
+    const rejected = _allPayouts.filter(p => p.status === 'rejected');
+    const approvedTotal = approved.reduce((s, p) => s + (p.amount || 0), 0);
+    const pendingEl = document.getElementById('payoutsPendingCount');
+    const approvedEl = document.getElementById('payoutsApprovedTotal');
+    const rejectedEl = document.getElementById('payoutsRejectedCount');
+    if (pendingEl) pendingEl.textContent = pending.length;
+    if (approvedEl) approvedEl.textContent = `R$ ${approvedTotal.toFixed(2).replace('.', ',')}`;
+    if (rejectedEl) rejectedEl.textContent = rejected.length;
+}
+
+function filterAffiliatePayouts() {
+    const filter = document.getElementById('payoutsStatusFilter')?.value || 'all';
+    const filtered = filter === 'all' ? _allPayouts : _allPayouts.filter(p => p.status === filter);
+    renderAffiliatePayoutsTable(filtered);
+}
+
+function renderAffiliatePayoutsTable(payouts) {
+    const tb = document.getElementById('affiliatePayoutsTableBody');
+    if (!tb) return;
+    if (payouts.length === 0) {
+        tb.innerHTML = '<tr><td colspan="8" class="py-8 text-center text-gray-400">Nenhuma solicitação encontrada</td></tr>';
+        return;
+    }
+    tb.innerHTML = payouts.map(p => {
+        const date = p.createdAt ? p.createdAt.toLocaleDateString('pt-BR') : '—';
+        const statusBadge = p.status === 'approved'
+            ? '<span class="px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-xs font-medium">Aprovado</span>'
+            : p.status === 'rejected'
+            ? '<span class="px-2 py-0.5 bg-red-100 text-red-800 rounded-full text-xs font-medium">Recusado</span>'
+            : '<span class="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">Pendente</span>';
+        const obs = p.rejectionReason
+            ? `<span class="text-red-600">${escapeAdminHtml(p.rejectionReason)}</span>`
+            : (p.status === 'approved' ? `<span class="text-gray-400 text-xs">Aprovado em ${p.processedAt ? p.processedAt.toLocaleDateString('pt-BR') : '—'}</span>` : '—');
+        const actions = p.status === 'pending'
+            ? `<div class="flex gap-1">
+                 <button onclick="approveAffiliatePayout('${p.id}')" class="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs">✓ Aprovar</button>
+                 <button onclick="rejectAffiliatePayout('${p.id}')" class="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs">✗ Recusar</button>
+               </div>`
+            : `<span class="text-gray-400 text-xs">${p.processedBy ? `por ${escapeAdminHtml(p.processedBy)}` : '—'}</span>`;
+        return `<tr class="border-b border-gray-100 hover:bg-gray-50">
+            <td class="py-2 px-3">${date}</td>
+            <td class="py-2 px-3">
+                <div class="font-medium">${escapeAdminHtml(p.affiliateName || p.affiliateEmail || '—')}</div>
+                <div class="text-gray-400 text-xs">${escapeAdminHtml(p.affiliateEmail || '')}</div>
+            </td>
+            <td class="py-2 px-3 font-semibold text-green-700">R$ ${(p.amount || 0).toFixed(2).replace('.', ',')}</td>
+            <td class="py-2 px-3 font-mono text-xs max-w-[140px] truncate" title="${escapeAdminHtml(p.pixKey || '')}">${escapeAdminHtml(p.pixKey || '—')}</td>
+            <td class="py-2 px-3">${escapeAdminHtml(p.pixAccountName || '—')}</td>
+            <td class="py-2 px-3">${statusBadge}</td>
+            <td class="py-2 px-3 max-w-[160px]">${obs}</td>
+            <td class="py-2 px-3">${actions}</td>
+        </tr>`;
+    }).join('');
+}
+
+async function approveAffiliatePayout(payoutId) {
+    if (!confirm('Confirmar aprovação deste saque?')) return;
+    try {
+        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const adminEmail = window.firebaseAuth?.currentUser?.email || 'admin';
+        await updateDoc(doc(window.firebaseDb, 'affiliate_payouts', payoutId), {
+            status: 'approved',
+            processedAt: new Date(),
+            processedBy: adminEmail
+        });
+        showToast('success', 'Saque aprovado com sucesso!', 'Saque');
+        await loadAffiliatePayouts();
+    } catch (err) {
+        console.error('Erro ao aprovar saque:', err);
+        alert('Erro ao aprovar saque: ' + err.message);
+    }
+}
+
+async function rejectAffiliatePayout(payoutId) {
+    const reason = prompt('Digite a justificativa para recusar o saque:\n(Esta mensagem será visível ao afiliado)');
+    if (reason === null) return;
+    if (!reason.trim()) { alert('A justificativa não pode estar em branco.'); return; }
+    try {
+        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const adminEmail = window.firebaseAuth?.currentUser?.email || 'admin';
+        await updateDoc(doc(window.firebaseDb, 'affiliate_payouts', payoutId), {
+            status: 'rejected',
+            rejectionReason: reason.trim(),
+            processedAt: new Date(),
+            processedBy: adminEmail
+        });
+        showToast('success', 'Saque recusado.', 'Saque');
+        await loadAffiliatePayouts();
+    } catch (err) {
+        console.error('Erro ao recusar saque:', err);
+        alert('Erro ao recusar saque: ' + err.message);
+    }
+}
+
+window.loadAffiliatePayouts = loadAffiliatePayouts;
+window.filterAffiliatePayouts = filterAffiliatePayouts;
+window.approveAffiliatePayout = approveAffiliatePayout;
+window.rejectAffiliatePayout = rejectAffiliatePayout;
+
 // Configurar formulário e filtros
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('createAffiliateForm');
@@ -8255,95 +8425,39 @@ function setupCouponUsageFilters() {
   // Aguardar um pouco para garantir que o DOM está pronto
   setTimeout(() => {
     try {
-      const periodSel = document.getElementById('couponUsagePeriod');
-      const ctxSel = document.getElementById('couponUsageContext');
-      const codeSel = document.getElementById('couponUsageCodeFilter');
-      const productInput = document.getElementById('couponUsageProductFilter');
       const applyBtn = document.getElementById('couponUsageApply');
       const resetBtn = document.getElementById('couponUsageReset');
       const exportBtn = document.getElementById('couponUsageExport');
-      
+
       if (!applyBtn || !resetBtn || !exportBtn) {
-        console.warn('Elementos de filtro de cupons não encontrados, tentando novamente...');
-        // Tentar novamente após mais tempo
         setTimeout(setupCouponUsageFilters, 500);
         return;
       }
-      
-      // Função para aplicar filtros
-      const applyFn = (e) => {
-        if (e) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-        couponUsageFilters.period = (periodSel?.value || '7d');
-        couponUsageFilters.context = (ctxSel?.value || 'all');
-        couponUsageFilters.couponCode = (codeSel?.value || 'all');
-        couponUsageFilters.productName = (productInput?.value || '').trim();
-        
-        applyCouponUsageFilters();
-      };
-      
-      // Função para resetar filtros
+
+      const applyFn = (e) => { if (e) { e.preventDefault(); e.stopPropagation(); } applyCouponUsageFilters(); };
       const resetFn = (e) => {
-        if (e) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-        if (periodSel) periodSel.value = '7d';
-        if (ctxSel) ctxSel.value = 'all';
-        if (codeSel) codeSel.value = 'all';
-        if (productInput) productInput.value = '';
+        if (e) { e.preventDefault(); e.stopPropagation(); }
+        const p = document.getElementById('couponUsagePeriod');
+        const c = document.getElementById('couponUsageContext');
+        const s = document.getElementById('couponUsageSearch');
+        if (p) p.value = '7d';
+        if (c) c.value = 'all';
+        if (s) s.value = '';
         couponUsageFilters = { period: '7d', context: 'all', couponCode: 'all', productName: '' };
-        
         applyCouponUsageFilters();
       };
-      
-      // Função para exportar
-      const exportFn = (e) => {
-        if (e) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-        exportCouponUsageData();
-      };
-      
-      // Remover listeners antigos antes de adicionar novos
+      const exportFn = (e) => { if (e) { e.preventDefault(); e.stopPropagation(); } exportCouponUsageData(); };
+
+      // Clonar para limpar listeners antigos
       const newApplyBtn = applyBtn.cloneNode(true);
       const newResetBtn = resetBtn.cloneNode(true);
       const newExportBtn = exportBtn.cloneNode(true);
-      
       applyBtn.parentNode.replaceChild(newApplyBtn, applyBtn);
       resetBtn.parentNode.replaceChild(newResetBtn, resetBtn);
       exportBtn.parentNode.replaceChild(newExportBtn, exportBtn);
-      
-      // Adicionar listeners aos novos elementos
       newApplyBtn.addEventListener('click', applyFn);
       newResetBtn.addEventListener('click', resetFn);
       newExportBtn.addEventListener('click', exportFn);
-      
-      // Configurar listeners dos selects e input
-      if (periodSel) {
-        periodSel.removeEventListener('change', applyFn);
-        periodSel.addEventListener('change', applyFn);
-      }
-      if (ctxSel) {
-        ctxSel.removeEventListener('change', applyFn);
-        ctxSel.addEventListener('change', applyFn);
-      }
-      if (codeSel) {
-        codeSel.removeEventListener('change', applyFn);
-        codeSel.addEventListener('change', applyFn);
-      }
-      if (productInput) {
-        // Remover listener antigo se existir
-        const oldHandler = productInput.oninput;
-        productInput.oninput = null;
-        productInput.addEventListener('input', () => {
-          couponUsageFilters.productName = productInput.value.trim();
-          applyCouponUsageFilters();
-        });
-      }
       
       
     } catch (error) {
@@ -9502,33 +9616,24 @@ window.submitPaymentRequest = submitPaymentRequest;
 // ===== GERENCIAMENTO DE PRODUTOS =====
 
 let productsData = [];
-let productCounter = 1;
 
-// Abrir modal de produtos
 function openProductsModal() {
     loadProducts();
     const modal = document.getElementById('modalProducts');
     if (modal) modal.classList.remove('hidden');
 }
 
-// Fechar modal de produtos
 function closeProductsModal() {
     const modal = document.getElementById('modalProducts');
     if (modal) modal.classList.add('hidden');
 }
 
-// Carregar produtos do Firestore
 async function loadProducts() {
     try {
         const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const productsRef = collection(window.firebaseDb, 'products');
-        const snapshot = await getDocs(productsRef);
-        
+        const snapshot = await getDocs(collection(window.firebaseDb, 'products'));
         productsData = [];
-        snapshot.forEach(doc => {
-            productsData.push({ id: doc.id, ...doc.data() });
-        });
-        
+        snapshot.forEach(d => productsData.push({ id: d.id, ...d.data() }));
         renderProducts();
     } catch (error) {
         console.error('Erro ao carregar produtos:', error);
@@ -9536,114 +9641,390 @@ async function loadProducts() {
     }
 }
 
-// Renderizar produtos na interface
+function _prodBadgeClass(active) {
+    return active
+        ? 'px-2 py-0.5 rounded-full text-xs font-bold flex-shrink-0 bg-green-100 text-green-700'
+        : 'px-2 py-0.5 rounded-full text-xs font-bold flex-shrink-0 bg-red-100 text-red-700';
+}
+
+function updateProdStatus(idx, val) {
+    productsData[idx].active = val === 'true';
+    const badge = document.getElementById('prod-badge-' + idx);
+    if (badge) {
+        badge.className = _prodBadgeClass(val === 'true');
+        badge.textContent = val === 'true' ? 'Ativo' : 'Inativo';
+    }
+}
+
+function updateProdTitle(idx, val) {
+    productsData[idx].name = val;
+    const el = document.getElementById('prod-title-' + idx);
+    if (el) el.textContent = val || 'Novo Produto';
+}
+
+function _prodCatConfig(cat) {
+    const c = (cat || 'digital').toLowerCase();
+    if (c === 'passe') return { label: 'Passe de Elite', icon: 'fas fa-gamepad', headerClass: 'bg-gradient-to-r from-green-600 to-emerald-500', badgeClass: 'bg-white/20 text-white' };
+    if (c === 'fisico' || c === 'physical') return { label: 'Produto Físico', icon: 'fas fa-box', headerClass: 'bg-gradient-to-r from-purple-600 to-pink-500', badgeClass: 'bg-white/20 text-white' };
+    if (c === 'aereas') return { label: 'Imagens Aéreas', icon: 'fas fa-map', headerClass: 'bg-gradient-to-r from-orange-500 to-amber-400', badgeClass: 'bg-white/20 text-white' };
+    if (c === 'sensibilidade') return { label: 'Sensibilidade', icon: 'fas fa-sliders-h', headerClass: 'bg-gradient-to-r from-cyan-600 to-blue-500', badgeClass: 'bg-white/20 text-white' };
+    return { label: 'Produto Digital', icon: 'fas fa-download', headerClass: 'bg-gradient-to-r from-blue-600 to-indigo-500', badgeClass: 'bg-white/20 text-white' };
+}
+
+function _renderPriceOptionsHtml(idx) {
+    const options = productsData[idx]?.priceOptions || [];
+    if (options.length === 0) return '<p class="text-xs text-gray-400 italic">Nenhum valor cadastrado. Clique em "Adicionar Valor".</p>';
+    return options.map((opt, pIdx) => `
+        <div class="flex items-center gap-2">
+            <input type="text" value="${(opt.label || '').replace(/"/g, '&quot;')}" oninput="updatePriceOption(${idx},${pIdx},'label',this.value)" placeholder="Ex.: Básico, Premium..." class="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" style="min-width:0">
+            <span class="text-gray-500 text-sm font-medium flex-shrink-0">R$</span>
+            <input type="number" value="${opt.price || 0}" step="0.01" min="0" oninput="updatePriceOption(${idx},${pIdx},'price',parseFloat(this.value)||0)" class="w-24 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 flex-shrink-0">
+            ${options.length > 1 ? `<button onclick="removePriceOption(${idx},${pIdx})" class="text-red-400 hover:text-red-600 flex-shrink-0 text-lg leading-none">&times;</button>` : ''}
+        </div>`).join('');
+}
+
+function addPriceOption(idx) {
+    if (!Array.isArray(productsData[idx].priceOptions)) productsData[idx].priceOptions = [];
+    productsData[idx].priceOptions.push({ label: '', price: 0 });
+    const el = document.getElementById(`prod-prices-${idx}`);
+    if (el) el.innerHTML = _renderPriceOptionsHtml(idx);
+}
+
+function removePriceOption(idx, pIdx) {
+    if (!Array.isArray(productsData[idx].priceOptions)) return;
+    productsData[idx].priceOptions.splice(pIdx, 1);
+    if (productsData[idx].priceOptions[0]) productsData[idx].price = productsData[idx].priceOptions[0].price || 0;
+    const el = document.getElementById(`prod-prices-${idx}`);
+    if (el) el.innerHTML = _renderPriceOptionsHtml(idx);
+}
+
+function updatePriceOption(idx, pIdx, field, val) {
+    if (!Array.isArray(productsData[idx].priceOptions)) return;
+    productsData[idx].priceOptions[pIdx] = { ...(productsData[idx].priceOptions[pIdx] || {}), [field]: val };
+    if (pIdx === 0 && field === 'price') productsData[idx].price = val;
+}
+
+function setProdCategory(idx, cat) {
+    productsData[idx].category = cat;
+    renderProducts();
+    // Scroll to card after re-render
+    setTimeout(() => {
+        const card = document.getElementById(`prod-card-${idx}`);
+        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 80);
+}
+
+function updateMapLink(idx, key, val) {
+    if (!productsData[idx]) return;
+    if (!productsData[idx].mapLinks || typeof productsData[idx].mapLinks !== 'object') productsData[idx].mapLinks = {};
+    productsData[idx].mapLinks[key] = val;
+}
+
+function updateSensibLink(idx, platform, val) {
+    if (!productsData[idx]) return;
+    if (!productsData[idx].downloadLinks || typeof productsData[idx].downloadLinks !== 'object') productsData[idx].downloadLinks = {};
+    productsData[idx].downloadLinks[platform] = val;
+}
+window.updateSensibLink = updateSensibLink;
+
+function updateProdBannerPreview(idx, url) {
+    const el = document.getElementById(`prod-banner-preview-${idx}`);
+    if (!el) return;
+    if (url) {
+        el.classList.remove('hidden');
+        el.innerHTML = `<img src="${url.replace(/"/g, '&quot;')}" class="w-full h-full object-cover" onerror="this.parentElement.classList.add('hidden')">`;
+    } else {
+        el.classList.add('hidden');
+        el.innerHTML = '';
+    }
+}
+
 function renderProducts() {
     const container = document.getElementById('productsContainer');
     if (!container) return;
-    
     container.innerHTML = '';
-    
     if (productsData.length === 0) {
-        container.innerHTML = '<div class="text-center py-8 text-gray-500">Nenhum produto cadastrado. Clique em "Adicionar" para criar um novo.</div>';
+        container.innerHTML = '<div class="text-center py-10 text-gray-400"><i class="fas fa-box-open text-4xl mb-3 block opacity-40"></i><p>Nenhum produto cadastrado.</p><p class="text-sm mt-1">Clique em "Adicionar" para criar um novo.</p></div>';
         return;
     }
-    
     productsData.forEach((product, index) => {
-        const productDiv = document.createElement('div');
-        productDiv.className = 'bg-white border border-gray-200 rounded-lg p-6 mb-4';
-        productDiv.innerHTML = `
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">Nome do Produto</label>
-                    <input type="text" value="${product.name || ''}" class="w-full border rounded px-3 py-2 text-sm" 
-                           onchange="productsData[${index}].name = this.value" placeholder="Ex: Sensibilidade, Planilha">
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">Descrição</label>
-                    <input type="text" value="${product.description || ''}" class="w-full border rounded px-3 py-2 text-sm"
-                           onchange="productsData[${index}].description = this.value" placeholder="Descrição breve">
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">Preço (R$)</label>
-                    <input type="number" value="${product.price || 0}" step="0.01" class="w-full border rounded px-3 py-2 text-sm"
-                           onchange="productsData[${index}].price = parseFloat(this.value)" placeholder="0.00">
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">Categoria</label>
-                    <select onchange="productsData[${index}].category = this.value" class="w-full border rounded px-3 py-2 text-sm">
-                        <option value="">Selecione</option>
-                        <option value="digital" ${product.category === 'digital' ? 'selected' : ''}>Produto Digital</option>
-                        <option value="physical" ${product.category === 'physical' ? 'selected' : ''}>Produto Físico</option>
-                        <option value="service" ${product.category === 'service' ? 'selected' : ''}>Serviço</option>
-                    </select>
+        const cat = (product.category || 'digital').toLowerCase();
+        const isActive = product.active !== false;
+        const cc = _prodCatConfig(cat);
+
+        // Garantir priceOptions
+        if (!Array.isArray(product.priceOptions) || product.priceOptions.length === 0) {
+            product.priceOptions = [{ label: 'Padrão', price: product.price || 0 }];
+        }
+
+        const safeTitle = (product.name || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        const safeImg   = (product.image || '').replace(/"/g, '&quot;');
+        const safeDl    = (product.downloadLink || '').replace(/"/g, '&quot;');
+        const safeDesc  = (product.description || '').replace(/</g, '&lt;');
+
+        const isDigital = cat === 'digital' || cat === 'servico' || cat === 'service';
+        const isFisico  = cat === 'fisico' || cat === 'physical';
+        const isPasse   = cat === 'passe';
+        const isAereas  = cat === 'aereas';
+        const isSensib  = cat === 'sensibilidade';
+        const MAP_KEYS  = ['bermuda','purgatorio','solara','kalahari','novaTerra'];
+        const MAP_NAMES = { bermuda: 'Bermuda', purgatorio: 'Purgatório', solara: 'Solara', kalahari: 'Kalahari', novaTerra: 'Nova Terra' };
+        if (!product.mapLinks || typeof product.mapLinks !== 'object') product.mapLinks = {};
+        const ml = product.mapLinks;
+
+        const div = document.createElement('div');
+        div.id = `prod-card-${index}`;
+        div.className = 'bg-white border border-gray-200 rounded-xl shadow-sm mb-6 overflow-hidden';
+        div.innerHTML = `
+<div class="${cc.headerClass} px-5 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+        <i class="${cc.icon} text-white text-sm"></i>
+        <span id="prod-title-${index}" class="text-white font-semibold text-sm truncate max-w-xs">${safeTitle || 'Novo Produto'}</span>
+        <span id="prod-badge-${index}" class="px-2 py-0.5 rounded-full text-xs font-bold ${isActive ? 'bg-white/20 text-white' : 'bg-red-200 text-red-800'}">${isActive ? 'Ativo' : 'Inativo'}</span>
+    </div>
+    <button onclick="deleteProduct(${index})" class="flex-shrink-0 text-white/70 hover:text-white text-xs transition-colors ml-3">
+        <i class="fas fa-trash-alt mr-1"></i>Excluir
+    </button>
+</div>
+<div class="p-5 space-y-4">
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="sm:col-span-2">
+            <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider">Título</label>
+            <input type="text" value="${safeTitle}" oninput="updateProdTitle(${index},this.value)"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" placeholder="Nome do produto">
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider">Status</label>
+            <select oninput="updateProdStatus(${index},this.value)"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                <option value="true"  ${isActive  ? 'selected' : ''}>Ativo</option>
+                <option value="false" ${!isActive ? 'selected' : ''}>Inativo</option>
+            </select>
+        </div>
+    </div>
+
+    <div>
+        <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider">Categoria</label>
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <button onclick="setProdCategory(${index},'passe')"
+                    class="flex flex-col items-center gap-1 py-2 px-1 rounded-lg border-2 text-xs font-semibold transition-colors ${isPasse ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 text-gray-500 hover:border-green-300'}">
+                <i class="fas fa-gamepad text-base"></i>Passe Elite
+            </button>
+            <button onclick="setProdCategory(${index},'fisico')"
+                    class="flex flex-col items-center gap-1 py-2 px-1 rounded-lg border-2 text-xs font-semibold transition-colors ${isFisico ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-gray-200 text-gray-500 hover:border-purple-300'}">
+                <i class="fas fa-box text-base"></i>Físico
+            </button>
+            <button onclick="setProdCategory(${index},'digital')"
+                    class="flex flex-col items-center gap-1 py-2 px-1 rounded-lg border-2 text-xs font-semibold transition-colors ${isDigital ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:border-blue-300'}">
+                <i class="fas fa-download text-base"></i>Digital
+            </button>
+            <button onclick="setProdCategory(${index},'aereas')"
+                    class="flex flex-col items-center gap-1 py-2 px-1 rounded-lg border-2 text-xs font-semibold transition-colors ${isAereas ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-500 hover:border-orange-300'}">
+                <i class="fas fa-map text-base"></i>Img. Aéreas
+            </button>
+            <button onclick="setProdCategory(${index},'sensibilidade')"
+                    class="flex flex-col items-center gap-1 py-2 px-1 rounded-lg border-2 text-xs font-semibold transition-colors ${isSensib ? 'border-cyan-500 bg-cyan-50 text-cyan-700' : 'border-gray-200 text-gray-500 hover:border-cyan-300'}">
+                <i class="fas fa-sliders-h text-base"></i>Sensibilidade
+            </button>
+        </div>
+        <p class="text-xs text-gray-400 mt-1">
+            ${isPasse    ? '<i class="fas fa-gamepad text-green-500 mr-1"></i>Coleta Nick, ID e WhatsApp do jogador após compra.' : ''}
+            ${isFisico   ? '<i class="fas fa-box text-purple-500 mr-1"></i>Coleta nome, endereço, CPF e tamanho após compra.' : ''}
+            ${isDigital  ? '<i class="fas fa-download text-blue-500 mr-1"></i>Link único liberado automaticamente após pagamento.' : ''}
+            ${isAereas   ? '<i class="fas fa-map text-orange-500 mr-1"></i>5 mapas com links individuais. Cliente escolhe qual baixar na área do cliente.' : ''}
+            ${isSensib   ? '<i class="fas fa-sliders-h text-cyan-500 mr-1"></i>Links por plataforma: PC, iOS e Android (por marca). Cliente escolhe e recebe o link correspondente.' : ''}
+        </p>
+    </div>
+
+    <div>
+        <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider"><i class="fas fa-image mr-1"></i>URL da Imagem / Banner</label>
+        <input type="url" value="${safeImg}" oninput="productsData[${index}].image=this.value;updateProdBannerPreview(${index},this.value)"
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" placeholder="https://...">
+        <div id="prod-banner-preview-${index}" class="mt-2 h-20 rounded-lg border border-gray-200 bg-gray-50 overflow-hidden ${safeImg ? '' : 'hidden'}">
+            ${safeImg ? `<img src="${safeImg}" class="w-full h-full object-cover" onerror="this.parentElement.classList.add('hidden')">` : ''}
+        </div>
+    </div>
+
+    <div>
+        <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider">Infos do Produto</label>
+        <textarea oninput="productsData[${index}].description=this.value" rows="3"
+                  class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none"
+                  placeholder="Descrição, o que está incluso, benefícios...">${safeDesc}</textarea>
+    </div>
+
+    ${isDigital ? `
+    <div>
+        <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider">
+            <i class="fab fa-google-drive text-blue-500 mr-1"></i>Link de Download (Google Drive)
+        </label>
+        <input type="url" value="${safeDl}" oninput="productsData[${index}].downloadLink=this.value"
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+               placeholder="https://drive.google.com/...">
+        <p class="text-xs text-blue-600 mt-1">
+            <i class="fas fa-bolt mr-1"></i>Liberado automaticamente ao confirmar pagamento. Você também pode enviar manualmente na aba de pedidos.
+        </p>
+    </div>` : ''}
+
+    ${isSensib ? `
+    <div class="border border-cyan-200 rounded-xl p-4 bg-cyan-50">
+        <div class="flex items-center gap-2 mb-3">
+            <i class="fas fa-sliders-h text-cyan-500"></i>
+            <span class="text-sm font-semibold text-cyan-700">Links de Download por Plataforma</span>
+        </div>
+        <p class="text-xs text-cyan-600 mb-3">Preencha os links de download para cada plataforma/marca. Apenas as opções com link serão exibidas ao cliente.</p>
+        <div class="space-y-3">
+            <div>
+                <label class="text-xs font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1 mb-1"><i class="fas fa-desktop text-cyan-500"></i> PC (Windows)</label>
+                <input type="url" value="${((product.downloadLinks?.pc) || '').replace(/"/g,'&quot;')}"
+                       oninput="updateSensibLink(${index},'pc',this.value)"
+                       class="w-full border border-cyan-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-300"
+                       placeholder="https://drive.google.com/...">
+            </div>
+            <div>
+                <label class="text-xs font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1 mb-1"><i class="fab fa-apple text-cyan-500"></i> iOS (iPhone / iPad)</label>
+                <input type="url" value="${((product.downloadLinks?.ios) || '').replace(/"/g,'&quot;')}"
+                       oninput="updateSensibLink(${index},'ios',this.value)"
+                       class="w-full border border-cyan-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-300"
+                       placeholder="https://drive.google.com/...">
+            </div>
+            <div class="border-t border-cyan-200 pt-3">
+                <label class="text-xs font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1 mb-2"><i class="fab fa-android text-cyan-500"></i> Android — Links por Marca</label>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    ${[['lg','LG'],['motorola','Motorola'],['samsung','Samsung'],['xiaomi','Xiaomi / Realme']].map(([key,label]) => `
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs font-semibold text-gray-600 w-28 flex-shrink-0">${label}</label>
+                        <input type="url" value="${((product.downloadLinks?.[key]) || '').replace(/"/g,'&quot;')}"
+                               oninput="updateSensibLink(${index},'${key}',this.value)"
+                               class="flex-1 border border-cyan-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-300"
+                               placeholder="https://drive.google.com/...">
+                    </div>`).join('')}
                 </div>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">URL da Imagem</label>
-                    <input type="url" value="${product.image || ''}" class="w-full border rounded px-3 py-2 text-sm"
-                           onchange="productsData[${index}].image = this.value" placeholder="https://...">
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">Link de Download/Acesso</label>
-                    <input type="url" value="${product.downloadLink || ''}" class="w-full border rounded px-3 py-2 text-sm"
-                           onchange="productsData[${index}].downloadLink = this.value" placeholder="https://...">
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">Status</label>
-                    <select onchange="productsData[${index}].active = this.value === 'true'" class="w-full border rounded px-3 py-2 text-sm">
-                        <option value="true" ${product.active !== false ? 'selected' : ''}>Ativo</option>
-                        <option value="false" ${product.active === false ? 'selected' : ''}>Inativo</option>
-                    </select>
-                </div>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">Estoque (se aplicável)</label>
-                    <input type="number" value="${product.stock || 0}" class="w-full border rounded px-3 py-2 text-sm"
-                           onchange="productsData[${index}].stock = parseInt(this.value)" placeholder="0">
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">ID do Produto (será salvo)</label>
-                    <input type="text" value="${product.id || ''}" class="w-full border rounded px-3 py-2 text-sm bg-gray-100" disabled>
-                </div>
-            </div>
-            <div class="mt-4 flex justify-end gap-2">
-                <button onclick="deleteProduct(${index})" class="px-3 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200">
-                    <i class="fas fa-trash mr-1"></i>Excluir
-                </button>
-            </div>
-        `;
-        container.appendChild(productDiv);
+        </div>
+    </div>` : ''}
+
+    ${isAereas ? `
+    <div class="border border-orange-200 rounded-xl p-4 bg-orange-50">
+        <div class="flex items-center gap-2 mb-3">
+            <i class="fas fa-map text-orange-500"></i>
+            <span class="text-sm font-semibold text-orange-700">Links por Mapa (Google Drive)</span>
+        </div>
+        <p class="text-xs text-orange-600 mb-3">Cole o link do Google Drive para cada mapa. O cliente verá somente os mapas que tiverem link preenchido.</p>
+        <div class="space-y-2">
+            ${MAP_KEYS.map(key => `
+            <div class="flex items-center gap-2">
+                <label class="text-xs font-semibold text-gray-600 w-24 flex-shrink-0">${MAP_NAMES[key]}</label>
+                <input type="url" value="${((ml[key]) || '').replace(/"/g,'&quot;')}"
+                       oninput="updateMapLink(${index},'${key}',this.value)"
+                       class="flex-1 border border-orange-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+                       placeholder="https://drive.google.com/...">
+            </div>`).join('')}
+        </div>
+    </div>` : ''}
+
+    <div>
+        <div class="flex items-center justify-between mb-2">
+            <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                <i class="fas fa-tags mr-1"></i>Valores / Planos
+            </label>
+            <button onclick="addPriceOption(${index})"
+                    class="text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-1 rounded-lg hover:bg-indigo-100 transition-colors">
+                <i class="fas fa-plus mr-1"></i>Adicionar Valor
+            </button>
+        </div>
+        <div id="prod-prices-${index}" class="space-y-2">
+            ${_renderPriceOptionsHtml(index)}
+        </div>
+        <p class="text-xs text-gray-400 mt-1">O primeiro valor será o preço padrão. Adicione vários planos/faixas de preço se quiser.</p>
+    </div>
+
+</div>`;
+        container.appendChild(div);
     });
 }
 
-// Adicionar novo produto
 function addProduct() {
-    const newProduct = {
+    const existing = document.getElementById('_catSelectorOverlay');
+    if (existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.id = '_catSelectorOverlay';
+    overlay.className = 'fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4';
+    overlay.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full">
+            <h3 class="text-lg font-bold text-gray-800 mb-1 text-center">Tipo de Produto</h3>
+            <p class="text-sm text-gray-500 text-center mb-5">Escolha a categoria do novo produto:</p>
+            <div class="space-y-3">
+                <button onclick="_createProductWithCat('passe')" class="w-full flex items-center gap-3 px-4 py-3 bg-green-50 border-2 border-green-200 rounded-xl hover:border-green-400 hover:bg-green-100 transition-colors text-left">
+                    <i class="fas fa-gamepad text-green-600 text-xl w-7 text-center flex-shrink-0"></i>
+                    <div>
+                        <div class="font-semibold text-gray-800">Passe de Elite</div>
+                        <div class="text-xs text-gray-500">Coleta Nick, ID do Free Fire e WhatsApp</div>
+                    </div>
+                </button>
+                <button onclick="_createProductWithCat('fisico')" class="w-full flex items-center gap-3 px-4 py-3 bg-purple-50 border-2 border-purple-200 rounded-xl hover:border-purple-400 hover:bg-purple-100 transition-colors text-left">
+                    <i class="fas fa-box text-purple-600 text-xl w-7 text-center flex-shrink-0"></i>
+                    <div>
+                        <div class="font-semibold text-gray-800">Produto Físico</div>
+                        <div class="text-xs text-gray-500">Coleta nome, endereço, CPF e tamanho</div>
+                    </div>
+                </button>
+                <button onclick="_createProductWithCat('digital')" class="w-full flex items-center gap-3 px-4 py-3 bg-blue-50 border-2 border-blue-200 rounded-xl hover:border-blue-400 hover:bg-blue-100 transition-colors text-left">
+                    <i class="fas fa-download text-blue-600 text-xl w-7 text-center flex-shrink-0"></i>
+                    <div>
+                        <div class="font-semibold text-gray-800">Produto Digital</div>
+                        <div class="text-xs text-gray-500">Link único de download. Coleta nome, e-mail e WhatsApp</div>
+                    </div>
+                </button>
+                <button onclick="_createProductWithCat('aereas')" class="w-full flex items-center gap-3 px-4 py-3 bg-orange-50 border-2 border-orange-200 rounded-xl hover:border-orange-400 hover:bg-orange-100 transition-colors text-left">
+                    <i class="fas fa-map text-orange-500 text-xl w-7 text-center flex-shrink-0"></i>
+                    <div>
+                        <div class="font-semibold text-gray-800">Imagens Aéreas</div>
+                        <div class="text-xs text-gray-500">5 links por mapa: Bermuda, Purgatório, Solara, Kalahari, Nova Terra</div>
+                    </div>
+                </button>
+                <button onclick="_createProductWithCat('sensibilidade')" class="w-full flex items-center gap-3 px-4 py-3 bg-cyan-50 border-2 border-cyan-200 rounded-xl hover:border-cyan-400 hover:bg-cyan-100 transition-colors text-left">
+                    <i class="fas fa-sliders-h text-cyan-600 text-xl w-7 text-center flex-shrink-0"></i>
+                    <div>
+                        <div class="font-semibold text-gray-800">Sensibilidade</div>
+                        <div class="text-xs text-gray-500">Links por plataforma: PC, iOS e Android (LG, Motorola, Samsung, Xiaomi/Realme)</div>
+                    </div>
+                </button>
+            </div>
+            <button onclick="document.getElementById('_catSelectorOverlay').remove()" class="w-full mt-4 py-2 text-sm text-gray-400 hover:text-gray-600 transition-colors">Cancelar</button>
+        </div>`;
+    document.body.appendChild(overlay);
+}
+
+function _createProductWithCat(cat) {
+    const overlay = document.getElementById('_catSelectorOverlay');
+    if (overlay) overlay.remove();
+    const base = {
         id: `product_${Date.now()}`,
         name: '',
         description: '',
         price: 0,
-        category: 'digital',
+        priceOptions: [{ label: 'Padrão', price: 0 }],
+        category: cat,
         image: '',
         downloadLink: '',
         active: true,
-        stock: 0,
         createdAt: new Date()
     };
-    
-    productsData.push(newProduct);
+    if (cat === 'aereas') {
+        base.mapLinks = { bermuda: '', purgatorio: '', solara: '', kalahari: '', novaTerra: '' };
+    }
+    if (cat === 'sensibilidade') {
+        base.downloadLinks = { pc: '', ios: '', lg: '', motorola: '', samsung: '', xiaomi: '' };
+    }
+    productsData.push(base);
     renderProducts();
-    
-    // Scroll para o novo produto
     setTimeout(() => {
-        const container = document.getElementById('productsContainer');
-        if (container) container.scrollTop = container.scrollHeight;
+        const c = document.getElementById('productsContainer');
+        if (c) c.scrollTop = c.scrollHeight;
     }, 100);
 }
 
-// Deletar produto
 function deleteProduct(index) {
     if (confirm('Tem certeza que deseja deletar este produto?')) {
         productsData.splice(index, 1);
@@ -9651,50 +10032,112 @@ function deleteProduct(index) {
     }
 }
 
-// Salvar produtos no Firestore
+async function uploadProductBanner(index) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async () => {
+        const file = input.files[0];
+        if (!file) return;
+        const card = document.getElementById(`prod-card-${index}`);
+        const btn = card ? card.querySelector('button[onclick^="uploadProductBanner"]') : null;
+        try {
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Enviando...'; }
+            const { ref, uploadBytes, getDownloadURL } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js');
+            const storage = window.firebaseStorage;
+            if (!storage) throw new Error('Firebase Storage não disponível');
+            const storageRef = ref(storage, `products/${productsData[index].id}/banner`);
+            const snap = await uploadBytes(storageRef, file);
+            const url = await getDownloadURL(snap.ref);
+            productsData[index].image = url;
+            const bannerEl = document.getElementById(`prod-banner-${index}`);
+            if (bannerEl) bannerEl.innerHTML = `<img src="${url}" class="w-full h-full object-cover" alt="Banner">`;
+            showToast('success', 'Banner enviado com sucesso!', 'Sucesso');
+        } catch (e) {
+            console.error('Erro upload banner:', e);
+            showToast('error', 'Erro ao enviar banner: ' + e.message, 'Erro');
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-upload mr-1"></i>Upload Banner'; }
+        }
+    };
+    input.click();
+}
+
 async function saveProducts() {
     try {
-        if (productsData.length === 0) {
-            showToast('warning', 'Nenhum produto para salvar', 'Aviso');
-            return;
-        }
-        
-        const { collection, doc, setDoc, deleteDoc, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const productsRef = collection(window.firebaseDb, 'products');
-        
-        // Primeiro, deletar produtos que foram removidos
-        const existingSnap = await getDocs(productsRef);
-        const existingIds = new Set(productsData.map(p => p.id));
-        
-        for (const existingDoc of existingSnap.docs) {
-            if (!existingIds.has(existingDoc.id)) {
-                await deleteDoc(doc(window.firebaseDb, 'products', existingDoc.id));
+        if (productsData.length === 0) { showToast('warning', 'Nenhum produto para salvar', 'Aviso'); return; }
+        // Sincronizar price com o primeiro priceOption antes de salvar
+        for (const product of productsData) {
+            if (Array.isArray(product.priceOptions) && product.priceOptions.length > 0) {
+                product.price = Number(product.priceOptions[0].price) || 0;
             }
         }
-        
-        // Salvar/atualizar produtos
-        for (const product of productsData) {
-            const productRef = doc(window.firebaseDb, 'products', product.id);
-            const { id, ...productData } = product;
-            await setDoc(productRef, {
-                ...productData,
-                updatedAt: new Date()
-            });
+        const { collection, doc, setDoc, deleteDoc, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const productsRef = collection(window.firebaseDb, 'products');
+        const existingSnap = await getDocs(productsRef);
+        const keepIds = new Set(productsData.map(p => p.id));
+        for (const ed of existingSnap.docs) {
+            if (!keepIds.has(ed.id)) await deleteDoc(doc(window.firebaseDb, 'products', ed.id));
         }
-        
+        for (const product of productsData) {
+            const { id, ...data } = product;
+            await setDoc(doc(window.firebaseDb, 'products', id), { ...data, updatedAt: new Date() });
+        }
         showToast('success', `${productsData.length} produto(s) salvo(s) com sucesso!`, 'Sucesso');
         closeProductsModal();
     } catch (error) {
         console.error('Erro ao salvar produtos:', error);
-        showToast('error', 'Erro ao salvar produtos: ' + error.message, 'Erro');
+        showToast('error', 'Erro ao salvar: ' + error.message, 'Erro');
     }
 }
 
-// Expor funções globalmente
+async function sendDownloadLink(orderId, userId, downloadLink, productName) {
+    if (!orderId || !downloadLink) { showToast('error', 'Pedido ou link inválido.', 'Erro'); return; }
+    try {
+        const { doc, collection, addDoc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        // Marca o pedido como link enviado manualmente
+        await updateDoc(doc(window.firebaseDb, 'orders', orderId), {
+            downloadSent: true,
+            downloadSentAt: Date.now(),
+            downloadSentBy: window.firebaseAuth?.currentUser?.uid || null
+        });
+        // Envia notificação ao usuário no app
+        if (userId) {
+            await addDoc(collection(window.firebaseDb, 'notifications'), {
+                userId,
+                title: '📦 Seu produto digital está pronto!',
+                message: `Olá! Seu produto "${productName || 'digital'}" está disponível para download. Acesse o link abaixo.`,
+                link: downloadLink,
+                type: 'download_ready',
+                read: false,
+                createdAt: serverTimestamp()
+            });
+        }
+        // Copia o link para área de transferência também
+        try { await navigator.clipboard.writeText(downloadLink); } catch(_) {}
+        showToast('success', 'Link enviado ao cliente! Link também copiado para área de transferência.', 'Enviado');
+    } catch (e) {
+        console.error('Erro ao enviar link:', e);
+        showToast('error', 'Erro ao enviar link: ' + (e.message || e), 'Erro');
+    }
+}
+
 window.openProductsModal = openProductsModal;
 window.closeProductsModal = closeProductsModal;
 window.addProduct = addProduct;
+window._createProductWithCat = _createProductWithCat;
 window.deleteProduct = deleteProduct;
+window.uploadProductBanner = uploadProductBanner;
+window.saveProducts = saveProducts;
+window.sendDownloadLink = sendDownloadLink;
+window.updateProdStatus = updateProdStatus;
+window.updateProdTitle = updateProdTitle;
+window.addPriceOption = addPriceOption;
+window.removePriceOption = removePriceOption;
+window.updatePriceOption = updatePriceOption;
+window.updateMapLink = updateMapLink;
+window.setProdCategory = setProdCategory;
+window.updateProdBannerPreview = updateProdBannerPreview;
 
 // ==================== ADMIN NOTIFICATION SYSTEM ====================
 
@@ -10082,6 +10525,7 @@ async function saveEventForm() {
         formato: (document.getElementById('evtFormato')?.value || 'MISTO').toUpperCase(),
         status: document.getElementById('evtStatus').value,
         premiado: document.getElementById('evtPremiado').value,
+        premiacao: (document.getElementById('evtPremiacao')?.value || '').trim(),
         entrada,
         vagas: parseInt(document.getElementById('evtVagas').value, 10),
         quedas: parseInt(document.getElementById('evtQuedas')?.value, 10) || null,
@@ -10211,6 +10655,9 @@ async function loadEventsList(category) {
                     <a href="evento.html#${d.id}" target="_blank" class="px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-100 inline-flex items-center" title="Ver página do evento">
                         <i class="fas fa-external-link-alt mr-1"></i>Ver Página
                     </a>
+                    <button onclick="openEventSlotsModal('${d.id}', this.dataset.name)" data-name="${escapeAdminHtml(ev.name || '')}" title="Ver slots por horário" class="px-3 py-1.5 bg-green-50 text-green-700 rounded-lg text-xs font-semibold hover:bg-green-100">
+                        <i class="fas fa-hashtag mr-1"></i>Slots
+                    </button>
                     <button onclick="openEventNotifyModal('${d.id}', this.dataset.name)" data-name="${escapeAdminHtml(ev.name || '')}" title="Enviar mensagem aos participantes" class="px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-semibold hover:bg-purple-100">
                         <i class="fas fa-paper-plane mr-1"></i>Notificar
                     </button>
@@ -10246,6 +10693,8 @@ async function editEventItem(eventId) {
         if (fmtEl) fmtEl.value = (ev.formato || 'MISTO').toUpperCase();
         document.getElementById('evtStatus').value = ev.status || 'Aberto';
         document.getElementById('evtPremiado').value = ev.premiado || 'NÃO';
+        const premiacaoEl = document.getElementById('evtPremiacao');
+        if (premiacaoEl) premiacaoEl.value = ev.premiacao || '';
         document.getElementById('evtEntrada').value = ev.entrada || 'GRÁTIS';
         document.getElementById('evtVagas').value = ev.vagas || '';
         const gruposEl = document.getElementById('evtGrupos');
@@ -10309,59 +10758,181 @@ async function editEventItem(eventId) {
     }
 }
 
-// ===== CAMP GRUPOS =====
+// ===== CAMP GRUPOS (Multi-Phase) =====
 let _campGroupsEventId = null;
-let _campGroupsPhase = 'classificatoria';
+let _campGroupsPhase = 'fase1';
+let _campPhaseList = []; // phases found in Firestore for this event, sorted
+
+function _phaseLabel(key) {
+    if (!key) return '';
+    if (key === 'semifinal') return 'Semifinal';
+    if (key === 'final') return 'Final 🏆';
+    if (key === 'classificatoria') return 'Fase 1';
+    const m = key.match(/^fase(\d+)$/i);
+    if (m) return `Fase ${m[1]}`;
+    return key;
+}
+function _phaseOrder(key) {
+    if (key === 'final') return 99;
+    if (key === 'semifinal') return 98;
+    if (key === 'classificatoria') return 1;
+    const m = key.match(/^fase(\d+)$/i);
+    return m ? parseInt(m[1]) : 50;
+}
+function _phaseTeamSize(key) {
+    return (key === 'semifinal' || key === 'final') ? 15 : 12;
+}
+function _prevPhaseKey(key) {
+    if (key === 'final') return 'semifinal';
+    if (key === 'semifinal') {
+        const fases = _campPhaseList.filter(p => /^fase\d+$/.test(p.key));
+        return fases.length ? fases[fases.length - 1].key : 'fase1';
+    }
+    const m = key.match(/^fase(\d+)$/i);
+    if (m) { const n = parseInt(m[1]); return n > 1 ? `fase${n - 1}` : null; }
+    return null;
+}
 
 function openCampGroupsModal(eventId, eventName) {
     _campGroupsEventId = eventId;
-    _campGroupsPhase = 'classificatoria';
+    _campGroupsPhase = 'fase1';
+    _campPhaseList = [];
     const modal = document.getElementById('campGroupsModal');
     if (!modal) return;
     const titleEl = document.getElementById('campGroupsTitle');
     if (titleEl) titleEl.innerHTML = `<i class="fas fa-users text-orange-500 mr-2"></i>Grupos — ${escapeAdminHtml(eventName || 'Campeonato')}`;
     modal.classList.remove('hidden');
     modal.classList.add('flex');
-    setCampGroupsPhase('classificatoria', false);
-    loadCampGroups();
+    loadCampPhaseList(false);
 }
 
 function closeCampGroupsModal() {
     const modal = document.getElementById('campGroupsModal');
     if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
     _campGroupsEventId = null;
+    _campPhaseList = [];
+}
+
+async function loadCampPhaseList(keepCurrentPhase = false) {
+    const tabsEl = document.getElementById('campPhaseTabs');
+    if (!window.firebaseDb || !_campGroupsEventId) return;
+    if (tabsEl) tabsEl.innerHTML = '<span class="text-xs text-gray-400"><i class="fas fa-spinner fa-spin mr-1"></i>Carregando...</span>';
+
+    try {
+        const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        // Probe known keys directly — no index needed, no collection query
+        const keysToProbe = [
+            'classificatoria', // legacy alias
+            'fase1','fase2','fase3','fase4','fase5','fase6','fase7','fase8',
+            'semifinal','final'
+        ];
+        const seen = new Set();
+        const phases = [];
+        const reads = keysToProbe.map(k =>
+            getDoc(doc(window.firebaseDb, 'camp_groups', `${_campGroupsEventId}_${k}`))
+                .then(snap => ({ k, snap }))
+                .catch(() => ({ k, snap: null }))
+        );
+        const results = await Promise.all(reads);
+        results.forEach(({ k, snap }) => {
+            if (!snap || !snap.exists()) return;
+            let key = k === 'classificatoria' ? 'fase1' : k;
+            if (seen.has(key)) return;
+            seen.add(key);
+            phases.push({ key, label: _phaseLabel(key), order: _phaseOrder(key) });
+        });
+        phases.sort((a, b) => a.order - b.order);
+        _campPhaseList = phases;
+
+        _renderCampPhaseTabs(phases);
+        _updateNextPhaseSelect(phases);
+
+        const toSelect = keepCurrentPhase && phases.find(p => p.key === _campGroupsPhase)
+            ? _campGroupsPhase : (phases[0]?.key || 'fase1');
+        setCampGroupsPhase(toSelect, true);
+
+    } catch (err) {
+        console.error('Erro ao carregar fases:', err);
+        if (tabsEl) tabsEl.innerHTML = '<span class="text-xs text-red-400">Erro ao carregar fases.</span>';
+    }
+}
+
+function _renderCampPhaseTabs(phases) {
+    const tabsEl = document.getElementById('campPhaseTabs');
+    if (!tabsEl) return;
+    if (!phases.length) {
+        tabsEl.innerHTML = '<span class="text-xs text-gray-400 italic">Nenhuma fase gerada ainda.</span>';
+        return;
+    }
+    let html = '';
+    phases.forEach((p, i) => {
+        html += `<button id="campPhaseBtn_${p.key}" onclick="setCampGroupsPhase('${p.key}')"
+            class="px-3 py-1.5 rounded-lg font-bold text-xs bg-gray-100 text-gray-700 transition-colors whitespace-nowrap">
+            ${escapeAdminHtml(p.label.toUpperCase())}
+        </button>`;
+        if (i < phases.length - 1) html += `<i class="fas fa-arrow-right text-gray-400 text-xs self-center"></i>`;
+    });
+    tabsEl.innerHTML = html;
+}
+
+function _updateNextPhaseSelect(phases) {
+    const sel = document.getElementById('campNextPhaseSelect');
+    if (!sel) return;
+    const existingKeys = new Set(phases.map(p => p.key));
+    const opts = [];
+
+    if (!existingKeys.has('fase1')) {
+        opts.push({ key: 'fase1', label: 'Fase 1 (inscritos)' });
+    } else {
+        const lastN = phases.filter(p => /^fase\d+$/.test(p.key))
+            .reduce((mx, p) => Math.max(mx, parseInt(p.key.replace('fase', ''))), 0);
+        if (lastN > 0 && !existingKeys.has('semifinal')) {
+            opts.push({ key: `fase${lastN + 1}`, label: `Fase ${lastN + 1}` });
+            opts.push({ key: 'semifinal', label: 'Semifinal (direto)' });
+        }
+        if (existingKeys.has('semifinal') && !existingKeys.has('final')) {
+            opts.push({ key: 'final', label: 'Final' });
+        }
+    }
+    if (!opts.length) opts.push({ key: 'regenerar', label: '— Regenerar fase atual —' });
+
+    sel.innerHTML = opts.map(o => `<option value="${o.key}">${o.label}</option>`).join('');
+    _onNextPhaseSelectChange();
+}
+
+function _onNextPhaseSelectChange() {
+    const sel = document.getElementById('campNextPhaseSelect');
+    const key = sel?.value || '';
+    const advWrapper = document.getElementById('campAdvancingWrapper');
+    const labelEl = document.getElementById('campAdvancingLabel');
+    const genBtn = document.getElementById('campGenerateBtn');
+    const isFinal = key === 'final';
+    if (advWrapper) advWrapper.style.display = isFinal ? 'none' : '';
+    if (labelEl) {
+        if (key === 'semifinal' || key === 'final') labelEl.textContent = `Times que avançam para a ${_phaseLabel(key)}`;
+        else { const n = key.match(/^fase(\d+)$/)?.[1]; labelEl.textContent = n ? `Times que avançam para Fase ${n}` : 'Times que avançam'; }
+    }
+    if (genBtn) genBtn.innerHTML = `<i class="fas fa-list-ol mr-1"></i>Gerar ${_phaseLabel(key)}`;
 }
 
 function setCampGroupsPhase(phase, reload = true) {
     _campGroupsPhase = phase;
-    ['classificatoria', 'semifinal', 'final'].forEach(p => {
-        const btn = document.getElementById('campPhaseBtn_' + p);
-        if (!btn) return;
-        btn.className = p === phase
-            ? 'px-3 py-1.5 rounded-lg font-bold bg-orange-600 text-white transition-colors'
-            : 'px-3 py-1.5 rounded-lg font-bold bg-gray-100 text-gray-700 transition-colors';
+    document.querySelectorAll('[id^="campPhaseBtn_"]').forEach(btn => {
+        const isActive = btn.id === `campPhaseBtn_${phase}`;
+        btn.className = isActive
+            ? 'px-3 py-1.5 rounded-lg font-bold text-xs bg-orange-600 text-white transition-colors whitespace-nowrap'
+            : 'px-3 py-1.5 rounded-lg font-bold text-xs bg-gray-100 text-gray-700 transition-colors whitespace-nowrap';
     });
-
-    // Atualiza descrição da fase e label do input
-    const descMap = {
-        classificatoria: 'Classificatória: 12 times por grupo, sorteados dos inscritos. Informe quantos avançam no total para a Semifinal.',
-        semifinal: 'Semifinal: 15 times por grupo. Times vêm automaticamente dos que avançaram na Classificatória. Informe quantos avançam para a Final.',
-        final: 'Final: 15 times por grupo. Times vêm automaticamente dos que avançaram na Semifinal. Nenhum avanço necessário.'
-    };
-    const labelMap = {
-        classificatoria: 'Times que avançam no total para a Semifinal',
-        semifinal: 'Times que avançam no total para a Final',
-        final: null
-    };
+    const teamSize = _phaseTeamSize(phase);
+    const phaseLabel = _phaseLabel(phase);
     const descTextEl = document.getElementById('campPhaseDescText');
-    if (descTextEl) descTextEl.textContent = descMap[phase] || '';
-    const labelEl = document.getElementById('campAdvancingLabel');
-    if (labelEl) labelEl.textContent = labelMap[phase] || '';
-    const advWrapper = document.getElementById('campAdvancingWrapper');
-    if (advWrapper) advWrapper.style.display = phase === 'final' ? 'none' : '';
+    if (descTextEl) {
+        if (phase === 'final') descTextEl.textContent = `Final: ${teamSize} times por grupo. Times vêm dos que avançaram na Semifinal.`;
+        else if (phase === 'semifinal') descTextEl.textContent = `Semifinal: ${teamSize} times por grupo, vindos da fase anterior. Informe quantos avançam para a Final.`;
+        else { const n = phase.match(/^fase(\d+)$/)?.[1] || '1'; descTextEl.textContent = `${phaseLabel}: ${teamSize} times por grupo${n === '1' ? ', ordem de inscrição' : ', top 6 de cada grupo anterior'}. 6 avançam por grupo.`; }
+    }
     const infoEl = document.getElementById('campPhaseInfo');
     if (infoEl) infoEl.classList.add('hidden');
-
     if (reload) loadCampGroups();
 }
 
@@ -10371,27 +10942,34 @@ async function loadCampGroups() {
     container.innerHTML = '<div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl"></i></div>';
     try {
         const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const docId = `${_campGroupsEventId}_${_campGroupsPhase}`;
-        const snap = await getDoc(doc(window.firebaseDb, 'camp_groups', docId));
-        if (!snap.exists()) {
-            container.innerHTML = '<div class="text-center py-8 text-gray-400 text-sm">Nenhum grupo gerado para esta fase ainda.<br>Use "Sortear Grupos" para gerar automaticamente.</div>';
+        const phase = _campGroupsPhase;
+        // Try the phase key; also try 'classificatoria' as alias when phase=fase1
+        const keysToTry = [phase];
+        if (phase === 'fase1') keysToTry.push('classificatoria');
+        let data = null;
+        for (const k of keysToTry) {
+            const snap = await getDoc(doc(window.firebaseDb, 'camp_groups', `${_campGroupsEventId}_${k}`));
+            if (snap.exists()) { data = snap.data(); break; }
+        }
+        if (!data) {
+            container.innerHTML = `<div class="text-center py-8 text-gray-400 text-sm">Nenhum grupo gerado para esta fase.<br>Use o seletor abaixo para gerar.</div>`;
             return;
         }
-        const data = snap.data();
-        renderCampGroups(data.groups || [], data.advancingPerGroup || 0, data.generatedAt);
+        renderCampGroups(data.groups || [], data.advancingPerGroup || 0, data.generatedAt, data.teamSize);
     } catch (err) {
         console.error('Erro ao carregar grupos:', err);
         container.innerHTML = '<div class="text-center py-4 text-red-400 text-sm">Erro ao carregar grupos.</div>';
     }
 }
 
-function renderCampGroups(groups, advancingPerGroup, generatedAt) {
+function renderCampGroups(groups, advancingPerGroup, generatedAt, teamSize) {
     const container = document.getElementById('campGroupsContent');
     if (!container) return;
     if (!groups || !groups.length) {
         container.innerHTML = '<div class="text-center py-8 text-gray-400 text-sm">Nenhum grupo gerado.</div>';
         return;
     }
+    const capacity = teamSize || (_campGroupsPhase === 'classificatoria' ? 12 : 15);
     const totalTeams = groups.reduce((s, g) => s + g.teams.length, 0);
     const dateStr = generatedAt?.toDate ? generatedAt.toDate().toLocaleString('pt-BR') : (generatedAt ? new Date(generatedAt).toLocaleString('pt-BR') : '');
     const advInfo = advancingPerGroup
@@ -10401,11 +10979,17 @@ function renderCampGroups(groups, advancingPerGroup, generatedAt) {
                <span class="ml-auto text-xs text-blue-400">${totalTeams} times · ${groups.length} grupos</span>
            </div>` : '';
     const dateInfo = dateStr ? `<p class="text-xs text-gray-400 mb-3">Gerado em: ${dateStr}</p>` : '';
-    container.innerHTML = advInfo + dateInfo + groups.map(g => `
+    container.innerHTML = advInfo + dateInfo + groups.map(g => {
+        const count = g.teams.length;
+        const isFull = count >= capacity;
+        const statusBadge = isFull
+            ? `<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">COMPLETO</span>`
+            : `<span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-bold">AGUARDANDO</span>`;
+        return `
         <div class="border border-gray-200 rounded-xl overflow-hidden mb-3">
-            <div class="bg-orange-50 border-b border-orange-100 px-4 py-2 flex justify-between items-center">
-                <span class="font-bold text-orange-700 text-sm">${g.name}</span>
-                <span class="text-xs text-gray-500">${g.teams.length} time(s)</span>
+            <div class="bg-orange-50 border-b border-orange-100 px-4 py-2 flex justify-between items-center gap-2">
+                <span class="font-bold text-orange-700 text-sm">${g.name} <span class="font-normal text-gray-500">(${count}/${capacity})</span></span>
+                ${statusBadge}
             </div>
             <ul class="divide-y divide-gray-100">
                 ${g.teams.map((t, j) => `
@@ -10415,133 +10999,193 @@ function renderCampGroups(groups, advancingPerGroup, generatedAt) {
                     ${advancingPerGroup && j < advancingPerGroup ? '<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold whitespace-nowrap">Avança ↑</span>' : ''}
                 </li>`).join('')}
             </ul>
-        </div>`).join('');
+        </div>`;
+    }).join('');
+}
+
+async function _getTeamsFromPrevPhase(eventId, prevKey) {
+    const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const keysToTry = [prevKey];
+    if (prevKey === 'fase1') keysToTry.push('classificatoria');
+    for (const k of keysToTry) {
+        const snap = await getDoc(doc(window.firebaseDb, 'camp_groups', `${eventId}_${k}`));
+        if (snap.exists()) return snap.data();
+    }
+    return null;
 }
 
 async function generateCampGroups() {
     const eventId = _campGroupsEventId;
-    const phase = _campGroupsPhase;
     if (!eventId) return;
 
-    // "totalAdvancing" = quantos times avançam NO TOTAL para a próxima fase
+    // Phase to generate comes from the selector
+    const sel = document.getElementById('campNextPhaseSelect');
+    const phase = sel?.value || 'fase1';
+    if (phase === 'regenerar') { await reorganizarGrupos(); return; }
+
     const advancingInput = document.getElementById('campAdvancingInput');
     const totalAdvancing = parseInt(advancingInput?.value || '0', 10) || 0;
-
-    // Tamanho do grupo por fase
-    const teamSize = phase === 'classificatoria' ? 12 : 15;
+    const teamSize = _phaseTeamSize(phase);
 
     const btn = document.getElementById('campGenerateBtn');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Gerando...'; }
 
     try {
-        const { collection, query, where, getDocs, doc, getDoc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-
+        const { collection, query, where, getDocs, doc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         let teams = [];
 
-        if (phase === 'classificatoria') {
-            // CLASSIFICATÓRIA: busca todos os times inscritos nas registrations
+        const isFirstPhase = phase === 'fase1' || phase === 'classificatoria';
+        if (isFirstPhase) {
+            // Fase 1: from registrations sorted by inscription date
             const regsSnap = await getDocs(query(
                 collection(window.firebaseDb, 'registrations'),
-                where('eventType', '==', eventId),
-                where('status', 'in', ['confirmed', 'paid', 'approved', 'pending'])
+                where('eventType', '==', eventId)
             ));
-            const teamSet = new Set();
-            regsSnap.docs.forEach(d => { const t = d.data().teamName; if (t) teamSet.add(t); });
-            teams = Array.from(teamSet);
-
-        } else if (phase === 'semifinal') {
-            // SEMIFINAL: usa os times que avançaram da CLASSIFICATÓRIA
-            const prevSnap = await getDoc(doc(window.firebaseDb, 'camp_groups', `${eventId}_classificatoria`));
-            if (!prevSnap.exists()) {
-                showToast('warning', 'Gere os grupos da Classificatória primeiro.', 'Atenção');
-                return;
-            }
-            const prevData = prevSnap.data();
-            const prevGroups = prevData.groups || [];
-            const prevAdv = prevData.advancingPerGroup || 0;
-            if (!prevAdv) {
-                showToast('warning', 'Defina quantos avançam na Classificatória antes de gerar a Semifinal.', 'Atenção');
-                return;
-            }
-            prevGroups.forEach(g => {
-                g.teams.slice(0, prevAdv).forEach(t => { if (t) teams.push(t); });
+            const validSt = new Set(['confirmed', 'paid', 'approved']);
+            const entries = []; const seen = new Set();
+            regsSnap.docs.forEach(d => {
+                const data = d.data();
+                if (!validSt.has(data.status) || !data.teamName) return;
+                const norm = data.teamName.trim().toLowerCase().replace(/\s+/g, ' ');
+                if (seen.has(norm)) return;
+                seen.add(norm);
+                const ts = data.createdAt?.toMillis?.() || (data.createdAt?.seconds || 0) * 1000;
+                entries.push({ name: data.teamName, ts });
             });
-
-        } else if (phase === 'final') {
-            // FINAL: usa os times que avançaram da SEMIFINAL
-            const prevSnap = await getDoc(doc(window.firebaseDb, 'camp_groups', `${eventId}_semifinal`));
-            if (!prevSnap.exists()) {
-                showToast('warning', 'Gere os grupos da Semifinal primeiro.', 'Atenção');
+            entries.sort((a, b) => a.ts - b.ts);
+            teams = entries.map(e => e.name);
+        } else {
+            // Subsequent phases: top-N from previous phase groups
+            const prevKey = _prevPhaseKey(phase);
+            if (!prevKey) { showToast('warning', 'Fase anterior não encontrada.', 'Atenção'); return; }
+            const prevData = await _getTeamsFromPrevPhase(eventId, prevKey);
+            if (!prevData) {
+                showToast('warning', `Gere os grupos de "${_phaseLabel(prevKey)}" primeiro.`, 'Atenção');
                 return;
             }
-            const prevData = prevSnap.data();
-            const prevGroups = prevData.groups || [];
-            const prevAdv = prevData.advancingPerGroup || 0;
-            if (!prevAdv) {
-                showToast('warning', 'Defina quantos avançam na Semifinal antes de gerar a Final.', 'Atenção');
-                return;
-            }
-            prevGroups.forEach(g => {
-                g.teams.slice(0, prevAdv).forEach(t => { if (t) teams.push(t); });
-            });
+            const prevAdv = prevData.advancingPerGroup || 6;
+            if (!prevAdv) { showToast('warning', 'Defina quantos avançam na fase anterior antes de gerar a próxima.', 'Atenção'); return; }
+            (prevData.groups || []).forEach(g => g.teams.slice(0, prevAdv).forEach(t => { if (t) teams.push(t); }));
         }
 
-        if (!teams.length) {
-            showToast('warning', 'Nenhum time encontrado para esta fase.', 'Sem times');
-            return;
-        }
+        if (!teams.length) { showToast('warning', 'Nenhum time encontrado para esta fase.', 'Sem times'); return; }
 
-        // Fisher-Yates shuffle
-        for (let i = teams.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [teams[i], teams[j]] = [teams[j], teams[i]];
-        }
-
-        // Divide em grupos do tamanho da fase
         const groups = [];
         const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
         for (let i = 0; i < teams.length; i += teamSize) {
-            const letter = letters[groups.length] || String(groups.length + 1);
+            const gIdx = groups.length;
+            const letter = letters[gIdx] || String(gIdx + 1);
             groups.push({ name: `Grupo ${letter}`, teams: teams.slice(i, i + teamSize) });
         }
 
-        // Calcula advancingPerGroup a partir do total informado
+        const defaultAdv = phase === 'final' ? 0 : 6;
         const advancingPerGroup = totalAdvancing > 0 && groups.length > 0
-            ? Math.ceil(totalAdvancing / groups.length)
-            : 0;
+            ? Math.ceil(totalAdvancing / groups.length) : defaultAdv;
 
-        const docId = `${eventId}_${phase}`;
-        await setDoc(doc(window.firebaseDb, 'camp_groups', docId), {
-            eventId, phase, teamSize, advancingPerGroup, totalAdvancing,
+        await setDoc(doc(window.firebaseDb, 'camp_groups', `${eventId}_${phase}`), {
+            eventId, phaseKey: phase, phaseOrder: _phaseOrder(phase),
+            teamSize, advancingPerGroup, totalAdvancing: totalAdvancing || advancingPerGroup * groups.length,
             groups, generatedAt: serverTimestamp()
         });
 
-        renderCampGroups(groups, advancingPerGroup, null);
-
-        const phaseLabel = {classificatoria:'Classificatória',semifinal:'Semifinal',final:'Final'}[phase] || phase;
         const advMsg = advancingPerGroup ? ` · ${advancingPerGroup} avançam por grupo` : '';
-        showToast('success', `${groups.length} grupo(s) na ${phaseLabel} com ${teams.length} time(s)${advMsg}.`, 'Grupos Gerados');
-
-        // Atualiza label informativo
+        showToast('success', `${_phaseLabel(phase)}: ${groups.length} grupo(s) · ${teams.length} times${advMsg}.`, 'Gerado');
         _updatePhaseInfo(phase, groups.length, teams.length, advancingPerGroup);
+
+        await loadCampPhaseList(false);
+        setCampGroupsPhase(phase, false);
+        renderCampGroups(groups, advancingPerGroup, null, teamSize);
 
     } catch (err) {
         console.error('Erro ao gerar grupos:', err);
         showToast('error', 'Erro ao gerar grupos: ' + (err.message || ''), 'Erro');
     } finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-random mr-1"></i>Sortear Grupos'; }
+        if (btn) { btn.disabled = false; _onNextPhaseSelectChange(); }
+    }
+}
+
+async function reorganizarGrupos() {
+    const eventId = _campGroupsEventId;
+    const phase = _campGroupsPhase;
+    if (!eventId) return;
+    if (!confirm(`Reorganizar redistribuirá todos os grupos de "${_phaseLabel(phase)}" pela ordem atual. Confirmar?`)) return;
+
+    const btn = document.getElementById('campReorganizeBtn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Reorganizando...'; }
+
+    try {
+        const { collection, query, where, getDocs, doc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const teamSize = _phaseTeamSize(phase);
+        const advancingInput = document.getElementById('campAdvancingInput');
+        const totalAdvancing = parseInt(advancingInput?.value || '0', 10) || 0;
+        let teams = [];
+
+        const isFirst = phase === 'fase1' || phase === 'classificatoria';
+        if (isFirst) {
+            const regsSnap = await getDocs(query(
+                collection(window.firebaseDb, 'registrations'),
+                where('eventType', '==', eventId)
+            ));
+            const validSt = new Set(['confirmed', 'paid', 'approved']);
+            const entries = []; const seen = new Set();
+            regsSnap.docs.forEach(d => {
+                const data = d.data();
+                if (!validSt.has(data.status) || !data.teamName) return;
+                const norm = data.teamName.trim().toLowerCase().replace(/\s+/g, ' ');
+                if (seen.has(norm)) return; seen.add(norm);
+                const ts = data.createdAt?.toMillis?.() || (data.createdAt?.seconds || 0) * 1000;
+                entries.push({ name: data.teamName, ts });
+            });
+            entries.sort((a, b) => a.ts - b.ts);
+            teams = entries.map(e => e.name);
+        } else {
+            const prevKey = _prevPhaseKey(phase);
+            const prevData = prevKey ? await _getTeamsFromPrevPhase(eventId, prevKey) : null;
+            if (!prevData) { showToast('warning', 'Fase anterior não encontrada.', 'Atenção'); return; }
+            const prevAdv = prevData.advancingPerGroup || 6;
+            (prevData.groups || []).forEach(g => g.teams.slice(0, prevAdv).forEach(t => { if (t) teams.push(t); }));
+        }
+
+        if (!teams.length) { showToast('warning', 'Nenhum time encontrado.', 'Sem times'); return; }
+
+        const groups = [];
+        const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        for (let i = 0; i < teams.length; i += teamSize) {
+            const gIdx = groups.length;
+            const letter = letters[gIdx] || String(gIdx + 1);
+            groups.push({ name: `Grupo ${letter}`, teams: teams.slice(i, i + teamSize) });
+        }
+        const advancingPerGroup = totalAdvancing > 0 && groups.length > 0 ? Math.ceil(totalAdvancing / groups.length) : (phase === 'final' ? 0 : 6);
+
+        await setDoc(doc(window.firebaseDb, 'camp_groups', `${eventId}_${phase}`), {
+            eventId, phaseKey: phase, phaseOrder: _phaseOrder(phase),
+            teamSize, advancingPerGroup, totalAdvancing: totalAdvancing || advancingPerGroup * groups.length,
+            groups, generatedAt: serverTimestamp()
+        });
+
+        renderCampGroups(groups, advancingPerGroup, null, teamSize);
+        _updatePhaseInfo(phase, groups.length, teams.length, advancingPerGroup);
+        showToast('success', `Grupos reorganizados: ${groups.length} grupo(s), ${teams.length} time(s).`, 'Reorganizado');
+
+    } catch (err) {
+        console.error('Erro ao reorganizar grupos:', err);
+        showToast('error', 'Erro ao reorganizar: ' + (err.message || ''), 'Erro');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-redo mr-1"></i>Reorganizar'; }
     }
 }
 
 function _updatePhaseInfo(phase, numGroups, numTeams, advancingPerGroup) {
     const infoEl = document.getElementById('campPhaseInfo');
     if (!infoEl) return;
+    const totalAdv = advancingPerGroup * numGroups;
     if (phase === 'final') {
         infoEl.textContent = `Final: ${numTeams} times em ${numGroups} grupo(s).`;
+    } else if (phase === 'semifinal') {
+        infoEl.textContent = `Semifinal: ${numGroups} grupo(s) · ${numTeams} times · ${totalAdv} avançam para a Final`;
     } else {
-        const nextPhase = phase === 'classificatoria' ? 'Semifinal' : 'Final';
-        const totalAdv = advancingPerGroup * numGroups;
-        infoEl.textContent = `${numGroups} grupo(s) · ${numTeams} times · ${totalAdv} avançam para a ${nextPhase}`;
+        const nextLabel = _phaseLabel(`fase${(_phaseOrder(phase) || 1) + 1}`);
+        infoEl.textContent = `${numGroups} grupo(s) · ${numTeams} times · ${totalAdv} avançam → ${nextLabel}`;
     }
     infoEl.classList.remove('hidden');
 }
@@ -10616,6 +11260,14 @@ async function openEventNotifyModal(eventId, eventName) {
     document.getElementById('eventNotifyTitle').value = '';
     document.getElementById('eventNotifyMessage').value = '';
     document.getElementById('eventNotifyType').value = 'custom';
+    const roomIdEl = document.getElementById('eventNotifyRoomId');
+    const roomPwEl = document.getElementById('eventNotifyRoomPassword');
+    const roomLkEl = document.getElementById('eventNotifyRoomLink');
+    if (roomIdEl) roomIdEl.value = '';
+    if (roomPwEl) roomPwEl.value = '';
+    if (roomLkEl) roomLkEl.value = '';
+    const roomSec = document.getElementById('eventNotifyRoomLinkSection');
+    if (roomSec) roomSec.classList.add('hidden');
     document.getElementById('eventNotifyCount').innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Carregando participantes...';
     const schedSel = document.getElementById('eventNotifySchedule');
     if (schedSel) schedSel.innerHTML = '<option value="all">Carregando horários...</option>';
@@ -10624,35 +11276,54 @@ async function openEventNotifyModal(eventId, eventName) {
 
     try {
         const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        // Buscar apenas por eventType (campo único) e filtrar status em JS para evitar
+        // erros de índice composto (failed-precondition) que silenciam eventos pagos/tokens
         const snap = await getDocs(query(
             collection(window.firebaseDb, 'registrations'),
-            where('eventType', '==', eventId),
-            where('status', 'in', ['confirmed', 'paid', 'approved', 'pending'])
+            where('eventType', '==', eventId)
         ));
-        _notifyEventDocs = snap.docs;
+        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
+        _notifyEventDocs = snap.docs.filter(d => validStatuses.has(d.data().status));
 
-        // Montar mapa de schedules → usuários únicos
-        const scheduleMap = {}; // schedule label → Set of userIds
+        // Montar mapa de data+horário → usuários únicos
+        // Chave: "YYYY-MM-DD||schedule" para distinguir mesmo horário em dias diferentes
+        const scheduleMap = {}; // key → { label, users: Set }
         for (const d of _notifyEventDocs) {
             const r = d.data();
             const uid = r.userId;
             if (!uid) continue;
             const sched = r.schedule || r.slotDisplay || '—';
-            if (!scheduleMap[sched]) scheduleMap[sched] = new Set();
-            scheduleMap[sched].add(uid);
+            const date = r.date || '';
+            const key = date ? `${date}||${sched}` : `||${sched}`;
+            if (!scheduleMap[key]) {
+                // Formatar data como DD/MM para exibição
+                let dateLabel = '';
+                if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+                    const [y, m, dd] = date.split('-');
+                    dateLabel = `${dd}/${m}`;
+                } else if (date) {
+                    dateLabel = date;
+                }
+                const label = dateLabel ? `${dateLabel} — ${sched}` : sched;
+                scheduleMap[key] = { label, users: new Set(), date, sched };
+            }
+            scheduleMap[key].users.add(uid);
         }
 
         const totalUnique = new Set(_notifyEventDocs.map(d => d.data().userId).filter(Boolean)).size;
         document.getElementById('eventNotifyCount').textContent = `${totalUnique} participante(s) no total`;
 
-        // Popular select de horários
+        // Popular select de data+horários ordenados por data
         if (schedSel) {
-            const schedules = Object.keys(scheduleMap).sort();
-            if (schedules.length === 0) {
-                schedSel.innerHTML = '<option value="all">Todos os horários (sem filtro)</option>';
+            const keys = Object.keys(scheduleMap).sort();
+            if (keys.length === 0) {
+                schedSel.innerHTML = '<option value="all">Todos (sem filtro)</option>';
             } else {
-                schedSel.innerHTML = `<option value="all">Todos os horários (${totalUnique} participante(s))</option>` +
-                    schedules.map(s => `<option value="${s.replace(/"/g, '&quot;')}">${s} — ${scheduleMap[s].size} participante(s)</option>`).join('');
+                schedSel.innerHTML = `<option value="all">Todos os participantes (${totalUnique} total)</option>` +
+                    keys.map(k => {
+                        const entry = scheduleMap[k];
+                        return `<option value="${k.replace(/"/g, '&quot;')}">${entry.label} — ${entry.users.size} participante(s)</option>`;
+                    }).join('');
             }
         }
     } catch(e) {
@@ -10671,12 +11342,21 @@ function onEventNotifyScheduleChange() {
         const total = new Set(_notifyEventDocs.map(d => d.data().userId).filter(Boolean)).size;
         countEl.textContent = `${total} participante(s) no total`;
     } else {
+        // Chave composta "YYYY-MM-DD||schedule" — separar para comparar individualmente
+        const [selDate, ...schedParts] = selected.split('||');
+        const selSched = schedParts.join('||');
         const filtered = new Set(
             _notifyEventDocs
-                .filter(d => { const r = d.data(); return (r.schedule || r.slotDisplay || '—') === selected && r.userId; })
+                .filter(d => {
+                    const r = d.data();
+                    if (!r.userId) return false;
+                    const rDate = r.date || '';
+                    const rSched = r.schedule || r.slotDisplay || '—';
+                    return rDate === selDate && rSched === selSched;
+                })
                 .map(d => d.data().userId)
         );
-        countEl.textContent = `${filtered.size} participante(s) neste horário`;
+        countEl.textContent = `${filtered.size} participante(s) neste dia/horário`;
     }
 }
 
@@ -10691,16 +11371,21 @@ function onEventNotifyTypeChange() {
     const titleEl = document.getElementById('eventNotifyTitle');
     const msgEl = document.getElementById('eventNotifyMessage');
     const roomSection = document.getElementById('eventNotifyRoomLinkSection');
-    if (roomSection) roomSection.classList.toggle('hidden', type !== 'room_link');
+    const msgRow = document.getElementById('eventNotifyMessageRow');
+
+    if (roomSection) roomSection.classList.toggle('hidden', type !== 'credentials');
+    if (msgRow) {
+        const lbl = msgRow.querySelector('label');
+        if (lbl) lbl.innerHTML = type === 'credentials'
+            ? 'Mensagem adicional <span class="text-gray-400 font-normal">(opcional)</span>'
+            : 'Mensagem <span class="text-red-400">*</span>';
+    }
     if (type === 'credentials') {
-        titleEl.value = 'Credenciais do Evento';
-        msgEl.placeholder = 'ID do evento: xxxxxx\nSenha: xxxxxx\n\nUse as credenciais acima para acessar o evento.';
-    } else if (type === 'room_link') {
-        titleEl.value = 'Link da Sala Disponível';
-        msgEl.placeholder = 'Ex: A sala está aberta! Clique no botão abaixo para entrar.';
+        if (titleEl && !titleEl.value) titleEl.value = 'Credenciais do Evento 🎮';
+        if (msgEl) msgEl.placeholder = 'Ex: Use as credenciais abaixo para entrar na sala. Boa sorte!';
     } else {
-        titleEl.value = '';
-        msgEl.placeholder = 'Digite sua mensagem para os participantes...';
+        if (titleEl) titleEl.value = '';
+        if (msgEl) msgEl.placeholder = 'Digite sua mensagem para os participantes...';
     }
 }
 
@@ -10711,9 +11396,20 @@ async function sendEventNotification() {
     const message = document.getElementById('eventNotifyMessage').value.trim();
     const schedSel = document.getElementById('eventNotifySchedule');
     const selectedSchedule = schedSel ? schedSel.value : 'all';
+    const notifyType = document.getElementById('eventNotifyType')?.value || 'custom';
 
     if (!title) { showToast('warning', 'Informe o título da notificação.', 'Atenção'); return; }
-    if (!message) { showToast('warning', 'Informe a mensagem.', 'Atenção'); return; }
+    if (notifyType !== 'credentials' && !message) { showToast('warning', 'Informe a mensagem.', 'Atenção'); return; }
+
+    // Validação de credenciais
+    let roomId = null, roomPassword = null, roomLink = null;
+    if (notifyType === 'credentials') {
+        roomId = (document.getElementById('eventNotifyRoomId')?.value || '').trim();
+        roomPassword = (document.getElementById('eventNotifyRoomPassword')?.value || '').trim();
+        roomLink = (document.getElementById('eventNotifyRoomLink')?.value || '').trim() || null;
+        if (!roomId) { showToast('warning', 'Informe o ID da sala.', 'Atenção'); return; }
+        if (!roomPassword) { showToast('warning', 'Informe a senha da sala.', 'Atenção'); return; }
+    }
 
     const btn = document.getElementById('eventNotifySendBtn');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Enviando...'; }
@@ -10721,53 +11417,54 @@ async function sendEventNotification() {
     try {
         const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
 
-        // Filtrar por horário se necessário
         let docsToNotify = _notifyEventDocs;
+        let filterLabel = '';
         if (selectedSchedule !== 'all') {
+            const [selDate, ...schedParts] = selectedSchedule.split('||');
+            const selSched = schedParts.join('||');
             docsToNotify = _notifyEventDocs.filter(d => {
                 const r = d.data();
-                return (r.schedule || r.slotDisplay || '—') === selectedSchedule;
+                return (r.date || '') === selDate && (r.schedule || r.slotDisplay || '—') === selSched;
             });
+            if (selDate && /^\d{4}-\d{2}-\d{2}$/.test(selDate)) {
+                const [, m, dd] = selDate.split('-');
+                filterLabel = `${dd}/${m} — ${selSched}`;
+            } else {
+                filterLabel = selSched;
+            }
         }
 
         const uniqueUsers = [...new Set(docsToNotify.map(d => d.data().userId).filter(Boolean))];
-
         if (uniqueUsers.length === 0) {
-            showToast('warning', 'Nenhum participante encontrado para o horário selecionado.', 'Atenção');
+            showToast('warning', 'Nenhum participante encontrado para o dia/horário selecionado.', 'Atenção');
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Enviar'; }
             return;
         }
 
         const user = window.firebaseAuth?.currentUser;
         const createdBy = user ? (user.displayName || user.email || user.uid) : 'Admin';
-
-        const scheduleLabel = selectedSchedule !== 'all' ? ` [${selectedSchedule}]` : '';
-        const notifyType = document.getElementById('eventNotifyType')?.value || 'custom';
-        const roomLink = notifyType === 'room_link' ? (document.getElementById('eventNotifyRoomLink')?.value?.trim() || null) : null;
-
-        if (notifyType === 'room_link' && !roomLink) {
-            showToast('warning', 'Informe a URL da sala.', 'Atenção');
-            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Enviar'; }
-            return;
-        }
+        const scheduleLabel = filterLabel ? ` [${filterLabel}]` : '';
 
         await Promise.all(uniqueUsers.map(uid =>
             addDoc(collection(window.firebaseDb, 'notifications'), {
                 title: `[${eventName}]${scheduleLabel} ${title}`,
-                message,
+                message: message || null,
                 type: 'user',
                 targetUserId: uid,
                 eventId,
                 eventName,
-                schedule: selectedSchedule !== 'all' ? selectedSchedule : null,
-                roomLink: roomLink || null,
+                schedule: filterLabel || null,
                 notifyType,
+                roomId: roomId || null,
+                roomPassword: roomPassword || null,
+                roomLink: roomLink || null,
                 createdAt: serverTimestamp(),
                 createdBy,
                 createdByUid: user?.uid || null,
             })
         ));
 
-        const horarioMsg = selectedSchedule !== 'all' ? ` (horário: ${selectedSchedule})` : '';
+        const horarioMsg = filterLabel ? ` (${filterLabel})` : '';
         showToast('success', `Notificação enviada para ${uniqueUsers.length} participante(s)${horarioMsg}!`, 'Sucesso');
         closeEventNotifyModal();
     } catch (err) {
@@ -10777,6 +11474,208 @@ async function sendEventNotification() {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Enviar'; }
     }
 }
+
+// ===== SLOTS POR HORÁRIO =====
+async function openEventSlotsModal(eventId, eventName) {
+    const modal = document.getElementById('eventSlotsModal');
+    if (!modal) return;
+    document.getElementById('eventSlotsEventName').textContent = eventName;
+    document.getElementById('eventSlotsEventId').value = eventId;
+    document.getElementById('eventSlotsBody').innerHTML =
+        '<div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl"></i><p class="mt-2 text-sm">Carregando slots...</p></div>';
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+
+    try {
+        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const snap = await getDocs(query(
+            collection(window.firebaseDb, 'registrations'),
+            where('eventType', '==', eventId)
+        ));
+        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
+        const docs = snap.docs.filter(d => validStatuses.has(d.data().status));
+
+        if (docs.length === 0) {
+            document.getElementById('eventSlotsBody').innerHTML =
+                '<div class="text-center py-8 text-gray-400"><i class="fas fa-users text-3xl mb-2 block"></i><p class="text-sm">Nenhum participante inscrito ainda.</p></div>';
+            return;
+        }
+
+        // Agrupar por horário
+        const bySchedule = {};
+        docs.forEach(d => {
+            const r = d.data();
+            const sched = r.schedule || '—';
+            if (!bySchedule[sched]) bySchedule[sched] = [];
+            bySchedule[sched].push(r);
+        });
+
+        // Ordenar cada horário por slot crescente (null vai pro final)
+        Object.values(bySchedule).forEach(arr => {
+            arr.sort((a, b) => {
+                const sa = a.slot != null ? Number(a.slot) : Infinity;
+                const sb = b.slot != null ? Number(b.slot) : Infinity;
+                return sa - sb;
+            });
+        });
+
+        // Ordenar horários alfabeticamente
+        const schedKeys = Object.keys(bySchedule).sort();
+
+        const statusLabel = { confirmed: 'Confirmado', paid: 'Pago', approved: 'Aprovado', pending: 'Ag. Pagamento' };
+        const statusCls = {
+            confirmed: 'bg-green-100 text-green-700',
+            paid: 'bg-blue-100 text-blue-700',
+            approved: 'bg-emerald-100 text-emerald-700',
+            pending: 'bg-orange-100 text-orange-700'
+        };
+
+        let html = '';
+        for (const sched of schedKeys) {
+            const regs = bySchedule[sched];
+            html += `
+            <div class="mb-6">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-clock mr-1"></i>${escapeAdminHtml(sched)}</span>
+                    <span class="text-xs text-gray-400">${regs.length} inscrito(s)</span>
+                </div>
+                <div class="overflow-x-auto rounded-lg border border-gray-200">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="bg-gray-50 text-xs text-gray-500 uppercase">
+                            <th class="px-3 py-2 text-left w-20">Slot</th>
+                            <th class="px-3 py-2 text-left">Equipe / Nome</th>
+                            <th class="px-3 py-2 text-left w-24">Data</th>
+                            <th class="px-3 py-2 text-left w-28">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${regs.map(r => {
+                            const slotNum = r.slotNumber != null ? r.slotNumber : r.slot;
+                            const slotLabel = r.slotDisplay || (slotNum != null ? `#${slotNum}` : '—');
+                            const st = r.status || 'pending';
+                            const dateFmt = r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date)
+                                ? r.date.split('-').reverse().join('/') : (r.date || '—');
+                            const leaderName = r.leaderName && r.leaderName !== r.teamName ? r.leaderName : null;
+                            return `<tr class="border-t border-gray-100 hover:bg-orange-50 transition-colors">
+                                <td class="px-3 py-2 font-bold text-orange-600 text-base">${escapeAdminHtml(slotLabel)}</td>
+                                <td class="px-3 py-2">
+                                    <p class="font-medium text-gray-800">${escapeAdminHtml(r.teamName || r.email || '—')}</p>
+                                    ${leaderName ? `<p class="text-xs text-gray-400">Líder: ${escapeAdminHtml(leaderName)}</p>` : ''}
+                                </td>
+                                <td class="px-3 py-2 text-gray-500 text-xs">${dateFmt}</td>
+                                <td class="px-3 py-2"><span class="px-2 py-0.5 rounded-full text-xs font-semibold ${statusCls[st] || 'bg-gray-100 text-gray-500'}">${statusLabel[st] || st}</span></td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>
+                </div>
+            </div>`;
+        }
+
+        document.getElementById('eventSlotsBody').innerHTML = html;
+    } catch(e) {
+        document.getElementById('eventSlotsBody').innerHTML =
+            '<div class="text-center py-8 text-red-400"><i class="fas fa-exclamation-circle text-2xl mb-2 block"></i><p class="text-sm">Erro ao carregar slots.</p></div>';
+    }
+}
+
+function closeEventSlotsModal() {
+    const modal = document.getElementById('eventSlotsModal');
+    if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+}
+
+async function repairEventSlots() {
+    const eventId = document.getElementById('eventSlotsEventId').value;
+    const eventName = document.getElementById('eventSlotsEventName').textContent;
+    if (!eventId) return;
+
+    const btn = document.getElementById('repairSlotsBtn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Corrigindo...'; }
+
+    try {
+        const { collection, query, where, getDocs, writeBatch, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const snap = await getDocs(query(
+            collection(window.firebaseDb, 'registrations'),
+            where('eventType', '==', eventId)
+        ));
+        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
+        const docs = snap.docs.filter(d => validStatuses.has(d.data().status));
+
+        if (docs.length === 0) {
+            alert('Nenhum participante encontrado para corrigir.');
+            return;
+        }
+
+        // Agrupar por horário
+        const bySchedule = {};
+        docs.forEach(d => {
+            const r = d.data();
+            const sched = r.schedule || '—';
+            if (!bySchedule[sched]) bySchedule[sched] = [];
+            bySchedule[sched].push({ id: d.id, data: r });
+        });
+
+        // Dentro de cada horário, ordenar por createdAt crescente → slot mais antigo = #1
+        Object.values(bySchedule).forEach(arr => {
+            arr.sort((a, b) => {
+                const ta = a.data.createdAt?.seconds ?? 0;
+                const tb = b.data.createdAt?.seconds ?? 0;
+                return ta - tb;
+            });
+        });
+
+        // Reassignar slots únicos e sequenciais por horário
+        const batch = writeBatch(window.firebaseDb);
+        let updateCount = 0;
+
+        for (const regs of Object.values(bySchedule)) {
+            regs.forEach((entry, idx) => {
+                const newSlot = idx + 1;
+                const newSlotDisplay = `Vaga #${newSlot}`;
+                // Só atualiza se mudou
+                if (entry.data.slot !== newSlot || entry.data.slotDisplay !== newSlotDisplay) {
+                    batch.update(doc(window.firebaseDb, 'registrations', entry.id), {
+                        slot: newSlot,
+                        slotDisplay: newSlotDisplay
+                    });
+                    updateCount++;
+                }
+            });
+        }
+
+        if (updateCount === 0) {
+            alert('Nenhum slot duplicado encontrado — tudo certo!');
+            return;
+        }
+
+        await batch.commit();
+
+        // Sincronizar slotCounters com a contagem real após o reparo
+        try {
+            const { doc: _doc, setDoc: _setDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            const counterData = {};
+            for (const [sched, regs] of Object.entries(bySchedule)) {
+                counterData[sched] = regs.length; // total de slots usados neste horário
+            }
+            await _setDoc(_doc(window.firebaseDb, 'slotCounters', eventId), counterData);
+        } catch(_se) { console.warn('slotCounters sync falhou após reparo:', _se.message); }
+
+        alert(`✅ ${updateCount} registro(s) corrigido(s) com sucesso!`);
+        // Recarregar o modal para exibir os slots atualizados
+        await openEventSlotsModal(eventId, eventName);
+
+    } catch(e) {
+        console.error('Erro ao corrigir slots:', e);
+        alert('Erro ao corrigir slots: ' + (e.message || 'tente novamente.'));
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-wrench mr-1"></i>Corrigir Slots Duplicados'; }
+    }
+}
+
+window.openEventSlotsModal = openEventSlotsModal;
+window.closeEventSlotsModal = closeEventSlotsModal;
+window.repairEventSlots = repairEventSlots;
 
 window.openEventNotifyModal = openEventNotifyModal;
 window.closeEventNotifyModal = closeEventNotifyModal;

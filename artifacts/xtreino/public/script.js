@@ -488,7 +488,8 @@ function onAuthLogged(user) {
                 if (uid) {
                     await loadUserProfile(uid);
                     const role = (window.currentUserProfile?.role || '').toLowerCase();
-                    if (['ceo', 'gerente', 'vendedor', 'design', 'socio', 'afiliado', 'staff'].includes(role)) {
+                    if (['ceo', 'gerente', 'vendedor', 'design', 'socio', 'afiliado', 'staff',
+                         'moderador', 'operador', 'suporte'].includes(role)) {
                         window.postLoginRedirect = null;
                         window.location.href = 'admin.html';
                         return;
@@ -572,15 +573,45 @@ async function loadUserNotifications() {
             const n = d.data();
             const isRead = readIds.has(d.id);
             const dateStr = n.createdAt ? new Date(n.createdAt.toDate ? n.createdAt.toDate() : n.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
-            const roomBtnHtml = n.roomLink ? `
+
+            const isCredentials = n.notifyType === 'credentials';
+            let credentialsHtml = '';
+            if (isCredentials) {
+                const roomId = n.roomId ? String(n.roomId).trim() : '';
+                const roomPassword = n.roomPassword ? String(n.roomPassword).trim() : '';
+                const roomBtnHtml = n.roomLink ? `
+                    <a href="${n.roomLink}" target="_blank" rel="noopener noreferrer"
+                       style="display:block;margin-top:10px;text-decoration:none;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;text-align:center;padding:12px 16px;border-radius:12px;font-weight:900;font-size:15px;letter-spacing:1px;animation:roomPulse 1.5s infinite;box-shadow:0 0 0 0 rgba(124,58,237,0.7)">
+                        🚀 ENTRAR NA SALA!!
+                    </a>` : '';
+                credentialsHtml = `
+                    <div style="margin-top:10px;background:linear-gradient(135deg,#f5f3ff,#eef2ff);border:2px solid #c4b5fd;border-radius:14px;padding:12px">
+                        <div style="font-size:10px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🎮 Credenciais da Sala</div>
+                        <div style="display:flex;gap:8px;margin-bottom:4px">
+                            <div style="flex:1;background:#fff;border:2px solid #c4b5fd;border-radius:10px;padding:8px;text-align:center">
+                                <div style="font-size:9px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">🎮 ID</div>
+                                <div style="font-size:18px;font-weight:900;color:#4c1d95;font-family:monospace;letter-spacing:2px;user-select:all">${roomId || '—'}</div>
+                            </div>
+                            <div style="flex:1;background:#fff;border:2px solid #a5b4fc;border-radius:10px;padding:8px;text-align:center">
+                                <div style="font-size:9px;font-weight:700;color:#4338ca;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">🔑 Senha</div>
+                                <div style="font-size:18px;font-weight:900;color:#312e81;font-family:monospace;letter-spacing:2px;user-select:all">${roomPassword || '—'}</div>
+                            </div>
+                        </div>
+                        ${roomBtnHtml}
+                    </div>`;
+            }
+
+            const roomBtnFallback = !isCredentials && n.roomLink ? `
                 <a href="${n.roomLink}" target="_blank" rel="noopener noreferrer"
                    style="display:block;margin-top:10px;text-decoration:none;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;text-align:center;padding:12px 16px;border-radius:12px;font-weight:900;font-size:15px;letter-spacing:1px;animation:roomPulse 1.5s infinite;box-shadow:0 0 0 0 rgba(124,58,237,0.7)">
                     🚀 ENTRAR NA SALA!!
                 </a>` : '';
+
             return `<div class="p-3 transition-colors cursor-default ${isRead ? 'hover:bg-gray-50' : 'bg-blue-50 border-l-2 border-blue-400'}">
-                <div class="font-semibold text-sm text-gray-900">${n.title || ''}</div>
-                <div class="text-xs text-gray-600 mt-0.5 leading-relaxed whitespace-pre-line">${n.message || ''}</div>
-                ${roomBtnHtml}
+                <div class="font-semibold text-sm ${isCredentials ? 'text-purple-800' : 'text-gray-900'}">${n.title || ''}</div>
+                ${n.message ? `<div class="text-xs text-gray-600 mt-0.5 leading-relaxed whitespace-pre-line">${n.message}</div>` : ''}
+                ${credentialsHtml}
+                ${roomBtnFallback}
                 <div class="text-xs text-gray-400 mt-1">${dateStr}</div>
             </div>`;
         }).join('') + `<style>@keyframes roomPulse{0%{box-shadow:0 0 0 0 rgba(124,58,237,0.7)}70%{box-shadow:0 0 0 12px rgba(124,58,237,0)}100%{box-shadow:0 0 0 0 rgba(124,58,237,0)}}</style>`;
@@ -729,13 +760,12 @@ async function checkAdminAccess() {
 
             
 
-            // Para outros cargos, verificar email na whitelist
-            if (['admin', 'ceo', 'gerente', 'vendedor'].includes(role)) {
-                if (!authorizedEmails.includes(user.email.toLowerCase())) {
-                    
-                    return false;
-                }
-                
+            // Cargos sem whitelist adicional (segurança garantida pelo login do admin.html)
+            if (['ceo', 'gerente', 'staff', 'moderador', 'operador', 'suporte'].includes(role)) {
+                return true;
+            }
+            // Qualquer cargo admin reconhecido tem acesso ao botão
+            if (['admin', 'vendedor'].includes(role)) {
                 return true;
             }
         }
@@ -966,62 +996,53 @@ document.addEventListener('DOMContentLoaded', function () {
             // Trata retorno do Mercado Pago e atualiza vagas
             try {
                 const sp = new URLSearchParams(location.search);
-                const mpStatus = sp.get('mp_status');
-                const preferenceId = sp.get('preference-id');
-                
 
-                // Só verificar pagamentos se há evidência real de uma tentativa de pagamento
-                const hasPaymentEvidence = mpStatus || preferenceId || sessionStorage.getItem('lastExternalRef') || sessionStorage.getItem('lastRegId');
+                // Parâmetros reais enviados pelo Mercado Pago no redirect de volta
+                const mpCollectionStatus = sp.get('collection_status'); // "approved" | "rejected" | "pending"
+                const mpPaymentStatus    = sp.get('status');            // "approved" | "rejected" | "pending"
+                const mpExternalRef      = sp.get('external_reference');
+                const mpPreferenceId     = sp.get('preference_id') || sp.get('preference-id');
 
-                if (!mpStatus && preferenceId) {
-                    checkPaymentStatus(preferenceId);
-                } else if (!mpStatus && hasPaymentEvidence) {
-                    // Se não tem mp_status mas há evidência de pagamento, tentar usar external_reference salvo
-                    const externalRef = sessionStorage.getItem('lastExternalRef');
-                    if (externalRef) {
-                        checkPaymentStatus(externalRef);
+                const mpApproved = mpCollectionStatus === 'approved' || mpPaymentStatus === 'approved';
+                const mpRejected = mpCollectionStatus === 'rejected'  || mpPaymentStatus === 'rejected';
+                const mpPending  = mpCollectionStatus === 'pending'   || mpPaymentStatus === 'pending';
+
+                // Evidência de pagamento pendente em sessão (usuário voltou sem passar pelos params do MP)
+                const storedRef = sessionStorage.getItem('lastExternalRef');
+
+                if (mpApproved && mpExternalRef) {
+                    // ✅ Retorno direto do MP com pagamento aprovado — processar imediatamente
+                    history.replaceState({}, document.title, location.pathname);
+                    if (mpExternalRef !== storedRef) {
+                        try { sessionStorage.setItem('lastExternalRef', mpExternalRef); } catch (_) {}
                     }
-                } else if (!hasPaymentEvidence) {
-                    
-                    // Limpar dados antigos de pagamento se existirem
+                    processSuccessfulPayment(mpExternalRef);
+
+                } else if (mpRejected && mpExternalRef) {
+                    // ❌ Pagamento rejeitado
+                    history.replaceState({}, document.title, location.pathname);
+                    openPaymentConfirmModal('Pagamento Rejeitado', 'Seu pagamento foi rejeitado pelo Mercado Pago. Tente novamente ou use outro cartão.');
+
+                } else if ((mpPending || mpPreferenceId) && (mpExternalRef || storedRef)) {
+                    // ⏳ Pagamento pendente — verificar via Netlify function com polling
+                    history.replaceState({}, document.title, location.pathname);
+                    const refToCheck = mpExternalRef || storedRef;
+                    if (refToCheck !== storedRef) {
+                        try { sessionStorage.setItem('lastExternalRef', refToCheck); } catch (_) {}
+                    }
+                    checkPaymentStatus(mpPreferenceId || refToCheck);
+
+                } else if (storedRef && !mpCollectionStatus && !mpPaymentStatus) {
+                    // 🔄 Usuário voltou ao site manualmente (sem params do MP) mas havia uma sessão de pagamento
+                    // Verificar via Netlify function se o pagamento foi aprovado
+                    checkPaymentStatus(storedRef);
+
+                } else if (!storedRef && !mpCollectionStatus && !mpPaymentStatus) {
+                    // Sem evidência nenhuma — limpar e ignorar
                     sessionStorage.removeItem('lastExternalRef');
                     sessionStorage.removeItem('lastRegId');
+                    sessionStorage.removeItem('lastRegIds');
                     sessionStorage.removeItem('lastRegInfo');
-                    // Não fazer nada mais - usuário está apenas visitando o site
-                    return;
-                } else if (mpStatus === 'success') {
-                    if (mpStatus === 'success') {
-                        
-                        const regId = sessionStorage.getItem('lastRegId');
-                        
-                        if (regId) {
-                            import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js')
-                                .then(({ doc, setDoc, getDoc, collection }) => {
-                                    const ref = doc(collection(window.firebaseDb, 'registrations'), regId);
-                                    return setDoc(ref, { status: 'paid' }, { merge: true })
-                                        .then(() => getDoc(ref))
-                                        .then(snap => { const d = snap.exists() ? snap.data() : {}; return d.groupLink || null; });
-                                }).then((groupLink) => {
-                                    
-                                    openPaymentConfirmModal('Pagamento confirmado', 'Seu pagamento foi aprovado. Confira seus acessos na área Minha Conta.', groupLink);
-                                }).catch((e) => {
-                                    
-                                    openPaymentConfirmModal('Pagamento confirmado', 'Seu pagamento foi aprovado. Confira seus acessos na área Minha Conta.');
-                                });
-                        } else {
-                            
-                            // Fallback: cria registro local para exibir na aba pedidos
-                            try {
-                                const info = JSON.parse(sessionStorage.getItem('lastRegInfo') || '{}');
-                                const orders = JSON.parse(localStorage.getItem('localOrders') || '[]');
-                                orders.unshift({ title: info.title || 'Reserva', amount: info.price || 0, status: 'paid', date: new Date().toISOString() });
-                                localStorage.setItem('localOrders', JSON.stringify(orders));
-                                
-                            } catch (e) {  }
-                            openPaymentConfirmModal('Pagamento confirmado', 'Seu pagamento foi aprovado. Confira seus acessos na área Minha Conta.');
-                        }
-                    }
-                    history.replaceState({}, document.title, location.pathname);
                 }
             } catch (_) { }
         } else {
@@ -1701,6 +1722,14 @@ let appliedScheduleCoupon = null;
 let originalPrice = 0;
 let scheduleOriginalTotal = 0;
 
+async function waitForFirebase(maxMs = 8000) {
+    const start = Date.now();
+    while (!window.firebaseReady && Date.now() - start < maxMs) {
+        await new Promise(r => setTimeout(r, 150));
+    }
+    return !!window.firebaseReady;
+}
+
 const products = {
     // 'passe-booyah': { name: 'Passe de Elite', price: 'R$ 11,00', description: 'Passe de Elite para desbloqueio de recompensas, trajes e itens no jogo' },
     // 'aim-training': { name: 'XTreino - Aim Training', price: 'R$ 49,90', description: 'Sessão de 2 horas de treinamento' },
@@ -1767,8 +1796,46 @@ function showProductModal(productId) {
 
     const details = detailsMap[productId] || { desc: product.description, options: null };
     document.getElementById('purchaseTitle').textContent = product.name;
-    document.getElementById('purchaseDescription').textContent = details.desc;
+
+    // Descrição — oculta até o usuário clicar em "Ver detalhes" (usa somente inline styles para evitar conflitos CSS/Tailwind)
+    const descEl = document.getElementById('purchaseDescription');
+    descEl.textContent = '';
+    descEl.style.cssText = 'display:none!important';
+    const _existDescBox = document.getElementById('productDescBox');
+    if (_existDescBox) _existDescBox.remove();
+    const fullDesc = (details.desc || '').trim();
+    if (fullDesc) {
+        const _descBox = document.createElement('div');
+        _descBox.id = 'productDescBox';
+        _descBox.style.cssText = 'margin-bottom:12px;margin-top:2px;';
+        const _descText = document.createElement('div');
+        _descText.style.cssText = 'display:none;white-space:pre-wrap;color:#374151;font-size:0.85rem;line-height:1.55;margin-top:8px;padding:10px 12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;';
+        _descText.textContent = fullDesc;
+        _descBox.appendChild(_descText);
+        const _btn = document.createElement('button');
+        _btn.type = 'button';
+        _btn.style.cssText = 'display:inline-flex;align-items:center;gap:5px;color:#16a34a;font-size:0.85rem;font-weight:600;cursor:pointer;background:none;border:none;padding:3px 0;outline:none;';
+        _btn.innerHTML = '<i class="fas fa-chevron-down" style="font-size:10px;transition:transform 0.2s"></i> Ver detalhes do produto';
+        let _open = false;
+        _btn.addEventListener('click', function() {
+            _open = !_open;
+            _descText.style.display = _open ? 'block' : 'none';
+            _btn.innerHTML = _open
+                ? '<i class="fas fa-chevron-up" style="font-size:10px"></i> Ocultar detalhes'
+                : '<i class="fas fa-chevron-down" style="font-size:10px"></i> Ver detalhes do produto';
+        });
+        _descBox.appendChild(_btn);
+        const _purchaseForm = document.querySelector('#purchaseModal form');
+        if (_purchaseForm) {
+            _purchaseForm.parentNode.insertBefore(_descBox, _purchaseForm);
+        } else {
+            descEl.insertAdjacentElement('afterend', _descBox);
+        }
+    }
+
     document.getElementById('purchasePrice').textContent = product.price;
+    const headerTitle = document.getElementById('purchaseHeaderTitle');
+    if (headerTitle) headerTitle.textContent = product.name;
  
 
     const imgEl = document.getElementById('purchaseImage');
@@ -2067,6 +2134,9 @@ async function payCurrentProductWithTokens() {
 
 // Ação do botão "Pagar com Tokens" do agendamento
 function payScheduleWithTokens() {
+    if (window._scheduleSubmitting) return;
+    const tokenBtn = document.getElementById('schedPayTokens');
+    if (tokenBtn && tokenBtn.disabled) return;
     submitSchedule({ preventDefault: () => { } }, true);
 }
 
@@ -2097,7 +2167,12 @@ async function applyCoupon() {
     }
 
     try {
-        
+        // Aguardar Firebase ficar pronto
+        const fbReady = await waitForFirebase(8000);
+        if (!fbReady || !window.firebaseDb) {
+            showCouponMessage('Erro de conexão. Recarregue a página e tente novamente.', 'error');
+            return;
+        }
 
         // Importar Firebase
         const { collection, getDocs, query, where, limit } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
@@ -2556,15 +2631,8 @@ async function handlePurchase(event) {
                 externalRef = `digital_${docRef.id}`;
                 await updateDoc(docRef, { external_reference: externalRef });
             } catch (firebaseError) {
-                
-                // --- PROTEÇÃO CONTRA PAGAMENTO FANTASMA ---
-                alert('Erro de conexão ao salvar seu pedido. Por favor, verifique sua internet e tente novamente. Nenhuma cobrança foi gerada.');
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = originalBtnText;
-                }
-                return; // INTERROMPE O FLUXO AQUI
-                // -----------------------------------------
+                console.warn('Aviso: não foi possível salvar pedido no Firestore antes do pagamento. Continuando para o checkout.', firebaseError);
+                // Continua com externalRef gerado acima — o webhook cria/atualiza o pedido após pagamento confirmado
             }
         }
 
@@ -2712,7 +2780,9 @@ async function createPendingAffiliateSale(orderId, affiliateCode, orderData, sal
 
         const affData = affDoc.data();
         const affId = affDoc.id;
-        const commissionRate = affData.commissionRate || 10;
+        const commissionRate = saleType === 'event'
+            ? (affData.commissionRateEvents || affData.commissionRate || 10)
+            : (affData.commissionRateProducts || affData.commissionRate || 10);
         const saleValue = Number(orderData.amount || 0);
         const commissionAmount = (saleValue * commissionRate) / 100;
         
@@ -2846,7 +2916,7 @@ async function loadHighlightsFromFirestore() {
             const highlight = highlights[key];
             if (highlight && highlight.title) {
                 const slide = document.createElement('div');
-                slide.className = 'min-w-full p-8 bg-white';
+                slide.className = 'carousel-slide p-8 bg-white';
 
                 // Criar imagem com ou sem link
                 let imageHtml = '';
@@ -2902,62 +2972,89 @@ async function loadHighlightsFromFirestore() {
     }
 }
 
-// Simple carousel with auto-advance
+// Carousel — abordagem por scrollLeft (não depende de offsetWidth no init)
 function initCarousel() {
-    const track = document.getElementById('carouselTrack');
-    const prev = document.getElementById('carouselPrev');
-    const next = document.getElementById('carouselNext');
+    const viewport = document.getElementById('carouselViewport');
+    const track    = document.getElementById('carouselTrack');
+    const prev     = document.getElementById('carouselPrev');
+    const next     = document.getElementById('carouselNext');
     if (!track || !prev || !next) return;
 
+    // Remover listener anterior para evitar duplicatas
+    if (window._carouselCleanup) window._carouselCleanup();
+
+    const container = viewport || track.parentElement;
     let index = 0;
-    const slides = track.children.length;
+    let slideCount = track.children.length;
     let autoAdvanceInterval;
 
+    function slideWidth() {
+        return container.getBoundingClientRect().width || container.offsetWidth || 0;
+    }
+
+    function applyWidths() {
+        const w = slideWidth();
+        if (!w) return;
+        Array.from(track.children).forEach(s => {
+            s.style.width    = w + 'px';
+            s.style.minWidth = w + 'px';
+            s.style.flexShrink = '0';
+        });
+        slideCount = track.children.length;
+    }
+
     function update() {
-        track.style.transform = `translateX(-${index * 100}%)`;
+        const w = slideWidth();
+        track.style.transform = `translateX(-${index * w}px)`;
     }
 
-    function nextSlide() {
-        index = (index + 1) % slides;
+    function go(dir) {
+        index = ((index + dir) % slideCount + slideCount) % slideCount;
         update();
     }
 
-    function prevSlide() {
-        index = (index - 1 + slides) % slides;
-        update();
-    }
+    function startAuto() { autoAdvanceInterval = setInterval(() => go(1), 8000); }
+    function stopAuto()  { clearInterval(autoAdvanceInterval); }
 
-    function startAutoAdvance() {
-        autoAdvanceInterval = setInterval(nextSlide, 11500); // +1.5s -> 11.5 segundos
-    }
-
-    function stopAutoAdvance() {
-        if (autoAdvanceInterval) {
-            clearInterval(autoAdvanceInterval);
-        }
-    }
-
-    // Event listeners para botões manuais
-    prev.addEventListener('click', () => {
-        stopAutoAdvance();
-        prevSlide();
-        startAutoAdvance();
+    // Aguardar dois frames para garantir que o layout foi calculado
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            applyWidths();
+            update();
+            if (slideCount > 1) startAuto();
+        });
     });
 
-    next.addEventListener('click', () => {
-        stopAutoAdvance();
-        nextSlide();
-        startAutoAdvance();
-    });
+    const onResize = () => { applyWidths(); update(); };
+    window.addEventListener('resize', onResize);
 
-    // Pausar auto-advance quando hover
-    track.addEventListener('mouseenter', stopAutoAdvance);
-    track.addEventListener('mouseleave', startAutoAdvance);
+    const onPrev = () => { stopAuto(); go(-1); startAuto(); };
+    const onNext = () => { stopAuto(); go(1);  startAuto(); };
+    prev.addEventListener('click', onPrev);
+    next.addEventListener('click', onNext);
 
-    // Iniciar auto-advance
-    if (slides > 1) {
-        startAutoAdvance();
-    }
+    track.addEventListener('mouseenter', stopAuto);
+    track.addEventListener('mouseleave', startAuto);
+
+    // Swipe no mobile
+    let tx = 0;
+    const onTouchStart = e => { tx = e.changedTouches[0].screenX; };
+    const onTouchEnd   = e => {
+        const d = tx - e.changedTouches[0].screenX;
+        if (Math.abs(d) > 50) { stopAuto(); go(d > 0 ? 1 : -1); startAuto(); }
+    };
+    track.addEventListener('touchstart', onTouchStart, { passive: true });
+    track.addEventListener('touchend',   onTouchEnd,   { passive: true });
+
+    // Limpeza para evitar listeners duplicados
+    window._carouselCleanup = () => {
+        stopAuto();
+        window.removeEventListener('resize', onResize);
+        prev.removeEventListener('click', onPrev);
+        next.removeEventListener('click', onNext);
+        track.removeEventListener('touchstart', onTouchStart);
+        track.removeEventListener('touchend',   onTouchEnd);
+    };
 }
 
 // Carregar destaques quando o Firebase estiver pronto
@@ -3023,11 +3120,8 @@ async function heroPurchaseTokens() {
             await updateDoc(docRef, { external_reference: externalRef });
             try { sessionStorage.setItem('lastExternalRef', externalRef); } catch (_) { }
         } catch (e) {
-            
-            // --- PROTEÇÃO CONTRA PAGAMENTO FANTASMA ---
-            alert('Erro de conexão ao iniciar pedido. Verifique sua internet e tente novamente.');
-            return; // INTERROMPE O FLUXO
-            // -----------------------------------------
+            console.warn('Aviso: não foi possível salvar pedido de tokens no Firestore antes do pagamento. Continuando para o checkout.', e);
+            // Continua com externalRef gerado acima — o webhook cria/atualiza o pedido após pagamento confirmado
         }
 
         const prefBody = {
@@ -4385,6 +4479,7 @@ function addProductOptions(productId) {
             break;
 
         case 'passe-booyah':
+        case 'passe':
             // Opções para passe Booyah
             container.innerHTML = `
                 <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
@@ -4396,20 +4491,16 @@ function addProductOptions(productId) {
                         </div>
                         <h4 class="text-lg font-semibold text-gray-800">Informações do Jogo</h4>
                     </div>
-                    
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">ID do Jogador (Free Fire)</label>
-                        <input type="text" id="playerId" placeholder="Ex.: 123456789" 
+                        <input type="text" id="playerId" placeholder="Ex.: 123456789"
                                class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 focus:outline-none transition-colors">
                     </div>
-                    
-                    <div class="mt-4 bg-green-100 rounded-lg p-3">
-                        <div class="flex items-center">
-                            <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                            <span class="text-sm text-green-800 font-medium">Entrega rápida! Não pedimos senha/email, apenas o ID.</span>
-                        </div>
+                    <div class="mt-4 bg-green-100 rounded-lg p-3 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span class="text-sm text-green-800 font-medium">Entrega rápida! Não pedimos senha/email, apenas o ID.</span>
                     </div>
                 </div>
             `;
@@ -4491,6 +4582,241 @@ function addProductOptions(productId) {
                 </div>
             `;
             break;
+
+        default: {
+            // Produtos criados pelo admin — detecta o tipo pelo dado salvo no Firestore
+            const prodData = (window.scheduleConfig?.[productId]) || (typeof products !== 'undefined' && products[productId]) || {};
+            const prodCat = (prodData.category || '').toLowerCase();
+            const prodName = (prodData.name || prodData.label || '').toLowerCase();
+            const isPasse = prodCat === 'passe' || prodName.includes('passe') || prodName.includes('pass booyah');
+            const isFisico = prodCat === 'fisico' || prodCat === 'physical';
+            const isAereas = prodCat === 'aereas';
+            const isSensib = prodCat === 'sensibilidade';
+
+            if (isSensib) {
+                const dlLinks = prodData.downloadLinks || {};
+                const hasPC  = !!(dlLinks.pc && dlLinks.pc.trim());
+                const hasIOS = !!(dlLinks.ios && dlLinks.ios.trim());
+                const hasLG  = !!(dlLinks.lg && dlLinks.lg.trim());
+                const hasMoto= !!(dlLinks.motorola && dlLinks.motorola.trim());
+                const hasSam = !!(dlLinks.samsung && dlLinks.samsung.trim());
+                const hasXia = !!(dlLinks.xiaomi && dlLinks.xiaomi.trim());
+                const hasAndroid = hasLG || hasMoto || hasSam || hasXia;
+                const platforms = [];
+                if (hasPC) platforms.push(`<option value="pc">🖥️ PC (Windows)</option>`);
+                if (hasAndroid) platforms.push(`<option value="android">📱 Android</option>`);
+                if (hasIOS) platforms.push(`<option value="ios">🍎 iOS (iPhone/iPad)</option>`);
+                const androidBrands = [];
+                if (hasLG)   androidBrands.push(`<option value="lg">LG</option>`);
+                if (hasMoto) androidBrands.push(`<option value="motorola">Motorola</option>`);
+                if (hasSam)  androidBrands.push(`<option value="samsung">Samsung</option>`);
+                if (hasXia)  androidBrands.push(`<option value="xiaomi">Xiaomi / Realme</option>`);
+                container.innerHTML = `
+                    <div class="bg-gradient-to-r from-cyan-50 to-blue-50 rounded-xl p-6 border border-cyan-100">
+                        <div class="flex items-center mb-4">
+                            <div class="w-10 h-10 bg-cyan-500 rounded-lg flex items-center justify-center mr-3">
+                                <i class="fas fa-sliders-h text-white"></i>
+                            </div>
+                            <h4 class="text-lg font-semibold text-gray-800">Configuração de Sensibilidade</h4>
+                        </div>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Plataforma <span class="text-red-500">*</span></label>
+                                <select id="platformSelect" onchange="handlePlatformChange()"
+                                        class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 focus:outline-none bg-white">
+                                    <option value="">Selecione a plataforma</option>
+                                    ${platforms.join('')}
+                                </select>
+                            </div>
+                            <div id="androidBrandContainer" class="hidden">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Marca do celular <span class="text-red-500">*</span></label>
+                                <select id="androidBrandSelect"
+                                        class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 focus:outline-none bg-white">
+                                    <option value="">Selecione a marca</option>
+                                    ${androidBrands.join('')}
+                                </select>
+                            </div>
+                            <p class="text-xs text-gray-500">O link de download será liberado conforme sua plataforma e marca escolhidas.</p>
+                        </div>
+                    </div>`;
+                break;
+            }
+
+            if (isAereas) {
+                // Imagens Aéreas do admin — checkboxes com mapas disponíveis
+                const mapDefs = [
+                    { key: 'bermuda',   label: 'Bermuda' },
+                    { key: 'purgatorio',label: 'Purgatório' },
+                    { key: 'solara',    label: 'Solara' },
+                    { key: 'kalahari',  label: 'Kalahari' },
+                    { key: 'novaTerra', label: 'Nova Terra' }
+                ];
+                const ml = prodData.mapLinks || {};
+                // Mostrar só mapas com link; se nenhum ainda, mostrar todos
+                const displayMaps = mapDefs.filter(m => ml[m.key] && ml[m.key].trim() !== '');
+                const mapsHtml = (displayMaps.length > 0 ? displayMaps : mapDefs)
+                    .map(m => `<label class="flex items-center gap-3 p-3 border border-orange-200 rounded-xl bg-white hover:bg-orange-50 cursor-pointer">
+                        <input type="checkbox" name="aereasMapOption" value="${m.key}" class="w-4 h-4 accent-orange-500">
+                        <i class="fas fa-map-marker-alt text-orange-400 text-sm"></i>
+                        <span class="text-sm font-medium text-gray-800">${m.label}</span>
+                    </label>`).join('');
+                const basePrice = (prodData.priceOptions?.[0]?.price) || prodData.price || 2;
+                container.innerHTML = `
+                    <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-6 border border-orange-100">
+                        <div class="flex items-center mb-4">
+                            <div class="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center mr-3">
+                                <i class="fas fa-map text-white"></i>
+                            </div>
+                            <h4 class="text-lg font-semibold text-gray-800">Selecionar Mapas</h4>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-3 mb-4">${mapsHtml}</div>
+                        <div class="bg-orange-100 rounded-lg p-3">
+                            <span class="text-sm text-orange-800 font-medium">
+                                Selecionados: <b id="aereasCount">0</b> •
+                                Total: <b id="aereasPrice">R$ 0,00</b>
+                            </span>
+                        </div>
+                    </div>`;
+                const updateAereasPrice = () => {
+                    const n = document.querySelectorAll('input[name="aereasMapOption"]:checked').length;
+                    const el = document.getElementById('aereasCount'); if (el) el.textContent = String(n);
+                    const ep = document.getElementById('aereasPrice'); if (ep) ep.textContent = `R$ ${(n * basePrice).toFixed(2)}`;
+                };
+                document.querySelectorAll('input[name="aereasMapOption"]').forEach(i => i.addEventListener('change', updateAereasPrice));
+                updateAereasPrice();
+            } else if (isPasse) {
+                container.innerHTML = `
+                    <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
+                        <div class="flex items-center mb-4">
+                            <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center mr-3">
+                                <i class="fas fa-gamepad text-white"></i>
+                            </div>
+                            <h4 class="text-lg font-semibold text-gray-800">Informações do Jogo</h4>
+                        </div>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nick (Apelido no Free Fire) <span class="text-red-500">*</span></label>
+                                <input type="text" id="gameNick" placeholder="Seu apelido no jogo"
+                                       class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">ID do Jogador (Free Fire) <span class="text-red-500">*</span></label>
+                                <input type="text" id="gameId" placeholder="Ex.: 123456789"
+                                       class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Contato WhatsApp <span class="text-red-500">*</span></label>
+                                <input type="tel" id="gameContact" placeholder="(XX) 9XXXX-XXXX"
+                                       class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 focus:outline-none transition-colors">
+                            </div>
+                        </div>
+                        <div class="mt-4 bg-green-100 rounded-lg p-3 flex items-center gap-2">
+                            <i class="fas fa-info-circle text-green-600 flex-shrink-0"></i>
+                            <span class="text-sm text-green-800 font-medium">Não pedimos senha/email. Apenas Nick, ID e WhatsApp para entrega.</span>
+                        </div>
+                    </div>
+                `;
+            } else if (isFisico) {
+                container.innerHTML = `
+                    <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-100">
+                        <div class="flex items-center mb-4">
+                            <div class="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center mr-3">
+                                <i class="fas fa-box text-white"></i>
+                            </div>
+                            <h4 class="text-lg font-semibold text-gray-800">Dados para Entrega</h4>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-3">
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nome Completo <span class="text-red-500">*</span></label>
+                                <input id="addrNome" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">CPF <span class="text-red-500">*</span></label>
+                                <input id="customerCPF" type="text" placeholder="000.000.000-00" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Tamanho (se aplicável)</label>
+                                <select id="prodTamanho" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                                    <option value="">Não se aplica</option>
+                                    <option value="PP">PP</option>
+                                    <option value="P">P</option>
+                                    <option value="M">M</option>
+                                    <option value="G">G</option>
+                                    <option value="GG">GG</option>
+                                    <option value="XGG">XGG</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">CEP <span class="text-red-500">*</span></label>
+                                <input id="addrCEP" type="text" placeholder="00000-000" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Endereço (Rua) <span class="text-red-500">*</span></label>
+                                <input id="addrRua" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Número</label>
+                                <input id="addrNumero" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Complemento</label>
+                                <input id="addrComplemento" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Bairro <span class="text-red-500">*</span></label>
+                                <input id="addrBairro" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Cidade <span class="text-red-500">*</span></label>
+                                <input id="addrCidade" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Estado <span class="text-red-500">*</span></label>
+                                <input id="addrEstado" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-colors">
+                            </div>
+                        </div>
+                        <div class="mt-4 bg-purple-100 rounded-lg p-3 flex items-center gap-2">
+                            <i class="fas fa-truck text-purple-600 flex-shrink-0"></i>
+                            <span class="text-sm text-purple-800 font-medium">Produto físico — será enviado pelo correio após confirmação do pagamento.</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // Digital — coleta Nome, Email, Telefone
+                container.innerHTML = `
+                    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <i class="fas fa-download text-white"></i>
+                            </div>
+                            <h4 class="text-lg font-semibold text-gray-800">Dados para Recebimento</h4>
+                        </div>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nome Completo <span class="text-red-500">*</span></label>
+                                <input type="text" id="digitalNome" placeholder="Seu nome completo"
+                                       class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">E-mail <span class="text-red-500">*</span></label>
+                                <input type="email" id="digitalEmail" placeholder="seu@email.com"
+                                       class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Telefone / WhatsApp <span class="text-red-500">*</span></label>
+                                <input type="tel" id="digitalTelefone" placeholder="(XX) 9XXXX-XXXX"
+                                       class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-colors">
+                            </div>
+                        </div>
+                        <div class="mt-4 bg-blue-100 rounded-lg p-3 flex items-center gap-2">
+                            <i class="fas fa-bolt text-blue-600 flex-shrink-0"></i>
+                            <span class="text-sm text-blue-800 font-medium">O link de download será liberado automaticamente após a confirmação do pagamento.</span>
+                        </div>
+                    </div>
+                `;
+            }
+            break;
+        }
     }
 
     // Adicionar event listeners para atualizar preço dinamicamente
@@ -4549,6 +4875,12 @@ function openScheduleModal(eventType) {
     const modal = document.getElementById('scheduleModal');
     if (!cfg || !modal) return;
 
+    // Pré-aquecer a Netlify Function para eliminar o cold start no pagamento
+    // (dispara OPTIONS em background — o usuário ainda vai preencher o formulário)
+    try {
+        fetch('/.netlify/functions/create-preference', { method: 'OPTIONS' }).catch(() => {});
+    } catch (_) {}
+
     // Reset global variables
     selectedTimes = [];
     teams = [];
@@ -4562,8 +4894,10 @@ function openScheduleModal(eventType) {
     (function () {
         const couponSection = document.getElementById('scheduleCouponSection');
         if (couponSection) {
-            // Esconde cupom quando pagamento é via tokens
-            couponSection.style.display = cfg.payWithToken ? 'none' : 'block';
+            // Esconde cupom: tokens, camisas/produtos físicos
+            const isFisicoOrShirt = eventType === 'camisa'
+                || (cfg.category === 'fisico' || cfg.category === 'physical');
+            couponSection.style.display = (cfg.payWithToken || isFisicoOrShirt) ? 'none' : 'block';
         }
         if (cfg.payWithToken) {
             // Garante que nenhum cupom de agendamento fique aplicado
@@ -4588,6 +4922,12 @@ function openScheduleModal(eventType) {
 
     // Se for produto da loja, esconder seleção de data/hora e adicionar opções específicas
     if (cfg.isProduct) {
+        // Mudar título do modal para "Finalizar Compra" (não é agendamento)
+        const modalTitle = document.querySelector('#scheduleModal .schedule-modal-title');
+        const modalSub   = document.querySelector('#scheduleModal .schedule-modal-sub');
+        if (modalTitle) modalTitle.textContent = 'Finalizar Compra';
+        if (modalSub)   modalSub.textContent   = cfg.label || 'Complete as informações do seu pedido';
+
         // Esconder TODAS as seções de data e horários para produtos
         const grid = document.querySelector('#scheduleModal .lg\\:grid-cols-2');
         const leftColumn = document.querySelector('#scheduleModal .lg\\:grid-cols-2 > div:first-child');
@@ -4630,6 +4970,12 @@ function openScheduleModal(eventType) {
         modal.classList.remove('hidden');
         return;
     }
+
+    // Restaurar título do modal para evento (reserva de horário)
+    const _mTitle = document.querySelector('#scheduleModal .schedule-modal-title');
+    const _mSub   = document.querySelector('#scheduleModal .schedule-modal-sub');
+    if (_mTitle) _mTitle.textContent = 'Reservar Horário';
+    if (_mSub)   _mSub.textContent   = 'Escolha a data e horário para seu evento';
 
     // Para eventos, mostrar seleção de data/hora
     const leftColumn = document.querySelector('#scheduleModal .lg\\:grid-cols-2 > div:first-child');
@@ -5207,10 +5553,13 @@ async function fetchOccupiedForDate(day, date, eventType) {
         if (!window.firebaseReady) return map;
         const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const regsRef = collection(window.firebaseDb, 'registrations');
-        // Incluir 'pending' para contar todas as reservas, mesmo as que ainda não foram pagas
-        const clauses = [where('date', '==', date), where('status', 'in', ['paid', 'confirmed', 'approved', 'pending'])];
-        if (eventType) clauses.push(where('eventType', '==', eventType));
-        const q = query(regsRef, ...clauses);
+        // CRÍTICO: usar apenas 1 filtro no Firestore (campo único) para nunca precisar de índice composto
+        // date, status e eventType são filtrados em JS depois
+        const validStatuses = new Set(['paid', 'confirmed', 'approved']);
+        // Priorizar eventType (mais seletivo); se não houver, filtrar por date
+        const q = eventType
+            ? query(regsRef, where('eventType', '==', eventType))
+            : query(regsRef, where('date', '==', date));
         const snap = await getDocs(q);
         const parseHourFromRecord = (r) => {
             // Try multiple fields that may contain hour info
@@ -5247,6 +5596,8 @@ async function fetchOccupiedForDate(day, date, eventType) {
         };
         snap.forEach(doc => {
             const r = doc.data();
+            if (!validStatuses.has(r.status)) return; // filtrar status em JS
+            if (r.date !== date) return; // filtrar date em JS (query usa só eventType)
             const key = normalizeToScheduleKey(r);
             if (!key) return;
             map[key] = (map[key] || 0) + 1;
@@ -5308,16 +5659,20 @@ async function checkSlotAvailability(date, schedule, eventType) {
         if (!window.firebaseReady) return true;
         const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const regsRef = collection(window.firebaseDb, 'registrations');
-        // Incluir 'pending' para evitar que múltiplas reservas sejam criadas simultaneamente
-        const clauses = [where('date', '==', date), where('status', 'in', ['paid', 'confirmed', 'approved', 'pending'])];
-        if (eventType) clauses.push(where('eventType', '==', eventType));
-        const q = query(regsRef, ...clauses);
+        // CRÍTICO: campo único no Firestore — sem índice composto
+        // date, status e eventType são filtrados em JS
+        const validStatuses2 = new Set(['paid', 'confirmed', 'approved']);
+        const q = eventType
+            ? query(regsRef, where('eventType', '==', eventType))
+            : query(regsRef, where('date', '==', date));
         const snap = await getDocs(q);
         // Normalizar para comparar por hora
         const wantedHour = parseInt(String(schedule).match(/(\d{1,2})\s*h/)?.[1] || 'NaN', 10);
         let occupied = 0;
         snap.forEach(d => {
             const r = d.data();
+            if (!validStatuses2.has(r.status)) return; // filtrar status em JS
+            if (r.date !== date) return; // filtrar date em JS
             const rawSchedule = String(r.schedule || '');
             const rawHour = String(r.hour || '');
             let hh = rawSchedule.match(/(\d{1,2})\s*h/)?.[1]
@@ -5378,138 +5733,71 @@ async function checkSlotAvailability(date, schedule, eventType) {
         } catch (err) {
             
         }
-        // Verificar também travas permanentes (event_hour_locks) — prioritário
-        try {
-            const { collection: _hc, query: _hq, where: _hw, getDocs: _hg } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-            if (window.firebaseDb && eventType) {
-                const hlSnap = await _hg(_hq(_hc(window.firebaseDb, 'event_hour_locks'), _hw('eventType', '==', eventType), _hw('locked', '==', true)));
-                hlSnap.forEach(hd => {
-                    const hh = parseInt(String(hd.data().hour || '').replace(/\D/g, ''), 10);
-                    if (!isNaN(hh) && hh === wantedHour) {
-                        occupied = getEventCapacity(eventType, `${wantedHour}h`, date);
-                    }
-                });
-            }
-        } catch (_permErr) {}
-
         const capacity = getEventCapacity(eventType, `${wantedHour}h`, date);
         // Não permitir compra se ocupado >= capacidade (não pode ultrapassar)
         return occupied < capacity;
     } catch (_) { return true; }
 }
 
-// Verifica disponibilidade para múltiplos horários e times — implementação Firestore direta
+// Verifica disponibilidade para múltiplos horários e times
 async function checkMultipleSlotAvailability(date, selectedTimes, eventType, numberOfTeams) {
   try {
+    // Fail-safe: se algo básico estiver errado, não bloqueia o usuário
     if (!date || !Array.isArray(selectedTimes) || selectedTimes.length === 0) {
       return { available: true };
     }
 
+    // Normalização defensiva da data
     const normalizedDate =
-      typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
+      typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)
+        ? date
+        : null;
 
-    if (!normalizedDate || !window.firebaseDb) {
+    if (!normalizedDate) {
+      
       return { available: true };
     }
 
-    const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-    const n = Number(numberOfTeams || 1);
+    // 🔥 ÚNICO ponto de verdade agora é o backend
+    const response = await fetch('/.netlify/functions/check-availability', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        date: normalizedDate,
+        selectedTimes,
+        eventType: eventType || null,
+        numberOfTeams: Number(numberOfTeams || 1)
+      })
+    });
 
-    // 1. Carregar travas permanentes (event_hour_locks)
-    const permLockedHours = new Set();
-    try {
-      if (eventType) {
-        const hlSnap = await getDocs(query(
-          collection(window.firebaseDb, 'event_hour_locks'),
-          where('eventType', '==', eventType),
-          where('locked', '==', true)
-        ));
-        hlSnap.forEach(d => {
-          const h = parseInt(String(d.data().hour || '').replace(/\D/g, ''), 10);
-          if (!isNaN(h)) permLockedHours.add(h);
-        });
-      }
-    } catch (_) {}
-
-    // Verificar travas permanentes ANTES de qualquer outra coisa
-    for (const timeItem of selectedTimes) {
-      const schedStr = typeof timeItem === 'string' ? timeItem : (timeItem.schedule || '');
-      const hourMatch = schedStr.match(/(\d{1,2})\s*h/i) || schedStr.match(/- (\d{1,2})h/i);
-      const h = hourMatch ? parseInt(hourMatch[1], 10) : NaN;
-      if (!isNaN(h) && permLockedHours.has(h)) {
-        return { available: false, message: 'Horário indisponível. Este horário foi bloqueado pelo administrador.' };
-      }
+    if (!response.ok) {
+      
+      return { available: true }; // fail-safe
     }
 
-    // 2. Carregar overrides de data (schedule_overrides)
-    const dateLockedHours = new Set();
-    try {
-      const ovSnap = await getDocs(query(
-        collection(window.firebaseDb, 'schedule_overrides'),
-        where('date', '==', normalizedDate)
-      ));
-      ovSnap.forEach(d => {
-        const ov = d.data();
-        if (ov.date !== normalizedDate) return;
-        const ovEventType = ov.eventType || null;
-        const shouldApply = !ovEventType || ovEventType === eventType || !eventType;
-        if (!shouldApply) return;
-        if (ov.locked === true) {
-          const h = parseInt(String(ov.hour || ov.hh || '').replace(/\D/g, ''), 10);
-          if (!isNaN(h)) dateLockedHours.add(h);
-        }
-      });
-    } catch (_) {}
+    const result = await response.json();
 
-    // Verificar travas de data
-    for (const timeItem of selectedTimes) {
-      const schedStr = typeof timeItem === 'string' ? timeItem : (timeItem.schedule || '');
-      const hourMatch = schedStr.match(/(\d{1,2})\s*h/i) || schedStr.match(/- (\d{1,2})h/i);
-      const h = hourMatch ? parseInt(hourMatch[1], 10) : NaN;
-      if (!isNaN(h) && dateLockedHours.has(h)) {
-        return { available: false, message: 'Horário indisponível nesta data.' };
-      }
+    // Garantia mínima de contrato
+    if (typeof result !== 'object' || result === null) {
+      
+      return { available: true };
     }
 
-    // 3. Verificar lotação: contar registrations para cada horário
-    try {
-      const clauses = [
-        where('date', '==', normalizedDate),
-        where('status', 'in', ['paid', 'confirmed', 'approved', 'pending'])
-      ];
-      if (eventType) clauses.push(where('eventType', '==', eventType));
-      const regsSnap = await getDocs(query(collection(window.firebaseDb, 'registrations'), ...clauses));
-
-      // Agrupar por hora
-      const occupiedMap = {};
-      regsSnap.forEach(d => {
-        const r = d.data();
-        const rawSchedule = String(r.schedule || '');
-        const rawHour = String(r.hour || '');
-        let hh = rawSchedule.match(/(\d{1,2})\s*h/i)?.[1]
-          || rawSchedule.match(/(\d{1,2})\s*:/)?.[1]
-          || rawHour.match(/(\d{1,2})/)?.[1];
-        const h = parseInt(hh || 'NaN', 10);
-        if (!isNaN(h)) occupiedMap[h] = (occupiedMap[h] || 0) + 1;
-      });
-
-      for (const timeItem of selectedTimes) {
-        const schedStr = typeof timeItem === 'string' ? timeItem : (timeItem.schedule || '');
-        const hourMatch = schedStr.match(/(\d{1,2})\s*h/i) || schedStr.match(/- (\d{1,2})h/i);
-        const h = hourMatch ? parseInt(hourMatch[1], 10) : NaN;
-        if (isNaN(h)) continue;
-        const capacity = getEventCapacity(eventType, `${h}h`, normalizedDate);
-        const currentOccupied = occupiedMap[h] || 0;
-        if (currentOccupied + n > capacity) {
-          return { available: false, message: `Horário ${h}h não tem vagas suficientes. (${currentOccupied}/${capacity} ocupadas)` };
-        }
-      }
-    } catch (_) {}
-
-    return { available: true };
+    return result;
 
   } catch (error) {
-    try { logError(typeof error?.message === 'string' ? error.message : 'CHECK_AVAILABILITY_ERROR', 'EVENT_004'); } catch (_) {}
+    // 🔒 Nunca bloquear compra por erro técnico
+    
+
+    try {
+      logError(
+        typeof error?.message === 'string' ? error.message : 'CHECK_AVAILABILITY_ERROR',
+        'EVENT_004'
+      );
+    } catch (_) {
+      // logging não pode quebrar fluxo
+    }
+
     return { available: true };
   }
 }
@@ -5580,15 +5868,25 @@ async function updateOccupiedAndRefreshButtons(day, date, eventType, container) 
 
     // Verificar travas permanentes por horário (event_hour_locks) — sem data, valem sempre
     try {
-        const { collection: _c, query: _q, where: _w, getDocs: _g } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        if (window.firebaseDb && eventType) {
-            const hlSnap = await _g(_q(_c(window.firebaseDb, 'event_hour_locks'), _w('eventType', '==', eventType), _w('locked', '==', true)));
+        const { collection: _c, getDocs: _g } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        if (window.firebaseDb) {
+            const hlSnap = await _g(_c(window.firebaseDb, 'event_hour_locks'));
+            console.log('[HourLocks] docs encontrados:', hlSnap.size, '| eventType atual:', eventType);
             hlSnap.forEach(doc => {
-                const h = parseInt(String(doc.data().hour || '').replace(/\D/g,''), 10);
-                if (!isNaN(h)) lockedHours.add(h);
+                const data = doc.data();
+                if (data.locked !== true) return;
+                const docEventType = (data.eventType || '').toLowerCase().replace(/[\s_]/g, '-');
+                const curEventType = (eventType || '').toLowerCase().replace(/[\s_]/g, '-');
+                const matchesType = !data.eventType || docEventType === curEventType || doc.id.startsWith(curEventType) || doc.id.startsWith((eventType||''));
+                console.log('[HourLocks] doc:', doc.id, '| docEventType:', docEventType, '| match:', matchesType);
+                if (!matchesType) return;
+                const h = parseInt(String(data.hour || '').replace(/\D/g,''), 10);
+                if (!isNaN(h)) { lockedHours.add(h); console.log('[HourLocks] travando hora:', h); }
             });
+        } else {
+            console.warn('[HourLocks] firebaseDb não disponível ainda');
         }
-    } catch (_) {}
+    } catch (err) { console.error('[HourLocks] erro:', err); }
 
     const now = new Date();
     const selectedDate = new Date(date + 'T00:00:00');
@@ -5930,8 +6228,6 @@ async function handleProductPurchase(productId, cfg) {
                 return;
             }
             productOptions.platform = platform;
-
-            // Se for Android, coletar também a marca
             if (platform === 'android') {
                 const brand = document.getElementById('androidBrandSelect').value;
                 if (!brand) {
@@ -5940,6 +6236,21 @@ async function handleProductPurchase(productId, cfg) {
                 }
                 productOptions.brand = brand;
             }
+        } else if ((window.scheduleConfig?.[productId]?.category || '').toLowerCase() === 'sensibilidade') {
+            // Produto de sensibilidade criado pelo admin via Firestore
+            const platform = document.getElementById('platformSelect')?.value || '';
+            if (!platform) { alert('Por favor, selecione uma plataforma.'); return; }
+            productOptions.platform = platform;
+            if (platform === 'android') {
+                const brand = document.getElementById('androidBrandSelect')?.value || '';
+                if (!brand) { alert('Por favor, selecione a marca do celular.'); return; }
+                productOptions.brand = brand;
+            }
+            // Selecionar o link correspondente para entregar automaticamente
+            const dlLinks = window.scheduleConfig[productId].downloadLinks || {};
+            const linkKey = platform === 'android' ? (productOptions.brand || '') : platform;
+            finalPrice = cfg.price;
+            productOptions.downloadLink = dlLinks[linkKey] || dlLinks[platform] || '';
         } else if (productId === 'imagens') {
             const selected = Array.from(document.querySelectorAll('input[name="mapOption"]:checked')).map(i => i.value);
             productOptions.maps = selected;
@@ -5965,6 +6276,55 @@ async function handleProductPurchase(productId, cfg) {
             productOptions.size = shirtSize;
             productOptions.name = nameOnShirt;
             productOptions.delivery = { nome, cpf, cep, rua, numero, complemento, bairro, cidade, estado };
+        } else {
+            // Produto genérico criado pelo admin — coleta dados conforme categoria
+            const prodInfo = window.scheduleConfig?.[productId] || {};
+            const prodCat = (prodInfo.category || '').toLowerCase();
+            const prodName = (prodInfo.name || prodInfo.label || '').toLowerCase();
+            const isPasse = prodCat === 'passe' || prodName.includes('passe');
+            const isFisico = prodCat === 'fisico' || prodCat === 'physical';
+            const isAereas = prodCat === 'aereas';
+
+            if (isAereas) {
+                const selectedMaps = Array.from(
+                    document.querySelectorAll('input[name="aereasMapOption"]:checked')
+                ).map(i => i.value);
+                if (selectedMaps.length === 0) {
+                    alert('Por favor, selecione pelo menos um mapa.');
+                    return;
+                }
+                productOptions.maps = selectedMaps;
+                productOptions.quantity = selectedMaps.length;
+                // Calcula preço com base na quantidade × preço base
+                const basePrice = (prodInfo.priceOptions?.[0]?.price) || prodInfo.price || 2;
+                finalPrice = selectedMaps.length * basePrice;
+            } else if (isPasse) {
+                productOptions.gameNick = document.getElementById('gameNick')?.value?.trim() || '';
+                productOptions.gameId = document.getElementById('gameId')?.value?.trim() || '';
+                productOptions.gameContact = document.getElementById('gameContact')?.value?.trim() || '';
+            } else if (isFisico) {
+                productOptions.delivery = {
+                    nome: document.getElementById('addrNome')?.value?.trim() || '',
+                    cpf: document.getElementById('customerCPF')?.value?.trim() || '',
+                    cep: document.getElementById('addrCEP')?.value?.trim() || '',
+                    rua: document.getElementById('addrRua')?.value?.trim() || '',
+                    numero: document.getElementById('addrNumero')?.value?.trim() || '',
+                    complemento: document.getElementById('addrComplemento')?.value?.trim() || '',
+                    bairro: document.getElementById('addrBairro')?.value?.trim() || '',
+                    cidade: document.getElementById('addrCidade')?.value?.trim() || '',
+                    estado: document.getElementById('addrEstado')?.value?.trim() || '',
+                    tamanho: document.getElementById('prodTamanho')?.value || ''
+                };
+            } else {
+                // Digital
+                productOptions.nome = document.getElementById('digitalNome')?.value?.trim() || '';
+                productOptions.email = document.getElementById('digitalEmail')?.value?.trim() || '';
+                productOptions.telefone = document.getElementById('digitalTelefone')?.value?.trim() || '';
+            }
+            // Salva o link de download direto no pedido para liberação automática
+            if (prodInfo.downloadLink) {
+                productOptions.downloadLink = prodInfo.downloadLink;
+            }
         }
 
         // Validar preço final
@@ -6000,6 +6360,8 @@ async function handleProductPurchase(productId, cfg) {
                     phone: resolvedPhone,
                     productId: productId,
                     productOptions: productOptions,
+                    downloadLink: cfg.downloadLink || productOptions.downloadLink || '',
+                    productCategory: cfg.category || '',
                     createdAt: new Date(),
                     timestamp: Date.now(),
                     type: 'digital_product'
@@ -6199,9 +6561,13 @@ async function handleProductPurchaseWithTokens(productId, cfg) {
 }
 async function submitSchedule(e, useTokens = false) {
     e.preventDefault();
+    if (window._scheduleSubmitting) return;
+    window._scheduleSubmitting = true;
     const submitBtn = document.getElementById('schedSubmit');
+    const tokenBtn = document.getElementById('schedPayTokens');
     const oldText = submitBtn ? submitBtn.textContent : '';
     if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Processando...'; }
+    if (tokenBtn) tokenBtn.disabled = true;
 
     try {
         const modal = document.getElementById('scheduleModal');
@@ -6299,6 +6665,73 @@ async function submitSchedule(e, useTokens = false) {
             }
         }
 
+        // Verificar travas permanentes ANTES de criar cobrança (event_global_locks + event_hour_locks)
+        try {
+            const { doc: _ld, getDoc: _lg, collection: _lc, query: _lq, where: _lw, getDocs: _lgs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            // 1. Trava global do evento inteiro
+            const globalLock = await _lg(_ld(window.firebaseDb, 'event_global_locks', rawEventType));
+            if (globalLock.exists() && globalLock.data().locked === true) {
+                alert('Este evento está temporariamente suspenso. Nenhuma nova inscrição pode ser feita no momento.');
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+                return;
+            }
+            // 2. Travas permanentes por horário — 1 filtro apenas (evita índice composto no Firestore)
+            const hourLocksSnap = await _lgs(_lq(
+                _lc(window.firebaseDb, 'event_hour_locks'),
+                _lw('eventType', '==', rawEventType)
+            ));
+            const lockedHoursSet = new Set();
+            hourLocksSnap.forEach(ld => {
+                const ldata = ld.data();
+                if (ldata.locked !== true) return; // filtrar em JS
+                if (ldata.hour) lockedHoursSet.add(String(ldata.hour).toLowerCase().trim());
+            });
+            if (lockedHoursSet.size > 0) {
+                for (const item of selectedTimes) {
+                    const parts = (item.schedule || '').split(' - ');
+                    const rawHourStr = (parts[1] || parts[0] || '').trim();
+                    const normH = normalizeHour(rawHourStr);
+                    if (normH && lockedHoursSet.has(normH)) {
+                        alert(`O horário ${normH} está permanentemente bloqueado para este evento e não aceita novas inscrições.`);
+                        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+                        return;
+                    }
+                }
+            }
+        } catch (_lockErr) {
+            // Se a checagem de travas falhar por qualquer motivo, não bloquear o fluxo
+            // (a UI já oculta os botões dos horários travados)
+        }
+
+        // Anti-duplicação: campeonatos não permitem o mesmo nome de equipe duas vezes
+        const _isCampEvent = (cfg?.category === 'camp') ||
+            rawEventType === 'camp-freitas' || rawEventType === 'camp-final' ||
+            rawEventType.toLowerCase().startsWith('camp');
+        if (_isCampEvent && teamsData.length > 0) {
+            try {
+                const { collection: _dc, query: _dq, where: _dw, getDocs: _ddg } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+                const _existSnap = await _ddg(_dq(
+                    _dc(window.firebaseDb, 'registrations'),
+                    _dw('eventType', '==', rawEventType)
+                ));
+                const _existNames = new Set();
+                _existSnap.docs.forEach(_d => {
+                    const _tn = _d.data().teamName;
+                    if (_tn) _existNames.add(_tn.trim().toLowerCase().replace(/\s+/g, ' '));
+                });
+                for (const _team of teamsData) {
+                    const _norm = (_team.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+                    if (_norm && _existNames.has(_norm)) {
+                        alert(`Já existe uma equipe inscrita com esse nome nas fases iniciais: "${_team.name}"\n\nVerifique se sua equipe já está inscrita neste campeonato.`);
+                        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+                        return;
+                    }
+                }
+            } catch (_dupErr) {
+                console.warn('[Camp] Verificação anti-duplicata falhou:', _dupErr);
+            }
+        }
+
         // Calcular total original
         // Usa rawEventType (ID original do Firestore, case-sensitive) para lookup correto no scheduleConfig
         let originalTotal = 0;
@@ -6343,7 +6776,7 @@ async function submitSchedule(e, useTokens = false) {
 
         // Se for pagamento com tokens
         if (useTokens || (cfg && cfg.payWithToken)) {
-            await useTokensForEvent(eventType, totalReservations, finalPrice, teamsData, selectedTimes, datesToUse);
+            await useTokensForEvent(rawEventType, totalReservations, finalPrice, teamsData, selectedTimes, datesToUse);
             if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
             return;
         }
@@ -6353,70 +6786,140 @@ async function submitSchedule(e, useTokens = false) {
         let regIds = [];
 
         try {
-            if (!window.firebaseReady || !window.firebaseDb) throw new Error('Conexão com banco falhou');
+            // Aguardar Firebase ficar pronto (até 8s) antes de salvar registrations
+            await waitForFirebase(8000);
+            if (!window.firebaseReady || !window.firebaseDb) throw new Error('Não foi possível conectar ao banco de dados. Verifique sua internet e tente novamente.');
 
-            const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            // Aguardar currentUser de auth estar disponível (até 5s extra)
+            if (!window.firebaseAuth?.currentUser) {
+                let _authWait = 0;
+                while (!window.firebaseAuth?.currentUser && _authWait < 5000) {
+                    await new Promise(r => setTimeout(r, 200));
+                    _authWait += 200;
+                }
+            }
+            if (!window.firebaseAuth?.currentUser) {
+                alert('Faça login para se inscrever no evento.');
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+                if (typeof openLoginModal === 'function') openLoginModal();
+                return;
+            }
 
-            for (const d of datesToUse) {
-                const times = timesByDate[d] || [];
-                for (let team of teamsData) {
-                    for (let schedule of times) {
-                        const hour = (schedule.split(' - ')[1] || '').trim();
-                        const normalizedHour = normalizeHour(hour);
-                        // rawEventType preserva o case original do ID do Firestore
-                        const price = getEventPrice(rawEventType, hour, d);
+            const { collection, query, where, getDocs, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
 
-                        // Guarda final: verificar trava permanente antes de criar registro
-                        try {
-                            const { collection: _lc, query: _lq, where: _lw, getDocs: _lg } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-                            if (window.firebaseDb && eventType) {
-                                const _hlSnap = await _lg(_lq(_lc(window.firebaseDb, 'event_hour_locks'), _lw('eventType', '==', eventType), _lw('locked', '==', true)));
-                                const hourNum = parseInt(String(normalizedHour || hour).replace(/\D/g, ''), 10);
-                                _hlSnap.forEach(hd => {
-                                    const h = parseInt(String(hd.data().hour || '').replace(/\D/g, ''), 10);
-                                    if (!isNaN(h) && !isNaN(hourNum) && h === hourNum) {
-                                        throw new Error(`Horário ${hour} está bloqueado permanentemente. Reserva cancelada.`);
-                                    }
-                                });
-                            }
-                        } catch (lockErr) {
-                            if (lockErr.message && lockErr.message.includes('bloqueado permanentemente')) throw lockErr;
-                        }
-
-                        // Buscar link usando o horário normalizado
-                        const whatsappLink = await getWhatsAppLink(rawEventType, normalizedHour, d);
-
-                        const docRef = await addDoc(collection(window.firebaseDb, 'registrations'), {
-                            userId: window.firebaseAuth.currentUser.uid,
-                            teamName: team.name,
-                            email: team.email,
-                            phone: team.phone,
-                            schedule: schedule,
-                            date: d,
-                            eventType: eventType,
-                            title: `${cfg.label} - ${schedule}`,
-                            price: price,
-                            status: 'pending',
-                            createdAt: serverTimestamp(),
-                            external_reference: externalRef,
-                            groupLink: whatsappLink || null,
-                            whatsappLink: whatsappLink || null,
-                            hour: normalizedHour || null,
-                            affiliateCode: getActiveAffiliateCode(appliedScheduleCoupon?.affiliateId || null)
-                        });
-                        regIds.push(docRef.id);
+            // Alocar slots via transação atômica (slotCounters) — não requer ler registrations de outros
+            const mpSlotCount = {};
+            {
+                const _sc = {};
+                for (const _d of datesToUse) {
+                    for (const _t of (timesByDate[_d] || [])) {
+                        _sc[_t] = (_sc[_t] || 0) + teamsData.length;
+                    }
+                }
+                if (Object.keys(_sc).length > 0) {
+                    const _ss = await allocateSlotsFromDB(rawEventType, _sc);
+                    if (_ss) {
+                        for (const [_k, _v] of Object.entries(_ss)) mpSlotCount[_k] = _v - 1;
                     }
                 }
             }
 
+            const mpIsLiga = (cfg.modo || '').toUpperCase().includes('LIGA');
+            const mpVagas = cfg.vagas || 0;
+            const mpGrupos = Math.max(1, cfg.grupos || 1);
+            const assignedSlotsData = [];
+
+            // ── Montar lista plana de todos os pares (data × horário) ──
+            const _schedPairs = [];
+            for (const d of datesToUse) {
+                for (const schedule of (timesByDate[d] || [])) {
+                    const hour = (schedule.split(' - ')[1] || '').trim();
+                    _schedPairs.push({ d, schedule, hour, normalizedHour: normalizeHour(hour), price: getEventPrice(rawEventType, hour, d) });
+                }
+            }
+
+            // ── Buscar todos os links WhatsApp em paralelo (era sequencial) ──
+            const _wlArr = await Promise.all(
+                _schedPairs.map(p => getWhatsAppLink(rawEventType, p.normalizedHour, p.d).catch(() => null))
+            );
+            _schedPairs.forEach((p, i) => { p.whatsappLink = _wlArr[i]; });
+
+            // ── Calcular slots (síncrono — preserva ordem) e montar payloads ──
+            const _regPayloads = [];
+            for (const p of _schedPairs) {
+                for (const team of teamsData) {
+                    mpSlotCount[p.schedule] = (mpSlotCount[p.schedule] || 0) + 1;
+                    const slotNum = mpSlotCount[p.schedule];
+                    const slotDisplay = computeSlotDisplay(slotNum, mpVagas, mpGrupos, mpIsLiga);
+                    _regPayloads.push({
+                        _meta: { team: team.name, slotNum, slotDisplay, schedule: p.schedule, date: p.d, whatsappLink: p.whatsappLink },
+                        userId: window.firebaseAuth.currentUser.uid,
+                        teamName: team.name,
+                        email: team.email,
+                        phone: team.phone,
+                        schedule: p.schedule,
+                        date: p.d,
+                        eventType: rawEventType,
+                        title: mpIsLiga ? `${cfg.label} - ${p.schedule}` : `${cfg.label} - ${slotDisplay || p.schedule}`,
+                        price: p.price,
+                        slot: mpIsLiga ? null : slotNum,
+                        slotDisplay: slotDisplay,
+                        status: 'pending',
+                        createdAt: serverTimestamp(),
+                        external_reference: externalRef,
+                        groupLink: p.whatsappLink || null,
+                        whatsappLink: p.whatsappLink || null,
+                        hour: p.normalizedHour || null,
+                        affiliateCode: getActiveAffiliateCode(appliedScheduleCoupon?.affiliateId || null)
+                    });
+                }
+            }
+
+            // ── Gravar todas as registrations em paralelo (era sequencial) ──
+            const _docRefs = await Promise.all(
+                _regPayloads.map(payload => {
+                    const { _meta, ...docData } = payload;
+                    return addDoc(collection(window.firebaseDb, 'registrations'), docData);
+                })
+            );
+            _docRefs.forEach((docRef, i) => {
+                const m = _regPayloads[i]._meta;
+                regIds.push(docRef.id);
+                assignedSlotsData.push({ regId: docRef.id, team: m.team, slotNum: m.slotNum, slotDisplay: m.slotDisplay, schedule: m.schedule, date: m.date, whatsappLink: m.whatsappLink });
+            });
+
+            // ── Registrar venda de afiliado para cada inscrição (se houver ref ativo) ──
+            try {
+                const _affRef = getActiveAffiliateCode(appliedScheduleCoupon?.affiliateId || null);
+                if (_affRef) {
+                    for (let _ai = 0; _ai < _docRefs.length; _ai++) {
+                        const _p = _regPayloads[_ai];
+                        await createPendingAffiliateSale(_docRefs[_ai].id, _affRef, {
+                            amount: _p.price,
+                            title: _p.title || `${cfg.label} - ${_p._meta.schedule}`,
+                            customer: _p.email,
+                            customerName: _p.teamName
+                        }, 'event');
+                    }
+                }
+            } catch (_affErr) {}
+
             if (regIds.length > 0) {
+                try { sessionStorage.setItem('lastRegIds', JSON.stringify(regIds)); } catch (_) { }
                 try { sessionStorage.setItem('lastRegId', regIds[0]); } catch (_) { }
                 try { sessionStorage.setItem('lastExternalRef', externalRef); } catch (_) { }
             }
 
         } catch (dbError) {
-            
-            alert('Erro de conexão ao salvar sua reserva. Por favor, verifique sua internet e tente novamente. Nenhuma cobrança foi gerada.');
+            console.error('[submitSchedule] Erro ao salvar no Firestore:', dbError);
+            const dbMsg = dbError?.message || String(dbError);
+            if (dbMsg.includes('permission-denied') || dbMsg.includes('Missing or insufficient permissions')) {
+                alert('Erro de permissão: faça login novamente e tente de novo.');
+            } else if (dbMsg.includes('Faça login')) {
+                alert(dbMsg);
+            } else {
+                alert(`Erro ao salvar reserva: ${dbMsg}\n\nTente recarregar a página e fazer login novamente.`);
+            }
             if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
             return;
         }
@@ -6432,11 +6935,11 @@ async function submitSchedule(e, useTokens = false) {
 
         try {
             const _prefPayload = {
-                title: `${cfg.label} - ${totalReservations} reservas`,
+                title: `${cfg.label} - ${totalReservations} reserva(s)`,
                 unit_price: Number(finalPrice.toFixed(2)),
                 currency_id: 'BRL',
                 quantity: 1,
-                back_url: `${window.location.origin}/evento.html#${rawEventType}`,
+                back_url: `${window.location.origin}/`,
                 coupon_info: couponInfo,
                 external_reference: externalRef,
                 multiple_reservations: {
@@ -6447,7 +6950,8 @@ async function submitSchedule(e, useTokens = false) {
                 }
             };
 
-            if (typeof showToast === 'function') showToast('info', 'Gerando link de pagamento, aguarde...', 'Mercado Pago');
+            if (submitBtn) { submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-right:6px"></i>Aguarde...'; }
+            if (typeof showToast === 'function') showToast('info', 'Conectando ao Mercado Pago, aguarde...', 'Pagamento', 20000);
 
             let resp;
             try {
@@ -6465,7 +6969,7 @@ async function submitSchedule(e, useTokens = false) {
 
             if (resp.status === 404) {
                 await _cleanupPendingRegs();
-                alert('⚠️ Pagamento via Mercado Pago não está disponível neste ambiente de desenvolvimento.\n\nO checkout funciona apenas na versão publicada do site. Se você está no site oficial e viu este erro, entre em contato com o suporte.');
+                alert('⚠️ Pagamento via Mercado Pago não está disponível neste ambiente de desenvolvimento.\n\nO checkout funciona apenas na versão publicada do site.');
                 if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
                 return;
             }
@@ -6501,14 +7005,29 @@ async function submitSchedule(e, useTokens = false) {
                 return;
             }
 
-            closeScheduleModal();
-            try { sessionStorage.setItem('lastCheckoutUrl', checkoutUrl); } catch (_) { }
-            try {
-                window.open(checkoutUrl, '_blank');
-                if (typeof showToast === 'function') showToast('success', 'Checkout aberto em nova aba. Finalize o pagamento no Mercado Pago.', 'Pagamento');
-            } catch (_) {
-                window.location.href = checkoutUrl;
+            // Capturar cupom ANTES de fechar o modal (closeScheduleModal zera appliedScheduleCoupon)
+            const _evtCouponMP = appliedScheduleCoupon ? { ...appliedScheduleCoupon } : null;
+            // Registrar uso de cupom de evento (MP) se aplicado
+            if (_evtCouponMP) {
+                try {
+                    const discountAmtEvt = Math.max(0, originalTotal - finalPrice);
+                    await recordCouponUsage(
+                        _evtCouponMP.id,
+                        _evtCouponMP.code,
+                        originalTotal,
+                        discountAmtEvt,
+                        'events',
+                        externalRef,
+                        { productId: rawEventType, name: cfg.label || rawEventType }
+                    );
+                } catch (_) {}
             }
+
+            closeScheduleModal();
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+            try { sessionStorage.setItem('lastCheckoutUrl', checkoutUrl); } catch (_) {}
+            // Redireciona direto na mesma aba — evita bloqueio de popup
+            window.location.href = checkoutUrl;
 
         } catch (paymentError) {
             console.error('Erro pagamento evento:', paymentError);
@@ -6521,7 +7040,103 @@ async function submitSchedule(e, useTokens = false) {
         
         alert('Ocorreu um erro inesperado. Atualize a página e tente novamente.');
         if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+    } finally {
+        window._scheduleSubmitting = false;
+        const _tb = document.getElementById('schedPayTokens');
+        if (_tb) _tb.disabled = false;
     }
+}
+
+// ===== Helper: busca registrações por eventType (raw + normalizado) — uso admin only =====
+// Regras do Firestore bloqueiam leitura de registrations de outros usuários para usuários normais
+async function fetchRegsForSlotCount(rawEventType) {
+    try {
+        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const regsRef = collection(window.firebaseDb, 'registrations');
+        const normalizedType = String(rawEventType || '').toLowerCase().trim().replace(/\s+/g, '-');
+        const promises = [getDocs(query(regsRef, where('eventType', '==', rawEventType)))];
+        if (normalizedType !== rawEventType) {
+            promises.push(getDocs(query(regsRef, where('eventType', '==', normalizedType))));
+        }
+        const snaps = await Promise.all(promises);
+        const seen = new Set();
+        const docs = [];
+        snaps.forEach(snap => {
+            snap.docs.forEach(d => {
+                if (!seen.has(d.id)) { seen.add(d.id); docs.push(d); }
+            });
+        });
+        return docs;
+    } catch(_) { return []; }
+}
+
+// ===== Helper: aloca slots a partir do maior slot já no banco =====
+// scheduleCounts: { "schedule_key": numSlotsNeeded }
+// Retorna: { "schedule_key": firstSlotNumber } ou null se ambos os métodos falharem
+// Nível 1: transação atômica via slotCounters (sem race condition quando regras estiverem deployadas)
+// Nível 2: fallback — busca o maior slotNumber existente nas registrations (requer allow list)
+async function allocateSlotsFromDB(rawEventType, scheduleCounts) {
+    // --- Nível 1: transação atômica via slotCounters ---
+    try {
+        const { doc, runTransaction } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const counterRef = doc(window.firebaseDb, 'slotCounters', rawEventType);
+        const startSlots = {};
+        await runTransaction(window.firebaseDb, async (tx) => {
+            const counterDoc = await tx.get(counterRef);
+            const counts = counterDoc.exists() ? { ...counterDoc.data() } : {};
+            for (const [sched, n] of Object.entries(scheduleCounts)) {
+                const current = Number(counts[sched]) || 0;
+                startSlots[sched] = current + 1;
+                counts[sched] = current + n;
+            }
+            tx.set(counterRef, counts, { merge: true });
+        });
+        console.log('[SlotDB] transação atômica OK | evento:', rawEventType, '| slots:', JSON.stringify(startSlots));
+        return startSlots;
+    } catch (txErr) {
+        console.warn('[SlotDB] transação slotCounters falhou, buscando máx. no banco:', txErr.message);
+    }
+
+    // --- Nível 2: buscar maior slotNumber por horário nas registrations ---
+    try {
+        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const snap = await getDocs(query(
+            collection(window.firebaseDb, 'registrations'),
+            where('eventType', '==', rawEventType)
+        ));
+        const maxSlotPerSchedule = {};
+        snap.forEach(docSnap => {
+            const r = docSnap.data();
+            if (!r.schedule) return;
+            const sn = Number(r.slotNumber || r.slot || 0);
+            if (!isNaN(sn) && sn > (maxSlotPerSchedule[r.schedule] || 0)) {
+                maxSlotPerSchedule[r.schedule] = sn;
+            }
+        });
+        const startSlots = {};
+        for (const [sched, numNeeded] of Object.entries(scheduleCounts)) {
+            const maxExisting = maxSlotPerSchedule[sched] || 0;
+            startSlots[sched] = maxExisting + 1;
+            console.log(`[SlotDB] evento="${rawEventType}" horário="${sched}" máx.existente=${maxExisting} → próxSlot=${maxExisting + 1} (${numNeeded} inscrição/ões)`);
+        }
+        console.log('[SlotDB] startSlots (via DB):', JSON.stringify(startSlots), '| evento:', rawEventType);
+        return startSlots;
+    } catch (dbErr) {
+        console.error('[SlotDB] erro crítico ao buscar slots no banco:', dbErr.message, '| evento:', rawEventType);
+        return null;
+    }
+}
+
+// ===== Helper: calcula o texto do slot (Vaga #N ou Grupo X • Vaga Y) =====
+function computeSlotDisplay(slotNumber, vagas, grupos, isLiga) {
+    if (isLiga) return null;
+    const slotsPerGroup = grupos > 1 ? Math.ceil(vagas / grupos) : vagas;
+    if (vagas > 0 && grupos > 1 && slotsPerGroup > 0) {
+        const groupNum = Math.ceil(slotNumber / slotsPerGroup);
+        const posInGroup = slotNumber - (groupNum - 1) * slotsPerGroup;
+        return `Grupo ${groupNum} • Vaga ${posInGroup}`;
+    }
+    return `Vaga #${slotNumber}`;
 }
 
 // ===== EVENTO GRÁTIS: Inscrição direta com atribuição de slot =====
@@ -6541,23 +7156,8 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
         const grupos = Math.max(1, cfg.grupos || 1);
         const slotsPerGroup = grupos > 1 ? Math.ceil(vagas / grupos) : vagas;
 
-        // Contar inscrições existentes por horário para atribuir slot por schedule
-        const regsRef = collection(window.firebaseDb, 'registrations');
+        // scheduleSlotCount será pré-populado via transação atômica logo após construir timesByDate/dates
         const scheduleSlotCount = {};
-        try {
-            const existingSnap = await getDocs(query(regsRef,
-                where('eventType', '==', rawEventType),
-                where('status', 'in', ['confirmed', 'paid', 'approved', 'pending'])
-            ));
-            existingSnap.docs.forEach(d => {
-                const r = d.data();
-                const sched = r.schedule || '—';
-                scheduleSlotCount[sched] = (scheduleSlotCount[sched] || 0) + 1;
-            });
-        } catch (_readErr) {
-            // Regras de segurança podem bloquear leitura de registrations de outros usuários.
-            // Prosseguir sem contagem prévia — slot será baseado apenas no timestamp.
-        }
 
         // Construir timesByDate a partir de selectedTimes
         const timesByDate = {};
@@ -6572,6 +7172,23 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
         const assignedSlots = []; // { team, slot, schedule }
 
         const dates = datesToUse && datesToUse.length > 0 ? datesToUse : [Object.keys(timesByDate)[0] || new Date().toISOString().slice(0, 10)];
+
+        // Alocar slots via transação atômica (slotCounters) — sem ler registrations de outros usuários
+        {
+            const _sc = {};
+            for (const _d of dates) {
+                for (const _t of (timesByDate[_d] || ['—'])) {
+                    const _k = _t !== '—' ? _t : cfg.label;
+                    _sc[_k] = (_sc[_k] || 0) + teamsData.length;
+                }
+            }
+            if (Object.keys(_sc).length > 0) {
+                const _ss = await allocateSlotsFromDB(rawEventType, _sc);
+                if (_ss) {
+                    for (const [_k, _v] of Object.entries(_ss)) scheduleSlotCount[_k] = _v - 1;
+                }
+            }
+        }
 
         for (const d of dates) {
             const dayTimes = timesByDate[d] || ['—'];
@@ -6612,6 +7229,7 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
                     await addDoc(collection(window.firebaseDb, 'registrations'), {
                         userId: window.firebaseAuth.currentUser.uid,
                         teamName: team.name,
+                        leaderName: window.currentUserProfile?.name || team.name,
                         email: team.email,
                         phone: team.phone,
                         schedule: schedKey,
@@ -6620,6 +7238,7 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
                         title: isLiga ? `${cfg.label} - ${schedKey}` : `${cfg.label} - ${slotDisplay}`,
                         price: 0,
                         slot: isLiga ? null : slotNumber,
+                        slotNumber: isLiga ? null : slotNumber,
                         slotDisplay: slotDisplay,
                         status: 'confirmed',
                         createdAt: serverTimestamp(),
@@ -6633,8 +7252,21 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
             }
         }
 
+        // Invalidar cache de ocupação para que a barra atualize na próxima abertura
+        Object.keys(scheduleCache).forEach(k => delete scheduleCache[k]);
+
+        // Buscar link do WhatsApp do grupo para exibir no modal
+        let freeGroupLink = null;
+        try {
+            if (typeof getWhatsAppLink === 'function') {
+                const firstSchedule = assignedSlots[0]?.schedule || null;
+                const firstDate = datesToUse?.[0] || null;
+                freeGroupLink = await getWhatsAppLink(rawEventType, firstSchedule, firstDate);
+            }
+        } catch (_) {}
+
         closeScheduleModal();
-        showSlotConfirmationModal(assignedSlots, cfg.label, isLiga, rawEventType);
+        showSlotConfirmationModal(assignedSlots, cfg.label, isLiga, rawEventType, freeGroupLink);
 
     } catch (err) {
         console.error('Erro ao registrar inscrição gratuita:', err);
@@ -6642,9 +7274,28 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
     }
 }
 
-function showSlotConfirmationModal(slots, eventName, isLiga, eventId) {
+function playNotificationSound() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const gain = ctx.createGain();
+        gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0.25, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.7);
+        [880, 1100, 1320].forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            osc.type = 'sine';
+            osc.connect(gain);
+            osc.frequency.value = freq;
+            osc.start(ctx.currentTime + i * 0.13);
+            osc.stop(ctx.currentTime + i * 0.13 + 0.2);
+        });
+    } catch (_) {}
+}
+
+function showSlotConfirmationModal(slots, eventName, isLiga, eventId, groupLink) {
     const existing = document.getElementById('slotConfirmModal');
     if (existing) existing.remove();
+    playNotificationSound();
 
     // Agrupar por horário
     const bySchedule = {};
@@ -6678,9 +7329,15 @@ function showSlotConfirmationModal(slots, eventName, isLiga, eventId) {
             ${bySchedule[sched].map(s => `
             <div class="flex items-center gap-3 p-2 bg-green-50 border border-green-200 rounded-lg mb-1">
                 <span class="text-xl">✅</span>
-                <div>
+                <div class="flex-1">
                     <div class="font-semibold text-gray-800 text-sm">${s.team}</div>
-                    <div class="text-base font-extrabold text-green-700 tracking-wide">🎯 ${s.slot} confirmada!</div>
+                    ${s.slot != null
+                        ? `<div class="mt-0.5">
+                            <span class="text-2xl font-black text-orange-600">${s.slot}</span>
+                            <span class="text-xs font-semibold text-gray-500 ml-1">← Esse é o seu SLOT na Sala.</span>
+                           </div>`
+                        : `<div class="text-sm font-semibold text-green-700">Inscrição confirmada!</div>`
+                    }
                 </div>
             </div>`).join('')}
         </div>`).join('');
@@ -6701,12 +7358,16 @@ function showSlotConfirmationModal(slots, eventName, isLiga, eventId) {
                 💡 Guarde o número da sua vaga — ela é a sua posição no evento!
             </div>` : ''}
             <div class="flex flex-col gap-2">
+                ${groupLink ? `<a href="${groupLink}" target="_blank" rel="noopener noreferrer"
+                        class="w-full bg-[#25D366] hover:bg-[#1ebe5b] text-white py-3 rounded-xl font-bold text-base transition-colors flex items-center justify-center gap-2">
+                    <i class="fab fa-whatsapp text-xl"></i> Entrar no Grupo WhatsApp
+                </a>` : ''}
                 ${eventId ? `<button onclick="window.location.href='evento.html#${eventId}'"
                         class="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl font-bold text-base transition-colors">
                     <i class="fas fa-external-link-alt mr-2"></i>VER PÁGINA DO EVENTO
                 </button>` : ''}
                 <button onclick="document.getElementById('slotConfirmModal').remove()"
-                        class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-bold text-base transition-colors">
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold text-base transition-colors">
                     OK, entendido! 👍
                 </button>
             </div>
@@ -6839,78 +7500,124 @@ async function checkPaymentStatus(preferenceId) {
 
 async function processSuccessfulPayment(externalRef = null) {
     const extRef = externalRef || sessionStorage.getItem('lastExternalRef');
-  
-    if (!extRef) {
-        
+    if (!extRef) return;
+
+    // Limpar sessão imediatamente para não reprocessar em futuras visitas
+    try {
+        sessionStorage.removeItem('lastExternalRef');
+        sessionStorage.removeItem('lastRegId');
+        sessionStorage.removeItem('lastRegIds');
+    } catch (_) {}
+
+    const { collection, query, where, getDocs, doc, updateDoc, addDoc, serverTimestamp, writeBatch } =
+        await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+    // ── PASSO 1: Ler registrations pelo external_reference (list é público) ──
+    let snap;
+    try {
+        const regsRef = collection(window.firebaseDb, 'registrations');
+        snap = await getDocs(query(regsRef, where('external_reference', '==', extRef)));
+    } catch (readErr) {
+        console.error('[processSuccessfulPayment] Erro ao ler registrations:', readErr);
         return;
     }
 
-    // Recuperar IDs salvos (se houver)
-    let regIds = [];
-    try {
-        const storedIds = sessionStorage.getItem('lastRegIds');
-        if (storedIds) regIds = JSON.parse(storedIds);
-    } catch(e) {}
+    if (!snap || snap.empty) return;
 
-    try {
-        const { collection, query, where, getDocs, doc, updateDoc, addDoc, serverTimestamp, writeBatch } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    // ── PASSO 2: Coletar dados para o modal ──
+    const assignedSlots = [];
+    let regEventName = '', regIsLiga = false, regEventType = '', groupLink = null;
+    const currentUid = window.firebaseAuth?.currentUser?.uid || null;
 
-        // 1) Atualizar todas as registrations com este external_reference    
-        const regsRef = collection(window.firebaseDb, 'registrations');
-        const q = query(
-            regsRef,
-            where('external_reference', '==', extRef),
-            where('userId', '==', auth.currentUser.uid)
-        );
-        const snap = await getDocs(q);
-        let groupLink = null;
-
-        // Atualizar em lote
-        const batch = writeBatch(window.firebaseDb);
-        snap.forEach(d => {
-            const ref = doc(window.firebaseDb, 'registrations', d.id);
-            batch.update(ref, { status: 'paid', paidAt: serverTimestamp() });
-            const data = d.data();
-            if (!groupLink && data && data.groupLink) groupLink = data.groupLink;
+    snap.forEach(d => {
+        const data = d.data();
+        // Filtrar por userId se disponível (segurança extra no cliente)
+        if (currentUid && data.userId && data.userId !== currentUid) return;
+        if (!regEventType) {
+            regEventType = data.eventType || '';
+            regIsLiga    = data.isLiga || false;
+            const _tParts = (data.title || '').split(' - ');
+            regEventName = _tParts.length > 1
+                ? _tParts.slice(0, -1).join(' - ')
+                : (data.title || data.eventType || 'Evento');
+        }
+        assignedSlots.push({
+            team:     data.teamName || data.email || 'Time',
+            slot:     data.slotDisplay || null,
+            schedule: data.schedule || '',
+            isLiga:   data.isLiga || false
         });
-        await batch.commit();
+        if (!groupLink && data.groupLink) groupLink = data.groupLink;
+    });
 
-        // 2) Garantir que exista um pedido correspondente em orders
-        if (!snap.empty) {
-            const firstReg = snap.docs[0].data();
-            const ordersRef = collection(window.firebaseDb, 'orders');
-            const orderQ = query(ordersRef, where('external_reference', '==', extRef));
-            const orderSnap = await getDocs(orderQ);
-            if (orderSnap.empty) {
-                const totalAmount = firstReg.price || 0;
-                await addDoc(ordersRef, {
-                    title: firstReg.title || firstReg.eventType || 'Evento',
-                    description: firstReg.title || firstReg.eventType || 'Evento',
-                    item: firstReg.title || firstReg.eventType || 'Evento',
-                    amount: totalAmount,
-                    total: totalAmount,
-                    quantity: 1,
-                    currency: 'BRL',
-                    status: 'paid',
-                    customer: firstReg.email || firstReg.contact || '',
-                    customerName: firstReg.teamName || '',
-                    buyerEmail: firstReg.email || '',
-                    userId: firstReg.userId || null,
-                    uid: firstReg.userId || null,
-                    external_reference: extRef,
-                    createdAt: serverTimestamp(),
-                    timestamp: Date.now(),
-                    type: 'event'
-                });
-            } else {
-                const existingOrder = orderSnap.docs[0];
-                if (existingOrder.data().status !== 'paid') {
-                    await updateDoc(doc(window.firebaseDb, 'orders', existingOrder.id), { status: 'paid', paidAt: serverTimestamp() });
-                }
-            }
-        }       
-    } catch (error) {
-               
+    // ── PASSO 3: Exibir modal de confirmação imediatamente ──
+    if (assignedSlots.length > 0 && typeof showSlotConfirmationModal === 'function') {
+        try { Object.keys(scheduleCache).forEach(k => delete scheduleCache[k]); } catch (_) {}
+        let paidGroupLink = groupLink;
+        if (!paidGroupLink && typeof getWhatsAppLink === 'function') {
+            try { paidGroupLink = await getWhatsAppLink(regEventType, assignedSlots[0]?.schedule || null, null); } catch (_) {}
+        }
+        setTimeout(() => {
+            showSlotConfirmationModal(assignedSlots, regEventName, regIsLiga, regEventType, paidGroupLink);
+        }, 400);
+    }
+
+    // ── PASSO 4: Atualizar status das registrations para 'paid' ──
+    try {
+        const batch = writeBatch(window.firebaseDb);
+        let hasBatch = false;
+        snap.forEach(d => {
+            const data = d.data();
+            if (currentUid && data.userId && data.userId !== currentUid) return;
+            if (data.status === 'paid') return; // já pago, não reescrever
+            batch.update(doc(window.firebaseDb, 'registrations', d.id), {
+                status: 'paid',
+                paidAt: serverTimestamp()
+            });
+            hasBatch = true;
+        });
+        if (hasBatch) await batch.commit();
+    } catch (updErr) {
+        // Pode falhar por regra Firestore — o webhook do MP trata isso no backend
+        console.warn('[processSuccessfulPayment] Não foi possível atualizar registration (webhook tratará):', updErr?.code || updErr?.message);
+    }
+
+    // ── PASSO 5: Garantir entrada em orders (visível em Meus Pedidos) ──
+    try {
+        const firstReg = snap.docs[0].data();
+        const ordersRef = collection(window.firebaseDb, 'orders');
+        const orderSnap = await getDocs(query(ordersRef, where('external_reference', '==', extRef)));
+        if (orderSnap.empty) {
+            await addDoc(ordersRef, {
+                title:          firstReg.title || firstReg.eventType || 'Evento',
+                description:    firstReg.title || firstReg.eventType || 'Evento',
+                item:           firstReg.title || firstReg.eventType || 'Evento',
+                amount:         firstReg.price || 0,
+                total:          firstReg.price || 0,
+                quantity:       1,
+                currency:       'BRL',
+                status:         'paid',
+                customer:       firstReg.email || firstReg.contact || '',
+                customerName:   firstReg.teamName || '',
+                buyerEmail:     firstReg.email || '',
+                userId:         firstReg.userId || currentUid || null,
+                uid:            firstReg.userId || currentUid || null,
+                external_reference: extRef,
+                eventType:      firstReg.eventType || '',
+                slotDisplay:    firstReg.slotDisplay || null,
+                schedule:       firstReg.schedule || '',
+                type:           'event',
+                createdAt:      serverTimestamp(),
+                timestamp:      Date.now()
+            });
+        } else if (orderSnap.docs[0].data().status !== 'paid') {
+            await updateDoc(doc(window.firebaseDb, 'orders', orderSnap.docs[0].id), {
+                status: 'paid',
+                paidAt: serverTimestamp()
+            });
+        }
+    } catch (orderErr) {
+        console.warn('[processSuccessfulPayment] Erro ao criar/atualizar order:', orderErr?.code || orderErr?.message);
     }
 }
 
@@ -6921,6 +7628,9 @@ function closeTokensModal() {
 }
 
 async function useTokensForEvent(eventType, totalReservations, finalPrice, teamsData, selectedTimes, datesToUse) {
+    // Capturar cupom IMEDIATAMENTE (appliedScheduleCoupon pode ser zerado por closeScheduleModal)
+    const _capturedTokenCoupon = appliedScheduleCoupon ? { ...appliedScheduleCoupon, _origPrice: scheduleOriginalTotal || finalPrice } : null;
+
     // Verificar saldo (redundante, mas seguro)
     if (!canSpendTokens(finalPrice)) {
         showErrorToast('Saldo insuficiente', 'TOKEN_001');
@@ -6955,16 +7665,48 @@ async function useTokensForEvent(eventType, totalReservations, finalPrice, teams
     // Criar registros com status 'confirmed'
     const externalRef = `tokens_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
     try {
-        const regIds = await createRegistrationsForEvent(eventType, datesToUse, teamsData, timesByDate, externalRef, 'confirmed', appliedScheduleCoupon);
-        
+        const { regIds, assignedSlots: assignedSlotsTokens } = await createRegistrationsForEvent(eventType, datesToUse, teamsData, timesByDate, externalRef, 'confirmed', appliedScheduleCoupon);
+
+        // Registrar uso de cupom de evento (tokens) se aplicado
+        if (_capturedTokenCoupon) {
+            try {
+                const origPriceTokens = scheduleOriginalTotal || (_capturedTokenCoupon._origPrice || finalPrice);
+                const discountAmtTokens = Math.max(0, origPriceTokens - finalPrice);
+                const cfgTokensLabel = (scheduleConfig[eventType] || {}).label || eventType;
+                await recordCouponUsage(
+                    _capturedTokenCoupon.id,
+                    _capturedTokenCoupon.code,
+                    origPriceTokens,
+                    discountAmtTokens,
+                    'events',
+                    externalRef,
+                    { productId: eventType, name: cfgTokensLabel }
+                );
+            } catch (_) {}
+        }
 
         closeScheduleModal();
-        showSuccessToast('Pagamento com tokens confirmado! Verifique seus pedidos.', 'Sucesso');
-        setTimeout(() => {
-            window.location.href = 'client.html?tab=orders';
-        }, 2000);
+
+        // Invalidar cache de ocupação para que a barra atualize na próxima abertura
+        Object.keys(scheduleCache).forEach(k => delete scheduleCache[k]);
+
+        const cfgTokens = scheduleConfig[eventType] || {};
+        const isLigaTokens = cfgTokens.isLiga || false;
+
+        if (typeof showSlotConfirmationModal === 'function' && assignedSlotsTokens.length > 0) {
+            // Buscar link do WhatsApp para exibir no modal
+            let tokensGroupLink = null;
+            try {
+                if (typeof getWhatsAppLink === 'function') {
+                    const firstSched = assignedSlotsTokens[0]?.schedule || null;
+                    tokensGroupLink = await getWhatsAppLink(eventType, firstSched, datesToUse?.[0] || null);
+                }
+            } catch (_) {}
+            showSlotConfirmationModal(assignedSlotsTokens, cfgTokens.label || eventType, isLigaTokens, eventType, tokensGroupLink);
+        } else {
+            showSuccessToast('Pagamento com tokens confirmado! Verifique seus pedidos.', 'Sucesso');
+        }
     } catch (error) {
-        
         // Reembolsar tokens
         await grantTokens(finalPrice);
         showErrorToast('Erro ao criar agendamento. Tokens devolvidos.', 'ERRO');
@@ -7104,50 +7846,58 @@ window.getWhatsAppLink = getWhatsAppLink;
 
 async function createRegistrationsForEvent(eventType, datesToUse, teamsData, timesByDate, externalRef, status = 'pending', couponInfo = null) {
     const cfg = scheduleConfig[eventType] || {};
+    const isLiga = (cfg.modo || '').toUpperCase().includes('LIGA');
+    const vagas = cfg.vagas || 0;
+    const grupos = Math.max(1, cfg.grupos || 1);
     const regIds = [];
-    const { collection, addDoc, serverTimestamp, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const assignedSlots = []; // para o modal de confirmação
+    const { collection, query, where, getDocs, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
 
-    // Carregar travas permanentes uma vez por chamada
-    const permLockedHoursCache = new Set();
-    try {
-        if (window.firebaseDb && eventType) {
-            const hlSnap = await getDocs(query(
-                collection(window.firebaseDb, 'event_hour_locks'),
-                where('eventType', '==', eventType),
-                where('locked', '==', true)
-            ));
-            hlSnap.forEach(hd => {
-                const h = parseInt(String(hd.data().hour || '').replace(/\D/g, ''), 10);
-                if (!isNaN(h)) permLockedHoursCache.add(h);
-            });
+    // Alocar slots via transação atômica (slotCounters) — fonte unificada para admin e usuários normais
+    const slotCount = {};
+    {
+        const _sc = {};
+        for (const _d of datesToUse) {
+            for (const _t of (timesByDate[_d] || [])) {
+                _sc[_t] = (_sc[_t] || 0) + teamsData.length;
+            }
         }
-    } catch (_) {}
+        if (Object.keys(_sc).length > 0) {
+            const _ss = await allocateSlotsFromDB(eventType, _sc);
+            if (_ss) {
+                for (const [_k, _v] of Object.entries(_ss)) slotCount[_k] = _v - 1;
+            }
+        }
+    }
 
     for (const d of datesToUse) {
         const times = timesByDate[d] || [];
-        for (let team of teamsData) {
-            for (let schedule of times) {
-                const hour = (schedule.split(' - ')[1] || '').trim();
-                const normalizedHour = normalizeHour(hour);
+        for (let schedule of times) {
+            const hour = (schedule.split(' - ')[1] || '').trim();
+            const normalizedHour = normalizeHour(hour);
+            const price = getEventPrice(eventType, hour, d);
+            const whatsappLink = await getWhatsAppLink(eventType, normalizedHour, d);
 
-                // Guarda contra trava permanente — impede registro mesmo se frontend foi bypassado
-                const hourNum = parseInt(String(normalizedHour || hour).replace(/\D/g, ''), 10);
-                if (!isNaN(hourNum) && permLockedHoursCache.has(hourNum)) {
-                    throw new Error(`Horário ${hour} está bloqueado permanentemente pelo administrador e não pode ser reservado.`);
-                }
-                const price = getEventPrice(eventType, hour, d);
-                const whatsappLink = await getWhatsAppLink(eventType, normalizedHour, d);            
+            for (let team of teamsData) {
+                // Slot por horário independente (cada horário tem sua sequência própria)
+                slotCount[schedule] = (slotCount[schedule] || 0) + 1;
+                const slotNum = slotCount[schedule];
+                const slotDisplay = computeSlotDisplay(slotNum, vagas, grupos, isLiga);
 
                 const docRef = await addDoc(collection(window.firebaseDb, 'registrations'), {
                     userId: window.firebaseAuth.currentUser.uid,
                     teamName: team.name,
+                    leaderName: window.currentUserProfile?.name || team.name,
                     email: team.email,
                     phone: team.phone,
                     schedule: schedule,
                     date: d,
                     eventType: eventType,
-                    title: `${cfg.label} - ${schedule}`,
+                    title: isLiga ? `${cfg.label} - ${schedule}` : `${cfg.label} - ${slotDisplay || schedule}`,
                     price: price,
+                    slot: isLiga ? null : slotNum,
+                    slotNumber: isLiga ? null : slotNum,
+                    slotDisplay: slotDisplay,
                     status: status,
                     createdAt: serverTimestamp(),
                     external_reference: externalRef,
@@ -7155,25 +7905,24 @@ async function createRegistrationsForEvent(eventType, datesToUse, teamsData, tim
                     whatsappLink: whatsappLink || null,
                     hour: normalizedHour || null,
                     affiliateCode: getActiveAffiliateCode(couponInfo?.affiliateId || null),
-                    // Se for pagamento com tokens, adicionar campos específicos
                     ...(status === 'confirmed' || status === 'paid' ? {
                         paidWithTokens: true,
-                        tokensUsed: price, // cada registro usa o preço unitário
+                        tokensUsed: price,
                     } : {})
                 });
                 regIds.push(docRef.id);
+                assignedSlots.push({ team: team.name, slot: slotDisplay, schedule, isLiga });
 
-                
                 await createPendingAffiliateSale(docRef.id, getActiveAffiliateCode(couponInfo?.affiliateId || null), {
-                amount: price, // preço unitário
-                title: `${cfg.label} - ${schedule}`,
-                customer: team.email,
-                customerName: team.name                
+                    amount: price,
+                    title: `${cfg.label} - ${schedule}`,
+                    customer: team.email,
+                    customerName: team.name
                 }, 'event');
             }
         }
     }
-    return regIds;
+    return { regIds, assignedSlots };
 }
 
 // --- Edição de Perfil ---
@@ -7348,7 +8097,12 @@ async function applyScheduleCoupon() {
     }
 
     try {
-        
+        // Aguardar Firebase ficar pronto
+        const fbReady = await waitForFirebase(8000);
+        if (!fbReady || !window.firebaseDb) {
+            showScheduleCouponMessage('Erro de conexão. Recarregue a página e tente novamente.', 'error');
+            return;
+        }
 
         // Importar Firebase
         const { collection, getDocs, query, where, limit } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
@@ -7494,22 +8248,25 @@ async function recordCouponUsage(couponId, couponCode, orderValue, discountAmoun
     try {
         const { collection, addDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
 
+        // Sanitizar: undefined → null (Firestore ignora undefined silenciosamente)
+        const _s = v => (v === undefined ? null : v);
+
         const usageData = {
-            couponId: couponId,
-            couponCode: couponCode,
-            customerEmail: window.currentUser?.email || 'guest',
-            customerName: window.currentUser?.displayName || 'Cliente',
-            orderValue: orderValue,
-            discountAmount: discountAmount,
-            finalValue: orderValue - discountAmount,
-            context: context, // 'store' ou 'events'
-            orderId: orderId,
+            couponId: _s(couponId),
+            couponCode: _s(couponCode),
+            customerEmail: window.currentUser?.email || window.firebaseAuth?.currentUser?.email || 'guest',
+            customerName: window.currentUser?.displayName || window.firebaseAuth?.currentUser?.displayName || 'Cliente',
+            orderValue: Number(orderValue) || 0,
+            discountAmount: Number(discountAmount) || 0,
+            finalValue: (Number(orderValue) || 0) - (Number(discountAmount) || 0),
+            context: _s(context),
+            orderId: _s(orderId),
             usedAt: new Date(),
-            userId: window.currentUser?.uid || null,
+            userId: _s(window.currentUser?.uid || window.firebaseAuth?.currentUser?.uid),
             // Informações do produto
-            productId: productInfo?.productId || productInfo?.id || null,
-            productName: productInfo?.name || productInfo?.title || productInfo?.item || null,
-            discountPercentage: orderValue > 0 ? ((discountAmount / orderValue) * 100).toFixed(2) : 0
+            productId: _s(productInfo?.productId || productInfo?.id),
+            productName: _s(productInfo?.name || productInfo?.title || productInfo?.item),
+            discountPercentage: (Number(orderValue) > 0 ? ((Number(discountAmount) / Number(orderValue)) * 100).toFixed(2) : '0.00')
         };
 
         await addDoc(collection(window.firebaseDb, 'couponUsage'), usageData);
@@ -7552,43 +8309,48 @@ function setImageProducts(productId, product){
 }
 
 
-function setScheduleConfig(productId,product){
-            if (scheduleConfig[productId]) {               
-                scheduleConfig[productId].label = product.name || scheduleConfig[productId].label;
-                scheduleConfig[productId].price = product.price || scheduleConfig[productId].price;
-                scheduleConfig[productId].isProduct = true;               
-                scheduleConfig[productId].description = product.description;
-                scheduleConfig[productId].image = product.image;                
-               
-            } else {
-               
-                scheduleConfig[productId] = {
-                    label: product.name,
-                    price: product.price,
-                    isProduct: true,
-                    description: product.description,
-                    image: product.image
-                };
-            }
+function setScheduleConfig(productId, product) {
+    const base = {
+        label: product.name,
+        price: Number(product.price) || 0,
+        isProduct: true,
+        description: product.description,
+        details: product.details,
+        benefits: product.benefits,
+        image: product.image,
+        category: product.category,
+        downloadLink: product.downloadLink,
+        downloadLinks: product.downloadLinks || {}
+    };
+    if (scheduleConfig[productId]) {
+        scheduleConfig[productId] = { ...scheduleConfig[productId], ...base,
+            label: product.name || scheduleConfig[productId].label,
+            price: Number(product.price) || scheduleConfig[productId].price
+        };
+    } else {
+        scheduleConfig[productId] = base;
+    }
 }
 
-function setProducts(productId, product){
-    if (products[productId]) {               
-        products[productId].name = product.name || products[productId].name;
-        products[productId].price = product.price || products[productId].price;
-        products[productId].isProduct = true;               
-        products[productId].description = product.description;
-        products[productId].image = product.image;
-        
-            
-    } else {        
-        products[productId] = {
-            name: product.name,
-            price: product.price,
-            isProduct: true,
-            description: product.description,
-            image: product.image
+function setProducts(productId, product) {
+    const base = {
+        name: product.name,
+        price: Number(product.price) || 0,
+        isProduct: true,
+        description: product.description,
+        details: product.details,
+        benefits: product.benefits,
+        image: product.image,
+        category: product.category,
+        downloadLink: product.downloadLink
+    };
+    if (products[productId]) {
+        products[productId] = { ...products[productId], ...base,
+            name: product.name || products[productId].name,
+            price: Number(product.price) || products[productId].price
         };
+    } else {
+        products[productId] = base;
     }
 }
 
@@ -7628,34 +8390,42 @@ async function loadProductsFromFirestore() {
                 badgeHtml = `<div class="absolute top-4 right-4 ${badgeColor} text-xs font-bold px-2 py-1 rounded">${product.badge}</div>`;
             }
 
-            // Define ícone/indicador de categoria (físico/digital)
-            const categoryIcon = product.category === 'physical' 
-                ? '<span class="text-sm text-gray-500">Físico</span>' 
-                : '<span class="text-sm text-gray-500">Digital</span>';
-
-            // Monta a descrição resumida (primeiras linhas)
-            const descriptionLines = (product.description || '').split('\n').slice(0, 3).join('<br>');
+            // Define ícone/indicador de categoria
+            const catVal = (product.category || '').toLowerCase();
+            const catLabel = catVal === 'fisico' || catVal === 'physical' ? 'Físico'
+                : catVal === 'servico' || catVal === 'service' ? 'Serviço'
+                : 'Digital';
+            const categoryIcon = `<span class="text-sm text-gray-500">${catLabel}</span>`;
 
             // Imagem (usa imagem padrão se não houver)
             const imageUrl = product.image || 'assets/images/Logo - Xtreino Freitas.png';
+
+            // Preço seguro
+            const priceNum = Number(product.price) || 0;
+
+            // Descrição completa — só exibida quando o cliente clicar em "Ver detalhes"
+            const fullDesc = (product.description || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            const detailsBtn = fullDesc ? `
+                <button onclick="toggleProductDesc('${productId}',this)"
+                    style="display:inline-flex;align-items:center;gap:5px;color:#16a34a;font-size:0.82rem;font-weight:600;cursor:pointer;background:none;border:1px solid #16a34a;border-radius:6px;padding:4px 10px;margin-bottom:10px;outline:none;">
+                    <i class="fas fa-chevron-down" style="font-size:10px"></i> Ver detalhes
+                </button>
+                <div id="pdesc_${productId}" style="display:none;margin-bottom:10px;">
+                    <div style="font-size:0.82rem;color:#374151;white-space:pre-wrap;line-height:1.55;padding:10px 12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;">${fullDesc}</div>
+                </div>` : '';
 
             html += `
                 <div class="product-card relative">
                     ${badgeHtml}
                     <div class="product-media">
-                        <img src="${imageUrl}" alt="${product.name}" loading="lazy"">
+                        <img src="${imageUrl}" alt="${product.name}" loading="lazy">
                     </div>
                     <div class="product-title">${product.name}</div>
-                    <div class="product-desc">
-                        <div class="space-y-1">
-                            <div><strong>Valor:</strong> R$ ${product.price.toFixed(2)}</div>
-                            ${descriptionLines ? `<div>${descriptionLines}</div>` : ''}
-                        </div>
-                    </div>
-                    <div class="product-meta flex justify-between items-center mb-3">
-                        <span class="text-2xl font-bold text-blue-matte">R$ ${product.price.toFixed(2)}</span>
+                    <div class="product-meta flex justify-between items-center mb-2">
+                        <span class="text-2xl font-bold text-blue-matte">R$ ${priceNum.toFixed(2)}</span>
                         ${categoryIcon}
                     </div>
+                    ${detailsBtn}
                     <button onclick="openScheduleModal('${productId}')" class="w-full btn-primary py-2 rounded-lg font-semibold transition-colors">
                         COMPRAR
                     </button>
@@ -7678,6 +8448,18 @@ async function loadProductsFromFirestore() {
         }
     }
 }
+
+// Alternar exibição da descrição nos cards da loja
+function toggleProductDesc(productId, btn) {
+    const desc = document.getElementById('pdesc_' + productId);
+    if (!desc) return;
+    const isOpen = desc.style.display !== 'none';
+    desc.style.display = isOpen ? 'none' : 'block';
+    btn.innerHTML = isOpen
+        ? '<i class="fas fa-chevron-down" style="font-size:10px"></i> Ver detalhes'
+        : '<i class="fas fa-chevron-up" style="font-size:10px"></i> Ocultar detalhes';
+}
+window.toggleProductDesc = toggleProductDesc;
 
 window.applyCoupon = applyCoupon;
 window.applyScheduleCoupon = applyScheduleCoupon;
@@ -7746,6 +8528,8 @@ async function loadDynamicEvents() {
                 grupos: Number(ev.grupos) || 0,
                 isFree: _isFreeEv,
                 modo: (ev.modo || '').toUpperCase(),
+                category: ev.category || '',
+                regras: ev.regras || '',
                 // Padrão: segunda a sexta, 14h-23h, sem data de corte automática
                 allowedWeekdays: [1, 2, 3, 4, 5],
                 slots: ['14h','15h','16h','17h','18h','19h','20h','21h','22h','23h'],
@@ -7758,11 +8542,17 @@ async function loadDynamicEvents() {
             const modoStr = (ev.modo || '').toUpperCase();
             const tipoStr = (ev.tipo || '').toUpperCase();
             const btnLabel = ev.entrada === 'PAGO' && ev.preco ? `INSCREVER — ${preco}` : 'RESERVAR VAGA';
+            const hasRegras = !!(ev.regras && ev.regras.trim());
             const btnHtml = `<div class="flex flex-col gap-2">
                 <button onclick="openScheduleModal('${d.id}')" class="w-full btn-primary py-2 rounded-lg font-semibold">${btnLabel}</button>
-                <a href="evento.html#${d.id}" class="w-full text-center border border-gray-300 hover:border-orange-400 text-gray-600 hover:text-orange-600 py-2 rounded-lg font-semibold text-sm transition-colors block">
-                    <i class="fas fa-info-circle mr-1"></i>Ver Detalhes
-                </a>
+                <div class="flex gap-2">
+                    <a href="evento.html#${d.id}" class="flex-1 text-center border border-gray-300 hover:border-orange-400 text-gray-600 hover:text-orange-600 py-2 rounded-lg font-semibold text-sm transition-colors block">
+                        <i class="fas fa-info-circle mr-1"></i>Ver Detalhes
+                    </a>
+                    ${hasRegras ? `<button onclick="openEventRulesModal('${d.id}')" class="flex-1 border border-cyan-300 hover:border-cyan-500 text-cyan-700 hover:text-cyan-900 py-2 rounded-lg font-semibold text-sm transition-colors">
+                        <i class="fas fa-scroll mr-1"></i>Ver Regras
+                    </button>` : ''}
+                </div>
             </div>`;
 
             const quedasStr = ev.quedas ? `${ev.quedas}x` : null;
@@ -7799,6 +8589,26 @@ async function loadDynamicEvents() {
         if (fallback) { fallback.classList.remove('hidden'); fallback.classList.add('grid'); }
     }
 }
+
+function openEventRulesModal(eventId) {
+    const cfg = scheduleConfig[eventId];
+    const regras = (cfg && cfg.regras) ? cfg.regras.trim() : '';
+    if (!regras) return;
+    const modal = document.getElementById('eventRulesModal');
+    const titleEl = document.getElementById('eventRulesTitle');
+    const bodyEl  = document.getElementById('eventRulesBody');
+    if (!modal || !bodyEl) return;
+    if (titleEl) titleEl.textContent = (cfg.label || 'Evento') + ' — Regras';
+    bodyEl.innerHTML = regras.replace(/\n/g, '<br>');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+function closeEventRulesModal() {
+    const modal = document.getElementById('eventRulesModal');
+    if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+}
+window.openEventRulesModal = openEventRulesModal;
+window.closeEventRulesModal = closeEventRulesModal;
 
 function filterEventsByCategory(cat) {
     const grid = document.getElementById('dynamicEventsGrid');
@@ -7846,7 +8656,7 @@ async function openEventPayment(eventId, eventName, preco) {
             customerEmail: user.email,
             external_reference: externalRef,
             type: 'event_registration',
-            back_url: `${window.location.origin}/evento.html#${eventId}`
+            back_url: `${window.location.origin}/evento.html?id=${encodeURIComponent(eventId)}`
         };
 
         const controller = new AbortController();
@@ -7901,13 +8711,17 @@ window.openEventPayment = openEventPayment;
         url.searchParams.delete('openEvent');
         window.history.replaceState({}, '', url.toString());
     } catch (_) {}
-    // Aguarda Firebase + openScheduleModal estar disponível
+    // Aguarda Firebase + openScheduleModal + scheduleConfig[id] estar disponível
+    // (loadDynamicEvents pode demorar mais no mobile — fazemos retry)
     const tryOpen = (attempts = 0) => {
-        if (typeof openScheduleModal === 'function' && window.firebaseDb) {
-            // Garante que a aba de eventos está ativa
+        const ready = typeof openScheduleModal === 'function'
+            && window.firebaseDb
+            && typeof scheduleConfig !== 'undefined'
+            && scheduleConfig[openEventId];
+        if (ready) {
             if (typeof switchMainTab === 'function') switchMainTab('eventos');
-            setTimeout(() => openScheduleModal(openEventId), 400);
-        } else if (attempts < 40) {
+            setTimeout(() => openScheduleModal(openEventId), 200);
+        } else if (attempts < 60) {
             setTimeout(() => tryOpen(attempts + 1), 250);
         }
     };
@@ -7924,3 +8738,143 @@ if (document.readyState === 'loading') {
 } else {
     loadDynamicEvents();
 }
+
+// ===== PIX Payment Modal =====
+let _pixPollingInterval = null;
+let _pixCountdownInterval = null;
+let _pixCancelFn = null;
+let _pixConfirmFn = null;
+
+window.openPixModal = function(pixData, regIds, externalRef, assignedSlotsData, cfg, finalPrice) {
+    const modal = document.getElementById('pixPaymentModal');
+    if (!modal) return;
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.getElementById('pixLoading').classList.add('hidden');
+    document.getElementById('pixContent').classList.remove('hidden');
+    document.getElementById('pixConfirmed').classList.add('hidden');
+
+    const label = (cfg && cfg.label) ? cfg.label : 'Evento';
+    document.getElementById('pixEventLabel').textContent = label;
+    const amountStr = finalPrice != null ? `R$ ${Number(finalPrice).toFixed(2).replace('.', ',')}` : '';
+    document.getElementById('pixAmount').textContent = amountStr;
+
+    if (pixData.qr_code_base64) {
+        document.getElementById('pixQrImg').src = 'data:image/png;base64,' + pixData.qr_code_base64;
+    }
+    if (pixData.qr_code) {
+        document.getElementById('pixCopiaCola').value = pixData.qr_code;
+    }
+
+    let secondsLeft = 29 * 60 + 59;
+    clearInterval(_pixCountdownInterval);
+    _pixCountdownInterval = setInterval(() => {
+        if (secondsLeft <= 0) { clearInterval(_pixCountdownInterval); const cd = document.getElementById('pixCountdown'); if (cd) cd.textContent = 'Expirado'; return; }
+        const m = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
+        const s = String(secondsLeft % 60).padStart(2, '0');
+        const cd = document.getElementById('pixCountdown');
+        if (cd) cd.textContent = m + ':' + s;
+        secondsLeft--;
+    }, 1000);
+
+    _pixCancelFn = async () => {
+        clearInterval(_pixPollingInterval);
+        clearInterval(_pixCountdownInterval);
+        if (regIds && regIds.length) {
+            try {
+                const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+                await Promise.all(regIds.map(id => deleteDoc(doc(window.firebaseDb, 'registrations', id))));
+            } catch (_) {}
+        }
+        const modal = document.getElementById('pixPaymentModal');
+        if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+    };
+
+    _pixConfirmFn = async () => {
+        clearInterval(_pixPollingInterval);
+        clearInterval(_pixCountdownInterval);
+        if (regIds && regIds.length) {
+            try {
+                const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+                await Promise.all(regIds.map(id => updateDoc(doc(window.firebaseDb, 'registrations', id), { status: 'confirmed' })));
+            } catch (e) { console.warn('[PIX] Erro ao confirmar registros:', e && e.message); }
+        }
+        const pixContentEl = document.getElementById('pixContent');
+        const pixConfirmedEl = document.getElementById('pixConfirmed');
+        if (pixContentEl) pixContentEl.classList.add('hidden');
+        if (pixConfirmedEl) pixConfirmedEl.classList.remove('hidden');
+        const slotInfoEl = document.getElementById('pixSlotInfo');
+        if (slotInfoEl && assignedSlotsData && assignedSlotsData.length) {
+            slotInfoEl.innerHTML = assignedSlotsData.map(function(s) {
+                return '<div class="flex items-start gap-3 py-1 border-b border-green-100 last:border-0">' +
+                    '<div class="w-8 h-8 rounded-full bg-green-600 text-white text-xs font-black flex items-center justify-center flex-shrink-0">' + (s.slotNum || '✓') + '</div>' +
+                    '<div class="min-w-0">' +
+                    '<p class="font-bold text-gray-800 text-sm truncate">' + (s.team || '—') + '</p>' +
+                    '<p class="text-xs text-gray-500">' + (s.schedule || '') + (s.slotDisplay ? ' · ' + s.slotDisplay : '') + '</p>' +
+                    (s.whatsappLink ? '<a href="' + s.whatsappLink + '" target="_blank" class="text-xs text-green-600 hover:underline flex items-center gap-1 mt-0.5"><i class="fab fa-whatsapp"></i> Entrar no grupo</a>' : '') +
+                    '</div></div>';
+            }).join('');
+        } else if (slotInfoEl) {
+            slotInfoEl.innerHTML = '<p class="text-green-700 text-sm text-center font-medium">Inscrição confirmada com sucesso!</p>';
+        }
+    };
+
+    clearInterval(_pixPollingInterval);
+    _pixPollingInterval = setInterval(async function() {
+        try {
+            const r = await fetch('/.netlify/functions/check-pix-status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ payment_id: pixData.payment_id }),
+            });
+            if (!r.ok) return;
+            const d = await r.json();
+            if (d.status === 'approved') {
+                if (typeof _pixConfirmFn === 'function') await _pixConfirmFn();
+            } else if (d.status === 'rejected' || d.status === 'cancelled') {
+                clearInterval(_pixPollingInterval);
+                const st = document.getElementById('pixStatusText');
+                if (st) st.textContent = 'Pagamento recusado ou cancelado. Tente novamente.';
+            }
+        } catch (_) {}
+    }, 5000);
+};
+
+window.copyPixCode = function() {
+    const input = document.getElementById('pixCopiaCola');
+    if (!input) return;
+    const val = input.value;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(val).catch(function() { _pixFallbackCopy(input); });
+    } else {
+        _pixFallbackCopy(input);
+    }
+    const btn = input.nextElementSibling;
+    if (btn) {
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check mr-1"></i>Copiado!';
+        btn.classList.add('bg-green-700');
+        setTimeout(function() { btn.innerHTML = orig; btn.classList.remove('bg-green-700'); }, 2000);
+    }
+};
+
+function _pixFallbackCopy(input) {
+    input.select();
+    input.setSelectionRange(0, 99999);
+    try { document.execCommand('copy'); } catch (_) {}
+}
+
+window.cancelPixPayment = function() {
+    if (confirm('Cancelar o pagamento? Sua inscrição pendente será removida.')) {
+        if (typeof _pixCancelFn === 'function') _pixCancelFn();
+    }
+};
+
+window.closePixModal = function() {
+    clearInterval(_pixPollingInterval);
+    clearInterval(_pixCountdownInterval);
+    const modal = document.getElementById('pixPaymentModal');
+    if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+    try { window.location.href = 'client.html?tab=myRegistrations'; } catch (_) {}
+};

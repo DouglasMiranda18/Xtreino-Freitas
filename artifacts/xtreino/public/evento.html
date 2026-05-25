@@ -90,7 +90,7 @@
                 <h3 class="text-orange-400 font-bold text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
                     <i class="fas fa-gavel"></i> Regras do Evento
                 </h3>
-                <pre class="regras-text text-slate-200 text-sm leading-relaxed" id="evRegras"></pre>
+                <pre class="regras-text text-slate-200 text-sm leading-relaxed" id="evRegrasTab"></pre>
             </div>
         </div>
 
@@ -118,6 +118,20 @@
             </h3>
             <div id="evYoutube"></div>
             <p class="text-slate-500 text-xs mt-3 text-center">A transmissão será ativada durante o evento.</p>
+        </div>
+
+        <div id="panelInscritos" class="tab-panel">
+            <div class="bg-slate-800 rounded-2xl p-5 border border-slate-700">
+                <h3 class="text-orange-400 font-bold text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <i class="fas fa-list-ol"></i> Equipes Inscritas por Horário
+                </h3>
+                <div id="inscritosContent">
+                    <div class="text-center py-8 text-slate-500">
+                        <i class="fas fa-spinner fa-spin text-xl mb-2 block"></i>
+                        <p class="text-sm">Carregando inscritos...</p>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div id="panelGrupos" class="tab-panel">
@@ -160,8 +174,8 @@
 
 <script type="module">
 import { initializeApp, getApps, getApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
-import { getFirestore, doc, getDoc, collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
-import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
+import { getFirestore, doc, getDoc, deleteDoc, collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+import { getAuth, onAuthStateChanged, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
 
 const FIREBASE_CONFIG = {
     apiKey: "AIzaSyBzD0iWNIfZwuzWN-Xhjbg22OfCHv1Qwjo",
@@ -176,8 +190,10 @@ let _db = null;
 let _auth = null;
 
 function initFirebase() {
-    const existing = getApps().find(a => a.name === 'evento-page');
-    const app = existing || initializeApp(FIREBASE_CONFIG, 'evento-page');
+    // Usa o app padrão (sem nome) para compartilhar o estado de auth com o site principal.
+    // Isso garante que usuários logados no index.html também estejam autenticados aqui.
+    const existing = getApps().find(a => a.name === '[DEFAULT]') || (getApps().length > 0 ? getApps()[0] : null);
+    const app = existing || initializeApp(FIREBASE_CONFIG);
     _db = getFirestore(app);
     _auth = getAuth(app);
     return _db;
@@ -185,7 +201,9 @@ function initFirebase() {
 
 // Suporte a ambos: ?id=X (Netlify) e #X (local/hash)
 const _searchParams = new URLSearchParams(location.search);
-const eventId = _searchParams.get('id') || location.hash.replace('#', '') || '';
+// Strip any ?mp_status=... suffix that MP pode adicionar após o hash
+const _rawHash = location.hash.replace('#', '').split('?')[0];
+const eventId = _searchParams.get('id') || _rawHash || '';
 let _currentEventId = '';
 
 function showError(msg) {
@@ -238,15 +256,19 @@ function setTab(tabId) {
     const panel = document.getElementById('panel' + capId);
     if (btn) btn.classList.add('active');
     if (panel) panel.classList.add('active');
+    if (tabId === 'inscritos' && window._currentEventId) {
+        loadInscritos(window._currentEventId);
+    }
 }
 window.setTab = setTab;
 
 function buildTabs(ev) {
     const tabs = [{ id:'info', icon:'fa-info-circle', label:'INFORMAÇÕES' }];
-    // Regras agora ficam dentro da aba INFORMAÇÕES — não gera tab separada
+    if (ev.regras) tabs.push({ id:'regras', icon:'fa-gavel', label:'REGRAS' });
     if (ev.rodadas) tabs.push({ id:'rodadas', icon:'fa-layer-group', label:'RODADAS' });
     if (ev.pontuacao) tabs.push({ id:'pontuacao', icon:'fa-trophy', label:'PONTUAÇÃO' });
     if (ev.youtubeUrl) tabs.push({ id:'live', icon:'fa-play-circle', label:'AO VIVO' });
+    tabs.push({ id:'inscritos', icon:'fa-list-ol', label:'INSCRITOS' });
     if (ev.category === 'camp') tabs.push({ id:'grupos', icon:'fa-users', label:'GRUPOS' });
     document.getElementById('tabNav').innerHTML = tabs.map(t =>
         `<button id="tabBtn_${t.id}" class="tab-btn px-4 py-2 rounded-lg text-xs font-bold" onclick="setTab('${t.id}')">
@@ -266,6 +288,7 @@ function buildInfoGrid(ev) {
     if (ev.preco) items.push({ icon:'fa-tag', label:'Entrada', val:'R$ ' + Number(ev.preco).toFixed(2) });
     else if (ev.entrada) items.push({ icon:'fa-tag', label:'Entrada', val: ev.entrada });
     if (ev.premiado === 'SIM') items.push({ icon:'fa-medal', label:'Premiado', val:'SIM 🏆' });
+    if (ev.premiacao) items.push({ icon:'fa-trophy', label:'Premiação', val: ev.premiacao });
     if (Array.isArray(ev.mapas) && ev.mapas.length) items.push({ icon:'fa-map', label:'Mapas', val: ev.mapas.join(' · ') });
     if (ev.eventDate) items.push({ icon:'fa-calendar', label:'Data', val: new Date(ev.eventDate).toLocaleDateString('pt-BR', {day:'2-digit', month:'long', year:'numeric'}) });
     document.getElementById('evInfoGrid').innerHTML = items.map(i =>
@@ -336,6 +359,8 @@ async function loadEvent() {
         if (ev.regras) {
             document.getElementById('evRegras').textContent = ev.regras;
             document.getElementById('evRegrasBlock').classList.remove('hidden');
+            const _regrasTab = document.getElementById('evRegrasTab');
+            if (_regrasTab) _regrasTab.textContent = ev.regras;
         }
         if (ev.rodadas) document.getElementById('evRodadas').textContent = ev.rodadas;
         if (ev.pontuacao) document.getElementById('evPontuacao').textContent = ev.pontuacao;
@@ -349,6 +374,15 @@ async function loadEvent() {
 
         buildTabs(ev);
         showContent();
+
+        // Garantir autenticação (pelo menos anônima) para poder consultar inscrições
+        await new Promise(resolve => {
+            const unsub = onAuthStateChanged(_auth, () => { unsub(); resolve(); });
+        });
+        if (!_auth.currentUser) {
+            try { await signInAnonymously(_auth); } catch(_e) {}
+        }
+        loadInscritos(eventId);
 
         if (ev.status === 'Fechado') {
             const cta = document.getElementById('floatingCta');
@@ -419,6 +453,189 @@ window.loadPublicGroups = async function(phase) {
         container.innerHTML = '<div class="text-center py-4 text-red-400 text-sm">Erro ao carregar grupos.</div>';
     }
 };
+
+async function loadInscritos(evId) {
+    const container = document.getElementById('inscritosContent');
+    if (!container) return;
+    if (!_db) { container.innerHTML = '<div class="text-center py-6 text-slate-500 text-sm">Banco de dados não disponível.</div>'; return; }
+    container.innerHTML = '<div class="text-center py-6 text-slate-500"><i class="fas fa-spinner fa-spin text-xl mb-2 block"></i>Carregando inscritos...</div>';
+    try {
+        const normalizedId = String(evId || '').toLowerCase().trim().replace(/\s+/g, '-');
+        const promises = [getDocs(query(collection(_db, 'registrations'), where('eventType', '==', evId)))];
+        if (normalizedId !== evId) {
+            promises.push(getDocs(query(collection(_db, 'registrations'), where('eventType', '==', normalizedId))));
+        }
+        const snaps = await Promise.all(promises);
+        const seen = new Set();
+        const allDocs = [];
+        snaps.forEach(snap => snap.docs.forEach(d => { if (!seen.has(d.id)) { seen.add(d.id); allDocs.push(d); } }));
+
+        // Auto-deletar inscrições de dias passados (best-effort; silencia erro se sem permissão)
+        const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const pastDocs = allDocs.filter(d => {
+            const dt = d.data().date;
+            return dt && /^\d{4}-\d{2}-\d{2}$/.test(dt) && dt < todayStr;
+        });
+        if (pastDocs.length > 0) {
+            for (const pd of pastDocs) {
+                deleteDoc(doc(_db, 'registrations', pd.id)).catch(() => {});
+            }
+        }
+
+        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
+        // Mostrar apenas inscrições do dia atual (ou sem data definida)
+        const valid = allDocs.filter(d => {
+            const r = d.data();
+            const dt = r.date;
+            const isToday = !dt || !(/^\d{4}-\d{2}-\d{2}$/.test(dt)) || dt === todayStr;
+            return validStatuses.has(r.status) && isToday;
+        });
+
+        if (valid.length === 0) {
+            container.innerHTML = '<div class="text-center py-6 text-slate-500 text-sm">Nenhuma equipe inscrita para hoje.</div>';
+            return;
+        }
+
+        // Agrupar por (data + horário) — chave ordenável: "YYYY-MM-DD|horário"
+        const groups = {};
+        valid.forEach(d => {
+            const r = d.data();
+            const dt = r.date || '';
+            const sched = r.schedule || '—';
+            const key = `${dt}|${sched}`;
+            if (!groups[key]) groups[key] = { date: dt, sched, regs: [] };
+            groups[key].regs.push(r);
+        });
+
+        // Ordenar grupos por data crescente, depois horário crescente
+        const groupKeys = Object.keys(groups).sort();
+
+        // Dentro de cada grupo: ordenar por slot crescente e deduplicar slots
+        for (const key of groupKeys) {
+            const grp = groups[key];
+            grp.regs.sort((a, b) => {
+                const sa = a.slot != null ? Number(a.slot) : (a.slotNumber != null ? Number(a.slotNumber) : Infinity);
+                const sb = b.slot != null ? Number(b.slot) : (b.slotNumber != null ? Number(b.slotNumber) : Infinity);
+                return sa - sb;
+            });
+            const seenSlots = new Set();
+            grp.regs = grp.regs.filter(r => {
+                const slotKey = r.slot != null ? String(r.slot) : (r.slotNumber != null ? String(r.slotNumber) : r.teamName);
+                if (seenSlots.has(slotKey)) return false;
+                seenSlots.add(slotKey);
+                return true;
+            });
+        }
+
+        // Datas e horários únicos para filtros
+        const uniqueDates = [...new Set(groupKeys.map(k => groups[k].date))].filter(Boolean).sort();
+        const uniqueScheds = [...new Set(groupKeys.map(k => groups[k].sched))].sort();
+        const hasDateFilter = uniqueDates.length > 1;
+        const hasSchedFilter = uniqueScheds.length > 1;
+
+        // Renderizar filtros
+        const fmtDate = d => d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d.split('-').reverse().join('/') : d;
+        let filterHtml = '';
+        if (hasDateFilter || hasSchedFilter) {
+            filterHtml = `<div class="mb-5 space-y-2">`;
+            if (hasDateFilter) {
+                filterHtml += `<div class="flex flex-wrap gap-1.5 items-center">
+                    <span class="text-xs text-slate-400 mr-1"><i class="fas fa-calendar-alt mr-1"></i>Dia:</span>
+                    <button class="ins-df active-filter px-3 py-1 text-xs rounded-full font-bold transition-colors" data-fd="all">Todos</button>
+                    ${uniqueDates.map(d => `<button class="ins-df px-3 py-1 text-xs rounded-full font-bold transition-colors" data-fd="${d}">${fmtDate(d)}</button>`).join('')}
+                </div>`;
+            }
+            if (hasSchedFilter) {
+                filterHtml += `<div class="flex flex-wrap gap-1.5 items-center">
+                    <span class="text-xs text-slate-400 mr-1"><i class="fas fa-clock mr-1"></i>Horário:</span>
+                    <button class="ins-sf active-filter px-3 py-1 text-xs rounded-full font-bold transition-colors" data-fs="all">Todos</button>
+                    ${uniqueScheds.map(s => `<button class="ins-sf px-3 py-1 text-xs rounded-full font-bold transition-colors" data-fs="${s}">${s}</button>`).join('')}
+                </div>`;
+            }
+            filterHtml += `</div>`;
+        }
+
+        // Renderizar grupos
+        let groupsHtml = '';
+        for (const key of groupKeys) {
+            const { date, sched, regs } = groups[key];
+            const safeKey = key.replace(/[^a-zA-Z0-9]/g, '_');
+            groupsHtml += `
+            <div class="ins-group mb-5" data-gd="${date}" data-gs="${sched}">
+                <div class="flex items-center gap-2 mb-3 flex-wrap">
+                    ${date ? `<span class="bg-slate-600 text-slate-200 px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-calendar-alt mr-1"></i>${fmtDate(date)}</span>` : ''}
+                    <span class="bg-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-clock mr-1"></i>${sched}</span>
+                    <span class="text-xs text-slate-400">${regs.length} time(s)</span>
+                </div>
+                <div class="space-y-2">
+                    ${regs.map(r => {
+                        const slotNum = r.slotNumber != null ? r.slotNumber : r.slot;
+                        const teamName = r.teamName || r.email || '—';
+                        const leaderName = r.leaderName && r.leaderName !== r.teamName ? r.leaderName : null;
+                        const slotBadge = slotNum != null
+                            ? `<span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-orange-600 text-white text-xs font-black flex-shrink-0">#${slotNum}</span>`
+                            : '';
+                        return `<div class="bg-slate-700 rounded-xl px-4 py-3 border border-slate-600">
+                            <div class="flex items-center gap-3">
+                                ${slotBadge}
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-bold text-slate-100 text-sm leading-tight truncate">${teamName}</p>
+                                    ${leaderName ? `<p class="text-xs text-slate-400 mt-0.5">Líder: ${leaderName}</p>` : ''}
+                                </div>
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>
+            </div>`;
+        }
+
+        container.innerHTML = filterHtml + `<div id="insGrpWrap">${groupsHtml}</div>`;
+
+        // Estilo ativo/inativo dos filtros via classes inline
+        const styleActive = 'ins-df active-filter px-3 py-1 text-xs rounded-full font-bold transition-colors bg-orange-600 text-white';
+        const styleInactive = 'ins-df px-3 py-1 text-xs rounded-full font-bold transition-colors bg-slate-700 text-slate-300 hover:bg-slate-600';
+        const styleSActive = 'ins-sf active-filter px-3 py-1 text-xs rounded-full font-bold transition-colors bg-orange-600 text-white';
+        const styleSInactive = 'ins-sf px-3 py-1 text-xs rounded-full font-bold transition-colors bg-slate-700 text-slate-300 hover:bg-slate-600';
+
+        // Aplicar estilos iniciais
+        container.querySelectorAll('.ins-df').forEach(b => { b.className = b.dataset.fd === 'all' ? styleActive : styleInactive; });
+        container.querySelectorAll('.ins-sf').forEach(b => { b.className = b.dataset.fs === 'all' ? styleSActive : styleSInactive; });
+
+        let activeDate = 'all', activeSched = 'all';
+        function applyFilters() {
+            container.querySelectorAll('.ins-group').forEach(g => {
+                const matchD = activeDate === 'all' || g.dataset.gd === activeDate;
+                const matchS = activeSched === 'all' || g.dataset.gs === activeSched;
+                g.style.display = matchD && matchS ? '' : 'none';
+            });
+        }
+
+        container.addEventListener('click', e => {
+            const df = e.target.closest('.ins-df');
+            if (df) {
+                activeDate = df.dataset.fd;
+                container.querySelectorAll('.ins-df').forEach(b => { b.className = b.dataset.fd === activeDate ? styleActive : styleInactive; });
+                applyFilters();
+                return;
+            }
+            const sf = e.target.closest('.ins-sf');
+            if (sf) {
+                activeSched = sf.dataset.fs;
+                container.querySelectorAll('.ins-sf').forEach(b => { b.className = b.dataset.fs === activeSched ? styleSActive : styleSInactive; });
+                applyFilters();
+            }
+        });
+
+    } catch(e) {
+        console.error('[loadInscritos] erro ao carregar inscritos:', e?.message || e);
+        const isPermission = e?.code === 'permission-denied' || String(e).includes('permission');
+        if (isPermission) {
+            container.innerHTML = '<div class="text-center py-6 text-slate-400 text-sm"><i class="fas fa-lock mr-1"></i>Faça login para ver os times inscritos.</div>';
+        } else {
+            container.innerHTML = '<div class="text-center py-6 text-slate-400 text-sm">Dados de inscritos não disponíveis.</div>';
+        }
+    }
+}
 
 window.goRegister = function() {
     const eid = window._currentEventId;
