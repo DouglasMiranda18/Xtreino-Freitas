@@ -1231,9 +1231,14 @@ function isValidDateString(dateStr) {
 function getProductActionButton(product) {
     const title = (product.title || '').toLowerCase();
     const item = (product.item || '').toLowerCase();
-    
+    const cat = (product.productCategory || '').toLowerCase();
+    const isPaid = ['paid', 'confirmed', 'approved'].includes(product.status);
+
     // Check if it's Sensibilidades
-    if (title.includes('sensibilidades') || title.includes('sensibilidade') || item.includes('sensibilidades') || item.includes('sensibilidade')) {
+    if (cat === 'sensibilidade' || title.includes('sensibilidades') || title.includes('sensibilidade') || item.includes('sensibilidades') || item.includes('sensibilidade')) {
+        if (!isPaid) {
+            return `<div class="mt-3"><span class="text-xs text-yellow-600 bg-yellow-50 px-2 py-1 rounded">Aguardando confirmação do pagamento</span></div>`;
+        }
         return `
             <div class="mt-3">
                 <button onclick="downloadSensibilidades('${product.id}')" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200">
@@ -1265,9 +1270,30 @@ function getProductActionButton(product) {
     
     // Check if it's Planilhas de Análises
     if (title.includes('planilhas') || title.includes('análises') || item.includes('planilhas') || item.includes('análises')) {
+        if (!isPaid) {
+            return `<div class="mt-3"><span class="text-xs text-yellow-600 bg-yellow-50 px-2 py-1 rounded">Aguardando confirmação do pagamento</span></div>`;
+        }
         return `
             <div class="mt-3">
                 <button onclick="downloadPlanilhas('${product.id}')" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    Download
+                </button>
+            </div>
+        `;
+    }
+
+    // Produto digital genérico (categoria 'digital') com link de download
+    const isDigital = cat === 'digital' || cat === 'servico' || cat === 'service';
+    if (isDigital && (product.downloadLink || product.productOptions?.downloadLink)) {
+        if (!isPaid) {
+            return `<div class="mt-3"><span class="text-xs text-yellow-600 bg-yellow-50 px-2 py-1 rounded">Aguardando confirmação do pagamento</span></div>`;
+        }
+        return `
+            <div class="mt-3">
+                <button onclick="downloadProdutoDigital('${product.id}')" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-green-700 bg-green-100 hover:bg-green-200">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
@@ -1343,108 +1369,77 @@ function getProductActionButton(product) {
     return '';
 }
 
-// Download function for Planilhas de Análises (via proxy)
-function downloadPlanilhas(orderId) {
-    // Baixar o primeiro arquivo da lista (ou abrir seleção depois)
-    const proxyUrl = `/.netlify/functions/download?orderId=${encodeURIComponent(orderId)}&i=0`;
-    window.open(proxyUrl, '_blank');
+// Download function for Planilhas de Análises — via Firestore (sem Netlify)
+async function downloadPlanilhas(orderId) {
+    try {
+        const { doc, getDoc, collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const orderSnap = await getDoc(doc(window.firebaseDb, 'orders', orderId));
+        let downloadLink = null;
+        let productId = null;
+        if (orderSnap.exists()) {
+            const od = orderSnap.data();
+            downloadLink = od.downloadLink || od.productOptions?.downloadLink || null;
+            productId = od.productId || null;
+        }
+        if (!downloadLink && productId) {
+            const prodSnap = await getDoc(doc(window.firebaseDb, 'products', productId));
+            if (prodSnap.exists()) {
+                downloadLink = prodSnap.data().downloadLink || null;
+            }
+        }
+        if (!downloadLink) {
+            const q = query(collection(window.firebaseDb, 'products'), where('category', '==', 'digital'));
+            const snaps = await getDocs(q);
+            if (!snaps.empty) downloadLink = snaps.docs[0].data().downloadLink || null;
+        }
+        if (downloadLink) {
+            window.open(downloadLink, '_blank');
+        } else {
+            alert('Link de download não disponível. Entre em contato com o suporte.');
+        }
+    } catch (e) {
+        alert('Erro ao obter link de download. Tente novamente.');
+    }
 }
 
-// Download function for Sensibilidades (considera plataforma)
-function downloadSensibilidades(orderId) {
-    // Buscar informações do pedido para obter a plataforma selecionada
-    const listUrl = `/.netlify/functions/download?orderId=${encodeURIComponent(orderId)}&list=1`;
-    fetch(listUrl)
-      .then(r => r.ok ? r.json() : Promise.reject())
-      .then(data => {
-        const files = Array.isArray(data?.files) ? data.files : [];
-        if (files.length === 0) {
-          // fallback para primeiro arquivo
-          window.location.href = `/.netlify/functions/download?orderId=${encodeURIComponent(orderId)}&i=0`;
-          return;
+// Download function for Sensibilidades — via Firestore (sem Netlify)
+async function downloadSensibilidades(orderId) {
+    try {
+        const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+        // 1. Buscar o pedido para obter plataforma/marca e link já salvo
+        const orderSnap = await getDoc(doc(window.firebaseDb, 'orders', orderId));
+        if (!orderSnap.exists()) {
+            alert('Pedido não encontrado. Entre em contato com o suporte.');
+            return;
         }
-        
-        // Detectar se é iOS/Safari
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-        
-        // Para iOS, verificar se os arquivos têm URLs diretos (Google Drive)
-        if (data.platform === 'ios' && files.length > 1) {
-          // Verificar se os arquivos têm URLs diretos do Google Drive
-          const firstFile = files[0];
-          if (firstFile && firstFile.url && firstFile.url.includes('drive.google.com')) {
-            // No iOS/Safari, abrir os links diretamente do Google Drive
-            if (isIOS || isSafari) {
-              // Abrir o primeiro link diretamente
-              window.location.href = firstFile.url;
-              // Abrir os outros links em novas abas após um delay
-              for (let i = 1; i < files.length; i++) {
-                const file = files[i];
-                if (file && file.url) {
-                  setTimeout(() => {
-                    // Criar um link temporário e clicar nele para evitar bloqueio de pop-up
-                    const a = document.createElement('a');
-                    a.href = file.url;
-                    a.target = '_blank';
-                    a.rel = 'noopener noreferrer';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                  }, i * 1000);
-                }
-              }
-              return;
+        const od = orderSnap.data();
+
+        // 2. Tentar usar o link armazenado diretamente no pedido (salvo na compra)
+        let downloadLink = od.downloadLink || od.productOptions?.downloadLink || null;
+
+        // 3. Se não tiver link no pedido, buscar no produto via plataforma/marca
+        if (!downloadLink && od.productId) {
+            const prodSnap = await getDoc(doc(window.firebaseDb, 'products', od.productId));
+            if (prodSnap.exists()) {
+                const prodData = prodSnap.data();
+                const platform = od.productOptions?.platform || '';
+                const brand = od.productOptions?.brand || '';
+                const dlLinks = prodData.downloadLinks || {};
+                // Chave: marca (android) ou plataforma (pc/ios)
+                const key = platform === 'android' && brand ? brand : platform;
+                downloadLink = dlLinks[key] || dlLinks[platform] || prodData.downloadLink || null;
             }
-          }
         }
-        
-        // Se houver múltiplos arquivos (ex.: iOS), abrir todos
-        if (files.length > 1) {
-          files.forEach((f, index) => {
-            const idx = typeof f.index === 'number' ? f.index : index;
-            const url = `/.netlify/functions/download?orderId=${encodeURIComponent(orderId)}&i=${encodeURIComponent(idx)}`;
-            
-            // No iOS/Safari, usar window.location.href ao invés de window.open para evitar bloqueio de pop-ups
-            if (isIOS || isSafari) {
-              if (index === 0) {
-                window.location.href = url;
-              } else {
-                // Para links subsequentes, criar elemento <a> e clicar
-                setTimeout(() => {
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.target = '_blank';
-                  a.rel = 'noopener noreferrer';
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                }, index * 1000);
-              }
-            } else {
-              window.open(url, '_blank');
-            }
-          });
-          return;
-        }
-        
-        // Caso contrário, baixar baseado na plataforma (ou primeiro)
-        const platform = data.platform || 'pc';
-        const fileIndex = files.findIndex(f => f.platform === platform);
-        const idx = fileIndex >= 0 ? fileIndex : 0;
-        const url = `/.netlify/functions/download?orderId=${encodeURIComponent(orderId)}&i=${encodeURIComponent(idx)}`;
-        
-        // No iOS/Safari, usar window.location.href ao invés de window.open
-        if (isIOS || isSafari) {
-          window.location.href = url;
+
+        if (downloadLink && downloadLink.startsWith('http')) {
+            window.open(downloadLink, '_blank');
         } else {
-          window.open(url, '_blank');
+            alert('Link de download não disponível. Entre em contato com o suporte.');
         }
-      })
-      .catch((error) => {
-        
-        // fallback para primeiro arquivo
-        window.location.href = `/.netlify/functions/download?orderId=${encodeURIComponent(orderId)}&i=0`;
-      });
+    } catch (e) {
+        alert('Erro ao obter link de download. Tente novamente.');
+    }
 }
 
 // Download function for Imagens Aéreas (via proxy; baixa um por vez)
@@ -1671,11 +1666,40 @@ function _showMapQueueModal() {
 function ensureImagesQueueModal() { return document.getElementById('_mapQueueModal') || { querySelector: () => null }; }
 function showImagesQueueModal()   { _showMapQueueModal(); }
 
+// Download function for produtos digitais genéricos — via Firestore
+async function downloadProdutoDigital(orderId) {
+    try {
+        const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const orderSnap = await getDoc(doc(window.firebaseDb, 'orders', orderId));
+        let downloadLink = null;
+        let productId = null;
+        if (orderSnap.exists()) {
+            const od = orderSnap.data();
+            downloadLink = od.downloadLink || od.productOptions?.downloadLink || null;
+            productId = od.productId || null;
+        }
+        if (!downloadLink && productId) {
+            const prodSnap = await getDoc(doc(window.firebaseDb, 'products', productId));
+            if (prodSnap.exists()) {
+                downloadLink = prodSnap.data().downloadLink || null;
+            }
+        }
+        if (downloadLink && downloadLink.startsWith('http')) {
+            window.open(downloadLink, '_blank');
+        } else {
+            alert('Link de download não disponível. Entre em contato com o suporte.');
+        }
+    } catch (e) {
+        alert('Erro ao obter link de download. Tente novamente.');
+    }
+}
+
 // Expor funções de download no escopo global (para onclick do HTML)
 try {
     window.downloadSensibilidades = downloadSensibilidades;
     window.downloadImagensAereas = downloadImagensAereas;
     window.downloadPlanilhas = downloadPlanilhas;
+    window.downloadProdutoDigital = downloadProdutoDigital;
     window.openImagesSelect = openImagesSelect;
     window.showImagesQueueModal = showImagesQueueModal;
     window.openShippingModal = function(orderId){

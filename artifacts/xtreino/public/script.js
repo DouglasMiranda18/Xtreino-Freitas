@@ -6327,6 +6327,18 @@ async function handleProductPurchase(productId, cfg) {
             }
         }
 
+        // Aplicar cupom do modal de agendamento se houver (mesmo que handleProductPurchaseWithTokens já faça isso)
+        if (typeof appliedScheduleCoupon !== 'undefined' && appliedScheduleCoupon) {
+            let discountAmount = 0;
+            if (appliedScheduleCoupon.discountType === 'percentage') {
+                discountAmount = finalPrice * (appliedScheduleCoupon.discountValue / 100);
+            } else {
+                discountAmount = appliedScheduleCoupon.discountValue || 0;
+            }
+            discountAmount = Math.min(discountAmount, finalPrice);
+            finalPrice = Math.max(0, finalPrice - discountAmount);
+        }
+
         // Validar preço final
         if (!finalPrice || finalPrice <= 0 || isNaN(finalPrice)) {
             alert('Preço inválido. Por favor, verifique os dados do produto.');
@@ -6579,11 +6591,16 @@ async function submitSchedule(e, useTokens = false) {
         const isFreeEvent = (cfg.price === 0 || cfg.isFree === true) && !cfg.isProduct;
 
         // Se for produto da loja, usar lógica de compra
-        if (cfg.isProduct) {
+        // Fallback: verificar também no objeto products para cobrir casos de race condition no carregamento do Firestore
+        const isProductFlow = cfg.isProduct === true ||
+            window.products?.[rawEventType]?.isProduct === true ||
+            window.products?.[eventType]?.isProduct === true;
+        if (isProductFlow) {
+            const productCfg = cfg.isProduct ? cfg : (window.scheduleConfig?.[rawEventType] || window.scheduleConfig?.[eventType] || window.products?.[rawEventType] || window.products?.[eventType] || {});
             if (useTokens) {
-                await handleProductPurchaseWithTokens(eventType, cfg);
+                await handleProductPurchaseWithTokens(eventType, productCfg);
             } else {
-                await handleProductPurchase(eventType, cfg);
+                await handleProductPurchase(eventType, productCfg);
             }
             if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
             return;
