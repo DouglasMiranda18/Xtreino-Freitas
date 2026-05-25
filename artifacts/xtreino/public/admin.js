@@ -8582,18 +8582,29 @@ async function _loadAffiliatePayoutsForAdmin(affiliateId) {
     }
 }
 
-// Excluir afiliado
+// Excluir afiliado — remove o role Afiliado e limpa campos na coleção users
 async function deleteAffiliate(affiliateId, affiliateName) {
-    if (!confirm(`⚠️ Deseja excluir o afiliado "${affiliateName}"?\n\nIsso vai remover o registro do afiliado. As vendas e comissões registradas não serão apagadas.\n\nEssa ação não pode ser desfeita.`)) return;
+    if (!confirm(`⚠️ Deseja remover o afiliado "${affiliateName}"?\n\nO usuário continuará existindo mas perderá o acesso à área de afiliado.\nAs vendas e comissões registradas não serão apagadas.\n\nEssa ação não pode ser desfeita.`)) return;
     try {
-        const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        await deleteDoc(doc(window.firebaseDb, 'affiliates', affiliateId));
+        const { doc, updateDoc, deleteField } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+        // O ID na lista é o uid do documento em /users
+        await updateDoc(doc(window.firebaseDb, 'users', affiliateId), {
+            role: 'user',
+            affiliateStatus: deleteField(),
+            affiliate: deleteField(),
+            affiliateCode: deleteField(),
+            commissionRate: deleteField(),
+            commissionRateEvents: deleteField(),
+            commissionRateProducts: deleteField(),
+        });
+
         affiliatesData = affiliatesData.filter(a => a.id !== affiliateId);
         renderAffiliatesTable();
-        showToast('success', `Afiliado "${affiliateName}" excluído com sucesso.`, 'Concluído');
+        showToast('success', `Afiliado "${affiliateName}" removido com sucesso.`, 'Concluído');
     } catch (err) {
-        console.error('Erro ao excluir afiliado:', err);
-        showToast('error', 'Erro ao excluir: ' + (err.message || err), 'Erro');
+        console.error('Erro ao remover afiliado:', err);
+        showToast('error', 'Erro ao remover: ' + (err.message || err), 'Erro');
     }
 }
 window.deleteAffiliate = deleteAffiliate;
