@@ -2693,7 +2693,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
     try {
       const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
       const regs = collection(window.firebaseDb, 'registrations');
-      const q = query(regs, where('date', '==', date), where('status', 'in', ['paid','confirmed','approved']));
+      const q = query(regs, where('date', '==', date), where('status', 'in', ['paid','confirmed','approved','pending']));
       const snap = await getDocs(q);
       const map = {};
       
@@ -3544,8 +3544,8 @@ window.showWarningToast = function(message, title = 'Atenção') {
       list.innerHTML = '<div class="text-sm text-gray-500">Carregando...</div>';
       const { collection, query, where, getDocs, doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
       const regs = collection(window.firebaseDb,'registrations');
-      // Busca reservas PAGAS/CONFIRMADAS do dia; filtra por eventType e hora com normalização (schedule ou hour)
-      const snap = await getDocs(query(regs, where('date','==', date), where('status','in',['paid','confirmed','approved'])));
+      // Busca reservas do dia incluindo pendentes — admin precisa ver todos
+      const snap = await getDocs(query(regs, where('date','==', date), where('status','in',['paid','confirmed','approved','pending'])));
       list.innerHTML = '';
       let any = false;
       const evLower = String(eventType||'').toLowerCase();
@@ -3559,9 +3559,13 @@ window.showWarningToast = function(message, title = 'Atenção') {
         const regHH = normalizeHour(schedStr) || normalizeHour(hourStr);
         if (targetHH && regHH && targetHH !== regHH) return;
         any = true;
+        const isPending = r.status === 'pending';
+        const statusBadge = isPending
+          ? '<span class="text-xs bg-yellow-100 text-yellow-700 border border-yellow-300 rounded px-1.5 py-0.5 ml-1">⏳ Aguardando pagto</span>'
+          : '<span class="text-xs bg-green-100 text-green-700 border border-green-300 rounded px-1.5 py-0.5 ml-1">✓ Pago</span>';
         const row = document.createElement('div');
-        row.className = 'flex items-center justify-between border-b py-2';
-        row.innerHTML = `<div class="text-sm"><div class="font-semibold">${r.teamName||r.email||'-'}</div><div class="text-gray-500">${r.contact||r.phone||''}</div></div>
+        row.className = `flex items-center justify-between border-b py-2 ${isPending ? 'bg-yellow-50' : ''}`;
+        row.innerHTML = `<div class="text-sm"><div class="font-semibold flex items-center flex-wrap gap-1">${r.teamName||r.email||'-'}${statusBadge}</div><div class="text-gray-500">${r.contact||r.phone||''}</div></div>
           <button class="px-2 py-1 bg-red-600 text-white rounded text-xs" data-remove-reg-id="${d.id}">Remover</button>`;
         list.appendChild(row);
       });
