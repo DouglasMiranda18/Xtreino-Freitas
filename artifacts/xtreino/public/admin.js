@@ -3819,42 +3819,25 @@ async function loadCharts() {
 // Variável global para armazenar o gráfico
 let popularHoursChart = null;
 
-// Função para carregar eventos únicos do banco de dados
-async function loadEventOptions() {
-    try {
-        if (!window.firebaseDb) {
-            console.warn('Firebase não inicializado ainda');
-            return;
-        }
-        
-        const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const registrationsCol = collection(window.firebaseDb, 'registrations');
-        const snap = await getDocs(registrationsCol);
-        
-        const events = new Set();
-        snap.forEach(doc => {
-            const data = doc.data();
-            if (data.eventType && data.eventType.trim()) {
-                events.add(data.eventType.trim());
-            }
-        });
-        
-        const eventFilter = document.getElementById('eventFilter');
-        if (eventFilter) {
-            // Limpar opções existentes (exceto a primeira)
-            eventFilter.innerHTML = '<option value="">Todos os eventos</option>';
-            
-            // Adicionar eventos únicos ordenados alfabeticamente
-            Array.from(events).sort().forEach(event => {
-                const option = document.createElement('option');
-                option.value = event;
-                option.textContent = event;
-                eventFilter.appendChild(option);
-            });
-        }
-    } catch (error) {
-        console.error('Erro ao carregar eventos:', error);
-    }
+// Lista fixa de tipos de eventos com nomes amigáveis
+const EVENTOS_CONHECIDOS = [
+    { id: 'xtreino-tokens',   label: 'XTreino Freitas'     },
+    { id: 'modo-liga',        label: 'XTreino Modo Liga'   },
+    { id: 'semanal-freitas',  label: 'Semanal Freitas'     },
+    { id: 'camp-freitas',     label: 'Campeonato Freitas'  },
+];
+
+// Popula o select de evento com a lista fixa
+function loadEventOptions() {
+    const eventFilter = document.getElementById('eventFilter');
+    if (!eventFilter) return;
+    eventFilter.innerHTML = '<option value="">Todos os eventos</option>';
+    EVENTOS_CONHECIDOS.forEach(({ id, label }) => {
+        const option = document.createElement('option');
+        option.value = id;
+        option.textContent = label;
+        eventFilter.appendChild(option);
+    });
 }
 
 // Mapeia nome do dia (PT) → código para filtro
