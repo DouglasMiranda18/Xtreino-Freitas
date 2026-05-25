@@ -10551,10 +10551,42 @@ async function loadAdminNotifications() {
             return;
         }
 
-        listEl.innerHTML = snap.docs.map(d => {
+        // Agrupar por batchId para não duplicar envios em lote (credenciais de evento, etc.)
+        // Notificações sem batchId são exibidas individualmente
+        const groups = [];
+        const seenBatch = new Map(); // batchId → índice no array groups
+
+        snap.docs.forEach(d => {
             const n = d.data();
+            const bid = n.batchId || null;
+            if (bid) {
+                if (seenBatch.has(bid)) {
+                    // Incrementar contagem do grupo existente
+                    groups[seenBatch.get(bid)].count++;
+                } else {
+                    const idx = groups.length;
+                    seenBatch.set(bid, idx);
+                    groups.push({ doc: d, data: n, count: 1, batchId: bid });
+                }
+            } else {
+                // Notificação individual (sem lote)
+                groups.push({ doc: d, data: n, count: 1, batchId: null });
+            }
+        });
+
+        listEl.innerHTML = groups.map(g => {
+            const n = g.data;
+            const d = g.doc;
             const dateStr = n.createdAt ? new Date(n.createdAt.toDate ? n.createdAt.toDate() : n.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
-            const targetLabel = n.type === 'all' ? '<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Todos</span>' : `<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-mono">${n.targetUserId || 'Específico'}</span>`;
+            const isLote = g.batchId && g.count > 1;
+            const targetLabel = isLote
+                ? `<span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">${g.count} participantes</span>`
+                : (n.type === 'all'
+                    ? '<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Todos</span>'
+                    : `<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-mono">${n.targetUserId || 'Específico'}</span>`);
+            const deleteAction = isLote
+                ? `deleteAdminNotificationBatch('${escapeAdminHtml(g.batchId)}')`
+                : `deleteAdminNotification('${d.id}')`;
             return `<div class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
                 <div class="flex-1 min-w-0">
                     <div class="flex flex-wrap items-center gap-2 mb-1">
@@ -10564,7 +10596,7 @@ async function loadAdminNotifications() {
                     <p class="text-xs text-gray-600 leading-relaxed">${escapeAdminHtml(n.message || '')}</p>
                     <div class="text-xs text-gray-400 mt-1">Enviado em ${dateStr} por ${escapeAdminHtml(n.createdBy || 'Admin')}</div>
                 </div>
-                <button onclick="deleteAdminNotification('${d.id}')" title="Excluir" class="flex-shrink-0 text-red-400 hover:text-red-600 p-1">
+                <button onclick="${deleteAction}" title="Excluir" class="flex-shrink-0 text-red-400 hover:text-red-600 p-1">
                     <i class="fas fa-trash text-xs"></i>
                 </button>
             </div>`;
@@ -10589,6 +10621,22 @@ async function deleteAdminNotification(notifId) {
     }
 }
 
+async function deleteAdminNotificationBatch(batchId) {
+    if (!batchId || !window.firebaseDb) return;
+    if (!confirm('Excluir todas as notificações deste envio em lote?')) return;
+    try {
+        const { collection, query, where, getDocs, deleteDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const q = query(collection(window.firebaseDb, 'notifications'), where('batchId', '==', batchId));
+        const snap = await getDocs(q);
+        await Promise.all(snap.docs.map(d => deleteDoc(doc(window.firebaseDb, 'notifications', d.id))));
+        showToast('success', `Lote excluído (${snap.size} notificações removidas).`, 'Sucesso');
+        await loadAdminNotifications();
+    } catch (err) {
+        console.error('Erro ao excluir lote de notificações:', err);
+        showToast('error', 'Erro ao excluir lote.', 'Erro');
+    }
+}
+
 function escapeAdminHtml(str) {
     if (!str) return '';
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -10598,6 +10646,7 @@ window.toggleNotifUserField = toggleNotifUserField;
 window.sendAdminNotification = sendAdminNotification;
 window.loadAdminNotifications = loadAdminNotifications;
 window.deleteAdminNotification = deleteAdminNotification;
+window.deleteAdminNotificationBatch = deleteAdminNotificationBatch;
 window.saveProducts = saveProducts;
 
 // ============================================================
@@ -11797,6 +11846,8 @@ async function sendEventNotification() {
         const user = window.firebaseAuth?.currentUser;
         const createdBy = user ? (user.displayName || user.email || user.uid) : 'Admin';
         const scheduleLabel = filterLabel ? ` [${filterLabel}]` : '';
+        // batchId agrupa todas as notificações deste envio — evita duplicatas na listagem do admin
+        const batchId = `batch_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
         await Promise.all(uniqueUsers.map(uid =>
             addDoc(collection(window.firebaseDb, 'notifications'), {
@@ -11815,6 +11866,8 @@ async function sendEventNotification() {
                 createdAt: serverTimestamp(),
                 createdBy,
                 createdByUid: user?.uid || null,
+                batchId,
+                batchTotal: uniqueUsers.length,
             })
         ));
 
