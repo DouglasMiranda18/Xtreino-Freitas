@@ -12156,33 +12156,54 @@ window.loadPageData = async function(page) {
     }
 };
 
-// ===== LIMPEZA: remover inscrições sem horário (schedule == '—') =====
+// ===== LIMPEZA: remover inscrições sem horário válido =====
 window.limparInscricoesSemHorario = async function() {
     if (!window.firebaseDb) { alert('Firebase não conectado.'); return; }
-    const { collection, query, where, getDocs, deleteDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const { collection, query, where, getDocs, deleteDoc, doc, or } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
 
-    const snap = await getDocs(query(
-        collection(window.firebaseDb, 'registrations'),
-        where('schedule', '==', '—')
-    ));
+    // Buscar por todos os valores possíveis de "sem horário"
+    const semHorario = new Set(['—', '-', '', 'undefined', 'null', '—']);
+    const hasDigit = (s) => /\d/.test(String(s || ''));
 
-    if (snap.empty) { alert('Nenhuma inscrição sem horário encontrada.'); return; }
+    // Estratégia: buscar todas inscrições com status válido e filtrar em JS
+    // (Firestore não suporta "campo não contém dígito")
+    const snaps = await Promise.all([
+        getDocs(query(collection(window.firebaseDb, 'registrations'), where('schedule', '==', '—'))),
+        getDocs(query(collection(window.firebaseDb, 'registrations'), where('schedule', '==', '-'))),
+        getDocs(query(collection(window.firebaseDb, 'registrations'), where('schedule', '==', ''))),
+        getDocs(query(collection(window.firebaseDb, 'registrations'), where('schedule', '==', null))),
+    ]);
 
-    const lista = snap.docs.map(d => {
-        const f = d.data();
-        return `• ${f.teamName || f.email || d.id} — ${f.eventType || '?'} — ${f.date || 'sem data'} — status: ${f.status || '?'}`;
-    }).join('\n');
+    const seen = new Set();
+    const invalidos = [];
+    snaps.forEach(snap => {
+        snap.docs.forEach(d => {
+            if (seen.has(d.id)) return;
+            seen.add(d.id);
+            const f = d.data();
+            // Também capturar qualquer schedule sem dígito
+            if (!hasDigit(f.schedule)) {
+                invalidos.push({ id: d.id, data: f });
+            }
+        });
+    });
 
-    const confirmar = confirm(`Encontradas ${snap.docs.length} inscrição(ões) sem horário:\n\n${lista}\n\nDeseja deletar TODAS?`);
+    if (invalidos.length === 0) { alert('Nenhuma inscrição sem horário encontrada.'); return; }
+
+    const lista = invalidos.map(({ id, data: f }) =>
+        `• ${f.teamName || f.email || id} | ev: ${f.eventType || '?'} | data: ${f.date || '?'} | schedule: "${f.schedule ?? 'null'}" | status: ${f.status || '?'}`
+    ).join('\n');
+
+    const confirmar = confirm(`Encontradas ${invalidos.length} inscrição(ões) sem horário válido:\n\n${lista}\n\nDeseja deletar TODAS?`);
     if (!confirmar) return;
 
     let deletadas = 0;
-    for (const d of snap.docs) {
+    for (const { id } of invalidos) {
         try {
-            await deleteDoc(doc(window.firebaseDb, 'registrations', d.id));
+            await deleteDoc(doc(window.firebaseDb, 'registrations', id));
             deletadas++;
         } catch (e) {
-            console.error('Erro ao deletar', d.id, e);
+            console.error('Erro ao deletar', id, e);
         }
     }
     alert(`✅ ${deletadas} inscrição(ões) removida(s) com sucesso.`);
