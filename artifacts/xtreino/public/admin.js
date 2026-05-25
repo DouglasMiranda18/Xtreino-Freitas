@@ -1673,7 +1673,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
     const today = new Date(); today.setHours(0,0,0,0);
     const firstMonth = new Date(); firstMonth.setDate(1); firstMonth.setHours(0,0,0,0);
 
-    let sumToday = 0, tokensToday = 0, sumMonth = 0, receivable = 0;
+    let sumToday = 0, tokensToday = 0, sumTokensToday = 0, sumMonth = 0, receivable = 0;
 
     // ── Orders (produtos, camisas, tokens‑compra — não eventos) ──
     try {
@@ -1687,8 +1687,10 @@ window.showWarningToast = function(message, title = 'Atenção') {
         if ((o.type || '').toLowerCase() === 'event') return;
         const status = (o.status || '').toLowerCase();
         const isPaid = status === 'paid' || status === 'approved' || status === 'confirmed';
-        if (o.paidWithTokens) { if (isPaid) tokensToday++; }
-        else if (isPaid) sumToday += Number(o.amount || 0);
+        const val = Number(o.amount || 0);
+        if (o.paidWithTokens) {
+          if (isPaid) { tokensToday++; sumTokensToday += val; }
+        } else if (isPaid) sumToday += val;
       });
       monthOrd.forEach(d => {
         const o = d.data();
@@ -1711,8 +1713,10 @@ window.showWarningToast = function(message, title = 'Atenção') {
         const r = d.data();
         const status = (r.status || '').toLowerCase();
         const isPaid = status === 'paid' || status === 'approved' || status === 'confirmed';
-        if (r.paidWithTokens) { if (isPaid) tokensToday++; }
-        else if (isPaid) sumToday += Number(r.price || 0);
+        const val = Number(r.price || 0);
+        if (r.paidWithTokens) {
+          if (isPaid) { tokensToday++; sumTokensToday += val; }
+        } else if (isPaid) sumToday += val;
       });
       monthRegs.forEach(d => {
         const r = d.data();
@@ -1724,7 +1728,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
     } catch(_){}
 
     kpiTodayEl.textContent = brl(sumToday);
-    if (kpiTokensTodEl) kpiTokensTodEl.textContent = String(tokensToday);
+    if (kpiTokensTodEl) kpiTokensTodEl.textContent = brl(sumTokensToday);
+    const kpiTokensCountEl = document.getElementById('kpiTokensTodayCount');
+    if (kpiTokensCountEl) kpiTokensCountEl.textContent = `${tokensToday} uso${tokensToday !== 1 ? 's' : ''}`;
     kpiMonthEl.textContent = brl(sumMonth);
     kpiRecEl.textContent = brl(receivable);
 
