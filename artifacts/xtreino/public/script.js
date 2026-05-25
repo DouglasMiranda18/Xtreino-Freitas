@@ -578,21 +578,19 @@ async function loadUserNotifications() {
             const isTabela = n.notifyType === 'tabela';
             const mostrarTabela = isTabela || !!n.tabelaLink;
 
-            // Card verde "Ver Tabela"
+            // Card verde "Ver Tabela" — compacto e moderno
             let tabelaHtml = '';
             if (mostrarTabela) {
                 const btnTabela = n.tabelaLink
                     ? `<a href="${n.tabelaLink}" target="_blank" rel="noopener noreferrer"
-                           style="display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 22px;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;border-radius:50px;font-size:13px;font-weight:800;text-decoration:none;box-shadow:0 4px 12px rgba(22,163,74,0.4);margin-top:8px;transition:opacity 0.2s"
-                           onmouseover="this.style.opacity='0.88'" onmouseout="this.style.opacity='1'">
-                            <i class="fas fa-table"></i> Ver Tabela
+                           style="display:inline-flex;align-items:center;gap:5px;padding:5px 13px;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;border-radius:50px;font-size:11px;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(22,163,74,0.35);letter-spacing:0.2px;transition:transform 0.15s,box-shadow 0.15s"
+                           onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(22,163,74,0.5)'" onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px rgba(22,163,74,0.35)'">
+                            <i class="fas fa-table" style="font-size:10px"></i> Ver Tabela
                        </a>`
                     : '';
                 tabelaHtml = `
-                    <div style="margin-top:8px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid #86efac;border-radius:12px;padding:10px 12px">
-                        <p style="font-size:10px;font-weight:800;color:#166534;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px;display:flex;align-items:center;gap:5px">
-                            <i class="fas fa-table"></i> Tabela de pontuação disponível!
-                        </p>
+                    <div style="margin-top:7px;margin-left:19px;display:flex;align-items:center;justify-content:space-between;background:rgba(22,163,74,0.07);border:1px solid rgba(22,163,74,0.2);border-radius:8px;padding:6px 10px">
+                        <span style="font-size:10.5px;color:#15803d;font-weight:600">📊 Pontuação disponível</span>
                         ${btnTabela}
                     </div>`;
             }
@@ -629,13 +627,28 @@ async function loadUserNotifications() {
                     🚀 ENTRAR NA SALA!!
                 </a>` : '';
 
-            return `<div class="p-3 transition-colors cursor-default ${isRead ? 'hover:bg-gray-50' : 'bg-blue-50 border-l-2 border-blue-400'}">
-                <div class="font-semibold text-sm ${isCredentials ? 'text-purple-800' : 'text-gray-900'}">${n.title || ''}</div>
-                ${(!mostrarTabela && n.message) ? `<div class="text-xs text-gray-600 mt-0.5 leading-relaxed whitespace-pre-line">${n.message}</div>` : ''}
+            // Ícone e cor por tipo
+            const typeIcon  = isCredentials ? '🎮' : mostrarTabela ? '📊' : '🔔';
+            const dotColor  = isCredentials ? '#7c3aed' : mostrarTabela ? '#16a34a' : '#3b82f6';
+            const bgCard    = isRead
+                ? 'background:#fff'
+                : isCredentials ? 'background:linear-gradient(135deg,#faf5ff,#f5f3ff)'
+                : mostrarTabela ? 'background:linear-gradient(135deg,#f0fdf4,#f7fee7)'
+                : 'background:linear-gradient(135deg,#eff6ff,#f0f9ff)';
+            const borderLeft = isRead ? 'border-left:3px solid #e5e7eb' : `border-left:3px solid ${dotColor}`;
+
+            return `<div style="padding:10px 12px;${bgCard};${borderLeft};transition:background 0.15s" onmouseover="this.style.filter='brightness(0.97)'" onmouseout="this.style.filter=''">
+                <!-- Linha superior: ícone + título truncado + data -->
+                <div style="display:flex;align-items:center;gap:6px;min-width:0">
+                    <span style="font-size:13px;flex-shrink:0">${typeIcon}</span>
+                    <span style="flex:1;min-width:0;font-size:11.5px;font-weight:700;color:${isRead?'#374151':'#111827'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+                          title="${(n.title||'').replace(/"/g,'&quot;')}">${n.title || ''}</span>
+                    <span style="flex-shrink:0;font-size:10px;color:#9ca3af;white-space:nowrap">${dateStr}</span>
+                </div>
+                ${(!mostrarTabela && n.message) ? `<p style="font-size:11px;color:#6b7280;margin:4px 0 0 19px;line-height:1.4">${n.message}</p>` : ''}
                 ${credentialsHtml}
                 ${tabelaHtml}
                 ${roomBtnFallback}
-                <div class="text-xs text-gray-400 mt-1">${dateStr}</div>
             </div>`;
         }).join('') + `<style>@keyframes roomPulse{0%{box-shadow:0 0 0 0 rgba(124,58,237,0.7)}70%{box-shadow:0 0 0 12px rgba(124,58,237,0)}100%{box-shadow:0 0 0 0 rgba(124,58,237,0)}}</style>`;
     } catch (err) {
