@@ -1265,7 +1265,7 @@ function getProductActionButton(product) {
     const title = (product.title || '').toLowerCase();
     const item = (product.item || '').toLowerCase();
     const cat = (product.productCategory || '').toLowerCase();
-    const isPaid = ['paid', 'confirmed', 'approved'].includes(product.status);
+    const isPaid = ['paid', 'confirmed', 'approved'].includes(product.status) || product.paidWithTokens === true;
 
     // Check if it's Sensibilidades
     if (cat === 'sensibilidade' || title.includes('sensibilidades') || title.includes('sensibilidade') || item.includes('sensibilidades') || item.includes('sensibilidade')) {
@@ -1305,6 +1305,9 @@ function getProductActionButton(product) {
                      title.includes('imagens') || title.includes('aéreas') ||
                      item.includes('imagens')  || item.includes('aéreas');
     if (isAereas) {
+        if (!isPaid) {
+            return `<div class="mt-3"><span class="text-xs text-yellow-600 bg-yellow-50 px-2 py-1 rounded">Aguardando confirmação do pagamento</span></div>`;
+        }
         return `
             <div class="mt-3">
                 <button onclick="openImagesSelect('${product.id}')" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-orange-700 bg-orange-100 hover:bg-orange-200">
