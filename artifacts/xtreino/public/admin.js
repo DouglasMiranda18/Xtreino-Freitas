@@ -3557,6 +3557,8 @@ window.showWarningToast = function(message, title = 'Atenção') {
         const schedStr = String(r.schedule||'');
         const hourStr = String(r.hour||'');
         const regHH = normalizeHour(schedStr) || normalizeHour(hourStr);
+        // Se não tem horário válido, não aparece em modais de horários específicos
+        if (targetHH && !regHH) return;
         if (targetHH && regHH && targetHH !== regHH) return;
         any = true;
         const isPending = r.status === 'pending';
