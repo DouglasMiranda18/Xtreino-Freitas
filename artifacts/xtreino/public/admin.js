@@ -8162,7 +8162,7 @@ function renderAffiliatesRows(affiliatesList, tbody) {
                 <td class="py-2 px-2 text-xs text-orange-600">R$ ${pendingCommission.toFixed(2)}</td>
                 <td class="py-2 px-2 text-xs">${statusBadge}</td>
                 <td class="py-2 px-2 text-xs">
-                    <div class="flex gap-1">
+                    <div class="flex gap-1 flex-wrap">
                         <button onclick="editAffiliate('${affiliate.id}')" 
                                 class="px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-xs">
                             Editar
@@ -8170,6 +8170,10 @@ function renderAffiliatesRows(affiliatesList, tbody) {
                         <button onclick="viewAffiliateDetails('${affiliate.id}')" 
                                 class="px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 text-xs">
                             Detalhes
+                        </button>
+                        <button onclick="deleteAffiliate('${affiliate.id}', '${(affiliate.name || '').replace(/'/g, "\\'")}')" 
+                                class="px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-xs">
+                            Excluir
                         </button>
                     </div>
                 </td>
@@ -8367,28 +8371,232 @@ function editAffiliate(affiliateId) {
     }
 }
 
-// Ver detalhes do afiliado
-function viewAffiliateDetails(affiliateId) {
+// Ver detalhes do afiliado — modal completo com vendas + histórico de saque
+async function viewAffiliateDetails(affiliateId) {
     const affiliate = affiliatesData.find(a => a.id === affiliateId);
-    const sales = affiliateSalesData.filter(s => s.affiliateId === affiliateId);
-    
     if (!affiliate) return;
-    
-    const totalSales = sales.length;
+
+    // Criar/reusar modal overlay
+    let overlay = document.getElementById('affiliateDetailsOverlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'affiliateDetailsOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:20px 10px';
+        document.body.appendChild(overlay);
+    }
+    overlay.style.display = 'flex';
+
+    const sales = affiliateSalesData.filter(s => s.affiliateId === affiliateId);
     const totalCommission = sales.reduce((sum, s) => sum + (s.commissionAmount || 0), 0);
-    const pendingCommission = sales
-        .filter(s => s.status === 'pending')
-        .reduce((sum, s) => sum + (s.commissionAmount || 0), 0);
-    
-    alert(`Detalhes do Afiliado:\n\n` +
-          `Nome: ${affiliate.name}\n` +
-          `Email: ${affiliate.email}\n` +
-          `Comissão: ${affiliate.commissionRate}%\n` +
-          `Status: ${affiliate.status === 'active' ? 'Ativo' : 'Inativo'}\n` +
-          `Total de Vendas: ${totalSales}\n` +
-          `Comissão Total: R$ ${totalCommission.toFixed(2)}\n` +
-          `Comissão Pendente: R$ ${pendingCommission.toFixed(2)}`);
+    const pendingCommission = sales.filter(s => s.status === 'pending').reduce((sum, s) => sum + (s.commissionAmount || 0), 0);
+    const paidCommission = sales.filter(s => s.status === 'paid').reduce((sum, s) => sum + (s.commissionAmount || 0), 0);
+
+    const statusBadge = affiliate.status === 'active'
+        ? '<span class="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold">Ativo</span>'
+        : '<span class="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-semibold">Inativo</span>';
+
+    const salesRows = sales.length === 0
+        ? '<tr><td colspan="6" class="px-4 py-6 text-center text-gray-400 text-sm">Nenhuma venda registrada</td></tr>'
+        : sales.map(s => {
+            const date = s.createdAt ? new Date(s.createdAt).toLocaleDateString('pt-BR') : '—';
+            const badge = s.status === 'paid'
+                ? '<span class="px-2 py-0.5 bg-green-100 text-green-800 rounded text-xs">Paga</span>'
+                : '<span class="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded text-xs">Pendente</span>';
+            const icon = s.saleType === 'event' ? '📅' : '🛒';
+            return `<tr class="border-b border-gray-100 hover:bg-gray-50 text-sm">
+                <td class="px-3 py-2">${date}</td>
+                <td class="px-3 py-2">${s.customerName || s.customerEmail || '—'}</td>
+                <td class="px-3 py-2">${icon} ${s.productName || s.productId || '—'}</td>
+                <td class="px-3 py-2">R$ ${(s.saleValue || 0).toFixed(2)}</td>
+                <td class="px-3 py-2 font-medium text-green-700">R$ ${(s.commissionAmount || 0).toFixed(2)}</td>
+                <td class="px-3 py-2">${badge}</td>
+            </tr>`;
+        }).join('');
+
+    overlay.innerHTML = `
+        <div style="background:#fff;border-radius:16px;width:100%;max-width:860px;box-shadow:0 20px 60px rgba(0,0,0,0.25);overflow:hidden;margin:auto">
+            <!-- Cabeçalho -->
+            <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:20px 24px;display:flex;align-items:center;justify-content:space-between">
+                <div>
+                    <div style="color:#fff;font-size:18px;font-weight:700">${affiliate.name}</div>
+                    <div style="color:rgba(255,255,255,0.8);font-size:13px;margin-top:2px">${affiliate.email}</div>
+                </div>
+                <button onclick="document.getElementById('affiliateDetailsOverlay').style.display='none'"
+                        style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:18px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center">&times;</button>
+            </div>
+
+            <!-- Stats -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;padding:16px 24px;background:#f9fafb;border-bottom:1px solid #e5e7eb">
+                <div style="text-align:center">
+                    <div style="font-size:11px;color:#6b7280;margin-bottom:2px">Status</div>
+                    <div>${statusBadge}</div>
+                </div>
+                <div style="text-align:center">
+                    <div style="font-size:11px;color:#6b7280;margin-bottom:2px">Vendas</div>
+                    <div style="font-size:20px;font-weight:700;color:#1f2937">${sales.length}</div>
+                </div>
+                <div style="text-align:center">
+                    <div style="font-size:11px;color:#6b7280;margin-bottom:2px">Comissão Total</div>
+                    <div style="font-size:18px;font-weight:700;color:#059669">R$ ${totalCommission.toFixed(2)}</div>
+                </div>
+                <div style="text-align:center">
+                    <div style="font-size:11px;color:#6b7280;margin-bottom:2px">Pago</div>
+                    <div style="font-size:18px;font-weight:700;color:#2563eb">R$ ${paidCommission.toFixed(2)}</div>
+                </div>
+                <div style="text-align:center">
+                    <div style="font-size:11px;color:#6b7280;margin-bottom:2px">Pendente</div>
+                    <div style="font-size:18px;font-weight:700;color:#d97706">R$ ${pendingCommission.toFixed(2)}</div>
+                </div>
+                <div style="text-align:center">
+                    <div style="font-size:11px;color:#6b7280;margin-bottom:2px">Comissão</div>
+                    <div style="font-size:14px;font-weight:600;color:#374151">Eventos ${affiliate.commissionRateEvents || affiliate.commissionRate || 10}% / Prod. ${affiliate.commissionRateProducts || affiliate.commissionRate || 10}%</div>
+                </div>
+            </div>
+
+            <!-- Abas -->
+            <div style="padding:20px 24px">
+                <div style="display:flex;gap:8px;margin-bottom:16px;border-bottom:2px solid #e5e7eb">
+                    <button id="tabVendas" onclick="switchAffiliateTab('vendas')"
+                            style="padding:8px 16px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid #4f46e5;margin-bottom:-2px;color:#4f46e5">
+                        💰 Suas Vendas (${sales.length})
+                    </button>
+                    <button id="tabSaques" onclick="switchAffiliateTab('saques')"
+                            style="padding:8px 16px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:#6b7280">
+                        💸 Histórico de Saque
+                    </button>
+                </div>
+
+                <!-- Vendas -->
+                <div id="affiliateTabVendas">
+                    <div style="overflow-x:auto;border-radius:8px;border:1px solid #e5e7eb">
+                        <table style="width:100%;border-collapse:collapse;font-size:13px">
+                            <thead style="background:#f3f4f6">
+                                <tr>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600">Data</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600">Cliente</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600">Produto</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600">Valor</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600">Comissão</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>${salesRows}</tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Saques -->
+                <div id="affiliateTabSaques" style="display:none">
+                    <div style="overflow-x:auto;border-radius:8px;border:1px solid #e5e7eb">
+                        <table style="width:100%;border-collapse:collapse;font-size:13px">
+                            <thead style="background:#f3f4f6">
+                                <tr>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600">Data</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600">Valor</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600">Chave PIX</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600">Titular</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600">Status</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600">Processado em</th>
+                                </tr>
+                            </thead>
+                            <tbody id="affiliateDetailsPayoutsBody">
+                                <tr><td colspan="6" class="px-4 py-6 text-center text-gray-400 text-sm">
+                                    <i class="fas fa-spinner fa-spin mr-2"></i>Carregando saques...
+                                </td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+
+    // Fechar ao clicar fora
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.style.display = 'none'; };
+
+    // Carregar saques do afiliado
+    _loadAffiliatePayoutsForAdmin(affiliateId);
 }
+
+function switchAffiliateTab(tab) {
+    const tabVendas  = document.getElementById('affiliateTabVendas');
+    const tabSaques  = document.getElementById('affiliateTabSaques');
+    const btnVendas  = document.getElementById('tabVendas');
+    const btnSaques  = document.getElementById('tabSaques');
+    if (!tabVendas || !tabSaques) return;
+    if (tab === 'vendas') {
+        tabVendas.style.display = '';
+        tabSaques.style.display = 'none';
+        btnVendas.style.borderBottomColor = '#4f46e5'; btnVendas.style.color = '#4f46e5';
+        btnSaques.style.borderBottomColor = 'transparent'; btnSaques.style.color = '#6b7280';
+    } else {
+        tabVendas.style.display = 'none';
+        tabSaques.style.display = '';
+        btnVendas.style.borderBottomColor = 'transparent'; btnVendas.style.color = '#6b7280';
+        btnSaques.style.borderBottomColor = '#4f46e5'; btnSaques.style.color = '#4f46e5';
+    }
+}
+window.switchAffiliateTab = switchAffiliateTab;
+
+async function _loadAffiliatePayoutsForAdmin(affiliateId) {
+    const tbody = document.getElementById('affiliateDetailsPayoutsBody');
+    if (!tbody) return;
+    try {
+        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const snap = await getDocs(query(
+            collection(window.firebaseDb, 'affiliate_payouts'),
+            where('affiliateId', '==', affiliateId)
+        ));
+        const payouts = [];
+        snap.forEach(d => {
+            const data = d.data();
+            payouts.push({ id: d.id, ...data,
+                createdAt: data.createdAt?.toDate?.() || new Date(),
+                processedAt: data.processedAt?.toDate?.() || null });
+        });
+        payouts.sort((a, b) => b.createdAt - a.createdAt);
+
+        if (payouts.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center text-gray-400 text-sm">Nenhum saque solicitado</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = payouts.map(p => {
+            const date = p.createdAt.toLocaleDateString('pt-BR');
+            const proc = p.processedAt ? p.processedAt.toLocaleDateString('pt-BR') : '—';
+            const badge = p.status === 'approved'
+                ? '<span class="px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-xs">✅ Aprovado</span>'
+                : p.status === 'rejected'
+                    ? `<span class="px-2 py-0.5 bg-red-100 text-red-800 rounded-full text-xs" title="${p.rejectionReason || ''}">❌ Recusado</span>`
+                    : '<span class="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded-full text-xs">⏳ Pendente</span>';
+            return `<tr class="border-b border-gray-100 hover:bg-gray-50 text-sm">
+                <td class="px-3 py-2">${date}</td>
+                <td class="px-3 py-2 font-medium text-blue-700">R$ ${(p.amount || 0).toFixed(2)}</td>
+                <td class="px-3 py-2 font-mono text-xs">${p.pixKey || '—'}</td>
+                <td class="px-3 py-2">${p.pixAccountName || '—'}</td>
+                <td class="px-3 py-2">${badge}</td>
+                <td class="px-3 py-2 text-gray-500">${proc}</td>
+            </tr>`;
+        }).join('');
+    } catch (err) {
+        if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-red-500 text-sm">Erro ao carregar: ${err.message}</td></tr>`;
+    }
+}
+
+// Excluir afiliado
+async function deleteAffiliate(affiliateId, affiliateName) {
+    if (!confirm(`⚠️ Deseja excluir o afiliado "${affiliateName}"?\n\nIsso vai remover o registro do afiliado. As vendas e comissões registradas não serão apagadas.\n\nEssa ação não pode ser desfeita.`)) return;
+    try {
+        const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        await deleteDoc(doc(window.firebaseDb, 'affiliates', affiliateId));
+        affiliatesData = affiliatesData.filter(a => a.id !== affiliateId);
+        renderAffiliatesTable();
+        showToast('success', `Afiliado "${affiliateName}" excluído com sucesso.`, 'Concluído');
+    } catch (err) {
+        console.error('Erro ao excluir afiliado:', err);
+        showToast('error', 'Erro ao excluir: ' + (err.message || err), 'Erro');
+    }
+}
+window.deleteAffiliate = deleteAffiliate;
 
 // Aprovar comissão de afiliado
 async function approveAffiliateCommission(saleId) {
