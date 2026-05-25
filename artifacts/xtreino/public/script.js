@@ -4940,6 +4940,10 @@ function openScheduleModal(eventType) {
             grid.classList.add('grid-cols-1');
         }
 
+        // Ocultar seção "Detalhes do Evento" (Data/Horário) — desnecessária para produtos
+        const schedEventDetailsSection = document.getElementById('schedEventDetailsSection');
+        if (schedEventDetailsSection) schedEventDetailsSection.style.display = 'none';
+
         // Para produtos: reaproveitar o resumo como "Resumo do Pedido" (não esconder)
         const reservationsSummarySection = document.getElementById('reservationsSummarySection');
         if (reservationsSummarySection) {
@@ -4986,6 +4990,10 @@ function openScheduleModal(eventType) {
     const _mSub   = document.querySelector('#scheduleModal .schedule-modal-sub');
     if (_mTitle) _mTitle.textContent = 'Reservar Horário';
     if (_mSub)   _mSub.textContent   = 'Escolha a data e horário para seu evento';
+
+    // Restaurar seção "Detalhes do Evento" (visível para eventos, oculta para produtos)
+    const _schedDetails = document.getElementById('schedEventDetailsSection');
+    if (_schedDetails) _schedDetails.style.display = '';
 
     // Para eventos, mostrar seleção de data/hora
     const leftColumn = document.querySelector('#scheduleModal .lg\\:grid-cols-2 > div:first-child');
