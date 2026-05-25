@@ -799,13 +799,14 @@ window.showWarningToast = function(message, title = 'Atenção') {
         return dateB - dateA;
       });
       
-      // Atualizar contador
-      document.getElementById('tokensCount').textContent = `${tokensData.length} compras`;
-      document.getElementById('totalTokensPurchased').textContent = tokensData.length;
-      // 
-      
-      // Mostrar primeira página
-      mostrarTokensPagina(1);
+      // Elementos legados podem não existir mais — usar null guard
+      const _tcEl = document.getElementById('tokensCount');
+      const _tpEl = document.getElementById('totalTokensPurchased');
+      if (_tcEl) _tcEl.textContent = `${tokensData.length} compras`;
+      if (_tpEl) _tpEl.textContent = tokensData.length;
+
+      // Mostrar primeira página apenas se tabela existir
+      if (document.getElementById('tokensTbody')) mostrarTokensPagina(1);
       
     } catch (error) {
       console.error('Erro ao carregar dados de tokens:', error);
@@ -815,6 +816,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
   // Função para mostrar tokens da página específica
   function mostrarTokensPagina(pagina) {
     const tbody = document.getElementById('tokensTbody');
+    if (!tbody) return;
     const startIndex = (pagina - 1) * tokensPerPage;
     const endIndex = startIndex + tokensPerPage;
     const tokensPagina = tokensData.slice(startIndex, endIndex);
@@ -882,11 +884,10 @@ window.showWarningToast = function(message, title = 'Atenção') {
         return dateB - dateA;
       });
       
-      // Atualizar contador
-      document.getElementById('totalTokensUsed').textContent = tokenUsageData.length;
-      
-      // Mostrar primeira página
-      mostrarUsoTokensPagina(1);
+      const _tuEl = document.getElementById('totalTokensUsed');
+      if (_tuEl) _tuEl.textContent = tokenUsageData.length;
+
+      if (document.getElementById('tokenUsageTbody')) mostrarUsoTokensPagina(1);
       
     } catch (error) {
       console.error('Erro ao carregar dados de uso de tokens:', error);
@@ -896,6 +897,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
   // Função para mostrar uso de tokens da página específica
   function mostrarUsoTokensPagina(pagina) {
     const tbody = document.getElementById('tokenUsageTbody');
+    if (!tbody) return;
     const startIndex = (pagina - 1) * tokenUsagePerPage;
     const endIndex = startIndex + tokenUsagePerPage;
     const tokenUsagePagina = tokenUsageData.slice(startIndex, endIndex);
@@ -1222,8 +1224,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
       if (canViewAll) {
         // CEO/Gerente/Sócio: pode carregar datasets completos
         await carregarUsuarios();
-        await carregarDadosTokens();
-        await carregarDadosUsoTokens();
+        await loadTokensData();
         await carregarPedidosConfirmados();
       }
     } catch(e){
@@ -1475,181 +1476,187 @@ window.showWarningToast = function(message, title = 'Atenção') {
   }
 
   // Funções para gerenciar tokens
+  // Feed global de tokens reutilizado pelo modal (evita re-fetch ao trocar filtro)
+  let _tokensFullFeed = null;
+
   async function loadTokensData() {
-    
     try {
-      await loadTokenPurchases();
-      await loadTokenUsage();
-      await updateTokenStats();
-    } catch (error) {
-      console.error('❌ Error loading tokens data:', error);
-    }
-  }
+      const { collection: col, getDocs: gd } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+      const feed = []; // { tipo: 'purchase'|'manual'|'usage', ts, qty, user, desc }
 
-  async function loadTokenPurchases() {
-    
-    try {
-      const ordersSnap = await getDocs(collection(window.firebaseDb, 'orders'));
-      const orders = [];
-      
-      ordersSnap.forEach(doc => {
-        const data = doc.data();
-        if (data.item && (data.item.includes('Token') || data.item.includes('token'))) {
-          orders.push({
-            id: doc.id,
-            ...data
-          });
-        }
-      });
-
-      
-      
-      // Ordenar por data mais recente
-      orders.sort((a, b) => {
-        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.timestamp || 0);
-        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.timestamp || 0);
-        return dateB - dateA;
-      });
-
-      // Mostrar apenas os últimos 10
-      const recentOrders = orders.slice(0, 10);
-      
-      const tbody = document.getElementById('tokensTbody');
-      if (tbody) {
-        tbody.innerHTML = '';
-        
-        recentOrders.forEach(order => {
-          const date = order.createdAt?.toDate ? order.createdAt.toDate() : new Date(order.timestamp || 0);
-          const formattedDate = date.toLocaleDateString('pt-BR');
-          
-          const row = document.createElement('tr');
-          row.innerHTML = `
-            <td class="px-4 py-2">${order.customer || order.customerEmail || '-'}</td>
-            <td class="px-4 py-2">${order.item || '-'}</td>
-            <td class="px-4 py-2">${extractTokenQuantity(order.item)}</td>
-            <td class="px-4 py-2">${brl(order.amount || order.total || 0)}</td>
-            <td class="px-4 py-2">${formattedDate}</td>
-          `;
-          tbody.appendChild(row);
+      // 1) Tokens comprados (orders com "token" no item/description, status paid)
+      let totalComprados = 0;
+      try {
+        const ordSnap = await gd(col(window.firebaseDb, 'orders'));
+        ordSnap.forEach(d => {
+          const o = d.data();
+          const txt = (o.description || o.item || '').toLowerCase();
+          if (!txt.includes('token') && !txt.includes('xtreino')) return;
+          const status = (o.status || '').toLowerCase();
+          const isPaid = status === 'paid' || status === 'approved' || status === 'confirmed';
+          if (!isPaid) return;
+          const m = (o.description || o.item || '').match(/(\d+)\s*token/i);
+          const qty = m ? parseInt(m[1]) : 1;
+          totalComprados += qty;
+          const ts = o.createdAt?.toDate ? o.createdAt.toDate() : new Date(o.timestamp || 0);
+          feed.push({ tipo: 'purchase', ts, qty, user: o.customer || o.buyerEmail || o.customerEmail || '-', desc: o.item || o.description || 'Tokens' });
         });
-      }
-    } catch (error) {
-      console.error('❌ Error loading token purchases:', error);
-    }
-  }
-  async function loadTokenUsage() {
-    
-    try {
-      const regsSnap = await getDocs(collection(window.firebaseDb, 'registrations'));
-      const usages = [];
-      
-      regsSnap.forEach(doc => {
-        const data = doc.data();
-        if (data.paidWithTokens === true) {
-          usages.push({
-            id: doc.id,
-            ...data
-          });
-        }
-      });
+      } catch(_) {}
 
-      
-      
-      // Ordenar por data mais recente
-      usages.sort((a, b) => {
-        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.timestamp || 0);
-        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.timestamp || 0);
-        return dateB - dateA;
-      });
-
-      // Mostrar apenas os últimos 10
-      const recentUsages = usages.slice(0, 10);
-      
-      const tbody = document.getElementById('tokenUsageTbody');
-      if (tbody) {
-        tbody.innerHTML = '';
-        
-        // Helper para nome amigável do evento
-        const getEventLabel = (et)=>{
-          const m = String(et||'').toLowerCase();
-          if (m.includes('xtreino')) return 'XTreino Tokens';
-          if (m.includes('modo-liga') || m.includes('liga')) return 'Modo Liga';
-          if (m.includes('camp')) return 'Camp Freitas';
-          if (m.includes('semanal')) return 'Semanal Freitas';
-          return et || 'Evento';
-        };
-        
-        recentUsages.forEach(usage => {
-          const date = usage.createdAt?.toDate ? usage.createdAt.toDate() : new Date(usage.timestamp || 0);
-          const formattedDate = date.toLocaleDateString('pt-BR') + ' ' + date.toLocaleTimeString('pt-BR');
-          
-          // Event label (prioriza título salvo)
-          const title = usage.title || usage.item || getEventLabel(usage.eventType) || '-';
-          // Extrair horário de schedule (ex.: "Segunda - 19h") ou de 'hour'
-          const schedStr = String(usage.schedule || usage.hour || '');
-          const hourMatch = schedStr.match(/(\d{1,2})\s*h/);
-          const hourOnly = hourMatch ? `${hourMatch[1]}h` : (schedStr || '-');
-          // Nome do time
-          const teamName = usage.teamName || usage.name || usage.team || '-';
-          const eventDisplay = `${title} • ${hourOnly} • ${teamName}`;
-          
-          const row = document.createElement('tr');
-          row.innerHTML = `
-            <td class="px-4 py-2">${usage.email || '-'}</td>
-            <td class="px-4 py-2">${eventDisplay}</td>
-            <td class="px-4 py-2">${getTokenCountForEvent(usage.eventType)}</td>
-            <td class="px-4 py-2">${formattedDate}</td>
-          `;
-          tbody.appendChild(row);
+      // 2) Tokens adicionados manualmente pelo admin (adminHistory action=add_tokens)
+      let totalManual = 0;
+      try {
+        const histSnap = await gd(col(window.firebaseDb, 'adminHistory'));
+        histSnap.forEach(d => {
+          const h = d.data();
+          if ((h.action || '') !== 'add_tokens') return;
+          const m = String(h.details || '').match(/Adicionou\s+(\d+)\s+tokens?\s+para\s+(.+)/i);
+          if (!m) return;
+          const qty = parseInt(m[1]);
+          const user = m[2] || '-';
+          totalManual += qty;
+          const ts = h.timestamp?.toDate ? h.timestamp.toDate() : new Date(h.createdAt || h.ts || 0);
+          feed.push({ tipo: 'manual', ts, qty, user, desc: `Adição manual por ${h.adminName || 'admin'}` });
         });
+      } catch(_) {}
+
+      // 3) Tokens usados em eventos (registrations com paidWithTokens=true)
+      let totalUsados = 0;
+      try {
+        const regSnap = await gd(col(window.firebaseDb, 'registrations'));
+        regSnap.forEach(d => {
+          const r = d.data();
+          if (!r.paidWithTokens) return;
+          const evt = (r.eventType || '').toLowerCase();
+          let qty = 1;
+          if (evt.includes('modo-liga') || evt.includes('modo liga')) qty = 3;
+          else if (evt.includes('semanal')) qty = 3;
+          else if (evt.includes('camp')) qty = 5;
+          totalUsados += qty;
+          const ts = r.createdAt?.toDate ? r.createdAt.toDate() : new Date(r.timestamp || 0);
+          feed.push({ tipo: 'usage', ts, qty: -qty, user: r.email || '-', desc: resolveEventName(r.eventType, r.title || 'Evento') });
+        });
+      } catch(_) {}
+
+      // Ordenar feed por data desc
+      feed.sort((a, b) => b.ts - a.ts);
+      _tokensFullFeed = { feed, totalComprados, totalManual, totalUsados };
+
+      // Atualizar cards do painel
+      const saldo = totalComprados + totalManual - totalUsados;
+      const el = id => document.getElementById(id);
+      if (el('statsTokensPurchased')) el('statsTokensPurchased').textContent = totalComprados;
+      if (el('statsTokensManual'))    el('statsTokensManual').textContent    = totalManual;
+      if (el('statsTokensUsed'))      el('statsTokensUsed').textContent      = totalUsados;
+      if (el('statsTokensBalance'))   el('statsTokensBalance').textContent   = `${saldo} tokens`;
+
+      // Atividade recente no card (últimas 6 entradas)
+      const actEl = el('tokensRecentActivity');
+      if (actEl) {
+        const recent = feed.slice(0, 6);
+        if (recent.length === 0) {
+          actEl.innerHTML = '<div class="text-gray-400 text-center py-3 italic">Sem atividade registrada.</div>';
+        } else {
+          actEl.innerHTML = recent.map(e => {
+            const icoMap = { purchase: '🛒', manual: '✋', usage: '⚡' };
+            const clrMap = { purchase: 'text-green-700', manual: 'text-blue-600', usage: 'text-orange-600' };
+            const sign   = e.tipo === 'usage' ? '' : '+';
+            const qty    = e.tipo === 'usage' ? Math.abs(e.qty) : e.qty;
+            return `
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span>${icoMap[e.tipo]}</span>
+                  <span class="truncate text-gray-600">${e.user}</span>
+                </div>
+                <span class="font-bold shrink-0 ${clrMap[e.tipo]}">${sign}${qty}t</span>
+              </div>`;
+          }).join('');
+        }
       }
-    } catch (error) {
-      console.error('❌ Error loading token usage:', error);
+
+    } catch(err) {
+      console.error('Erro ao carregar tokens:', err);
     }
   }
 
-  async function updateTokenStats() {
-    
-    try {
-      const TOKENS_PER_USE = 5; // cada uso/slot equivale a 5 tokens
-      // Calcular tokens comprados
-      const ordersSnap = await getDocs(collection(window.firebaseDb, 'orders'));
-      let totalTokensPurchased = 0;
-      
-      ordersSnap.forEach(doc => {
-        const data = doc.data();
-        if (data.item && (data.item.includes('Token') || data.item.includes('token'))) {
-          totalTokensPurchased += extractTokenQuantity(data.item);
-        }
-      });
+  // Abre o modal de histórico completo de tokens
+  async function openTokensModal() {
+    const modal   = document.getElementById('tokensFullModal');
+    const listEl  = document.getElementById('tokensFullList');
+    if (!modal || !window.firebaseDb) return;
 
-      // Calcular tokens usados
-      const regsSnap = await getDocs(collection(window.firebaseDb, 'registrations'));
-      let totalTokensUsed = 0;
-      
-      regsSnap.forEach(doc => {
-        const data = doc.data();
-        if (data.paidWithTokens === true) {
-          totalTokensUsed += getTokenCountForEvent(data.eventType);
-        }
-      });
+    modal.classList.remove('hidden');
+    if (listEl) listEl.innerHTML = '<div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin text-xl mb-2 block"></i>Carregando...</div>';
 
-      
+    // Sempre refaz o fetch ao abrir (dados frescos)
+    _tokensFullFeed = null;
+    await loadTokensData();
 
-      // Atualizar UI
-      const purchasedEl = document.getElementById('totalTokensPurchased');
-      const usedEl = document.getElementById('totalTokensUsed');
-      
-      // Exibir em "equivalente de usos" (tokens ÷ 5) com 1 casa decimal
-      const purchasedEq = (totalTokensPurchased / TOKENS_PER_USE);
-      const usedEq = (totalTokensUsed / TOKENS_PER_USE);
-      
-      if (purchasedEl) purchasedEl.textContent = Number.isFinite(purchasedEq) ? purchasedEq.toFixed(1) : '0.0';
-      if (usedEl) usedEl.textContent = Number.isFinite(usedEq) ? usedEq.toFixed(1) : '0.0';
-    } catch (error) {
-      console.error('❌ Error updating token stats:', error);
+    if (!_tokensFullFeed) {
+      if (listEl) listEl.innerHTML = '<div class="text-center py-8 text-red-400">Erro ao carregar dados.</div>';
+      return;
     }
+
+    const { totalComprados, totalManual, totalUsados } = _tokensFullFeed;
+    const saldo = totalComprados + totalManual - totalUsados;
+    const el = id => document.getElementById(id);
+    if (el('modalTokensPurchased')) el('modalTokensPurchased').textContent = totalComprados;
+    if (el('modalTokensManual'))    el('modalTokensManual').textContent    = totalManual;
+    if (el('modalTokensUsed'))      el('modalTokensUsed').textContent      = totalUsados;
+    if (el('modalTokensBalance'))   el('modalTokensBalance').textContent   = saldo;
+
+    filterTokensFeed('all');
   }
+  window.openTokensModal = openTokensModal;
+
+  // Filtra e renderiza o feed no modal
+  function filterTokensFeed(filter) {
+    const listEl = document.getElementById('tokensFullList');
+    if (!listEl || !_tokensFullFeed) return;
+
+    // Atualizar tabs
+    document.querySelectorAll('.tokens-tab').forEach(btn => {
+      const active = btn.dataset.filter === filter;
+      btn.classList.toggle('text-blue-600',  active);
+      btn.classList.toggle('border-blue-500', active);
+      btn.classList.toggle('border-b-2',      active);
+      btn.classList.toggle('text-gray-500',  !active);
+      btn.classList.toggle('border-transparent', !active);
+    });
+
+    const { feed } = _tokensFullFeed;
+    const items = filter === 'all' ? feed : feed.filter(e => e.tipo === filter);
+
+    if (items.length === 0) {
+      listEl.innerHTML = '<div class="text-center py-10 text-gray-400"><i class="fas fa-inbox text-3xl mb-3 block opacity-40"></i>Sem registros para este filtro.</div>';
+      return;
+    }
+
+    const tipoConfig = {
+      purchase: { icon: '🛒', label: 'Compra',  bg: 'bg-green-100',  txt: 'text-green-700',  sign: '+' },
+      manual:   { icon: '✋', label: 'Manual',  bg: 'bg-blue-100',   txt: 'text-blue-700',   sign: '+' },
+      usage:    { icon: '⚡', label: 'Uso',     bg: 'bg-orange-100', txt: 'text-orange-700', sign: '-' },
+    };
+
+    listEl.innerHTML = items.map(e => {
+      const c   = tipoConfig[e.tipo];
+      const qty = Math.abs(e.qty);
+      const dt  = e.ts.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+      return `
+        <div class="flex items-center gap-3 py-2.5 px-3 rounded-xl ${c.bg} bg-opacity-50 hover:bg-opacity-80 transition-colors">
+          <div class="w-9 h-9 ${c.bg} rounded-lg flex items-center justify-center text-lg shrink-0">${c.icon}</div>
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-gray-800 text-xs truncate">${e.user}</div>
+            <div class="text-xs text-gray-500 truncate">${e.desc}</div>
+          </div>
+          <div class="text-right shrink-0">
+            <div class="font-bold ${c.txt}">${c.sign}${qty}t</div>
+            <div class="text-xs text-gray-400">${dt}</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+  window.filterTokensFeed = filterTokensFeed;
 
   function extractTokenQuantity(item) {
     const match = item.match(/(\d+)\s*Token/i);
@@ -1664,20 +1671,19 @@ window.showWarningToast = function(message, title = 'Atenção') {
   function brl(n){ try {return n.toLocaleString('pt-BR', {style:'currency',currency:'BRL'})} catch(_) {return `R$ ${Number(n||0).toFixed(2)}`;} }
 
   async function loadKpis(){
-    const kpiTodayEl     = document.getElementById('kpiToday');
-    const kpiTokensTodEl = document.getElementById('kpiTokensToday');
-    const kpiMonthEl     = document.getElementById('kpiMonth');
-    const kpiRecEl       = document.getElementById('kpiReceivable');
-    const kpiActiveEl    = document.getElementById('kpiActiveUsers');
+    const kpiTodayEl  = document.getElementById('kpiToday');
+    const kpiMonthEl  = document.getElementById('kpiMonth');
+    const kpiRecEl    = document.getElementById('kpiReceivable');
+    const kpiActiveEl = document.getElementById('kpiActiveUsers');
     if (!kpiTodayEl || !kpiMonthEl || !kpiRecEl) return;
 
     const { collection, query, where, getDocsFromServer } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     const today = new Date(); today.setHours(0,0,0,0);
     const firstMonth = new Date(); firstMonth.setDate(1); firstMonth.setHours(0,0,0,0);
 
-    let sumToday = 0, tokensToday = 0, sumTokensToday = 0, sumMonth = 0, receivable = 0;
+    let sumToday = 0, sumMonth = 0, receivable = 0;
 
-    // ── Orders (produtos, camisas, tokens‑compra — não eventos) ──
+    // ── Orders (produtos, camisas — não eventos, não tokens usados) ──
     try {
       const ordersCol = collection(window.firebaseDb, 'orders');
       const [todayOrd, monthOrd] = await Promise.all([
@@ -1687,16 +1693,15 @@ window.showWarningToast = function(message, title = 'Atenção') {
       todayOrd.forEach(d => {
         const o = d.data();
         if ((o.type || '').toLowerCase() === 'event') return;
+        if (o.paidWithTokens) return;
         const status = (o.status || '').toLowerCase();
         const isPaid = status === 'paid' || status === 'approved' || status === 'confirmed';
-        const val = Number(o.amount || 0);
-        if (o.paidWithTokens) {
-          if (isPaid) { tokensToday++; sumTokensToday += val; }
-        } else if (isPaid) sumToday += val;
+        if (isPaid) sumToday += Number(o.amount || 0);
       });
       monthOrd.forEach(d => {
         const o = d.data();
         if ((o.type || '').toLowerCase() === 'event') return;
+        if (o.paidWithTokens) return;
         const val = Number(o.amount || 0);
         const status = (o.status || '').toLowerCase();
         if (status === 'paid' || status === 'approved' || status === 'confirmed') sumMonth += val;
@@ -1704,7 +1709,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
       });
     } catch(_){}
 
-    // ── Registrations (eventos via MP e via tokens) ──
+    // ── Registrations (apenas MP/PIX — excluir paidWithTokens) ──
     try {
       const regsCol = collection(window.firebaseDb, 'registrations');
       const [todayRegs, monthRegs] = await Promise.all([
@@ -1713,15 +1718,14 @@ window.showWarningToast = function(message, title = 'Atenção') {
       ]);
       todayRegs.forEach(d => {
         const r = d.data();
+        if (r.paidWithTokens) return;
         const status = (r.status || '').toLowerCase();
         const isPaid = status === 'paid' || status === 'approved' || status === 'confirmed';
-        const val = Number(r.price || 0);
-        if (r.paidWithTokens) {
-          if (isPaid) { tokensToday++; sumTokensToday += val; }
-        } else if (isPaid) sumToday += val;
+        if (isPaid) sumToday += Number(r.price || 0);
       });
       monthRegs.forEach(d => {
         const r = d.data();
+        if (r.paidWithTokens) return;
         const val = Number(r.price || 0);
         const status = (r.status || '').toLowerCase();
         if (status === 'paid' || status === 'approved' || status === 'confirmed') sumMonth += val;
@@ -1730,9 +1734,6 @@ window.showWarningToast = function(message, title = 'Atenção') {
     } catch(_){}
 
     kpiTodayEl.textContent = brl(sumToday);
-    if (kpiTokensTodEl) kpiTokensTodEl.textContent = brl(sumTokensToday);
-    const kpiTokensCountEl = document.getElementById('kpiTokensTodayCount');
-    if (kpiTokensCountEl) kpiTokensCountEl.textContent = `${tokensToday} uso${tokensToday !== 1 ? 's' : ''}`;
     kpiMonthEl.textContent = brl(sumMonth);
     kpiRecEl.textContent = brl(receivable);
 
@@ -2336,232 +2337,6 @@ window.showWarningToast = function(message, title = 'Atenção') {
     
     if (count) count.textContent = `${recentItems.length} pedidos`;
   }
-  // Nova função para carregar dados de tokens
-  async function loadTokensData(){
-    try {
-      
-      
-      // Debug: mostrar todos os orders
-      const ordersSnap = await getDocs(collection(window.firebaseDb,'orders'));
-      
-      ordersSnap.forEach(d => {
-        const o = d.data();
-        console.log('Order:', {
-          id: d.id,
-          description: o.description,
-          item: o.item,
-          status: o.status,
-          customer: o.customer || o.buyerEmail
-        });
-      });
-      
-      // Debug: mostrar todas as registrations
-      const regsSnap = await getDocs(collection(window.firebaseDb,'registrations'));
-      
-      regsSnap.forEach(d => {
-        const r = d.data();
-        console.log('Registration:', {
-          id: d.id,
-          email: r.email,
-          eventType: r.eventType,
-          paidWithTokens: r.paidWithTokens,
-          status: r.status
-        });
-      });
-      
-      // Carregar compras de tokens
-      await loadTokenPurchases();
-      // Carregar uso de tokens
-      await loadTokenUsage();
-      // Atualizar estatísticas gerais
-      await updateTokenStats();
-    } catch(e) { 
-      console.error('Erro ao carregar dados de tokens:', e); 
-    }
-  }
-
-  // Carregar compras de tokens
-  async function loadTokenPurchases(){
-    const tbody = document.getElementById('tokensTbody');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-    
-    try {
-      const snap = await getDocs(collection(window.firebaseDb,'orders'));
-      const tokenPurchases = [];
-      
-      snap.forEach(d => {
-        const o = d.data();
-        const description = o.description || o.item || '';
-        
-        // Verifica se é uma compra de tokens (mais flexível)
-        if (description.toLowerCase().includes('token') || 
-            description.toLowerCase().includes('xtreino') ||
-            (o.item && o.item.toLowerCase().includes('token'))) {
-          const ts = new Date(o.createdAt || o.timestamp || 0);
-          if (period.from && ts < period.from) return;
-          if (period.to && ts > period.to) return;
-          
-          // Extrai quantidade de tokens da descrição (mais flexível)
-          const tokenMatch = description.match(/(\d+)\s*token/i) || 
-                           description.match(/token[:\s]*(\d+)/i) ||
-                           description.match(/(\d+)\s*xtreino/i);
-          const tokenCount = tokenMatch ? parseInt(tokenMatch[1]) : 1;
-          
-          console.log('Token purchase found:', {
-            description,
-            tokenCount,
-            client: o.customer || o.buyerEmail,
-            status: o.status
-          });
-          
-          tokenPurchases.push({
-            ts,
-            client: o.customer || o.buyerEmail || '',
-            package: description,
-            tokens: tokenCount,
-            value: Number(o.amount || o.total || 0),
-            id: d.id
-          });
-        }
-      });
-      
-      // Ordenar por data desc e mostrar últimos 10
-      tokenPurchases.sort((a,b) => b.ts - a.ts);
-      const recentPurchases = tokenPurchases.slice(0, 10);
-      
-      recentPurchases.forEach(row => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td class="py-2">${row.client}</td>
-          <td class="py-2">${row.package}</td>
-          <td class="py-2 font-semibold text-green-600">${row.tokens}</td>
-          <td class="py-2 font-semibold">${brl(row.value)}</td>
-          <td class="py-2 text-gray-500">${row.ts.toLocaleDateString('pt-BR')}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-      
-    } catch(e) { 
-      console.error('Erro ao carregar compras de tokens:', e); 
-    }
-  }
-
-  // Carregar uso de tokens
-  async function loadTokenUsage(){
-    const tbody = document.getElementById('tokenUsageTbody');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-    
-    try {
-      const snap = await getDocs(collection(window.firebaseDb,'registrations'));
-      const tokenUsage = [];
-      
-      snap.forEach(d => {
-        const r = d.data();
-        
-        // Verifica se foi pago com tokens
-        if (r.paidWithTokens === true) {
-          console.log('Token usage found:', {
-            client: r.email,
-            event: r.title || r.eventType,
-            paidWithTokens: r.paidWithTokens,
-            status: r.status
-          });
-          const ts = (r.createdAt?.toDate ? r.createdAt.toDate() : (r.timestamp ? new Date(r.timestamp) : new Date()));
-          if (period.from && ts < period.from) return;
-          if (period.to && ts > period.to) return;
-          
-          // Determina quantidade de tokens baseado no tipo de evento
-          let tokenCount = 1; // padrão
-          const eventType = (r.eventType || '').toLowerCase();
-          if (eventType.includes('modo liga')) tokenCount = 3;
-          else if (eventType.includes('semanal')) tokenCount = 3.5;
-          else if (eventType.includes('final semanal')) tokenCount = 7;
-          else if (eventType.includes('camp')) tokenCount = 5;
-          
-          tokenUsage.push({
-            ts,
-            client: r.email || '',
-            event: resolveEventName(r.eventType, r.title || 'Evento'),
-            tokens: tokenCount,
-            schedule: r.schedule || '',
-            id: d.id
-          });
-        }
-      });
-      
-      // Ordenar por data desc e mostrar últimos 10
-      tokenUsage.sort((a,b) => b.ts - a.ts);
-      const recentUsage = tokenUsage.slice(0, 10);
-      
-      recentUsage.forEach(row => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td class="py-2">${row.client}</td>
-          <td class="py-2">${row.event}</td>
-          <td class="py-2 font-semibold text-blue-600">${row.tokens}</td>
-          <td class="py-2 text-gray-500">${row.ts.toLocaleDateString('pt-BR')} ${row.schedule}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-      
-    } catch(e) { 
-      console.error('Erro ao carregar uso de tokens:', e); 
-    }
-  }
-
-  // Atualizar estatísticas gerais de tokens
-  async function updateTokenStats(){
-    try {
-      let totalPurchased = 0;
-      let totalUsed = 0;
-      
-      // Contar tokens comprados
-      const ordersSnap = await getDocs(collection(window.firebaseDb,'orders'));
-      ordersSnap.forEach(d => {
-        const o = d.data();
-        const description = o.description || o.item || '';
-        
-        if ((description.toLowerCase().includes('token') || 
-             description.toLowerCase().includes('xtreino') ||
-             (o.item && o.item.toLowerCase().includes('token'))) && 
-            o.status === 'paid') {
-          const tokenMatch = description.match(/(\d+)\s*token/i);
-          const tokenCount = tokenMatch ? parseInt(tokenMatch[1]) : 1;
-          totalPurchased += tokenCount;
-        }
-      });
-      
-      // Contar tokens usados
-      const regsSnap = await getDocs(collection(window.firebaseDb,'registrations'));
-      regsSnap.forEach(d => {
-        const r = d.data();
-        
-        if (r.paidWithTokens === true) {
-          const eventType = (r.eventType || '').toLowerCase();
-          let tokenCount = 1;
-          if (eventType.includes('modo liga')) tokenCount = 3;
-          else if (eventType.includes('semanal')) tokenCount = 3.5;
-          else if (eventType.includes('final semanal')) tokenCount = 7;
-          else if (eventType.includes('camp')) tokenCount = 5;
-          
-          totalUsed += tokenCount;
-        }
-      });
-      
-      // Atualizar elementos
-      const purchasedEl = document.getElementById('totalTokensPurchased');
-      const usedEl = document.getElementById('totalTokensUsed');
-      
-      if (purchasedEl) purchasedEl.textContent = totalPurchased;
-      if (usedEl) usedEl.textContent = totalUsed;
-      
-    } catch(e) { 
-      console.error('Erro ao atualizar estatísticas de tokens:', e); 
-    }
-  }
-
   // Pendências (orders.status === 'pending' OU registrations.status === 'pending')
   async function loadPending(isManager){
     const tbody = document.getElementById('pendingTbody');
