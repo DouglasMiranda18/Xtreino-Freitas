@@ -20,6 +20,18 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="admin-styles.css">
+    <style>
+      /* Seções ocultas por padrão — controlSectionVisibility exibe conforme o cargo.
+         Evita qualquer flash de conteúdo não autorizado antes do JS aplicar permissões. */
+      #sectionKPIs, #sectionFilters, #sectionCharts, #sectionUsers,
+      #sectionOrders, #sectionTokenStats, #sectionUsersManagement,
+      #sectionTokens, #sectionCoupons, #sectionCouponUsage,
+      #sectionAffiliates, #sectionAffiliateSales, #sectionAffiliatePayouts,
+      #sectionPasseBooyah, #sectionHighlights, #sectionNews, #sectionProducts,
+      #sectionEvents, #sectionShirtOrders, #sectionSchedules,
+      #sectionWhatsAppLinks, #sectionNotificationsAdmin, #sectionAdminHistory,
+      #sectionResetData { display: none; }
+    </style>
 </head>
 <body class="bg-white text-black">
     <header class="w-full border-b border-gray-200 bg-gradient-to-r from-blue-50 to-white sticky top-0 z-40 shadow-sm">

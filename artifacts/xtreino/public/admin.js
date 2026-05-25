@@ -389,10 +389,12 @@ window.showWarningToast = function(message, title = 'Atenção') {
     const allowed = ROLE_SECTIONS[resolvedRole] || [];
 
     // Mostrar seções permitidas
+    // Usar display='' (remove override inline) para que Tailwind/CSS natural seja respeitado
+    // Seções grid ficam como grid, seções block ficam como block
     allowed.forEach(id => {
       const el = document.getElementById(id);
       if (el) {
-        el.style.display = 'block';
+        el.style.display = '';
         el.classList.remove('hidden');
         // Carregar eventos se necessário
         if (id === 'sectionEvents' && typeof loadEventsPreview === 'function') {
