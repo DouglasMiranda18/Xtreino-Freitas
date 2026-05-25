@@ -199,10 +199,25 @@ function initFirebase() {
     return _db;
 }
 
-// Suporte a ambos: ?id=X (Netlify) e #X (local/hash)
+// Mapa de slugs de URL → eventType interno (URLs limpas como /treinofreitas)
+const URL_SLUG_MAP = {
+    '/treinofreitas': 'xtreino-tokens',
+    '/modoliga':      'modo-liga',
+    '/semanal':       'semanal-freitas',
+    '/campeonato':    'camp-freitas',
+};
+
+// Suporte a: /treinofreitas (clean URL), ?event=type, ?id=docId, #docId
 const _searchParams = new URLSearchParams(location.search);
-// Strip any ?mp_status=... suffix that MP pode adicionar após o hash
+// Strip any ?mp_status=... suffix que MP pode adicionar após o hash
 const _rawHash = location.hash.replace('#', '').split('?')[0];
+// URL limpa: Firebase Hosting serve evento.html em /treinofreitas, pathname fica como slug
+const _pathEventType = URL_SLUG_MAP[location.pathname] || null;
+// ?event=eventType (gerado pelos links novos)
+const _queryEventType = _searchParams.get('event') || null;
+// Tipo resolvido — path tem prioridade
+const _resolvedEventType = _pathEventType || _queryEventType || null;
+// ID legado (doc ID ou hash) — mantido para retrocompatibilidade
 const eventId = _searchParams.get('id') || _rawHash || '';
 let _currentEventId = '';
 
@@ -306,7 +321,7 @@ function extractYoutubeId(url) {
 }
 
 async function loadEvent() {
-    if (!eventId) { showError('Nenhum evento selecionado. Volte à página inicial e abra um evento.'); return; }
+    if (!_resolvedEventType && !eventId) { showError('Nenhum evento selecionado. Volte à página inicial e abra um evento.'); return; }
 
     // Timeout de 12s caso Firebase demore muito
     const timeout = setTimeout(() => showError('Tempo esgotado ao carregar o evento. Verifique sua conexão e tente novamente.'), 12000);
@@ -315,15 +330,28 @@ async function loadEvent() {
         const db = initFirebase();
         if (!db) { clearTimeout(timeout); showError('Erro ao conectar ao banco de dados.'); return; }
 
-        const snap = await getDoc(doc(db, 'adminEvents', eventId));
+        let snap;
+        if (_resolvedEventType) {
+            // URL limpa (/treinofreitas) ou ?event= → buscar por campo eventType
+            const qSnap = await getDocs(query(collection(db, 'adminEvents'), where('eventType', '==', _resolvedEventType)));
+            if (!qSnap.empty) {
+                snap = qSnap.docs[0];
+            } else {
+                // Fallback: tentar como doc ID direto (retrocompatibilidade)
+                snap = await getDoc(doc(db, 'adminEvents', _resolvedEventType));
+            }
+        } else {
+            snap = await getDoc(doc(db, 'adminEvents', eventId));
+        }
+
         clearTimeout(timeout);
-        if (!snap.exists()) {
+        if (!snap || !snap.exists()) {
             showError('Evento não encontrado. Verifique o link ou volte para a home.');
             return;
         }
         const ev = snap.data();
-        _currentEventId = eventId;
-        window._currentEventId = eventId;
+        _currentEventId = snap.id;
+        window._currentEventId = snap.id;
         window._evDb = db;
 
         // Banner

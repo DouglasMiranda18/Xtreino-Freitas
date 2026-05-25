@@ -7439,7 +7439,7 @@ function showSlotConfirmationModal(slots, eventName, isLiga, eventId, groupLink)
                         class="w-full bg-[#25D366] hover:bg-[#1ebe5b] text-white py-3 rounded-xl font-bold text-base transition-colors flex items-center justify-center gap-2">
                     <i class="fab fa-whatsapp text-xl"></i> Entrar no Grupo WhatsApp
                 </a>` : ''}
-                ${eventId ? `<button onclick="window.location.href='evento.html#${eventId}'"
+                ${eventId ? `<button onclick="window.location.href='${_eventoUrl(eventId)}'"
                         class="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl font-bold text-base transition-colors">
                     <i class="fas fa-external-link-alt mr-2"></i>VER PÁGINA DO EVENTO
                 </button>` : ''}
@@ -8644,6 +8644,17 @@ window.closeFreeWhatsModal = closeFreeWhatsModal;
 window.processSuccessfulPayment = processSuccessfulPayment;
 window.getActiveAffiliateCode = getActiveAffiliateCode;
 
+// Mapa de eventType → URL limpa do evento
+const EVENT_URL_MAP = {
+    'xtreino-tokens':  '/treinofreitas',
+    'modo-liga':       '/modoliga',
+    'semanal-freitas': '/semanal',
+    'camp-freitas':    '/campeonato',
+};
+function _eventoUrl(eventType, docId) {
+    return EVENT_URL_MAP[eventType] || ('evento.html?event=' + encodeURIComponent(eventType || docId || ''));
+}
+
 // ==================== EVENTOS DINÂMICOS (adminEvents) ====================
 
 async function loadDynamicEvents() {
@@ -8713,7 +8724,7 @@ async function loadDynamicEvents() {
             const btnHtml = `<div class="flex flex-col gap-2">
                 <button onclick="openScheduleModal('${d.id}')" class="w-full btn-primary py-2 rounded-lg font-semibold">${btnLabel}</button>
                 <div class="flex gap-2">
-                    <a href="evento.html#${d.id}" class="flex-1 text-center border border-gray-300 hover:border-orange-400 text-gray-600 hover:text-orange-600 py-2 rounded-lg font-semibold text-sm transition-colors block">
+                    <a href="${_eventoUrl(ev.eventType, d.id)}" class="flex-1 text-center border border-gray-300 hover:border-orange-400 text-gray-600 hover:text-orange-600 py-2 rounded-lg font-semibold text-sm transition-colors block">
                         <i class="fas fa-info-circle mr-1"></i>Ver Detalhes
                     </a>
                     ${hasRegras ? `<button onclick="openEventRulesModal('${d.id}')" class="flex-1 border border-cyan-300 hover:border-cyan-500 text-cyan-700 hover:text-cyan-900 py-2 rounded-lg font-semibold text-sm transition-colors">
