@@ -197,7 +197,7 @@
                     <div id="kpiTokensTodayCount" class="text-xs text-orange-600">0 usos</div>
                 </div>
                 <!-- Vendas Mês -->
-                <div class="bg-gradient-to-br from-blue-50 to-indigo-100 border-l-4 border-blue-500 rounded-xl p-4 shadow-sm hover:shadow-lg transition-all duration-200">
+                <div onclick="openMonthSalesModal()" class="cursor-pointer bg-gradient-to-br from-blue-50 to-indigo-100 border-l-4 border-blue-500 rounded-xl p-4 shadow-sm hover:shadow-lg transition-all duration-200 select-none">
                     <div class="flex items-center justify-between mb-2">
                         <div class="text-xs font-semibold text-blue-700 uppercase tracking-wide">Vendas Mês</div>
                         <div class="w-9 h-9 bg-blue-500 rounded-lg flex items-center justify-center shadow-sm">
@@ -205,7 +205,27 @@
                         </div>
                     </div>
                     <div id="kpiMonth" class="text-xl md:text-2xl font-bold text-blue-800 mb-1">R$ 0,00</div>
-                    <div class="text-xs text-blue-600">mês atual</div>
+                    <div class="text-xs text-blue-600">mês atual · clique para detalhar</div>
+                </div>
+
+                <!-- Modal: Breakdown diário de vendas do mês -->
+                <div id="monthSalesModal" class="hidden fixed inset-0 z-[9999] bg-black/60 flex items-end sm:items-center justify-center p-4" onclick="if(event.target===this)this.classList.add('hidden')">
+                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col">
+                        <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                            <h3 class="font-bold text-gray-800 text-sm">📊 Faturamento Diário — <span id="monthSalesTitle">Mês Atual</span></h3>
+                            <button onclick="document.getElementById('monthSalesModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none w-8 h-8 flex items-center justify-center">&times;</button>
+                        </div>
+                        <div class="px-5 py-3 border-b bg-blue-50 flex items-center justify-between">
+                            <div>
+                                <div class="text-xs text-blue-500 font-semibold uppercase tracking-wide mb-0.5">Total confirmado</div>
+                                <div id="monthSalesTotal" class="text-2xl font-black text-blue-800">R$ 0,00</div>
+                            </div>
+                            <i class="fas fa-calendar-alt text-blue-300 text-3xl"></i>
+                        </div>
+                        <div id="monthSalesList" class="overflow-y-auto flex-1 p-4 space-y-2">
+                            <div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin text-xl mb-2 block"></i>Carregando...</div>
+                        </div>
+                    </div>
                 </div>
                 <!-- A Receber -->
                 <div class="bg-gradient-to-br from-yellow-50 to-amber-100 border-l-4 border-yellow-500 rounded-xl p-4 shadow-sm hover:shadow-lg transition-all duration-200">

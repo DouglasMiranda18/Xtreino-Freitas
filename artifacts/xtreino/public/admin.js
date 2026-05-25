@@ -1250,6 +1250,8 @@ window.showWarningToast = function(message, title = 'Atenção') {
     if (formAddTeam) formAddTeam.onsubmit = submitAddTeam;
     // Bind filtros do histórico de cupons - configurar após DOM estar pronto
     setupCouponUsageFilters();
+    // Inicializa período como "hoje" (sincroniza com botão Hoje ativo por padrão)
+    parsePeriodFromValue('today');
     // Carrega relatórios e pendências para todas as funções
     await loadReports().catch(()=>{});
     if (canViewAll){
@@ -1749,6 +1751,88 @@ window.showWarningToast = function(message, title = 'Atenção') {
     }
   }
 
+  async function openMonthSalesModal() {
+    const modal   = document.getElementById('monthSalesModal');
+    const listEl  = document.getElementById('monthSalesList');
+    const totalEl = document.getElementById('monthSalesTotal');
+    const titleEl = document.getElementById('monthSalesTitle');
+    if (!modal || !window.firebaseDb) return;
+
+    modal.classList.remove('hidden');
+    if (listEl) listEl.innerHTML = '<div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin text-xl mb-2 block"></i>Carregando...</div>';
+
+    try {
+      const now = new Date();
+      const mesNome = now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+      if (titleEl) titleEl.textContent = mesNome.charAt(0).toUpperCase() + mesNome.slice(1);
+
+      const firstMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+      const byDay = {}; // "DD/MM" → total
+
+      // Registrations (eventos pagos no mês)
+      try {
+        const regsSnap = await getDocs(query(collection(window.firebaseDb, 'registrations'), where('createdAt', '>=', firstMonth)));
+        regsSnap.forEach(d => {
+          const r = d.data();
+          const status = (r.status || '').toLowerCase();
+          if (status !== 'paid' && status !== 'approved' && status !== 'confirmed') return;
+          const ts = r.createdAt?.toDate ? r.createdAt.toDate() : new Date(r.timestamp || 0);
+          const dia = ts.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+          byDay[dia] = (byDay[dia] || 0) + Number(r.price || 0);
+        });
+      } catch(_) {}
+
+      // Orders (produtos, tokens — sem duplicar eventos)
+      try {
+        const ordSnap = await getDocs(collection(window.firebaseDb, 'orders'));
+        ordSnap.forEach(d => {
+          const o = d.data();
+          if ((o.type || '').toLowerCase() === 'event') return;
+          const status = (o.status || '').toLowerCase();
+          if (status !== 'paid' && status !== 'approved' && status !== 'confirmed') return;
+          const ts = o.createdAt?.toDate ? o.createdAt.toDate() : new Date(o.timestamp || 0);
+          if (ts < firstMonth) return;
+          const dia = ts.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+          byDay[dia] = (byDay[dia] || 0) + Number(o.amount || o.total || 0);
+        });
+      } catch(_) {}
+
+      // Ordenar por data decrescente
+      const entradas = Object.entries(byDay).sort((a, b) => {
+        const [dA, mA] = a[0].split('/').map(Number);
+        const [dB, mB] = b[0].split('/').map(Number);
+        if (mA !== mB) return mB - mA;
+        return dB - dA;
+      });
+
+      const total = entradas.reduce((s, [, v]) => s + v, 0);
+      if (totalEl) totalEl.textContent = brl(total);
+
+      if (entradas.length === 0) {
+        if (listEl) listEl.innerHTML = '<div class="text-center py-10 text-gray-400"><i class="fas fa-inbox text-3xl mb-3 block opacity-40"></i>Nenhuma venda confirmada este mês.</div>';
+        return;
+      }
+
+      if (listEl) listEl.innerHTML = entradas.map(([dia, val]) => `
+        <div class="flex items-center justify-between py-2.5 px-3 rounded-xl bg-gray-50 hover:bg-blue-50 transition-colors">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <i class="fas fa-calendar-day text-blue-500 text-sm"></i>
+            </div>
+            <span class="font-semibold text-gray-700 text-sm">${dia}</span>
+          </div>
+          <span class="font-bold text-blue-800">${brl(val)}</span>
+        </div>
+      `).join('');
+
+    } catch(err) {
+      if (listEl) listEl.innerHTML = `<div class="text-center py-8 text-red-400">Erro ao carregar: ${err.message || err}</div>`;
+    }
+  }
+  window.openMonthSalesModal = openMonthSalesModal;
+
   async function renderSalesChart(){
     const canvas = document.getElementById('salesChart');
     if (!canvas) return;
@@ -1787,6 +1871,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
     const tkData = labels.map(l=>tkRevMap[l]);
 
     try { if (charts.sales) { charts.sales.destroy(); } } catch(_){}
+    try { const ex = typeof Chart !== 'undefined' && Chart.getChart && Chart.getChart(canvas); if (ex) ex.destroy(); } catch(_){}
 
     const ctx = canvas.getContext('2d');
     const gradBlue = ctx.createLinearGradient(0, 0, 0, canvas.offsetHeight || 280);
@@ -2593,8 +2678,8 @@ window.showWarningToast = function(message, title = 'Atenção') {
   function parsePeriodFromValue(v){
     const now = new Date();
     if (v==='today'){ period.from = new Date(now.getFullYear(), now.getMonth(), now.getDate()); period.to = null; }
-    else if (v==='7d'){ const d=new Date(); d.setDate(d.getDate()-7); period.from = d; period.to = null; }
-    else if (v==='30d'){ const d=new Date(); d.setDate(d.getDate()-30); period.from = d; period.to = null; }
+    else if (v==='7d'){ const d=new Date(now.getFullYear(), now.getMonth(), now.getDate()); d.setDate(d.getDate()-7); period.from = d; period.to = null; }
+    else if (v==='30d'){ const d=new Date(now.getFullYear(), now.getMonth(), now.getDate()); d.setDate(d.getDate()-30); period.from = d; period.to = null; }
     else if (v==='mes'){ period.from = new Date(now.getFullYear(), now.getMonth(), 1); period.to = null; }
     else { period.from = null; period.to = null; }
   }
@@ -4369,7 +4454,7 @@ async function main() {
         dash.classList.remove('hidden');
 
         try { await loadKPIs(); } catch (e) { console.error('KPIs error', e); }
-        try { await loadCharts(); } catch (e) { console.error('Charts error', e); }
+        // loadCharts() desabilitado — renderSalesChart() e renderTopProducts() em loadReports() já cobrem os gráficos
         try { await loadTables(can(role, 'manage_products')); } catch (e) { console.error('Tables error', e); }
         try { await upsertUserProfile(user); } catch {}
         try { await loadUsersAndRoles(role); } catch (e) { console.error('Users error', e); }
