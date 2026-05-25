@@ -1255,6 +1255,10 @@ window.showWarningToast = function(message, title = 'Atenção') {
     parsePeriodFromValue('today');
     // Carrega relatórios e pendências para todas as funções
     await loadReports().catch(()=>{});
+    // Marcar 'principal' como inicializado para evitar que loadPageData
+    // sobrescreva os dados com funções legadas (loadKPIs/loadCharts)
+    window._adminPages = window._adminPages || { initialized: new Set() };
+    window._adminPages.initialized.add('principal');
     if (canViewAll){
       await loadRecentSchedules().catch(()=>{});
       await loadPending(true).catch(()=>{});
@@ -12058,8 +12062,10 @@ window.loadPageData = async function(page) {
     const role = (window.adminRoleLower || '').toLowerCase();
 
     if (page === 'principal') {
-        try { await loadKPIs(); } catch(e) { console.warn('[page:principal] KPIs', e); }
-        try { await loadCharts(); } catch(e) { console.warn('[page:principal] Charts', e); }
+        // loadKPIs() e loadCharts() legados REMOVIDOS — o handler do onAuthStateChanged
+        // em initAdmin já carrega tudo via loadReports() (modern). Chamá-los aqui causava
+        // o efeito "aparece e some": os dados corretos eram sobrescritos pelos legados.
+        try { await loadKpis(); } catch(e) { console.warn('[page:principal] KPIs', e); }
         try { await loadTables(true); } catch(e) { console.warn('[page:principal] Tables', e); }
         try { await loadPendingOrders(); } catch(e) { console.warn('[page:principal] PendingOrders', e); }
         try { await loadEventOptions(); } catch(e) {}
