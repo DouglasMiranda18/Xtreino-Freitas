@@ -498,25 +498,17 @@ async function loadInscritos(evId) {
         const allDocs = [];
         snaps.forEach(snap => snap.docs.forEach(d => { if (!seen.has(d.id)) { seen.add(d.id); allDocs.push(d); } }));
 
-        // Auto-deletar inscrições de dias passados (best-effort; silencia erro se sem permissão)
-        const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-        const pastDocs = allDocs.filter(d => {
-            const dt = d.data().date;
-            return dt && /^\d{4}-\d{2}-\d{2}$/.test(dt) && dt < todayStr;
-        });
-        if (pastDocs.length > 0) {
-            for (const pd of pastDocs) {
-                deleteDoc(doc(_db, 'registrations', pd.id)).catch(() => {});
-            }
-        }
+        // Data atual no fuso de Brasília (UTC-3) — evitar deletar inscrições válidas por diferença de UTC
+        const _brNow = new Date(Date.now() - 3 * 60 * 60 * 1000);
+        const todayStr = _brNow.toISOString().split('T')[0]; // YYYY-MM-DD no horário de Brasília
 
         const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
-        // Mostrar apenas inscrições do dia atual (ou sem data definida)
+        // Mostrar inscrições de hoje e futuras (ou sem data definida)
         const valid = allDocs.filter(d => {
             const r = d.data();
             const dt = r.date;
-            const isToday = !dt || !(/^\d{4}-\d{2}-\d{2}$/.test(dt)) || dt === todayStr;
-            return validStatuses.has(r.status) && isToday;
+            const isCurrentOrFuture = !dt || !(/^\d{4}-\d{2}-\d{2}$/.test(dt)) || dt >= todayStr;
+            return validStatuses.has(r.status) && isCurrentOrFuture;
         });
 
         if (valid.length === 0) {
