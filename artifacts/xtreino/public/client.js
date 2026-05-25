@@ -3616,23 +3616,25 @@ function renderNotifications(notifs, readIds) {
         const isCredentials = n.notifyType === 'credentials';
         const isTabela = n.notifyType === 'tabela';
 
-        // Card de tabela pronta (verde)
+        // Card de tabela pronta (verde) — aparece sempre que houver tabelaLink OU notifyType === 'tabela'
+        const mostrarTabela = isTabela || !!n.tabelaLink;
         let tabelaHtml = '';
-        if (isTabela && n.tabelaLink) {
-            tabelaHtml = `
-                <div style="margin-top:12px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid #86efac;border-radius:16px;padding:16px">
-                    <p style="font-size:10px;font-weight:800;color:#166534;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;display:flex;align-items:center;gap:6px">
-                        <i class="fas fa-table"></i> Tabela de pontuação disponível!
-                    </p>
-                    <p style="font-size:13px;color:#15803d;margin-bottom:12px;line-height:1.5">
-                        ${n.message ? escapeHtml(n.message) : 'Confira a pontuação do seu time clicando no botão abaixo.'}
-                    </p>
-                    <a href="${escapeHtml(n.tabelaLink)}" target="_blank" rel="noopener noreferrer"
+        if (mostrarTabela) {
+            const btnTabela = n.tabelaLink
+                ? `<a href="${escapeHtml(n.tabelaLink)}" target="_blank" rel="noopener noreferrer"
                        style="display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 28px;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;border-radius:50px;font-size:15px;font-weight:800;text-decoration:none;box-shadow:0 4px 14px rgba(22,163,74,0.4);transition:transform 0.15s,box-shadow 0.15s;letter-spacing:0.3px"
                        onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(22,163,74,0.5)'" onmouseout="this.style.transform='';this.style.boxShadow='0 4px 14px rgba(22,163,74,0.4)'">
-                        <i class="fas fa-table"></i>
-                        Ver Tabela
-                    </a>
+                        <i class="fas fa-table"></i> Ver Tabela
+                   </a>`
+                : `<span style="display:inline-flex;align-items:center;gap:6px;padding:10px 20px;background:#d1fae5;color:#166534;border-radius:50px;font-size:13px;font-weight:700">
+                        <i class="fas fa-table"></i> Tabela em breve
+                   </span>`;
+            tabelaHtml = `
+                <div style="margin-top:12px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid #86efac;border-radius:16px;padding:16px">
+                    <p style="font-size:10px;font-weight:800;color:#166534;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+                        <i class="fas fa-table"></i> Tabela de pontuação disponível!
+                    </p>
+                    ${btnTabela}
                 </div>`;
         }
 
@@ -3675,7 +3677,7 @@ function renderNotifications(notifs, readIds) {
             : (isRead ? 'bg-gray-100 text-gray-400' : 'bg-blue-100 text-blue-600');
 
         // Para tabela, a mensagem já vai dentro do card verde — não duplicar
-        const messageHtml = (!isTabela && n.message)
+        const messageHtml = (!mostrarTabela && n.message)
             ? `<p class="text-sm text-gray-600 mt-1 leading-relaxed">${escapeHtml(n.message)}</p>`
             : '';
 
