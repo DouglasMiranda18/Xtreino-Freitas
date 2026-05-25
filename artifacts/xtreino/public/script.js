@@ -6679,7 +6679,8 @@ async function submitSchedule(e, useTokens = false) {
         const date = document.getElementById('schedDate').value;
         const datesToUse = (selectedDates && selectedDates.length > 0) ? [...selectedDates] : [date];
 
-        if (!isFreeEvent && selectedTimes.length === 0) {
+        // Horário obrigatório para TODOS os tipos de evento (incluindo gratuitos)
+        if (selectedTimes.length === 0) {
             alert('Selecione pelo menos um horário.');
             if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
             return;
@@ -7223,6 +7224,12 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
             closeScheduleModal();
             if (typeof openLoginModal === 'function') openLoginModal();
             alert('Faça login para se inscrever.');
+            return;
+        }
+
+        // Segurança: nunca criar inscrição sem horário selecionado
+        if (!selectedTimesArg || selectedTimesArg.length === 0) {
+            alert('Selecione pelo menos um horário antes de confirmar.');
             return;
         }
 
