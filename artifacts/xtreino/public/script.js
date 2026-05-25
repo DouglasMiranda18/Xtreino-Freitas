@@ -7592,7 +7592,29 @@ async function processSuccessfulPayment(externalRef = null) {
         return;
     }
 
-    if (!snap || snap.empty) return;
+    // ── PASSO 1b: Se não há registrations, tentar atualizar pedido de produto ──
+    if (!snap || snap.empty) {
+        try {
+            const ordersRef2 = collection(window.firebaseDb, 'orders');
+            const orderSnap2 = await getDocs(query(ordersRef2, where('external_reference', '==', extRef)));
+            if (!orderSnap2.empty) {
+                const orderDoc = orderSnap2.docs[0];
+                if (orderDoc.data().status !== 'paid') {
+                    await updateDoc(doc(window.firebaseDb, 'orders', orderDoc.id), {
+                        status: 'paid',
+                        paidAt: serverTimestamp()
+                    });
+                }
+                // Notificar cliente sem modal de slots
+                if (typeof showToast === 'function') {
+                    showToast('success', 'Pagamento confirmado! Acesse Minha Conta → Meus Produtos.', 'Pagamento Aprovado');
+                }
+            }
+        } catch (prodErr) {
+            console.warn('[processSuccessfulPayment] Erro ao atualizar pedido de produto:', prodErr?.code || prodErr?.message);
+        }
+        return;
+    }
 
     // ── PASSO 2: Coletar dados para o modal ──
     const assignedSlots = [];
