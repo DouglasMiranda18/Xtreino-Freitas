@@ -299,10 +299,12 @@ window.showWarningToast = function(message, title = 'Atenção') {
   // Security: Show dashboard
   function showDashboard(userRole) {
     authGate.classList.add('hidden');
+    // Aplicar permissões ANTES de exibir o dashboard — evita flash de conteúdo não autorizado
+    window.visibilityApplied = false;
+    controlSectionVisibility((userRole || '').toLowerCase().trim());
     dashboard.classList.remove('hidden');
     setView(userRole);
     startSessionTimer();
-    // NÃO chamar controlSectionVisibility aqui - será chamado no onAuthStateChanged após carregar dados
   }
   
   // Expor showDashboard globalmente imediatamente
@@ -1118,9 +1120,12 @@ window.showWarningToast = function(message, title = 'Atenção') {
       dashboard.classList.add('hidden');
       return;
     }
-    authGate.classList.add('hidden');
-    dashboard.classList.remove('hidden');
     const roleLower = (role||'').toLowerCase().trim();
+    authGate.classList.add('hidden');
+    // Aplicar permissões ANTES de exibir o dashboard — evita flash de conteúdo não autorizado
+    window.visibilityApplied = false;
+    controlSectionVisibility(roleLower);
+    dashboard.classList.remove('hidden');
     
     const isManager = ['ceo','gerente'].includes(roleLower);
     const isCeo = roleLower==='ceo';
@@ -1266,7 +1271,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
       try { renderTokensSectionPager(); } catch(_) {}
       // Garantir que a visibilidade não seja alterada depois
       window.lastAppliedRole = finalRole;
-    }, 1500); // Delay maior para garantir que tudo foi carregado
+    }, 300); // Re-aplicar após DOM estabilizar (dados já foram carregados acima)
   });
 
   // ---- Relatórios ----
@@ -5216,6 +5221,11 @@ window.addEventListener('load', () => {
         const dashboard = document.getElementById('dashboard');
         if (authGate && dashboard) {
           authGate.classList.add('hidden');
+          // Aplicar permissões ANTES de exibir — evita flash de conteúdo não autorizado
+          if (typeof controlSectionVisibility === 'function') {
+            window.visibilityApplied = false;
+            controlSectionVisibility((role||'').toLowerCase().trim());
+          }
           dashboard.classList.remove('hidden');
           setTimeout(() => {
             if (typeof setView === 'function') setView(role);
@@ -5281,6 +5291,11 @@ window.addEventListener('load', () => {
         
         if (authGate && dashboard) {
           authGate.classList.add('hidden');
+          // Aplicar permissões ANTES de exibir — evita flash de conteúdo não autorizado
+          if (typeof controlSectionVisibility === 'function') {
+            window.visibilityApplied = false;
+            controlSectionVisibility(cleanRole);
+          }
           dashboard.classList.remove('hidden');          
           
           if (typeof setView === 'function') {
