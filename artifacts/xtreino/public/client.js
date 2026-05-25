@@ -3628,10 +3628,10 @@ function renderNotifications(notifs, readIds) {
                         ${n.message ? escapeHtml(n.message) : 'Confira a pontuação do seu time clicando no botão abaixo.'}
                     </p>
                     <a href="${escapeHtml(n.tabelaLink)}" target="_blank" rel="noopener noreferrer"
-                       style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;border-radius:12px;font-size:14px;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(22,163,74,0.3);transition:opacity 0.2s"
-                       onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
-                        <i class="fas fa-external-link-alt"></i>
-                        Ver tabela — confira a pontuação do seu time
+                       style="display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 28px;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;border-radius:50px;font-size:15px;font-weight:800;text-decoration:none;box-shadow:0 4px 14px rgba(22,163,74,0.4);transition:transform 0.15s,box-shadow 0.15s;letter-spacing:0.3px"
+                       onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(22,163,74,0.5)'" onmouseout="this.style.transform='';this.style.boxShadow='0 4px 14px rgba(22,163,74,0.4)'">
+                        <i class="fas fa-table"></i>
+                        Ver Tabela
                     </a>
                 </div>`;
         }
