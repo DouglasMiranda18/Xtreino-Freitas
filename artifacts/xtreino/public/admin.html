@@ -20,18 +20,6 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="admin-styles.css">
-    <style>
-      /* Seções ocultas por padrão — controlSectionVisibility exibe conforme o cargo.
-         Evita qualquer flash de conteúdo não autorizado antes do JS aplicar permissões. */
-      #sectionKPIs, #sectionFilters, #sectionCharts, #sectionUsers,
-      #sectionOrders, #sectionTokenStats, #sectionUsersManagement,
-      #sectionTokens, #sectionCoupons, #sectionCouponUsage,
-      #sectionAffiliates, #sectionAffiliateSales, #sectionAffiliatePayouts,
-      #sectionPasseBooyah, #sectionHighlights, #sectionNews, #sectionProducts,
-      #sectionEvents, #sectionShirtOrders, #sectionSchedules,
-      #sectionWhatsAppLinks, #sectionNotificationsAdmin, #sectionAdminHistory,
-      #sectionResetData { display: none; }
-    </style>
 </head>
 <body class="bg-white text-black">
     <header class="w-full border-b border-gray-200 bg-gradient-to-r from-blue-50 to-white sticky top-0 z-40 shadow-sm">
@@ -185,7 +173,7 @@
             <!-- ===== PAGE: PRINCIPAL ===== -->
             <div id="page-principal" class="admin-page">
 
-            <div id="sectionKPIs" class="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+            <div id="sectionKPIs" class="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-8" style="display:none">
                 <!-- Vendas Hoje (MP/PIX) -->
                 <div class="bg-gradient-to-br from-green-50 to-emerald-100 border-l-4 border-green-500 rounded-xl p-4 shadow-sm hover:shadow-lg transition-all duration-200">
                     <div class="flex items-center justify-between mb-2">
@@ -252,7 +240,7 @@
                 </div>
             </div>
 
-            <div id="sectionFilters" class="bg-white border border-gray-200 rounded-xl p-4 md:p-5 mb-6 shadow-sm">
+            <div id="sectionFilters" class="bg-white border border-gray-200 rounded-xl p-4 md:p-5 mb-6 shadow-sm" style="display:none">
                 <!-- Filtros de Período (pills) -->
                 <div class="flex flex-wrap items-center gap-2 mb-3">
                     <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider mr-1">Período</span>
@@ -286,7 +274,7 @@
                 </div>
             </div>
 
-            <div id="sectionCharts" class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <div id="sectionCharts" class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8" style="display:none">
                 <div class="bg-white border border-gray-200 rounded-xl p-5 lg:col-span-2 shadow-sm hover:shadow-md transition-shadow">
                     <div class="flex flex-wrap items-start justify-between mb-4 gap-2">
                         <div>
@@ -302,7 +290,7 @@
                         <canvas id="salesChart" class="w-full h-full"></canvas>
                     </div>
                 </div>
-                <div id="sectionUsers" class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+                <div id="sectionUsers" class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow" style="display:none">
                     <div class="mb-4">
                         <h3 class="font-bold text-sm text-gray-800">🏆 Top Produtos</h3>
                         <p class="text-xs text-gray-400 mt-0.5">Por faturamento no período</p>
@@ -313,7 +301,7 @@
                 </div>
             </div>
 
-            <div id="sectionOrders" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div id="sectionOrders" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8" style="display:none">
                 <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
                     <div class="mb-4">
                         <h3 class="font-bold text-sm text-gray-800">💳 Formas de Pagamento</h3>
@@ -325,7 +313,7 @@
                 </div>
             </div>
 
-            <div id="sectionTokenStats" class="grid lg:grid-cols-3 gap-6">
+            <div id="sectionTokenStats" class="grid lg:grid-cols-3 gap-6" style="display:none">
                 <!-- Card: Tokens (redesenhado) -->
                 <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
                     <div class="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-yellow-50 to-amber-50 border-b border-yellow-100">
@@ -499,7 +487,7 @@
             <div id="page-usuarios" class="admin-page hidden">
 
             <!-- Cards de Usuários - Layout Responsivo -->
-            <div id="sectionUsersManagement" class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+            <div id="sectionUsersManagement" class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8" style="display:none">
                 <!-- Novo Card: Usuários Ativos -->
                 <div class="bg-white border border-gray-200 rounded-xl p-4">
                     <div class="flex items-center justify-between mb-3">
@@ -618,7 +606,7 @@
             </div>
 
             <!-- Seção de Gerenciamento de Tokens -->
-            <div id="sectionTokens" class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+            <div id="sectionTokens" class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8" style="display:none">
                 <!-- Card de Tokens por Usuário -->
                 <div class="bg-white border border-gray-200 rounded-xl p-4">
                     <div class="flex items-center justify-between mb-4">
@@ -721,7 +709,7 @@
             <div id="page-financeiro" class="admin-page hidden">
 
             <!-- Seção de Cupons -->
-            <div id="sectionCoupons" class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+            <div id="sectionCoupons" class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8" style="display:none">
                 <!-- Card de Criação de Cupons -->
                 <div class="bg-white border border-gray-200 rounded-xl p-4">
                     <div class="flex items-center justify-between mb-4">
@@ -776,7 +764,7 @@
             </div>
 
             <!-- Seção de Uso de Cupons - Painel Interativo -->
-            <div id="sectionCouponUsage" class="bg-white border border-gray-200 rounded-xl p-4 mb-8">
+            <div id="sectionCouponUsage" class="bg-white border border-gray-200 rounded-xl p-4 mb-8" style="display:none">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="font-bold text-sm flex items-center">
                         <span class="mr-2">📈</span>
@@ -903,7 +891,7 @@
             </div>
 
             <!-- Seção: Gerenciamento de Afiliados -->
-            <div id="sectionAffiliates" class="bg-white border border-gray-200 rounded-xl p-4 mb-8">
+            <div id="sectionAffiliates" class="bg-white border border-gray-200 rounded-xl p-4 mb-8" style="display:none">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="font-bold text-sm flex items-center">
                         <span class="mr-2">🤝</span>
@@ -985,7 +973,7 @@
             </div>
 
             <!-- Seção: Vendas e Comissões de Afiliados -->
-            <div id="sectionAffiliateSales" class="bg-white border border-gray-200 rounded-xl p-4 mb-8">
+            <div id="sectionAffiliateSales" class="bg-white border border-gray-200 rounded-xl p-4 mb-8" style="display:none">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="font-bold text-sm flex items-center">
                         <span class="mr-2">💰</span>
@@ -1028,7 +1016,7 @@
             </div>
 
             <!-- Seção: Saques de Afiliados -->
-            <div id="sectionAffiliatePayouts" class="bg-white border border-gray-200 rounded-xl p-4 mb-8">
+            <div id="sectionAffiliatePayouts" class="bg-white border border-gray-200 rounded-xl p-4 mb-8" style="display:none">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="font-bold text-sm flex items-center">
                         <span class="mr-2">💸</span>
@@ -1198,7 +1186,7 @@
             </div>
 
             <!-- Seção: Controle Passe Booyah -->
-            <div id="sectionPasseBooyah" class="bg-white border border-gray-200 rounded-xl p-4 mb-8">
+            <div id="sectionPasseBooyah" class="bg-white border border-gray-200 rounded-xl p-4 mb-8" style="display:none">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="font-bold text-sm flex items-center">
                         <span class="mr-2">💳</span>
@@ -1235,7 +1223,7 @@
             <div id="page-conteudo" class="admin-page hidden">
 
             <!-- Gerenciar Destaques -->
-            <div id="sectionHighlights" class="bg-white border border-gray-200 rounded-xl p-6 mt-6">
+            <div id="sectionHighlights" class="bg-white border border-gray-200 rounded-xl p-6 mt-6" style="display:none">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="font-bold text-sm">Gerenciar Destaques</h3>
                     <button onclick="openHighlightsModal()" class="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
@@ -1248,7 +1236,7 @@
             </div>
 
             <!-- Gerenciar Notícias -->
-            <div id="sectionNews" class="bg-white border border-gray-200 rounded-xl p-6 mt-6">
+            <div id="sectionNews" class="bg-white border border-gray-200 rounded-xl p-6 mt-6" style="display:none">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="font-bold text-sm">Gerenciar Notícias</h3>
                     <button onclick="openNewsModal()" class="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700">
@@ -1261,7 +1249,7 @@
             </div>
 
             <!-- Gerenciar Produtos -->
-            <div id="sectionProducts" class="bg-white border border-gray-200 rounded-xl p-6 mt-6">
+            <div id="sectionProducts" class="bg-white border border-gray-200 rounded-xl p-6 mt-6" style="display:none">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="font-bold text-sm">Gerenciar Produtos</h3>
                     <button onclick="openProductsModal()" class="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
@@ -1274,7 +1262,7 @@
             </div>
 
             <!-- Gerenciar Eventos -->
-            <div id="sectionEvents" class="bg-white border border-gray-200 rounded-xl p-6 mt-6">
+            <div id="sectionEvents" class="bg-white border border-gray-200 rounded-xl p-6 mt-6" style="display:none">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="font-bold text-sm flex items-center gap-2">
                         <i class="fas fa-trophy text-orange-500"></i>
@@ -1290,7 +1278,7 @@
             </div>
 
             <!-- Seção: Camisas - Envios -->
-            <div id="sectionShirtOrders" class="bg-white border border-gray-200 rounded-xl p-6 mt-6">
+            <div id="sectionShirtOrders" class="bg-white border border-gray-200 rounded-xl p-6 mt-6" style="display:none">
                 <div class="flex items-center justify-between mb-3">
                     <h3 class="font-bold text-sm">Camisas - Envios</h3>
                     <button onclick="loadShirtOrders()" class="text-xs px-3 py-1 border rounded">Atualizar</button>
@@ -1358,7 +1346,7 @@
             </div>
 
             <!-- Controle de Horários -->
-            <div id="sectionSchedules" class="bg-white border border-gray-200 rounded-xl p-6 mt-6">
+            <div id="sectionSchedules" class="bg-white border border-gray-200 rounded-xl p-6 mt-6" style="display:none">
                 <div class="flex flex-wrap gap-3 items-end mb-4">
                     <div>
                         <label class="block text-xs text-gray-500 mb-1">Evento</label>
@@ -1409,7 +1397,7 @@
             <div id="page-operacoes" class="admin-page hidden">
 
             <!-- Gerenciamento de Links WhatsApp -->
-            <div id="sectionWhatsAppLinks" class="bg-white border border-gray-200 rounded-xl p-6 mt-6">
+            <div id="sectionWhatsAppLinks" class="bg-white border border-gray-200 rounded-xl p-6 mt-6" style="display:none">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="font-bold text-sm flex items-center">
                         <span class="mr-2">📱</span>
@@ -1459,7 +1447,7 @@
             </div>
 
             <!-- Reset de Dados (Perigoso) -->
-            <div id="sectionResetData" class="bg-white border border-red-300 rounded-xl p-6 mt-6">
+            <div id="sectionResetData" class="bg-white border border-red-300 rounded-xl p-6 mt-6" style="display:none">
                 <div class="flex items-center justify-between mb-3">
                     <h3 class="font-bold text-sm text-red-700">Reset de Dados (PERIGOSO)</h3>
                     <button onclick="openResetDataModal()" class="text-xs px-3 py-1 bg-red-600 text-white rounded">Zerar / Limpar</button>
@@ -1468,7 +1456,7 @@
             </div>
 
             <!-- Seção: Enviar Notificações (Admin) -->
-            <div id="sectionNotificationsAdmin" class="bg-white border border-gray-200 rounded-xl p-6 mt-6">
+            <div id="sectionNotificationsAdmin" class="bg-white border border-gray-200 rounded-xl p-6 mt-6" style="display:none">
                 <div class="flex items-center justify-between mb-6">
                     <h3 class="font-bold text-base flex items-center gap-2">
                         <span class="w-8 h-8 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center"><i class="fas fa-bell text-sm"></i></span>
