@@ -6785,6 +6785,7 @@ async function loadCoupons() {
             }
         }
         renderCouponsTable();
+        populateCouponCodeFilter();
     } catch (error) {
         console.error('❌ Erro ao carregar cupons:', error);
         const tbody = document.getElementById('couponsTableBody');
@@ -6908,6 +6909,7 @@ async function loadCouponUsage() {
             // Ordenar localmente do mais recente
             couponUsageData.sort((a, b) => b.usedAt - a.usedAt);
             filteredCouponUsageData = [...couponUsageData];
+            populateCouponCodeFilter();
             applyCouponUsageFilters();
         }, (error) => {
             console.error('❌ Erro no listener de cupons:', error);
@@ -6922,7 +6924,23 @@ async function loadCouponUsage() {
 }
 
 // Popular select de cupons no filtro (mantido por compatibilidade, não exibe mais)
-function populateCouponCodeFilter() {}
+function populateCouponCodeFilter() {
+    const sel = document.getElementById('couponUsageCodeSelect');
+    if (!sel) return;
+    // Coletar códigos únicos da lista de cupons cadastrados + dos registros já carregados
+    const codes = new Set();
+    couponsData.forEach(c => { if (c.code) codes.add(c.code.toUpperCase()); });
+    couponUsageData.forEach(u => { if (u.couponCode) codes.add(u.couponCode.toUpperCase()); });
+    const current = sel.value;
+    sel.innerHTML = '<option value="all">— Todos —</option>';
+    [...codes].sort().forEach(code => {
+        const opt = document.createElement('option');
+        opt.value = code;
+        opt.textContent = code;
+        if (code === current) opt.selected = true;
+        sel.appendChild(opt);
+    });
+}
 // Renderizar gráficos circulares por cupom (com retry se Chart.js ainda não carregou)
 function renderCouponCharts(data, _retryCount) {
     if (typeof Chart === 'undefined') {
@@ -7098,20 +7116,29 @@ function updateCouponStats(data) {
 // Aplicar filtros de período, contexto e busca ao histórico de cupons
 function applyCouponUsageFilters() {
     try {
-        // Ler valores dos novos controles HTML
-        const period = document.getElementById('couponUsagePeriod')?.value || couponUsageFilters.period || '7d';
-        const context = document.getElementById('couponUsageContext')?.value || couponUsageFilters.context || 'all';
-        const search = (document.getElementById('couponUsageSearch')?.value || '').toLowerCase().trim();
+        // Ler valores dos controles HTML
+        const period  = document.getElementById('couponUsagePeriod')?.value      || couponUsageFilters.period  || '7d';
+        const context = document.getElementById('couponUsageContext')?.value     || couponUsageFilters.context || 'all';
+        const search  = (document.getElementById('couponUsageSearch')?.value     || '').toLowerCase().trim();
+        const selectedCode = (document.getElementById('couponUsageCodeSelect')?.value || 'all');
 
         // Sincronizar objeto de filtros
-        couponUsageFilters.period = period;
+        couponUsageFilters.period  = period;
         couponUsageFilters.context = context;
+
+        // Atualizar label do botão Zerar conforme seleção
+        const btnZerar = document.querySelector('[onclick="zerarComissoes()"]');
+        if (btnZerar) {
+            btnZerar.innerHTML = selectedCode === 'all'
+                ? '<i class="fas fa-eraser mr-1"></i>Zerar comissões'
+                : `<i class="fas fa-eraser mr-1"></i>Zerar: ${selectedCode}`;
+        }
 
         const now = new Date();
         let fromDate = null;
         switch (period) {
-            case '1d': fromDate = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000); break;
-            case '7d': fromDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); break;
+            case '1d':  fromDate = new Date(now.getTime() -  1 * 24 * 60 * 60 * 1000); break;
+            case '7d':  fromDate = new Date(now.getTime() -  7 * 24 * 60 * 60 * 1000); break;
             case '15d': fromDate = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000); break;
             case '30d': fromDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); break;
             case 'all': default: fromDate = null; break;
@@ -7127,14 +7154,19 @@ function applyCouponUsageFilters() {
             const ctx = (u.context || '').toLowerCase();
             const inContext = context === 'all' ? true : ctx === context;
 
-            // Busca combinada: cupom ou produto
+            // Filtro por cupom específico (select)
+            const inCoupon = selectedCode === 'all'
+                ? true
+                : (u.couponCode || '').toUpperCase() === selectedCode.toUpperCase();
+
+            // Busca de texto: produto ou cliente
             const searchMatch = !search ||
                 (u.couponCode || '').toLowerCase().includes(search) ||
                 (u.productName || '').toLowerCase().includes(search) ||
                 (u.productId || '').toLowerCase().includes(search) ||
                 (u.customerName || '').toLowerCase().includes(search);
 
-            return inPeriod && inContext && searchMatch;
+            return inPeriod && inContext && inCoupon && searchMatch;
         });
 
         updateCouponStats(filteredCouponUsageData);
@@ -7212,34 +7244,61 @@ function renderAffiliateRanking(data) {
 }
 window.renderAffiliateRanking = renderAffiliateRanking;
 
-// ===== ZERAR COMISSÕES =====
+// ===== ZERAR COMISSÕES (global ou por cupom selecionado) =====
 async function zerarComissoes() {
-    const ok = confirm('⚠️ Isso vai zerar o histórico de uso de cupons e as comissões de todos os afiliados.\n\nEssa ação não pode ser desfeita. Confirmar?');
-    if (!ok) return;
+    const selectedCode = (document.getElementById('couponUsageCodeSelect')?.value || 'all').trim();
+    const isSingle = selectedCode !== 'all';
+
+    const msg = isSingle
+        ? `⚠️ Isso vai apagar TODOS os registros de uso do cupom "${selectedCode}" e zerar suas comissões.\n\nEssa ação não pode ser desfeita. Confirmar?`
+        : '⚠️ Isso vai apagar TODO o histórico de uso de cupons e zerar comissões de todos os afiliados.\n\nEssa ação não pode ser desfeita. Confirmar?';
+    if (!confirm(msg)) return;
 
     try {
-        const { collection, getDocs, writeBatch, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const { collection, getDocs, query, where, writeBatch } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const db = window.firebaseDb;
         let total = 0;
 
-        // 1. Apagar todos os registros de couponUsage
-        const usageSnap = await getDocs(collection(db, 'couponUsage'));
-        if (!usageSnap.empty) {
-            const batch1 = writeBatch(db);
-            usageSnap.forEach(d => { batch1.delete(d.ref); total++; });
-            await batch1.commit();
+        if (isSingle) {
+            // 1. Apagar apenas registros do cupom selecionado
+            const q = query(collection(db, 'couponUsage'), where('couponCode', '==', selectedCode));
+            const snap = await getDocs(q);
+            if (!snap.empty) {
+                const batch = writeBatch(db);
+                snap.forEach(d => { batch.delete(d.ref); total++; });
+                await batch.commit();
+            }
+
+            // 2. Zerar commissionAmount em affiliate_sales deste cupom
+            const salesQ = query(collection(db, 'affiliate_sales'), where('couponCode', '==', selectedCode));
+            const salesSnap = await getDocs(salesQ);
+            if (!salesSnap.empty) {
+                const batch2 = writeBatch(db);
+                salesSnap.forEach(d => { batch2.update(d.ref, { commissionAmount: 0, status: 'zeroed' }); });
+                await batch2.commit();
+            }
+
+            showToast('success', `Cupom "${selectedCode}" zerado! ${total} registros removidos.`, 'Concluído');
+            // Remover do array local sem recarregar tudo
+            couponUsageData = couponUsageData.filter(u => (u.couponCode || '').toUpperCase() !== selectedCode.toUpperCase());
+        } else {
+            // Zerar tudo
+            const snap = await getDocs(collection(db, 'couponUsage'));
+            if (!snap.empty) {
+                const batch = writeBatch(db);
+                snap.forEach(d => { batch.delete(d.ref); total++; });
+                await batch.commit();
+            }
+            const salesSnap = await getDocs(collection(db, 'affiliate_sales'));
+            if (!salesSnap.empty) {
+                const batch2 = writeBatch(db);
+                salesSnap.forEach(d => { batch2.update(d.ref, { commissionAmount: 0, status: 'zeroed' }); });
+                await batch2.commit();
+            }
+            showToast('success', `Comissões zeradas! ${total} registros de uso de cupons removidos.`, 'Concluído');
+            couponUsageData = [];
         }
 
-        // 2. Zerar commissionAmount em todos os affiliate_sales
-        const salesSnap = await getDocs(collection(db, 'affiliate_sales'));
-        if (!salesSnap.empty) {
-            const batch2 = writeBatch(db);
-            salesSnap.forEach(d => { batch2.update(d.ref, { commissionAmount: 0, status: 'zeroed' }); });
-            await batch2.commit();
-        }
-
-        showToast('success', `Comissões zeradas! ${total} registros de uso de cupons removidos.`, 'Concluído');
-        couponUsageData = [];
         filteredCouponUsageData = [];
         renderCouponUsageTable();
         renderAffiliateRanking([]);

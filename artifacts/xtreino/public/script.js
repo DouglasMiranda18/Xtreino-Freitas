@@ -589,9 +589,11 @@ async function loadUserNotifications() {
                        </a>`
                     : '';
                 tabelaHtml = `
-                    <div style="margin-top:7px;margin-left:19px;display:flex;align-items:center;justify-content:space-between;background:rgba(22,163,74,0.07);border:1px solid rgba(22,163,74,0.2);border-radius:8px;padding:6px 10px">
-                        <span style="font-size:10.5px;color:#15803d;font-weight:600">📊 Pontuação disponível</span>
-                        ${btnTabela}
+                    <div style="margin-top:7px;margin-left:19px;background:rgba(22,163,74,0.07);border:1px solid rgba(22,163,74,0.2);border-radius:8px;padding:7px 10px">
+                        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px">
+                            <span style="font-size:10.5px;color:#15803d;font-weight:600;white-space:nowrap">📊 Pontuação disponível</span>
+                            ${btnTabela}
+                        </div>
                     </div>`;
             }
 

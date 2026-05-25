@@ -801,9 +801,16 @@
                                 <option value="store">Produtos</option>
                             </select>
                         </div>
-                        <div class="flex-1 min-w-[180px]">
-                            <label class="block text-xs text-gray-600 mb-1 font-medium">Buscar cupom ou produto</label>
-                            <input type="text" id="couponUsageSearch" placeholder="Ex: PROMO10 ou nome do evento..."
+                        <div>
+                            <label class="block text-xs text-gray-600 mb-1 font-medium">Cupom</label>
+                            <select id="couponUsageCodeSelect" class="border border-gray-300 rounded px-3 py-2 text-xs min-w-[130px]"
+                                    onchange="document.getElementById('couponUsageApply').click()">
+                                <option value="all">— Todos —</option>
+                            </select>
+                        </div>
+                        <div class="flex-1 min-w-[140px]">
+                            <label class="block text-xs text-gray-600 mb-1 font-medium">Buscar produto</label>
+                            <input type="text" id="couponUsageSearch" placeholder="Ex: nome do evento..."
                                 class="w-full border border-gray-300 rounded px-3 py-2 text-xs"
                                 onkeyup="if(event.key==='Enter') document.getElementById('couponUsageApply').click()" />
                         </div>
