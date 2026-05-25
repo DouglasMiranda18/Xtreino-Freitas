@@ -570,9 +570,35 @@ async function loadOrders() {
     }
 }
 
+// Cache de downloadLinks dos produtos da loja (evita leituras repetidas do Firestore)
+let _productLinksCache = null;
+
+async function loadProductDownloadLinksCache() {
+    if (_productLinksCache) return; // já carregado
+    try {
+        const fbReady = await waitForFirebase(6000);
+        if (!fbReady || !window.firebaseDb) return;
+        const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const snap = await getDocs(collection(window.firebaseDb, 'products'));
+        _productLinksCache = {};
+        snap.forEach(d => {
+            const data = d.data();
+            _productLinksCache[d.id] = {
+                downloadLinks: data.downloadLinks || {},
+                downloadLink:  data.downloadLink  || ''
+            };
+        });
+    } catch (e) {
+        // Quota esgotada ou erro de rede — cachear vazio para não tentar de novo
+        _productLinksCache = _productLinksCache || {};
+    }
+}
+
 // Load products (loja virtual items)
 async function loadProducts() {
     try {
+        // Garantir que o cache de links está pronto antes de renderizar os botões
+        await loadProductDownloadLinksCache();
         const ordersData = await fetchUserDocs('orders', 200, true);
         const productsData = ordersData.map(d => ({
             id: d.id,
@@ -583,6 +609,13 @@ async function loadProducts() {
             eventType: d.data.eventType || '',
             type: d.data.type || '',
             productId: d.data.productId || d.data.itemId || '',
+            productCategory: d.data.productCategory || '',
+            productOptions: d.data.productOptions || {},
+            downloadLink: d.data.downloadLink || d.data.productOptions?.downloadLink || '',
+            shippingStatus: d.data.shippingStatus || '',
+            shirtShipped: d.data.shirtShipped || false,
+            shippedAt: d.data.shippedAt || null,
+            shipping: d.data.shipping || d.data.productOptions?.delivery || {},
             booyahConfirmed: d.data.booyahConfirmed || false,
             booyahConfirmedAt: d.data.booyahConfirmedAt || null
         }));
@@ -1239,11 +1272,27 @@ function getProductActionButton(product) {
         if (!isPaid) {
             return `<div class="mt-3"><span class="text-xs text-yellow-600 bg-yellow-50 px-2 py-1 rounded">Aguardando confirmação do pagamento</span></div>`;
         }
+        // Tentar obter o link já em memória (pedido, cache de produtos ou scheduleConfig)
+        const platform = product.productOptions?.platform || '';
+        const brand = product.productOptions?.brand || '';
+        const linkKey = platform === 'android' && brand ? brand : platform;
+        const cacheEntry = _productLinksCache?.[product.productId] || {};
+        const cfgLinks = window.scheduleConfig?.[product.productId]?.downloadLinks || cacheEntry.downloadLinks || {};
+        const cfgLink  = window.scheduleConfig?.[product.productId]?.downloadLink  || cacheEntry.downloadLink  || '';
+        const directLink = product.downloadLink
+            || product.productOptions?.downloadLink
+            || cfgLinks[linkKey]
+            || cfgLinks[platform]
+            || cfgLink
+            || '';
+        const onclickFn = directLink
+            ? `window.open(${JSON.stringify(directLink)},'_blank')`
+            : `downloadSensibilidades('${product.id}')`;
         return `
             <div class="mt-3">
-                <button onclick="downloadSensibilidades('${product.id}')" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200">
+                <button onclick="${onclickFn.replace(/"/g,'&quot;')}" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.703.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
                     Download
                 </button>

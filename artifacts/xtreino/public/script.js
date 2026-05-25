@@ -8109,8 +8109,17 @@ async function applyScheduleCoupon() {
     }
 
     if (!scheduleOriginalTotal || scheduleOriginalTotal <= 0) {
-        showScheduleCouponMessage('Selecione ao menos um horário antes de aplicar o cupom.', 'error');
-        return;
+        // Para produtos da loja (sem horário), usar o preço do produto como total
+        const modal = document.getElementById('scheduleModal');
+        const rawType = modal?.dataset?.eventType || '';
+        const cfgCheck = (window.scheduleConfig?.[rawType] || window.products?.[rawType] || {});
+        const isProductCheck = cfgCheck.isProduct === true;
+        if (isProductCheck && (cfgCheck.price > 0)) {
+            scheduleOriginalTotal = cfgCheck.price;
+        } else {
+            showScheduleCouponMessage('Selecione ao menos um horário antes de aplicar o cupom.', 'error');
+            return;
+        }
     }
 
     try {
