@@ -6380,16 +6380,18 @@ async function handleProductPurchase(productId, cfg) {
             }
         }
 
-        // Aplicar cupom do modal de agendamento se houver (mesmo que handleProductPurchaseWithTokens já faça isso)
-        if (typeof appliedScheduleCoupon !== 'undefined' && appliedScheduleCoupon) {
-            let discountAmount = 0;
-            if (appliedScheduleCoupon.discountType === 'percentage') {
-                discountAmount = finalPrice * (appliedScheduleCoupon.discountValue / 100);
+        // Aplicar cupom do modal de agendamento se houver
+        let _prodCouponDiscount = 0;
+        let _prodOriginalPrice = finalPrice;
+        const _prodCoupon = (typeof appliedScheduleCoupon !== 'undefined' && appliedScheduleCoupon) ? appliedScheduleCoupon : null;
+        if (_prodCoupon) {
+            if (_prodCoupon.discountType === 'percentage') {
+                _prodCouponDiscount = finalPrice * (_prodCoupon.discountValue / 100);
             } else {
-                discountAmount = appliedScheduleCoupon.discountValue || 0;
+                _prodCouponDiscount = _prodCoupon.discountValue || 0;
             }
-            discountAmount = Math.min(discountAmount, finalPrice);
-            finalPrice = Math.max(0, finalPrice - discountAmount);
+            _prodCouponDiscount = Math.min(_prodCouponDiscount, finalPrice);
+            finalPrice = Math.max(0, finalPrice - _prodCouponDiscount);
         }
 
         // Validar preço final
@@ -6414,6 +6416,7 @@ async function handleProductPurchase(productId, cfg) {
                     item: cfg.label,
                     amount: finalPrice,
                     total: finalPrice,
+                    originalPrice: _prodOriginalPrice,
                     quantity: 1,
                     currency: 'BRL',
                     status: 'pending',
@@ -6427,6 +6430,10 @@ async function handleProductPurchase(productId, cfg) {
                     productOptions: productOptions,
                     downloadLink: cfg.downloadLink || productOptions.downloadLink || '',
                     productCategory: cfg.category || '',
+                    couponId: _prodCoupon?.id || null,
+                    couponCode: _prodCoupon?.code || null,
+                    couponDiscount: _prodCouponDiscount || 0,
+                    affiliateCode: _prodCoupon?.affiliateId || (typeof activeAffiliateCode !== 'undefined' ? activeAffiliateCode : null) || null,
                     createdAt: new Date(),
                     timestamp: Date.now(),
                     type: 'digital_product'
@@ -7599,11 +7606,32 @@ async function processSuccessfulPayment(externalRef = null) {
             const orderSnap2 = await getDocs(query(ordersRef2, where('external_reference', '==', extRef)));
             if (!orderSnap2.empty) {
                 const orderDoc = orderSnap2.docs[0];
-                if (orderDoc.data().status !== 'paid') {
+                const orderData2 = orderDoc.data();
+                if (orderData2.status !== 'paid') {
                     await updateDoc(doc(window.firebaseDb, 'orders', orderDoc.id), {
                         status: 'paid',
                         paidAt: serverTimestamp()
                     });
+                }
+                // Registrar uso de cupom se houver
+                if (orderData2.couponId && orderData2.couponCode) {
+                    try {
+                        await recordCouponUsage(
+                            orderData2.couponId,
+                            orderData2.couponCode,
+                            orderData2.originalPrice || orderData2.amount || 0,
+                            orderData2.couponDiscount || 0,
+                            'store',
+                            orderDoc.id,
+                            { productId: orderData2.productId, name: orderData2.title }
+                        );
+                    } catch (_) {}
+                }
+                // Registrar comissão de afiliado se houver
+                if (orderData2.affiliateCode) {
+                    try {
+                        await createPendingAffiliateSale(orderDoc.id, orderData2.affiliateCode, orderData2, 'product');
+                    } catch (_) {}
                 }
                 // Notificar cliente sem modal de slots
                 if (typeof showToast === 'function') {
