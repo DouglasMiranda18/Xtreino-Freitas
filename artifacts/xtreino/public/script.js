@@ -8659,7 +8659,12 @@ const EVENT_URL_MAP = {
     'camp-freitas':    '/campeonato',
 };
 function _eventoUrl(eventType, docId) {
-    return EVENT_URL_MAP[eventType] || ('evento.html?event=' + encodeURIComponent(eventType || docId || ''));
+    // Eventos estáticos: usar URL limpa do mapa
+    if (EVENT_URL_MAP[eventType]) return EVENT_URL_MAP[eventType];
+    // Eventos dinâmicos (adminEvents): usar ?id=docId para busca direta por documento
+    if (docId) return 'evento.html?id=' + encodeURIComponent(docId);
+    // Fallback legacy
+    return 'evento.html?event=' + encodeURIComponent(eventType || '');
 }
 
 // ==================== EVENTOS DINÂMICOS (adminEvents) ====================
