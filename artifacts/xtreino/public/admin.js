@@ -11371,18 +11371,24 @@ function onEventNotifyTypeChange() {
     const titleEl = document.getElementById('eventNotifyTitle');
     const msgEl = document.getElementById('eventNotifyMessage');
     const roomSection = document.getElementById('eventNotifyRoomLinkSection');
+    const tabelaSection = document.getElementById('eventNotifyTabelaSection');
     const msgRow = document.getElementById('eventNotifyMessageRow');
 
     if (roomSection) roomSection.classList.toggle('hidden', type !== 'credentials');
+    if (tabelaSection) tabelaSection.classList.toggle('hidden', type !== 'tabela');
+
     if (msgRow) {
         const lbl = msgRow.querySelector('label');
-        if (lbl) lbl.innerHTML = type === 'credentials'
+        if (lbl) lbl.innerHTML = (type === 'credentials' || type === 'tabela')
             ? 'Mensagem adicional <span class="text-gray-400 font-normal">(opcional)</span>'
             : 'Mensagem <span class="text-red-400">*</span>';
     }
     if (type === 'credentials') {
         if (titleEl && !titleEl.value) titleEl.value = 'Credenciais do Evento 🎮';
         if (msgEl) msgEl.placeholder = 'Ex: Use as credenciais abaixo para entrar na sala. Boa sorte!';
+    } else if (type === 'tabela') {
+        if (titleEl && !titleEl.value) titleEl.value = 'Tabela Pronta 📊';
+        if (msgEl) msgEl.placeholder = 'Ex: A tabela de pontuação do evento já está disponível!';
     } else {
         if (titleEl) titleEl.value = '';
         if (msgEl) msgEl.placeholder = 'Digite sua mensagem para os participantes...';
@@ -11399,7 +11405,7 @@ async function sendEventNotification() {
     const notifyType = document.getElementById('eventNotifyType')?.value || 'custom';
 
     if (!title) { showToast('warning', 'Informe o título da notificação.', 'Atenção'); return; }
-    if (notifyType !== 'credentials' && !message) { showToast('warning', 'Informe a mensagem.', 'Atenção'); return; }
+    if (notifyType !== 'credentials' && notifyType !== 'tabela' && !message) { showToast('warning', 'Informe a mensagem.', 'Atenção'); return; }
 
     // Validação de credenciais
     let roomId = null, roomPassword = null, roomLink = null;
@@ -11409,6 +11415,13 @@ async function sendEventNotification() {
         roomLink = (document.getElementById('eventNotifyRoomLink')?.value || '').trim() || null;
         if (!roomId) { showToast('warning', 'Informe o ID da sala.', 'Atenção'); return; }
         if (!roomPassword) { showToast('warning', 'Informe a senha da sala.', 'Atenção'); return; }
+    }
+
+    // Validação de tabela
+    let tabelaLink = null;
+    if (notifyType === 'tabela') {
+        tabelaLink = (document.getElementById('eventNotifyTabelaLink')?.value || '').trim() || null;
+        if (!tabelaLink) { showToast('warning', 'Informe o link da tabela de pontuação.', 'Atenção'); return; }
     }
 
     const btn = document.getElementById('eventNotifySendBtn');
@@ -11458,6 +11471,7 @@ async function sendEventNotification() {
                 roomId: roomId || null,
                 roomPassword: roomPassword || null,
                 roomLink: roomLink || null,
+                tabelaLink: tabelaLink || null,
                 createdAt: serverTimestamp(),
                 createdBy,
                 createdByUid: user?.uid || null,

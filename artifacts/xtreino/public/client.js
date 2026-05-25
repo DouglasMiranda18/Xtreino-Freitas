@@ -3614,6 +3614,27 @@ function renderNotifications(notifs, readIds) {
         const isRead = n.isRead || readIds.has(n.id);
         const dateStr = n.createdAt ? new Date(n.createdAt.toDate ? n.createdAt.toDate() : n.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
         const isCredentials = n.notifyType === 'credentials';
+        const isTabela = n.notifyType === 'tabela';
+
+        // Card de tabela pronta (verde)
+        let tabelaHtml = '';
+        if (isTabela && n.tabelaLink) {
+            tabelaHtml = `
+                <div style="margin-top:12px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid #86efac;border-radius:16px;padding:16px">
+                    <p style="font-size:10px;font-weight:800;color:#166534;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;display:flex;align-items:center;gap:6px">
+                        <i class="fas fa-table"></i> Tabela de pontuação disponível!
+                    </p>
+                    <p style="font-size:13px;color:#15803d;margin-bottom:12px;line-height:1.5">
+                        ${n.message ? escapeHtml(n.message) : 'Confira a pontuação do seu time clicando no botão abaixo.'}
+                    </p>
+                    <a href="${escapeHtml(n.tabelaLink)}" target="_blank" rel="noopener noreferrer"
+                       style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;border-radius:12px;font-size:14px;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(22,163,74,0.3);transition:opacity 0.2s"
+                       onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                        <i class="fas fa-external-link-alt"></i>
+                        Ver tabela — confira a pontuação do seu time
+                    </a>
+                </div>`;
+        }
 
         let credentialsHtml = '';
         if (isCredentials) {
@@ -3646,12 +3667,15 @@ function renderNotifications(notifs, readIds) {
                 </div>`;
         }
 
-        const iconClass = isCredentials ? 'fa-gamepad' : 'fa-bell';
+        const iconClass = isCredentials ? 'fa-gamepad' : isTabela ? 'fa-table' : 'fa-bell';
         const iconBg = isCredentials
             ? (isRead ? 'bg-purple-100 text-purple-400' : 'bg-purple-200 text-purple-700')
+            : isTabela
+            ? (isRead ? 'bg-green-100 text-green-400' : 'bg-green-200 text-green-700')
             : (isRead ? 'bg-gray-100 text-gray-400' : 'bg-blue-100 text-blue-600');
 
-        const messageHtml = n.message
+        // Para tabela, a mensagem já vai dentro do card verde — não duplicar
+        const messageHtml = (!isTabela && n.message)
             ? `<p class="text-sm text-gray-600 mt-1 leading-relaxed">${escapeHtml(n.message)}</p>`
             : '';
 
@@ -3669,6 +3693,7 @@ function renderNotifications(notifs, readIds) {
                     </div>
                     ${messageHtml}
                     ${credentialsHtml}
+                    ${tabelaHtml}
                     <div class="mt-2">
                         ${!isRead ? `<button onclick="markNotificationRead('${n.id}')" class="text-xs text-blue-600 hover:text-blue-800 font-medium">Marcar como lida</button>` : `<span class="text-xs text-gray-400">Lida</span>`}
                     </div>
