@@ -1277,17 +1277,41 @@ window.showWarningToast = function(message, title = 'Atenção') {
   // ---- Relatórios ----
   let charts = {};
   let period = { from: null, to: null };
-  // Bind filtros de período
+  // Tipo de filtro: 'all' | 'events' | 'products'
+  let activeFilterType = 'all';
+
+  // Bind filtros de período (pill buttons) e tipo
   try {
-    const btn = document.getElementById('btnApplyFilter');
-    if (btn) btn.addEventListener('click', applyFilter);
-    const sel = document.getElementById('reportPeriod');
-    const fromEl = document.getElementById('dateFrom');
-    const toEl = document.getElementById('dateTo');
-    if (sel) sel.addEventListener('change', ()=>{
-      const isCustom = sel.value === 'custom';
-      if (fromEl) { fromEl.disabled = !isCustom; if (!isCustom) fromEl.value = ''; }
-      if (toEl) { toEl.disabled = !isCustom; if (!isCustom) toEl.value = ''; }
+    // Period pill buttons
+    document.querySelectorAll('.period-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        document.querySelectorAll('.period-btn').forEach(b => {
+          b.classList.remove('bg-blue-600','text-white','shadow-sm','active-period');
+          b.classList.add('bg-gray-100','text-gray-600');
+        });
+        btn.classList.add('bg-blue-600','text-white','shadow-sm','active-period');
+        btn.classList.remove('bg-gray-100','text-gray-600');
+        const p = btn.dataset.period;
+        const customRange = document.getElementById('customDateRange');
+        if (customRange) customRange.classList.toggle('hidden', p !== 'custom');
+        if (p !== 'custom') { parsePeriodFromValue(p); await loadReports(); }
+      });
+    });
+    // Apply button for custom range
+    const btnApply = document.getElementById('btnApplyFilter');
+    if (btnApply) btnApply.addEventListener('click', applyFilter);
+    // Type filter buttons
+    document.querySelectorAll('.type-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        document.querySelectorAll('.type-btn').forEach(b => {
+          b.classList.remove('bg-gray-800','text-white','shadow-sm','active-type');
+          b.classList.add('bg-gray-100','text-gray-600');
+        });
+        btn.classList.add('bg-gray-800','text-white','shadow-sm','active-type');
+        btn.classList.remove('bg-gray-100','text-gray-600');
+        activeFilterType = btn.dataset.type || 'all';
+        await loadReports();
+      });
     });
   } catch(_){}
 
@@ -1370,6 +1394,12 @@ window.showWarningToast = function(message, title = 'Atenção') {
       } catch (_) {}
 
     } catch (_) {}
+
+    // Aplicar filtro de tipo
+    if (typeof activeFilterType !== 'undefined') {
+      if (activeFilterType === 'events')   return items.filter(i => i.source === 'registrations');
+      if (activeFilterType === 'products') return items.filter(i => i.source === 'orders');
+    }
     return items;
   }
 
@@ -1632,57 +1662,69 @@ window.showWarningToast = function(message, title = 'Atenção') {
   function brl(n){ try {return n.toLocaleString('pt-BR', {style:'currency',currency:'BRL'})} catch(_) {return `R$ ${Number(n||0).toFixed(2)}`;} }
 
   async function loadKpis(){
-    const kpiTodayEl = document.getElementById('kpiToday');
-    const kpiMonthEl = document.getElementById('kpiMonth');
-    const kpiRecEl = document.getElementById('kpiReceivable');
-    const kpiActiveEl = document.getElementById('kpiActiveUsers');
+    const kpiTodayEl     = document.getElementById('kpiToday');
+    const kpiTokensTodEl = document.getElementById('kpiTokensToday');
+    const kpiMonthEl     = document.getElementById('kpiMonth');
+    const kpiRecEl       = document.getElementById('kpiReceivable');
+    const kpiActiveEl    = document.getElementById('kpiActiveUsers');
     if (!kpiTodayEl || !kpiMonthEl || !kpiRecEl) return;
 
-    
-
-    // Usar a mesma lógica da loadKPIs() que está funcionando corretamente
     const { collection, query, where, getDocsFromServer } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-    const ordersCol = collection(window.firebaseDb, 'orders');
+    const today = new Date(); today.setHours(0,0,0,0);
+    const firstMonth = new Date(); firstMonth.setDate(1); firstMonth.setHours(0,0,0,0);
 
-    // Today sales (sum) - apenas pedidos pagos
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    const qToday = query(ordersCol, where('createdAt', '>=', today));
-    const todaySnap = await getDocsFromServer(qToday);
-    let sumToday = 0;
-    todaySnap.forEach(d => {
-        const data = d.data();
-        const status = (data.status || '').toLowerCase();
-        if (status === 'paid' || status === 'approved' || status === 'confirmed') {
-            sumToday += Number(data.amount || 0);
-        }
-    });
+    let sumToday = 0, tokensToday = 0, sumMonth = 0, receivable = 0;
 
-    // Month sales - apenas pedidos pagos
-    const firstMonth = new Date();
-    firstMonth.setDate(1); firstMonth.setHours(0,0,0,0);
-    const qMonth = query(ordersCol, where('createdAt', '>=', firstMonth));
-    const monthSnap = await getDocsFromServer(qMonth);
-    let sumMonth = 0, receivable = 0;
-    monthSnap.forEach(d => {
-        const data = d.data();
-        const val = Number(data.amount || 0);
-        const status = (data.status || '').toLowerCase();
-        
-        // Apenas pedidos pagos para o total do mês
-        if (status === 'paid' || status === 'approved' || status === 'confirmed') {
-            sumMonth += val;
-        }
-        
-        // Pedidos pendentes para receber
-        if (status === 'pending') {
-            receivable += val;
-        }
-    });
-    
-    
-    
+    // ── Orders (produtos, camisas, tokens‑compra — não eventos) ──
+    try {
+      const ordersCol = collection(window.firebaseDb, 'orders');
+      const [todayOrd, monthOrd] = await Promise.all([
+        getDocsFromServer(query(ordersCol, where('createdAt', '>=', today))),
+        getDocsFromServer(query(ordersCol, where('createdAt', '>=', firstMonth)))
+      ]);
+      todayOrd.forEach(d => {
+        const o = d.data();
+        if ((o.type || '').toLowerCase() === 'event') return;
+        const status = (o.status || '').toLowerCase();
+        const isPaid = status === 'paid' || status === 'approved' || status === 'confirmed';
+        if (o.paidWithTokens) { if (isPaid) tokensToday++; }
+        else if (isPaid) sumToday += Number(o.amount || 0);
+      });
+      monthOrd.forEach(d => {
+        const o = d.data();
+        if ((o.type || '').toLowerCase() === 'event') return;
+        const val = Number(o.amount || 0);
+        const status = (o.status || '').toLowerCase();
+        if (status === 'paid' || status === 'approved' || status === 'confirmed') sumMonth += val;
+        if (status === 'pending') receivable += val;
+      });
+    } catch(_){}
+
+    // ── Registrations (eventos via MP e via tokens) ──
+    try {
+      const regsCol = collection(window.firebaseDb, 'registrations');
+      const [todayRegs, monthRegs] = await Promise.all([
+        getDocsFromServer(query(regsCol, where('createdAt', '>=', today))),
+        getDocsFromServer(query(regsCol, where('createdAt', '>=', firstMonth)))
+      ]);
+      todayRegs.forEach(d => {
+        const r = d.data();
+        const status = (r.status || '').toLowerCase();
+        const isPaid = status === 'paid' || status === 'approved' || status === 'confirmed';
+        if (r.paidWithTokens) { if (isPaid) tokensToday++; }
+        else if (isPaid) sumToday += Number(r.price || 0);
+      });
+      monthRegs.forEach(d => {
+        const r = d.data();
+        const val = Number(r.price || 0);
+        const status = (r.status || '').toLowerCase();
+        if (status === 'paid' || status === 'approved' || status === 'confirmed') sumMonth += val;
+        if (status === 'pending') receivable += val;
+      });
+    } catch(_){}
+
     kpiTodayEl.textContent = brl(sumToday);
+    if (kpiTokensTodEl) kpiTokensTodEl.textContent = String(tokensToday);
     kpiMonthEl.textContent = brl(sumMonth);
     kpiRecEl.textContent = brl(receivable);
 
@@ -1696,7 +1738,6 @@ window.showWarningToast = function(message, title = 'Atenção') {
           kpiActiveEl.textContent = String(active);
         }catch(_){ kpiActiveEl.textContent = '—'; }
       } else {
-        // Vendedor não tem permissão para ler users
         kpiActiveEl.textContent = '—';
       }
     }
@@ -1706,7 +1747,6 @@ window.showWarningToast = function(message, title = 'Atenção') {
     const canvas = document.getElementById('salesChart');
     if (!canvas) return;
     const all = await fetchUnifiedOrders();
-    // Intervalo dinâmico com base no filtro
     const today = new Date(); today.setHours(0,0,0,0);
     const start = period.from ? new Date(period.from) : new Date(today.getTime() - 29*24*60*60*1000);
     const end = period.to ? new Date(period.to) : today;
@@ -1715,147 +1755,122 @@ window.showWarningToast = function(message, title = 'Atenção') {
     const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
     while (cur <= endDay){ days.push(new Date(cur)); cur.setDate(cur.getDate()+1); }
     const labels = days.map(d=>d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }));
-    
-    // Agrupar por external_reference primeiro (transações únicas)
-    const transactionsByRef = new Map();
-    
+
+    const mpRevMap = Object.fromEntries(labels.map(l=>[l,0]));
+    const tkRevMap = Object.fromEntries(labels.map(l=>[l,0]));
+    const seenRefs = new Set();
+
     all.forEach(o => {
       const ts = o.ts;
       if (period.from && ts < period.from) return;
       if (period.to && ts > period.to) return;
       const status = (o.status||'').toLowerCase();
-      if (status === 'paid' || status === 'confirmed') {
-        const externalRef = o.externalRef || o.docId || 'no-ref';
-        
-        if (transactionsByRef.has(externalRef)) {
-          const existing = transactionsByRef.get(externalRef);
-          existing.amount += Number(o.amount || 0);
-          existing.date = ts || existing.date; // Usar a primeira data encontrada
-        } else {
-          transactionsByRef.set(externalRef, {
-            amount: Number(o.amount || 0),
-            date: ts
-          });
-        }
-      }
-    });
-    
-    // Mapear faturamento e quantidade por dia (a partir de transações únicas)
-    const revenueMap = Object.fromEntries(labels.map(l=>[l,0]));
-    const quantityMap = Object.fromEntries(labels.map(l=>[l,0]));
-    
-    transactionsByRef.forEach(transaction => {
-      const ts = transaction.date;
-      if (!ts) return;
+      if (status !== 'paid' && status !== 'confirmed' && status !== 'approved') return;
+      const ref = o.externalRef || o.docId || 'no-ref';
+      if (seenRefs.has(ref)) return;
+      seenRefs.add(ref);
       const label = ts.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-      if (revenueMap[label] !== undefined) {
-        revenueMap[label] += transaction.amount;
-        quantityMap[label] += 1; // Conta 1 transação, não múltiplos documentos
+      if (o.paymentMethod === 'tokens') {
+        if (tkRevMap[label] !== undefined) tkRevMap[label] += Number(o.amount || 0);
+      } else {
+        if (mpRevMap[label] !== undefined) mpRevMap[label] += Number(o.amount || 0);
       }
     });
-    
-    const revenueData = labels.map(l=>revenueMap[l]);
-    const quantityData = labels.map(l=>quantityMap[l]);
-    
+
+    const mpData = labels.map(l=>mpRevMap[l]);
+    const tkData = labels.map(l=>tkRevMap[l]);
+
     try { if (charts.sales) { charts.sales.destroy(); } } catch(_){}
-    
-    charts.sales = new Chart(canvas.getContext('2d'), {
+
+    const ctx = canvas.getContext('2d');
+    const gradBlue = ctx.createLinearGradient(0, 0, 0, canvas.offsetHeight || 280);
+    gradBlue.addColorStop(0, 'rgba(59,130,246,0.35)');
+    gradBlue.addColorStop(1, 'rgba(59,130,246,0.02)');
+    const gradOrange = ctx.createLinearGradient(0, 0, 0, canvas.offsetHeight || 280);
+    gradOrange.addColorStop(0, 'rgba(251,146,60,0.35)');
+    gradOrange.addColorStop(1, 'rgba(251,146,60,0.02)');
+
+    charts.sales = new Chart(ctx, {
       type: 'line',
       data: {
         labels,
         datasets: [
           {
-            label: 'Faturamento (R$)',
-            data: revenueData,
+            label: 'MP / PIX (R$)',
+            data: mpData,
             borderColor: '#3b82f6',
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-            tension: 0.4,
+            backgroundColor: gradBlue,
+            borderWidth: 2.5,
+            tension: 0.45,
             fill: true,
-            yAxisID: 'y'
+            pointBackgroundColor: '#3b82f6',
+            pointRadius: 3,
+            pointHoverRadius: 6,
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2
           },
           {
-            label: 'Quantidade de Vendas',
-            data: quantityData,
-            borderColor: '#10b981',
-            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-            tension: 0.4,
+            label: 'Tokens (R$)',
+            data: tkData,
+            borderColor: '#fb923c',
+            backgroundColor: gradOrange,
+            borderWidth: 2.5,
+            tension: 0.45,
             fill: true,
-            yAxisID: 'y1'
+            pointBackgroundColor: '#fb923c',
+            pointRadius: 3,
+            pointHoverRadius: 6,
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2
           }
         ]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        interaction: {
-          mode: 'index',
-          intersect: false
-        },
+        animation: { duration: 600, easing: 'easeInOutQuart' },
+        interaction: { mode: 'index', intersect: false },
         plugins: {
-          legend: {
-            display: true,
-            position: 'top',
-            labels: {
-              font: { size: 12, weight: 'bold' },
-              padding: 15,
-              usePointStyle: true
-            }
-          },
+          legend: { display: false },
           tooltip: {
+            backgroundColor: 'rgba(15,23,42,0.92)',
+            titleFont: { size: 12, weight: 'bold' },
+            bodyFont: { size: 12 },
+            padding: 12,
+            cornerRadius: 10,
             callbacks: {
-              label: function(context) {
-                if (context.datasetIndex === 0) {
-                  return `Faturamento: R$ ${context.parsed.y.toFixed(2).replace('.', ',')}`;
-                } else {
-                  return `Quantidade: ${context.parsed.y} venda${context.parsed.y !== 1 ? 's' : ''}`;
-                }
+              label: ctx => `${ctx.dataset.label}: R$ ${ctx.parsed.y.toFixed(2).replace('.',',')}`,
+              footer: items => {
+                const total = items.reduce((s,i)=>s+i.parsed.y,0);
+                return total > 0 ? `Total: R$ ${total.toFixed(2).replace('.',',')}` : '';
               }
             }
           }
         },
         scales: {
-          y: {
-            type: 'linear',
-            display: true,
-            position: 'left',
-            beginAtZero: true,
-            ticks: {
-              callback: function(value) {
-                return 'R$ ' + value.toFixed(0);
-              }
-            },
-            title: {
-              display: true,
-              text: 'Faturamento (R$)',
-              font: { size: 12, weight: 'bold' }
-            }
+          x: {
+            grid: { display: false },
+            ticks: { color: '#94a3b8', font: { size: 10 }, maxRotation: 45, minRotation: 45 }
           },
-          y1: {
-            type: 'linear',
-            display: true,
-            position: 'right',
+          y: {
             beginAtZero: true,
-            grid: {
-              drawOnChartArea: false
-            },
+            grid: { color: 'rgba(148,163,184,0.15)' },
             ticks: {
-              stepSize: 1
+              color: '#94a3b8',
+              font: { size: 10 },
+              callback: v => 'R$' + (v >= 1000 ? (v/1000).toFixed(1)+'k' : v.toFixed(0))
             },
-            title: {
-              display: true,
-              text: 'Quantidade',
-              font: { size: 12, weight: 'bold' }
-            }
+            border: { display: false }
           }
         }
       }
     });
-    
-    // Atualiza título com o intervalo
+
     try {
       const title = document.getElementById('salesChartTitle');
-      if (title){ const fmt = d => d.toLocaleDateString('pt-BR'); title.textContent = `Vendas — ${fmt(start)} a ${fmt(end)}`; }
-    } catch(_){ }
+      const fmt = d => d.toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'});
+      if (title) title.textContent = `📈 Vendas — ${fmt(start)} a ${fmt(end)}`;
+    } catch(_){}
   }
 
   // Função para normalizar nomes de produtos
@@ -1969,65 +1984,56 @@ window.showWarningToast = function(message, title = 'Atenção') {
       }));
     
     try { if (charts.top) { charts.top.destroy(); } } catch(_){}
-    
+
+    const BAR_COLORS = ['#6366f1','#3b82f6','#10b981','#f59e0b','#ef4444'];
     charts.top = new Chart(canvas.getContext('2d'), {
       type: 'bar',
       data: {
-        labels: entries.map(e => e.name),
+        labels: entries.map(e => e.name.length > 18 ? e.name.slice(0,16)+'…' : e.name),
         datasets: [{
           label: 'Faturamento (R$)',
           data: entries.map(e => e.revenue),
-          backgroundColor: '#3b82f6',
-          borderColor: '#2563eb',
+          backgroundColor: entries.map((_, i) => BAR_COLORS[i % BAR_COLORS.length] + 'cc'),
+          borderColor: entries.map((_, i) => BAR_COLORS[i % BAR_COLORS.length]),
           borderWidth: 2,
-          borderRadius: 6
+          borderRadius: 8,
+          borderSkipped: false
         }]
       },
       options: {
+        indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
+        animation: { duration: 600, easing: 'easeInOutQuart' },
         plugins: {
-          legend: {
-            display: true,
-            position: 'top',
-            labels: {
-              font: { size: 12, weight: 'bold' },
-              padding: 15
-            }
-          },
+          legend: { display: false },
           tooltip: {
+            backgroundColor: 'rgba(15,23,42,0.92)',
+            bodyFont: { size: 12 },
+            padding: 12,
+            cornerRadius: 10,
             callbacks: {
-              afterLabel: function(context) {
-                const index = context.dataIndex;
-                const quantity = entries[index].quantity;
-                return `Quantidade: ${quantity} venda${quantity !== 1 ? 's' : ''}`;
-              },
-              label: function(context) {
-                return `Faturamento: R$ ${context.parsed.y.toFixed(2).replace('.', ',')}`;
+              label: ctx => {
+                const e = entries[ctx.dataIndex];
+                return [`R$ ${e.revenue.toFixed(2).replace('.',',')}`, `${e.quantity} venda${e.quantity!==1?'s':''}`];
               }
             }
           }
         },
         scales: {
-          y: {
-            beginAtZero: true,
-            ticks: {
-              callback: function(value) {
-                return 'R$ ' + value.toFixed(0);
-              }
-            },
-            title: {
-              display: true,
-              text: 'Faturamento (R$)',
-              font: { size: 12, weight: 'bold' }
-            }
-          },
           x: {
+            beginAtZero: true,
+            grid: { color: 'rgba(148,163,184,0.15)' },
             ticks: {
-              maxRotation: 45,
-              minRotation: 45,
-              font: { size: 10 }
-            }
+              color: '#94a3b8',
+              font: { size: 10 },
+              callback: v => 'R$' + (v>=1000?(v/1000).toFixed(1)+'k':v.toFixed(0))
+            },
+            border: { display: false }
+          },
+          y: {
+            grid: { display: false },
+            ticks: { color: '#374151', font: { size: 11, weight: '600' } }
           }
         }
       }
@@ -2039,101 +2045,100 @@ window.showWarningToast = function(message, title = 'Atenção') {
     const canvas = document.getElementById('paymentMethodsChart');
     if (!canvas) return;
     const all = await fetchUnifiedOrders();
-    
+
     const paymentMap = {
-      tokens: { count: 0, revenue: 0, label: 'Tokens' },
-      mercado_pago: { count: 0, revenue: 0, label: 'QR Code / Mercado Pago' }
+      mercado_pago: { count: 0, revenue: 0, label: 'MP / PIX' },
+      tokens:       { count: 0, revenue: 0, label: 'Tokens' }
     };
-    
-    // Agrupar por external_reference para evitar contar múltiplas vezes a mesma transação
-    // Uma transação pode ter múltiplos documentos (ex: múltiplos horários/times)
-    const transactionsByRef = new Map();
-    
+    const seenRefs = new Set();
     all.forEach(o => {
       const status = (o.status||'').toLowerCase();
-      if (status === 'paid' || status === 'confirmed') {
-        const externalRef = o.externalRef || o.docId || 'no-ref';
-        
-        // Se já existe uma transação com esse external_reference, agrupar
-        if (transactionsByRef.has(externalRef)) {
-          const existing = transactionsByRef.get(externalRef);
-          // Somar o valor (pode ter múltiplos itens na mesma transação)
-          existing.amount += Number(o.amount || 0);
-          existing.items.push({
-            item: o.item,
-            amount: Number(o.amount || 0),
-            source: o.source
-          });
-        } else {
-          // Nova transação
-          transactionsByRef.set(externalRef, {
-            method: o.paymentMethod || 'mercado_pago',
-            amount: Number(o.amount || 0),
-            items: [{
-              item: o.item,
-              amount: Number(o.amount || 0),
-              source: o.source
-            }]
-          });
-        }
-      }
+      if (status !== 'paid' && status !== 'confirmed' && status !== 'approved') return;
+      if (period.from && o.ts < period.from) return;
+      if (period.to && o.ts > period.to) return;
+      const ref = o.externalRef || o.docId || 'no-ref';
+      if (seenRefs.has(ref)) return;
+      seenRefs.add(ref);
+      const key = o.paymentMethod === 'tokens' ? 'tokens' : 'mercado_pago';
+      paymentMap[key].count++;
+      paymentMap[key].revenue += Number(o.amount || 0);
     });
-    
-    // Contar transações únicas (não documentos individuais)
-    transactionsByRef.forEach(transaction => {
-      const method = transaction.method;
-      const key = method === 'tokens' ? 'tokens' : 'mercado_pago';
-      paymentMap[key].count += 1; // Conta 1 transação, não múltiplos documentos
-      paymentMap[key].revenue += transaction.amount;
-    });
-    
-    
-    
-    
-    
-    const labels = Object.values(paymentMap).map(p => p.label);
-    const countData = Object.values(paymentMap).map(p => p.count);
-    const revenueData = Object.values(paymentMap).map(p => p.revenue);
-    
+
+    const entries = Object.values(paymentMap);
+    const labels   = entries.map(p => p.label);
+    const countData   = entries.map(p => p.count);
+    const revenueData = entries.map(p => p.revenue);
+    const total = countData.reduce((s,v)=>s+v,0);
+
     try { if (charts.payment) { charts.payment.destroy(); } } catch(_){}
-    
+
+    const centerPlugin = {
+      id: 'centerText',
+      afterDraw(chart) {
+        const { ctx, chartArea: { left, top, right, bottom } } = chart;
+        const cx = (left + right) / 2, cy = (top + bottom) / 2;
+        ctx.save();
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.font = 'bold 22px Inter,sans-serif';
+        ctx.fillStyle = '#1e293b';
+        ctx.fillText(String(total), cx, cy - 10);
+        ctx.font = '11px Inter,sans-serif';
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText('transações', cx, cy + 12);
+        ctx.restore();
+      }
+    };
+
     charts.payment = new Chart(canvas.getContext('2d'), {
       type: 'doughnut',
+      plugins: [centerPlugin],
       data: {
         labels,
-        datasets: [
-          {
-            label: 'Quantidade de Vendas',
-            data: countData,
-            backgroundColor: ['#10b981', '#3b82f6'],
-            borderColor: ['#059669', '#2563eb'],
-            borderWidth: 2
-          }
-        ]
+        datasets: [{
+          data: countData,
+          backgroundColor: ['#3b82f6', '#fb923c'],
+          borderColor: ['#2563eb', '#ea580c'],
+          borderWidth: 3,
+          hoverOffset: 8
+        }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        cutout: '68%',
+        animation: { animateRotate: true, duration: 700, easing: 'easeInOutQuart' },
         plugins: {
           legend: {
             display: true,
             position: 'bottom',
             labels: {
-              font: { size: 12, weight: 'bold' },
-              padding: 15,
-              usePointStyle: true
+              font: { size: 12, weight: '600' },
+              padding: 18,
+              usePointStyle: true,
+              pointStyleWidth: 10,
+              generateLabels: chart => {
+                return labels.map((lbl, i) => ({
+                  text: `${lbl} — ${countData[i]} (R$ ${revenueData[i].toFixed(2).replace('.',',')})`,
+                  fillStyle: ['#3b82f6','#fb923c'][i],
+                  strokeStyle: ['#2563eb','#ea580c'][i],
+                  lineWidth: 2,
+                  pointStyle: 'circle',
+                  hidden: false,
+                  index: i
+                }));
+              }
             }
           },
           tooltip: {
+            backgroundColor: 'rgba(15,23,42,0.92)',
+            bodyFont: { size: 12 },
+            padding: 12,
+            cornerRadius: 10,
             callbacks: {
-              label: function(context) {
-                const index = context.dataIndex;
-                const revenue = revenueData[index];
-                const count = countData[index];
-                return [
-                  `${context.label}: ${count} venda${count !== 1 ? 's' : ''}`,
-                  `Faturamento: R$ ${revenue.toFixed(2).replace('.', ',')}`
-                ];
+              label: ctx => {
+                const i = ctx.dataIndex;
+                const pct = total > 0 ? ((countData[i]/total)*100).toFixed(1) : '0.0';
+                return [`${countData[i]} transações (${pct}%)`, `R$ ${revenueData[i].toFixed(2).replace('.',',')}`];
               }
             }
           }
@@ -2579,16 +2584,19 @@ window.showWarningToast = function(message, title = 'Atenção') {
     let i=1; let total=0; snap.forEach(d=>{ const s=d.data(); const ts=new Date(s.createdAt||s.timestamp||s.date||0); if (period.from&&ts<period.from) return; if (period.to&&ts>period.to) return; total++; const tr=document.createElement('tr'); tr.innerHTML=`<td class="py-2">${i++}</td><td class="py-2">${s.eventType||''}</td><td class="py-2">${s.date||''}</td><td class="py-2">${s.hour||''}</td><td class="py-2">${s.name||s.email||''}</td>`; tbody.appendChild(tr); });
     if (count) count.textContent = `${total} inscrições`;
   }
-  function parsePeriod(){
-    const sel = document.getElementById('reportPeriod');
-    const fromEl = document.getElementById('dateFrom');
-    const toEl = document.getElementById('dateTo');
-    const v = sel?.value || 'today';
+  function parsePeriodFromValue(v){
     const now = new Date();
     if (v==='today'){ period.from = new Date(now.getFullYear(), now.getMonth(), now.getDate()); period.to = null; }
     else if (v==='7d'){ const d=new Date(); d.setDate(d.getDate()-7); period.from = d; period.to = null; }
     else if (v==='30d'){ const d=new Date(); d.setDate(d.getDate()-30); period.from = d; period.to = null; }
-    else { period.from = fromEl?.value? new Date(fromEl.value) : null; period.to = toEl?.value? new Date(toEl.value) : null; }
+    else if (v==='mes'){ period.from = new Date(now.getFullYear(), now.getMonth(), 1); period.to = null; }
+    else { period.from = null; period.to = null; }
+  }
+  function parsePeriod(){
+    const fromEl = document.getElementById('dateFrom');
+    const toEl   = document.getElementById('dateTo');
+    period.from = fromEl?.value ? new Date(fromEl.value) : null;
+    period.to   = toEl?.value  ? new Date(toEl.value)   : null;
   }
   async function applyFilter(){ parsePeriod(); await loadReports(); }
 
