@@ -10808,6 +10808,8 @@ function openNewEventForm() {
     document.getElementById('evtEditCategory').value = currentEventTab;
     document.getElementById('evtFormTitle').textContent = 'Novo Evento';
     document.getElementById('evtName').value = '';
+    const evtEtNew = document.getElementById('evtEventType');
+    if (evtEtNew) evtEtNew.value = '';
     document.getElementById('evtTipo').value = currentEventTab === 'camp' ? 'SOLO' : 'DUO';
     document.getElementById('evtModo').value = 'NORMAL';
     const fmtElNew = document.getElementById('evtFormato');
@@ -10829,6 +10831,8 @@ function cancelEventForm() {
     document.getElementById('evtEditId').value = '';
     document.getElementById('evtFormTitle').textContent = 'Novo Evento';
     document.getElementById('evtName').value = '';
+    const evtEtCancel = document.getElementById('evtEventType');
+    if (evtEtCancel) evtEtCancel.value = '';
     document.getElementById('evtVagas').value = '';
     const gruposEl = document.getElementById('evtGrupos');
     if (gruposEl) gruposEl.value = '';
@@ -10987,6 +10991,7 @@ async function saveEventForm() {
     const data = {
         category,
         name: document.getElementById('evtName').value.trim(),
+        eventType: (document.getElementById('evtEventType')?.value || '').trim() || null,
         tipo: document.getElementById('evtTipo').value,
         modo: document.getElementById('evtModo').value,
         formato: (document.getElementById('evtFormato')?.value || 'MISTO').toUpperCase(),
@@ -11154,6 +11159,8 @@ async function editEventItem(eventId) {
         document.getElementById('evtEditId').value = eventId;
         document.getElementById('evtFormTitle').textContent = 'Editar Evento';
         document.getElementById('evtName').value = ev.name || '';
+        const evtEventTypeEl = document.getElementById('evtEventType');
+        if (evtEventTypeEl) evtEventTypeEl.value = ev.eventType || '';
         document.getElementById('evtTipo').value = ev.tipo || 'SOLO';
         document.getElementById('evtModo').value = ev.modo || 'NORMAL';
         const fmtEl = document.getElementById('evtFormato');
