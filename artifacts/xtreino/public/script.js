@@ -7314,7 +7314,9 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
                         userId: window.firebaseAuth.currentUser.uid,
                         teamName: team.name,
                         leaderName: window.currentUserProfile?.name || team.name,
-                        email: team.email,
+                        // email sempre = email do usuário logado para fetchUserDocs encontrar em "Meus Pedidos"
+                        email: window.firebaseAuth.currentUser.email,
+                        teamEmail: team.email,   // email de contato do time (formulário)
                         phone: team.phone,
                         schedule: schedKey,
                         date: d,
