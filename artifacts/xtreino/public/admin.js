@@ -3857,10 +3857,35 @@ async function loadEventOptions() {
     }
 }
 
-// Função para obter o dia da semana em português
-function getDayOfWeek(date) {
+// Mapeia nome do dia (PT) → código para filtro
+const _ptDayMap = {
+    'segunda': 'monday', 'terca': 'tuesday', 'terça': 'tuesday',
+    'quarta': 'wednesday', 'quinta': 'thursday', 'sexta': 'friday',
+    'sabado': 'saturday', 'sábado': 'saturday', 'domingo': 'sunday'
+};
+
+// Extrai o horário numérico de um campo schedule (ex: "Segunda - 21h" → "21h")
+function extrairHorario(schedule) {
+    if (!schedule) return null;
+    const m = String(schedule).match(/(\d{1,2})h/i);
+    return m ? m[1] + 'h' : null;
+}
+
+// Extrai o dia da semana (código EN) do campo schedule (ex: "Segunda - 21h" → "monday")
+function extrairDiaDaSchedule(schedule) {
+    if (!schedule) return null;
+    const parte = String(schedule).split('-')[0].trim().toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // remove acentos
+    return _ptDayMap[parte] || null;
+}
+
+// Obtém o código do dia da semana a partir de uma string de data YYYY-MM-DD (fuso Brasília)
+function getDayOfWeekFromDateStr(dateStr) {
+    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return null;
+    const [y, mo, d] = dateStr.split('-').map(Number);
     const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    return days[date.getDay()];
+    // Usar Date.UTC para evitar conversão de fuso — queremos o dia calendário da data
+    return days[new Date(y, mo - 1, d).getDay()];
 }
 
 // Função para carregar dados de horários com filtros
@@ -3872,8 +3897,7 @@ async function loadPopularHoursData(dayFilter = '', eventFilter = '') {
         }
         
         const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const registrationsCol = collection(window.firebaseDb, 'registrations');
-        const snap = await getDocs(registrationsCol);
+        const snap = await getDocs(collection(window.firebaseDb, 'registrations'));
         
         const hourCounts = new Map();
         
@@ -3886,32 +3910,30 @@ async function loadPopularHoursData(dayFilter = '', eventFilter = '') {
             // Filtrar por evento se especificado
             if (eventFilter && data.eventType !== eventFilter) return;
             
-            // Filtrar por dia da semana se especificado
+            // Filtrar por dia da semana:
+            // 1ª tentativa: extrair do campo schedule (mais confiável)
+            // 2ª tentativa: extrair da data da inscrição
             if (dayFilter) {
-                const registrationDate = data.date ? new Date(data.date) : new Date();
-                const dayOfWeek = getDayOfWeek(registrationDate);
-                if (dayOfWeek !== dayFilter) return;
+                const diaSchedule = extrairDiaDaSchedule(data.schedule);
+                const diaDate    = getDayOfWeekFromDateStr(data.date);
+                const dia = diaSchedule || diaDate;
+                if (dia !== dayFilter) return;
             }
             
-            // Extrair horário
-            const hour = data.schedule || data.hour || '—';
-            if (hour && hour !== '—') {
-                hourCounts.set(hour, (hourCounts.get(hour) || 0) + 1);
-            }
+            // Extrair apenas o horário numérico (ex: "21h") ignorando o dia embutido
+            const horario = extrairHorario(data.schedule || data.hour || '');
+            if (!horario) return; // schedule inválido (sem dígito de hora)
+            
+            hourCounts.set(horario, (hourCounts.get(horario) || 0) + 1);
         });
         
-        // Converter para arrays ordenados
+        // Converter para arrays ordenados pelo número da hora
         const entries = Array.from(hourCounts.entries());
-        entries.sort((a, b) => {
-            // Extrair número do horário para ordenação
-            const hourA = parseInt(String(a[0]).replace(/\D/g, '')) || 0;
-            const hourB = parseInt(String(b[0]).replace(/\D/g, '')) || 0;
-            return hourA - hourB;
-        });
+        entries.sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
         
         return {
-            labels: entries.map(([hour]) => hour),
-            data: entries.map(([, count]) => count)
+            labels: entries.map(([h]) => h),
+            data: entries.map(([, c]) => c)
         };
     } catch (error) {
         console.error('Erro ao carregar dados de horários:', error);
