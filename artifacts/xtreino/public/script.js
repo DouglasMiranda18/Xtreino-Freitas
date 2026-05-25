@@ -4940,10 +4940,20 @@ function openScheduleModal(eventType) {
             grid.classList.add('grid-cols-1');
         }
 
-        // Esconder seções específicas para produtos
+        // Para produtos: reaproveitar o resumo como "Resumo do Pedido" (não esconder)
         const reservationsSummarySection = document.getElementById('reservationsSummarySection');
         if (reservationsSummarySection) {
-            reservationsSummarySection.style.display = 'none';
+            reservationsSummarySection.style.display = '';
+            // Mudar título para "Resumo do Pedido"
+            const rTitle = reservationsSummarySection.querySelector('h4');
+            if (rTitle) rTitle.innerHTML = `<svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg> Resumo do Pedido`;
+            // Preencher conteúdo e preço
+            const rSummary = document.getElementById('reservationsSummary');
+            if (rSummary) rSummary.innerHTML = `<p class="text-gray-700 font-medium">${cfg.label || 'Produto'}</p>`;
+            const totalPriceEl = document.getElementById('totalPrice');
+            if (totalPriceEl) totalPriceEl.textContent = `R$ ${Number(cfg.price || 0).toFixed(2).replace('.', ',')}`;
+            // Inicializar o total global para que o cupom funcione corretamente
+            scheduleOriginalTotal = Number(cfg.price || 0);
         }
 
         const teamsSection = document.getElementById('teamsSection');
@@ -8217,7 +8227,37 @@ function updateSchedulePriceWithCoupon() {
 
     discountAmount = Math.min(discountAmount, baseTotal);
     const finalTotal = Math.max(0, baseTotal - discountAmount);
+
+    // Mostrar preço original riscado + desconto + preço final
+    const parent = totalElement.parentElement;
+    if (parent) {
+        // Remover linha de desconto anterior se existir
+        const prev = parent.querySelector('#schedDiscountLine');
+        if (prev) prev.remove();
+        const origLine = document.createElement('div');
+        origLine.id = 'schedDiscountLine';
+        origLine.className = 'flex justify-between items-center text-sm text-gray-500 mb-1';
+        origLine.innerHTML = `
+            <span>Subtotal:</span>
+            <span class="line-through">R$ ${baseTotal.toFixed(2).replace('.', ',')}</span>
+        `;
+        parent.insertBefore(origLine, totalElement.parentElement.querySelector('.flex.justify-between.items-center:last-child') || totalElement);
+        // Adicionar linha de desconto
+        const discLine = document.createElement('div');
+        discLine.id = 'schedDiscountValue';
+        discLine.className = 'flex justify-between items-center text-sm text-green-600 mb-2';
+        const discLabel = appliedScheduleCoupon.discountType === 'percentage'
+            ? `Desconto (${appliedScheduleCoupon.discountValue}%)`
+            : `Desconto (${appliedScheduleCoupon.code})`;
+        discLine.innerHTML = `<span>${discLabel}:</span><span>- R$ ${discountAmount.toFixed(2).replace('.', ',')}</span>`;
+        // Verificar se já existe e remover antes de inserir
+        const prevDisc = parent.querySelector('#schedDiscountValue');
+        if (prevDisc) prevDisc.remove();
+        parent.insertBefore(discLine, parent.querySelector('.flex.justify-between.items-center:last-child') || totalElement);
+    }
+
     totalElement.textContent = `R$ ${finalTotal.toFixed(2).replace('.', ',')}`;
+    totalElement.classList.add('text-green-700');
 }
 
 function removeScheduleCoupon() {
@@ -8228,6 +8268,15 @@ function removeScheduleCoupon() {
     if (totalElement) {
         const base = Number(scheduleOriginalTotal || 0);
         totalElement.textContent = `R$ ${base.toFixed(2).replace('.', ',')}`;
+        totalElement.classList.remove('text-green-700');
+        // Remover linhas de desconto inseridas ao aplicar o cupom
+        const parent = totalElement.parentElement;
+        if (parent) {
+            const dl = parent.querySelector('#schedDiscountLine');
+            const dv = parent.querySelector('#schedDiscountValue');
+            if (dl) dl.remove();
+            if (dv) dv.remove();
+        }
     }
     updateScheduleCouponUI();
     showScheduleCouponMessage(`Cupom "${removedCode}" removido`, 'success');
