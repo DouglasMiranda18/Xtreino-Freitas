@@ -263,6 +263,13 @@ service cloud.firestore {
       allow update, delete: if isAdmin() || isGerente();
     }
 
+    // affiliates: cadastro de afiliados
+    match /affiliates/{affiliateId} {
+      allow read: if canReadAll() || isAfiliado();
+      allow create, update: if isAdmin() || isGerente() || isVendedor();
+      allow delete: if isAdmin() || isGerente();
+    }
+
     // affiliate_sales
     match /affiliate_sales/{saleId} {
       allow read: if isSignedIn() && (
