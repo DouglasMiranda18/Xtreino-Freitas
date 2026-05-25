@@ -867,7 +867,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
           tokenUsageData.push({
             id: doc.id,
             cliente: reg.email || 'Cliente não informado',
-            evento: reg.eventType || reg.title || 'Evento',
+            evento: resolveEventName(reg.eventType, reg.title || 'Evento'),
             tokens: reg.tokensUsed || '1',
             data: originalDate.toLocaleString('pt-BR'),
             originalDate: originalDate
@@ -1291,39 +1291,85 @@ window.showWarningToast = function(message, title = 'Atenção') {
     });
   } catch(_){}
 
-  // Unifica pedidos: usa APENAS registrations (mais importante - eventos são o core do negócio)
-  // Isso evita duplicação entre orders e registrations que marcam a mesma coisa
+  // Mapa de IDs de evento → nome legível
+  const EVENT_NAMES_MAP = {
+    'xtreino-tokens': 'XTreino Freitas',
+    'xtreino': 'XTreino Freitas',
+    'modo-liga': 'XTreino Modo Liga',
+    'semanal-freitas': 'Semanal Freitas',
+    'semanal': 'Semanal Freitas',
+    'camp-freitas': 'Campeonato Freitas',
+    'camp': 'Campeonato Freitas'
+  };
+
+  function resolveEventName(eventType, fallback) {
+    if (!eventType) return fallback || 'Evento';
+    const key = String(eventType).toLowerCase().trim();
+    return EVENT_NAMES_MAP[key] || fallback || eventType;
+  }
+
+  // Unifica pedidos: registrations (eventos) + orders de produtos (sem duplicar eventos)
   async function fetchUnifiedOrders() {
     const items = [];
+    const seenExternalRefs = new Set();
     try {
       const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-      
-      // Usar APENAS registrations (eventos são o core do negócio e mais importante)
-      // Orders e registrations estavam marcando a mesma coisa, causando duplicação
-      try{
-        const regs = await getDocs(collection(window.firebaseDb,'registrations'));
+
+      // 1. Eventos vêm de registrations (fonte primária para eventos)
+      try {
+        const regs = await getDocs(collection(window.firebaseDb, 'registrations'));
         regs.forEach(d => {
           const r = d.data();
-          const ts = (r.createdAt?.toDate ? r.createdAt.toDate() : (r.timestamp? new Date(r.timestamp) : new Date()));
-          items.push({ 
-            ts, 
-            amount: Number(r.price||0), 
-            item:(r.title||r.eventType||'Reserva'), 
-            customer:(r.email||'-'), 
-            status:(r.status||''), 
+          const ts = (r.createdAt?.toDate ? r.createdAt.toDate() : (r.timestamp ? new Date(r.timestamp) : new Date()));
+          const extRef = r.external_reference || r.externalRef || null;
+          if (extRef) seenExternalRefs.add(extRef);
+          items.push({
+            ts,
+            amount: Number(r.price || 0),
+            item: resolveEventName(r.eventType, r.title || 'Reserva'),
+            customer: (r.email || '-'),
+            status: (r.status || ''),
             paymentMethod: (r.paidWithTokens ? 'tokens' : 'mercado_pago'),
             source: 'registrations',
             docId: d.id,
-            externalRef: r.external_reference || r.externalRef || null,
+            externalRef: extRef,
             schedule: r.schedule || null,
             teamName: r.teamName || null
           });
         });
-      }catch(_){}
-      
-      // Orders removido - estava duplicando com registrations
-      // Registrations é a fonte única de verdade para eventos (core do negócio)
-    } catch(_){}
+      } catch (_) {}
+
+      // 2. Produtos digitais, tokens e camisas vêm de orders (tipo não-evento)
+      // Eventos que criam order também (via processSuccessfulPayment) são ignorados
+      // pela deduplicação por external_reference
+      try {
+        const ords = await getDocs(collection(window.firebaseDb, 'orders'));
+        ords.forEach(d => {
+          const o = d.data();
+          const type = (o.type || '').toLowerCase();
+          // Pular orders de evento (já estão em registrations)
+          if (type === 'event') return;
+          // Pular orders com external_reference já visto em registrations
+          const extRef = o.external_reference || o.externalRef || d.id;
+          if (seenExternalRefs.has(extRef)) return;
+          const ts = (o.createdAt?.toDate ? o.createdAt.toDate() : (o.timestamp ? new Date(o.timestamp) : new Date()));
+          const rawItem = o.title || o.item || o.description || 'Produto';
+          items.push({
+            ts,
+            amount: Number(o.amount || o.total || 0),
+            item: rawItem,
+            customer: (o.customer || o.buyerEmail || o.customerName || '-'),
+            status: (o.status || ''),
+            paymentMethod: (o.paidWithTokens ? 'tokens' : 'mercado_pago'),
+            source: 'orders',
+            docId: d.id,
+            externalRef: extRef,
+            productId: o.productId || null
+          });
+        });
+      } catch (_) {}
+
+    } catch (_) {}
     return items;
   }
 
@@ -1819,38 +1865,51 @@ window.showWarningToast = function(message, title = 'Atenção') {
     }
     
     const normalized = String(name).trim();
+    const lc = normalized.toLowerCase();
+
+    // Verificar primeiro se é um ID de evento conhecido
+    const fromEventMap = EVENT_NAMES_MAP[lc];
+    if (fromEventMap) return fromEventMap;
     
     // Normalizar tokens
-    if (normalized.toLowerCase().includes('token')) {
+    if (lc.includes('token')) {
       const match = normalized.match(/(\d+)\s*token/i);
       if (match) {
-        return `${match[1]} Token${match[1] > 1 ? 's' : ''} XTreino`;
+        return `${match[1]} Token${Number(match[1]) > 1 ? 's' : ''} XTreino`;
       }
-      if (normalized.toLowerCase().includes('undefined')) {
+      if (lc.includes('undefined')) {
         return 'Token XTreino';
       }
       return normalized.replace(/undefined/gi, '').trim() || 'Token XTreino';
     }
     
     // Normalizar eventos/treinos
-    if (normalized.toLowerCase().includes('modo liga') || normalized.toLowerCase().includes('modo-liga')) {
+    if (lc.includes('modo liga') || lc.includes('modo-liga')) {
       return 'XTreino Modo Liga';
     }
-    if (normalized.toLowerCase().includes('semanal')) {
+    if (lc.includes('semanal')) {
       return 'Semanal Freitas';
     }
-    if (normalized.toLowerCase().includes('camp') || normalized.toLowerCase().includes('campeonato')) {
-      return 'Camp Freitas';
+    if (lc.includes('camp') || lc.includes('campeonato')) {
+      return 'Campeonato Freitas';
     }
-    if (normalized.toLowerCase().includes('reserva') || normalized.toLowerCase().includes('treino')) {
+    if (lc.includes('xtreino')) {
+      return 'XTreino Freitas';
+    }
+    if (lc.includes('reserva') || lc.includes('treino')) {
       return 'Reserva de Evento';
     }
     
     // Normalizar sensibilidades
-    if (normalized.toLowerCase().includes('sensibilidade') || normalized.toLowerCase().includes('sensibilidade')) {
+    if (lc.includes('sensibilidade')) {
       return 'Sensibilidade Free Fire';
     }
     
+    // Normalizar imagens aéreas
+    if (lc.includes('imag') && (lc.includes('aér') || lc.includes('aer') || lc.includes('mapa'))) {
+      return 'Imagens Aéreas';
+    }
+
     // Limpar "undefined" de qualquer nome
     return normalized.replace(/undefined/gi, '').trim() || 'Produto Diverso';
   }
@@ -2328,7 +2387,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
           tokenUsage.push({
             ts,
             client: r.email || '',
-            event: r.title || r.eventType || 'Evento',
+            event: resolveEventName(r.eventType, r.title || 'Evento'),
             tokens: tokenCount,
             schedule: r.schedule || '',
             id: d.id
