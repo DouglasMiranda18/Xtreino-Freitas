@@ -7903,10 +7903,19 @@ async function processSuccessfulPayment(externalRef = null) {
                 const orderDoc = orderSnap2.docs[0];
                 const orderData2 = orderDoc.data();
                 if (orderData2.status !== 'paid') {
-                    await updateDoc(doc(window.firebaseDb, 'orders', orderDoc.id), {
-                        status: 'paid',
-                        paidAt: serverTimestamp()
-                    });
+                    try {
+                        await updateDoc(doc(window.firebaseDb, 'orders', orderDoc.id), {
+                            status: 'paid',
+                            paidAt: serverTimestamp()
+                        });
+                    } catch (updateErr) {
+                        console.warn('[processSuccessfulPayment] Sem permissão para atualizar status (admin precisa aprovar manualmente):', updateErr?.code || updateErr?.message);
+                        // Mostrar toast mesmo assim — pagamento foi aprovado pelo MP
+                        if (typeof showToast === 'function') {
+                            showToast('success', 'Pagamento aprovado pelo Mercado Pago! Em breve seu produto estará disponível em Minha Conta → Meus Produtos.', 'Pagamento Aprovado ✅', 10000);
+                        }
+                        return;
+                    }
                 }
                 // Registrar uso de cupom se houver
                 if (orderData2.couponId && orderData2.couponCode) {
@@ -7928,13 +7937,16 @@ async function processSuccessfulPayment(externalRef = null) {
                         await createPendingAffiliateSale(orderDoc.id, orderData2.affiliateCode, orderData2, 'product');
                     } catch (_) {}
                 }
-                // Notificar cliente sem modal de slots
+                // Notificar cliente
                 if (typeof showToast === 'function') {
-                    showToast('success', 'Pagamento confirmado! Acesse Minha Conta → Meus Produtos.', 'Pagamento Aprovado');
+                    showToast('success', 'Pagamento confirmado! Acesse Minha Conta → Meus Produtos.', 'Pagamento Aprovado ✅');
                 }
             }
         } catch (prodErr) {
             console.warn('[processSuccessfulPayment] Erro ao atualizar pedido de produto:', prodErr?.code || prodErr?.message);
+            if (typeof showToast === 'function') {
+                showToast('success', 'Pagamento aprovado! Em breve seu produto estará disponível em Meus Produtos.', 'Pagamento Aprovado ✅', 10000);
+            }
         }
         return;
     }

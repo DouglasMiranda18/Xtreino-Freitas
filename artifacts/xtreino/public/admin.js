@@ -12293,6 +12293,69 @@ window.limparInscricoesSemHorario = async function() {
     try { await loadBoard(); } catch(_) {}
 };
 
+// ===== UTILITÁRIO: APROVAR PEDIDO PRESO EM PENDING =====
+// Uso no console do admin: markOrderPaid('email@cliente.com')
+// Ou por ID do pedido: markOrderPaid(null, 'ORDER_ID')
+window.markOrderPaid = async function(targetEmail, orderId = null) {
+    if (!targetEmail && !orderId) { alert('Informe o e-mail do cliente ou o ID do pedido.'); return; }
+    if (!window.firebaseDb) { alert('Firebase não conectado.'); return; }
+    try {
+        const { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } =
+            await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const db = window.firebaseDb;
+
+        let ordersToApprove = [];
+
+        if (orderId) {
+            // Buscar pelo ID direto
+            const { getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            const snap = await getDoc(doc(db, 'orders', orderId));
+            if (snap.exists()) ordersToApprove.push({ id: snap.id, ...snap.data() });
+        } else {
+            // Buscar pedidos pending pelo e-mail do cliente
+            const email = targetEmail.toLowerCase().trim();
+            const q = query(collection(db, 'orders'),
+                where('status', '==', 'pending'),
+                where('buyerEmail', '==', email));
+            const snap = await getDocs(q);
+            if (snap.empty) {
+                // Tenta pelo campo 'customer'
+                const q2 = query(collection(db, 'orders'),
+                    where('status', '==', 'pending'),
+                    where('customer', '==', email));
+                const snap2 = await getDocs(q2);
+                snap2.forEach(d => ordersToApprove.push({ id: d.id, ...d.data() }));
+            } else {
+                snap.forEach(d => ordersToApprove.push({ id: d.id, ...d.data() }));
+            }
+        }
+
+        if (ordersToApprove.length === 0) {
+            alert('Nenhum pedido pendente encontrado para este cliente.');
+            return;
+        }
+
+        const lista = ordersToApprove.map(o => `• ${o.id} | ${o.title || o.item || 'Produto'} | R$ ${o.amount || o.total || '?'}`).join('\n');
+        const ok = confirm(`Aprovar ${ordersToApprove.length} pedido(s) como PAGO?\n\n${lista}`);
+        if (!ok) return;
+
+        let count = 0;
+        for (const order of ordersToApprove) {
+            await updateDoc(doc(db, 'orders', order.id), {
+                status: 'paid',
+                paidAt: serverTimestamp()
+            });
+            count++;
+        }
+
+        alert(`✅ ${count} pedido(s) marcado(s) como pago(s). O cliente já pode acessar em Minha Conta → Meus Produtos.`);
+        console.log(`[markOrderPaid] ${count} pedido(s) aprovado(s).`, ordersToApprove.map(o => o.id));
+    } catch (err) {
+        console.error('[markOrderPaid] Erro:', err);
+        alert('Erro: ' + (err.message || err));
+    }
+};
+
 // ===== UTILITÁRIO: ZERAR HISTÓRICO DE VENDAS DE AFILIADO =====
 window.zeroCouponUsageForEmail = async function(targetEmail) {
     if (!targetEmail) { alert('Informe o e-mail do afiliado.'); return; }
