@@ -12069,12 +12069,26 @@ async function openEventSlotsModal(eventId, eventName) {
             bySchedule[sched].push(r);
         });
 
-        // Ordenar cada horário por slot crescente (null vai pro final)
-        Object.values(bySchedule).forEach(arr => {
+        // Ordenar cada horário por slot crescente (null vai pro final) e deduplicar
+        Object.keys(bySchedule).forEach(sched => {
+            let arr = bySchedule[sched];
+            // Ordenar por slot/slotNumber crescente
             arr.sort((a, b) => {
-                const sa = a.slot != null ? Number(a.slot) : Infinity;
-                const sb = b.slot != null ? Number(b.slot) : Infinity;
+                const sa = a.slot != null ? Number(a.slot) : (a.slotNumber != null ? Number(a.slotNumber) : Infinity);
+                const sb = b.slot != null ? Number(b.slot) : (b.slotNumber != null ? Number(b.slotNumber) : Infinity);
                 return sa - sb;
+            });
+            // Deduplicar: mesmo slotNumber OU mesmo nome de time → manter apenas primeiro
+            const seenSlots = new Set();
+            const seenTeams = new Set();
+            bySchedule[sched] = arr.filter(r => {
+                const slotKey = r.slot != null ? String(r.slot) : (r.slotNumber != null ? String(r.slotNumber) : null);
+                const teamKey = (r.teamName || '').toLowerCase().trim();
+                if (slotKey !== null && seenSlots.has(slotKey)) return false;
+                if (teamKey && seenTeams.has(teamKey)) return false;
+                if (slotKey !== null) seenSlots.add(slotKey);
+                if (teamKey) seenTeams.add(teamKey);
+                return true;
             });
         });
 
