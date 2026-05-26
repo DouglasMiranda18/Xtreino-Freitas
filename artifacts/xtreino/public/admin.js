@@ -12477,3 +12477,37 @@ window.zeroCouponUsageForEmail = async function(targetEmail) {
         alert('Erro: ' + (err.message || err));
     }
 };
+
+// Utilitário: corrigir slot de um time específico
+// Uso no console: await fixTeamSlot('X GOD', 'xtreino-tokens', '2026-05-26', 9)
+window.fixTeamSlot = async function(teamName, eventType, date, newSlot) {
+    if (!window.firebaseDb) { alert('Firebase não conectado.'); return; }
+    try {
+        const { collection, query, where, getDocs, doc, updateDoc } =
+            await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const db = window.firebaseDb;
+        const q = query(
+            collection(db, 'registrations'),
+            where('teamName', '==', teamName),
+            where('eventType', '==', eventType),
+            where('date', '==', date)
+        );
+        const snap = await getDocs(q);
+        if (snap.empty) { alert(`Nenhum registro encontrado para "${teamName}" em ${date}.`); return; }
+        const newSlotDisplay = `Vaga #${newSlot}`;
+        let count = 0;
+        for (const d of snap.docs) {
+            await updateDoc(doc(db, 'registrations', d.id), {
+                slot: newSlot,
+                slotNumber: newSlot,
+                slotDisplay: newSlotDisplay
+            });
+            count++;
+            console.log(`[fixTeamSlot] Atualizado: ${d.id} → slot ${newSlot}`);
+        }
+        alert(`✅ ${count} registro(s) do time "${teamName}" atualizados para Vaga #${newSlot}.`);
+    } catch (err) {
+        console.error('[fixTeamSlot] Erro:', err);
+        alert('Erro: ' + (err.message || err));
+    }
+};
