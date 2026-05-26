@@ -11732,35 +11732,120 @@ async function loadEventsPreview() {
 }
 
 // ===== NOTIFICAR PARTICIPANTES DO EVENTO =====
-let _notifyEventDocs = []; // cache das inscrições carregadas
+let _notifyEventDocs = [];
+let _notifyScheduleMap = {};
+let _notifySelectedSlotKey = 'all';
+let _notifySelectedType = 'credentials';
+let _notifyOtherDaysVisible = false;
+
+function selectNotifyType(type) {
+    _notifySelectedType = type;
+    const colorMap = { credentials: 'purple', tabela: 'green', custom: 'blue' };
+    document.querySelectorAll('.notify-type-card').forEach(card => {
+        const t = card.dataset.type;
+        const c = colorMap[t] || 'purple';
+        const isSelected = t === type;
+        card.style.borderColor = isSelected ? (c === 'purple' ? '#a855f7' : c === 'green' ? '#22c55e' : '#3b82f6') : '';
+        card.style.backgroundColor = isSelected ? (c === 'purple' ? '#faf5ff' : c === 'green' ? '#f0fdf4' : '#eff6ff') : '';
+    });
+    const roomSec  = document.getElementById('eventNotifyRoomLinkSection');
+    const tabSec   = document.getElementById('eventNotifyTabelaSection');
+    const titleEl  = document.getElementById('eventNotifyTitle');
+    const msgEl    = document.getElementById('eventNotifyMessage');
+    const optLabel = document.getElementById('notifyMsgOptLabel');
+    if (roomSec)  roomSec.classList.toggle('hidden', type !== 'credentials');
+    if (tabSec)   tabSec.classList.toggle('hidden',  type !== 'tabela');
+    if (optLabel) optLabel.textContent = (type === 'custom') ? '(obrigatória)' : '(opcional)';
+    if (type === 'credentials') {
+        if (titleEl && !titleEl.value) titleEl.value = 'Credenciais do Evento 🎮';
+        if (msgEl) msgEl.placeholder = 'Ex: Use as credenciais abaixo para entrar na sala. Boa sorte!';
+    } else if (type === 'tabela') {
+        if (titleEl && !titleEl.value) titleEl.value = 'Tabela de Pontuação 📊';
+        if (msgEl) msgEl.placeholder = 'Ex: A tabela do evento já está disponível!';
+    } else {
+        if (titleEl && !titleEl.value) titleEl.value = '';
+        if (msgEl) msgEl.placeholder = 'Digite sua mensagem para os participantes...';
+    }
+}
+
+function selectNotifySlot(key) {
+    _notifySelectedSlotKey = key;
+    document.querySelectorAll('.notify-slot-btn').forEach(btn => {
+        const sel = btn.dataset.key === key;
+        btn.style.borderColor       = sel ? '#a855f7' : '#e5e7eb';
+        btn.style.backgroundColor   = sel ? '#faf5ff' : '#ffffff';
+        btn.style.color             = sel ? '#7e22ce' : '#374151';
+        btn.style.fontWeight        = sel ? '700'     : '400';
+    });
+    _updateNotifyCount();
+}
+
+function _updateNotifyCount() {
+    const countEl = document.getElementById('eventNotifyCount');
+    if (!countEl) return;
+    if (_notifySelectedSlotKey === 'all') {
+        const total = new Set(_notifyEventDocs.map(d => d.data().userId).filter(Boolean)).size;
+        countEl.textContent = `Vai enviar para ${total} participante(s)`;
+    } else {
+        const entry = _notifyScheduleMap[_notifySelectedSlotKey];
+        const n = entry ? entry.users.size : 0;
+        countEl.textContent = `Vai enviar para ${n} participante(s)${entry ? ' — ' + entry.sched : ''}`;
+    }
+}
+
+function toggleNotifyOtherDays() {
+    _notifyOtherDaysVisible = !_notifyOtherDaysVisible;
+    const sec  = document.getElementById('notifyOtherDaysSection');
+    const icon = document.getElementById('notifyToggleIcon');
+    const txt  = document.getElementById('notifyToggleText');
+    if (sec)  sec.classList.toggle('hidden', !_notifyOtherDaysVisible);
+    if (icon) icon.className = _notifyOtherDaysVisible ? 'fas fa-chevron-up fa-xs' : 'fas fa-chevron-down fa-xs';
+    if (txt)  txt.textContent = _notifyOtherDaysVisible ? 'Ocultar outros dias' : 'Ver outros dias';
+}
+
+function _buildSlotButton(key, entry) {
+    const safeKey = key.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    return `<button class="notify-slot-btn border-2 rounded-xl px-3 py-2 text-xs transition-all cursor-pointer"
+        style="border-color:#e5e7eb;background:#fff;color:#374151"
+        data-key="${key.replace(/"/g, '&quot;')}"
+        onclick="selectNotifySlot('${safeKey}')">
+        <span style="display:block;font-weight:600">${entry.sched}</span>
+        <span style="display:block;color:#9ca3af">${entry.users.size} pessoa(s)</span>
+    </button>`;
+}
 
 async function openEventNotifyModal(eventId, eventName) {
     const modal = document.getElementById('eventNotifyModal');
     if (!modal) return;
+
     _notifyEventDocs = [];
+    _notifyScheduleMap = {};
+    _notifySelectedSlotKey = 'all';
+    _notifyOtherDaysVisible = false;
+
     document.getElementById('eventNotifyEventId').value = eventId;
     document.getElementById('eventNotifyEventName').textContent = eventName;
     document.getElementById('eventNotifyTitle').value = '';
     document.getElementById('eventNotifyMessage').value = '';
-    document.getElementById('eventNotifyType').value = 'custom';
-    const roomIdEl = document.getElementById('eventNotifyRoomId');
-    const roomPwEl = document.getElementById('eventNotifyRoomPassword');
-    const roomLkEl = document.getElementById('eventNotifyRoomLink');
-    if (roomIdEl) roomIdEl.value = '';
-    if (roomPwEl) roomPwEl.value = '';
-    if (roomLkEl) roomLkEl.value = '';
-    const roomSec = document.getElementById('eventNotifyRoomLinkSection');
-    if (roomSec) roomSec.classList.add('hidden');
-    document.getElementById('eventNotifyCount').innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Carregando participantes...';
-    const schedSel = document.getElementById('eventNotifySchedule');
-    if (schedSel) schedSel.innerHTML = '<option value="all">Carregando horários...</option>';
+    ['eventNotifyRoomId','eventNotifyRoomPassword','eventNotifyRoomLink','eventNotifyTabelaLink']
+        .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+
+    document.getElementById('eventNotifyCount').textContent = '—';
+    document.getElementById('notifyLoadingSlots').classList.remove('hidden');
+    document.getElementById('notifyTodaySlots').classList.add('hidden');
+    document.getElementById('notifyTodaySlots').innerHTML = '';
+    document.getElementById('notifyNoTodaySlots').classList.add('hidden');
+    document.getElementById('notifyOtherDaysSection').classList.add('hidden');
+    document.getElementById('notifyToggleOtherDays').classList.add('hidden');
+    document.getElementById('notifyOtherSlots').innerHTML = '';
+
+    selectNotifyType('credentials');
+
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 
     try {
         const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        // Buscar apenas por eventType (campo único) e filtrar status em JS para evitar
-        // erros de índice composto (failed-precondition) que silenciam eventos pagos/tokens
         const snap = await getDocs(query(
             collection(window.firebaseDb, 'registrations'),
             where('eventType', '==', eventId)
@@ -11768,78 +11853,79 @@ async function openEventNotifyModal(eventId, eventName) {
         const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
         _notifyEventDocs = snap.docs.filter(d => validStatuses.has(d.data().status));
 
-        // Montar mapa de data+horário → usuários únicos
-        // Chave: "YYYY-MM-DD||schedule" para distinguir mesmo horário em dias diferentes
-        const scheduleMap = {}; // key → { label, users: Set }
         for (const d of _notifyEventDocs) {
             const r = d.data();
-            const uid = r.userId;
-            if (!uid) continue;
+            if (!r.userId) continue;
             const sched = r.schedule || r.slotDisplay || '—';
-            const date = r.date || '';
-            const key = date ? `${date}||${sched}` : `||${sched}`;
-            if (!scheduleMap[key]) {
-                // Formatar data como DD/MM para exibição
+            const date  = r.date || '';
+            const key   = date ? `${date}||${sched}` : `||${sched}`;
+            if (!_notifyScheduleMap[key]) {
                 let dateLabel = '';
                 if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
-                    const [y, m, dd] = date.split('-');
+                    const [, m, dd] = date.split('-');
                     dateLabel = `${dd}/${m}`;
                 } else if (date) {
                     dateLabel = date;
                 }
-                const label = dateLabel ? `${dateLabel} — ${sched}` : sched;
-                scheduleMap[key] = { label, users: new Set(), date, sched };
+                _notifyScheduleMap[key] = {
+                    label: dateLabel ? `${dateLabel} — ${sched}` : sched,
+                    users: new Set(), date, sched
+                };
             }
-            scheduleMap[key].users.add(uid);
+            _notifyScheduleMap[key].users.add(r.userId);
         }
+
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+        const todayDD  = String(today.getDate()).padStart(2,'0');
+        const todayMM  = String(today.getMonth()+1).padStart(2,'0');
+        document.getElementById('notifyTodayLabel').textContent = `— ${todayDD}/${todayMM}`;
+
+        const allKeys   = Object.keys(_notifyScheduleMap).sort();
+        const todayKeys = allKeys.filter(k => k.startsWith(todayStr + '||'));
+        const otherKeys = allKeys.filter(k => !k.startsWith(todayStr + '||'));
+
+        document.getElementById('notifyLoadingSlots').classList.add('hidden');
+        document.getElementById('notifyTodaySlots').classList.remove('hidden');
 
         const totalUnique = new Set(_notifyEventDocs.map(d => d.data().userId).filter(Boolean)).size;
-        document.getElementById('eventNotifyCount').textContent = `${totalUnique} participante(s) no total`;
+        const todaySlotsEl = document.getElementById('notifyTodaySlots');
 
-        // Popular select de data+horários ordenados por data
-        if (schedSel) {
-            const keys = Object.keys(scheduleMap).sort();
-            if (keys.length === 0) {
-                schedSel.innerHTML = '<option value="all">Todos (sem filtro)</option>';
-            } else {
-                schedSel.innerHTML = `<option value="all">Todos os participantes (${totalUnique} total)</option>` +
-                    keys.map(k => {
-                        const entry = scheduleMap[k];
-                        return `<option value="${k.replace(/"/g, '&quot;')}">${entry.label} — ${entry.users.size} participante(s)</option>`;
-                    }).join('');
-            }
+        if (todayKeys.length === 0) {
+            document.getElementById('notifyNoTodaySlots').classList.remove('hidden');
+            todaySlotsEl.innerHTML = `<button class="notify-slot-btn border-2 rounded-xl px-3 py-2 text-xs transition-all cursor-pointer"
+                style="border-color:#a855f7;background:#faf5ff;color:#7e22ce;font-weight:700"
+                data-key="all" onclick="selectNotifySlot('all')">
+                <span style="display:block;font-weight:700">Todos</span>
+                <span style="display:block;color:#a855f7">${totalUnique} pessoa(s)</span>
+            </button>`;
+        } else {
+            const todayUserSet = new Set();
+            todayKeys.forEach(k => _notifyScheduleMap[k].users.forEach(u => todayUserSet.add(u)));
+            let html = `<button class="notify-slot-btn border-2 rounded-xl px-3 py-2 text-xs transition-all cursor-pointer"
+                style="border-color:#a855f7;background:#faf5ff;color:#7e22ce;font-weight:700"
+                data-key="all" onclick="selectNotifySlot('all')">
+                <span style="display:block;font-weight:700">Todos de hoje</span>
+                <span style="display:block;color:#a855f7">${todayUserSet.size} pessoa(s)</span>
+            </button>`;
+            todayKeys.forEach(k => { html += _buildSlotButton(k, _notifyScheduleMap[k]); });
+            todaySlotsEl.innerHTML = html;
         }
+
+        if (otherKeys.length > 0) {
+            document.getElementById('notifyOtherSlots').innerHTML =
+                otherKeys.map(k => _buildSlotButton(k, _notifyScheduleMap[k])).join('');
+            document.getElementById('notifyToggleOtherDays').classList.remove('hidden');
+        }
+
+        selectNotifySlot('all');
+
     } catch(e) {
-        document.getElementById('eventNotifyCount').textContent = 'Não foi possível carregar participantes';
-        if (schedSel) schedSel.innerHTML = '<option value="all">Todos os horários</option>';
-    }
-}
-
-function onEventNotifyScheduleChange() {
-    const schedSel = document.getElementById('eventNotifySchedule');
-    const selected = schedSel ? schedSel.value : 'all';
-    const countEl = document.getElementById('eventNotifyCount');
-    if (!countEl) return;
-
-    if (selected === 'all') {
-        const total = new Set(_notifyEventDocs.map(d => d.data().userId).filter(Boolean)).size;
-        countEl.textContent = `${total} participante(s) no total`;
-    } else {
-        // Chave composta "YYYY-MM-DD||schedule" — separar para comparar individualmente
-        const [selDate, ...schedParts] = selected.split('||');
-        const selSched = schedParts.join('||');
-        const filtered = new Set(
-            _notifyEventDocs
-                .filter(d => {
-                    const r = d.data();
-                    if (!r.userId) return false;
-                    const rDate = r.date || '';
-                    const rSched = r.schedule || r.slotDisplay || '—';
-                    return rDate === selDate && rSched === selSched;
-                })
-                .map(d => d.data().userId)
-        );
-        countEl.textContent = `${filtered.size} participante(s) neste dia/horário`;
+        document.getElementById('notifyLoadingSlots').classList.add('hidden');
+        document.getElementById('eventNotifyCount').textContent = 'Erro ao carregar participantes';
+        document.getElementById('notifyTodaySlots').classList.remove('hidden');
+        document.getElementById('notifyTodaySlots').innerHTML =
+            '<p class="text-xs text-red-400">Não foi possível carregar os horários.</p>';
     }
 }
 
@@ -11847,45 +11933,20 @@ function closeEventNotifyModal() {
     const modal = document.getElementById('eventNotifyModal');
     if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
     _notifyEventDocs = [];
+    _notifyScheduleMap = {};
 }
 
-function onEventNotifyTypeChange() {
-    const type = document.getElementById('eventNotifyType').value;
-    const titleEl = document.getElementById('eventNotifyTitle');
-    const msgEl = document.getElementById('eventNotifyMessage');
-    const roomSection = document.getElementById('eventNotifyRoomLinkSection');
-    const tabelaSection = document.getElementById('eventNotifyTabelaSection');
-    const msgRow = document.getElementById('eventNotifyMessageRow');
+function onEventNotifyScheduleChange() {}
+function onEventNotifyTypeChange() {}
 
-    if (roomSection) roomSection.classList.toggle('hidden', type !== 'credentials');
-    if (tabelaSection) tabelaSection.classList.toggle('hidden', type !== 'tabela');
-
-    if (msgRow) {
-        const lbl = msgRow.querySelector('label');
-        if (lbl) lbl.innerHTML = (type === 'credentials' || type === 'tabela')
-            ? 'Mensagem adicional <span class="text-gray-400 font-normal">(opcional)</span>'
-            : 'Mensagem <span class="text-red-400">*</span>';
-    }
-    if (type === 'credentials') {
-        if (titleEl && !titleEl.value) titleEl.value = 'Credenciais do Evento 🎮';
-        if (msgEl) msgEl.placeholder = 'Ex: Use as credenciais abaixo para entrar na sala. Boa sorte!';
-    } else if (type === 'tabela') {
-        if (titleEl && !titleEl.value) titleEl.value = 'Tabela Pronta 📊';
-        if (msgEl) msgEl.placeholder = 'Ex: A tabela de pontuação do evento já está disponível!';
-    } else {
-        if (titleEl) titleEl.value = '';
-        if (msgEl) msgEl.placeholder = 'Digite sua mensagem para os participantes...';
-    }
-}
 
 async function sendEventNotification() {
     const eventId = document.getElementById('eventNotifyEventId').value;
     const eventName = document.getElementById('eventNotifyEventName').textContent;
     const title = document.getElementById('eventNotifyTitle').value.trim();
     const message = document.getElementById('eventNotifyMessage').value.trim();
-    const schedSel = document.getElementById('eventNotifySchedule');
-    const selectedSchedule = schedSel ? schedSel.value : 'all';
-    const notifyType = document.getElementById('eventNotifyType')?.value || 'custom';
+    const selectedSchedule = _notifySelectedSlotKey || 'all';
+    const notifyType = _notifySelectedType || 'custom';
 
     if (!title) { showToast('warning', 'Informe o título da notificação.', 'Atenção'); return; }
     if (notifyType !== 'credentials' && notifyType !== 'tabela' && !message) { showToast('warning', 'Informe a mensagem.', 'Atenção'); return; }
@@ -12183,6 +12244,9 @@ window.closeEventNotifyModal = closeEventNotifyModal;
 window.onEventNotifyTypeChange = onEventNotifyTypeChange;
 window.onEventNotifyScheduleChange = onEventNotifyScheduleChange;
 window.sendEventNotification = sendEventNotification;
+window.selectNotifyType = selectNotifyType;
+window.selectNotifySlot = selectNotifySlot;
+window.toggleNotifyOtherDays = toggleNotifyOtherDays;
 
 window.loadEventsPreview = loadEventsPreview;
 window.openEventsModal = openEventsModal;
