@@ -498,164 +498,156 @@ async function loadInscritos(evId) {
         const allDocs = [];
         snaps.forEach(snap => snap.docs.forEach(d => { if (!seen.has(d.id)) { seen.add(d.id); allDocs.push(d); } }));
 
-        // Data atual no fuso de Brasília (UTC-3) — evitar deletar inscrições válidas por diferença de UTC
+        // Data de hoje em horário de Brasília (UTC-3)
         const _brNow = new Date(Date.now() - 3 * 60 * 60 * 1000);
-        const todayStr = _brNow.toISOString().split('T')[0]; // YYYY-MM-DD no horário de Brasília
+        const todayStr = _brNow.toISOString().split('T')[0];
 
         const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
-        // Mostrar apenas inscrições do dia atual no horário de Brasília
-        const valid = allDocs.filter(d => {
-            const r = d.data();
-            const dt = r.date;
-            const isToday = !dt || !(/^\d{4}-\d{2}-\d{2}$/.test(dt)) || dt === todayStr;
-            return validStatuses.has(r.status) && isToday;
-        });
+        const valid = allDocs.filter(d => validStatuses.has(d.data().status));
 
         if (valid.length === 0) {
-            container.innerHTML = '<div class="text-center py-6 text-slate-500 text-sm">Nenhuma equipe inscrita para hoje.</div>';
+            container.innerHTML = '<div class="text-center py-6 text-slate-500 text-sm">Nenhuma equipe inscrita.</div>';
             return;
         }
 
-        // Agrupar por (data + horário) — chave ordenável: "YYYY-MM-DD|horário"
-        // Registros sem data são tratados como hoje para evitar grupos duplicados
-        const groups = {};
+        // ── Mesma lógica do painel admin (repairEventSlots + openEventSlotsModal) ──
+        // Normaliza schedule: "Terça - 21h" → "21h" para evitar grupos duplicados por prefixo de dia
+        const normSched = s => {
+            if (!s || s === '—') return s || '—';
+            const m = String(s).match(/(\d{1,2}h\S*)/i);
+            return m ? m[1].toLowerCase() : String(s).trim();
+        };
+        const fmtDate = d => d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d.split('-').reverse().join('/') : (d || '');
+
+        // Agrupa por horário normalizado (igual ao admin) — sem data na chave para não duplicar grupos
+        const bySchedMap = {};
         valid.forEach(d => {
-            const r = d.data();
-            const rawDt = r.date || '';
-            // Normaliza: data ausente ou inválida → usa todayStr para agrupar junto com os datados
-            const dt = (rawDt && /^\d{4}-\d{2}-\d{2}$/.test(rawDt)) ? rawDt : todayStr;
-            const sched = r.schedule || '—';
-            const key = `${dt}|${sched}`;
-            if (!groups[key]) groups[key] = { date: dt, sched, regs: [] };
-            groups[key].regs.push(r);
+            const r = { ...d.data(), _dbId: d.id };
+            const schedKey = normSched(r.schedule || '—');
+            if (!bySchedMap[schedKey]) bySchedMap[schedKey] = { label: r.schedule || '—', regs: [] };
+            bySchedMap[schedKey].regs.push(r);
         });
 
-        // Ordenar grupos por data crescente, depois horário crescente
-        const groupKeys = Object.keys(groups).sort();
-
-        // Dentro de cada grupo: ordenar por slot crescente e deduplicar por slot E por nome de time
-        for (const key of groupKeys) {
-            const grp = groups[key];
-            grp.regs.sort((a, b) => {
-                const sa = a.slot != null ? Number(a.slot) : (a.slotNumber != null ? Number(a.slotNumber) : Infinity);
-                const sb = b.slot != null ? Number(b.slot) : (b.slotNumber != null ? Number(b.slotNumber) : Infinity);
-                return sa - sb;
-            });
-            const seenSlots = new Set();
+        // Dentro de cada horário: ordenar por createdAt crescente (mesma ordem do reparo) → dedup por teamName
+        const schedKeys = Object.keys(bySchedMap).sort();
+        for (const sk of schedKeys) {
+            const grp = bySchedMap[sk];
+            // Ordena por createdAt (mais antigo = slot 1), igual à função de reparo
+            grp.regs.sort((a, b) => (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0));
+            // Deduplicação global por teamName: mantém só o registro mais antigo por time
             const seenTeams = new Set();
             grp.regs = grp.regs.filter(r => {
-                // Chave do slot: usa slot → slotNumber (null = sem número)
-                const slotKey = r.slot != null ? String(r.slot) : (r.slotNumber != null ? String(r.slotNumber) : null);
-                // Chave do time: normaliza para comparar case-insensitive
-                const teamKey = (r.teamName || '').toLowerCase().trim();
-                // Filtra slot duplicado (mesmo número → mantém o primeiro, mais antigo na ordenação)
-                if (slotKey !== null && seenSlots.has(slotKey)) return false;
-                // Filtra time duplicado (mesmo time registrado duas vezes → mantém a inscrição com menor slot)
-                if (teamKey && seenTeams.has(teamKey)) return false;
-                if (slotKey !== null) seenSlots.add(slotKey);
-                if (teamKey) seenTeams.add(teamKey);
+                const teamKey = (r.teamName || r.email || '').toLowerCase().trim();
+                if (!teamKey || seenTeams.has(teamKey)) return false;
+                seenTeams.add(teamKey);
                 return true;
             });
         }
 
-        // Datas e horários únicos para filtros
-        const uniqueDates = [...new Set(groupKeys.map(k => groups[k].date))].filter(Boolean).sort();
-        const uniqueScheds = [...new Set(groupKeys.map(k => groups[k].sched))].sort();
-        const hasDateFilter = uniqueDates.length > 1;
-        const hasSchedFilter = uniqueScheds.length > 1;
+        // Remove grupos vazios após dedup
+        for (const sk of [...schedKeys]) {
+            if (bySchedMap[sk].regs.length === 0) delete bySchedMap[sk];
+        }
+        const finalSchedKeys = Object.keys(bySchedMap).sort();
 
-        // Renderizar filtros
-        const fmtDate = d => d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d.split('-').reverse().join('/') : d;
-        let filterHtml = '';
-        if (hasDateFilter || hasSchedFilter) {
-            filterHtml = `<div class="mb-5 space-y-2">`;
-            if (hasDateFilter) {
-                filterHtml += `<div class="flex flex-wrap gap-1.5 items-center">
-                    <span class="text-xs text-slate-400 mr-1"><i class="fas fa-calendar-alt mr-1"></i>Dia:</span>
-                    <button class="ins-df active-filter px-3 py-1 text-xs rounded-full font-bold transition-colors" data-fd="all">Todos</button>
-                    ${uniqueDates.map(d => `<button class="ins-df px-3 py-1 text-xs rounded-full font-bold transition-colors" data-fd="${d}">${fmtDate(d)}</button>`).join('')}
-                </div>`;
-            }
-            if (hasSchedFilter) {
-                filterHtml += `<div class="flex flex-wrap gap-1.5 items-center">
-                    <span class="text-xs text-slate-400 mr-1"><i class="fas fa-clock mr-1"></i>Horário:</span>
-                    <button class="ins-sf active-filter px-3 py-1 text-xs rounded-full font-bold transition-colors" data-fs="all">Todos</button>
-                    ${uniqueScheds.map(s => `<button class="ins-sf px-3 py-1 text-xs rounded-full font-bold transition-colors" data-fs="${s}">${s}</button>`).join('')}
-                </div>`;
-            }
-            filterHtml += `</div>`;
+        if (finalSchedKeys.length === 0) {
+            container.innerHTML = '<div class="text-center py-6 text-slate-500 text-sm">Nenhuma equipe inscrita.</div>';
+            return;
         }
 
-        // Renderizar grupos
-        let groupsHtml = '';
-        for (const key of groupKeys) {
-            const { date, sched, regs } = groups[key];
-            const safeKey = key.replace(/[^a-zA-Z0-9]/g, '_');
-            groupsHtml += `
-            <div class="ins-group mb-5" data-gd="${date}" data-gs="${sched}">
-                <div class="flex items-center gap-2 mb-3 flex-wrap">
-                    ${date ? `<span class="bg-slate-600 text-slate-200 px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-calendar-alt mr-1"></i>${fmtDate(date)}</span>` : ''}
-                    <span class="bg-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-clock mr-1"></i>${sched}</span>
-                    <span class="text-xs text-slate-400">${regs.length} time(s)</span>
-                </div>
-                <div class="space-y-2">
-                    ${regs.map((r, idx) => {
-                        const isLiga = !r.slot && !r.slotNumber && !r.slotDisplay;
-                        const slotNum = isLiga ? null : idx + 1;
-                        const teamName = r.teamName || r.email || '—';
-                        const leaderName = r.leaderName && r.leaderName !== r.teamName ? r.leaderName : null;
-                        const slotBadge = slotNum != null
-                            ? `<span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-orange-600 text-white text-xs font-black flex-shrink-0">#${slotNum}</span>`
-                            : '';
-                        return `<div class="bg-slate-700 rounded-xl px-4 py-3 border border-slate-600">
-                            <div class="flex items-center gap-3">
-                                ${slotBadge}
-                                <div class="flex-1 min-w-0">
-                                    <p class="font-bold text-slate-100 text-sm leading-tight truncate">${teamName}</p>
-                                    ${leaderName ? `<p class="text-xs text-slate-400 mt-0.5">Líder: ${leaderName}</p>` : ''}
+        // Coleta datas disponíveis para botões de filtro
+        const allDates = new Set();
+        finalSchedKeys.forEach(sk => bySchedMap[sk].regs.forEach(r => {
+            const dt = r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : todayStr;
+            allDates.add(dt);
+        }));
+        const sortedDates = [...allDates].sort();
+        const hasMultipleDates = sortedDates.length > 1;
+
+        // Renderiza os grupos (por horário)
+        // Cada grupo exibe apenas regs do filtro de data ativo
+        // Padrão: "hoje" — toggle "Todos" revela todos os dias
+
+        function renderGroups(filterDate) {
+            let html = '';
+            let anyVisible = false;
+            for (const sk of finalSchedKeys) {
+                const { label, regs } = bySchedMap[sk];
+                // Filtra por data: null/inválido → tratar como hoje
+                const filtered = filterDate === 'all'
+                    ? regs
+                    : regs.filter(r => {
+                        const dt = r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : todayStr;
+                        return dt === filterDate;
+                    });
+                if (filtered.length === 0) continue;
+                anyVisible = true;
+                const isLigaGroup = filtered.every(r => !r.slot && !r.slotNumber && !r.slotDisplay);
+                html += `<div class="ins-group mb-5">
+                    <div class="flex items-center gap-2 mb-3 flex-wrap">
+                        <span class="bg-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-clock mr-1"></i>${label}</span>
+                        <span class="text-xs text-slate-400">${filtered.length} time(s)</span>
+                    </div>
+                    <div class="space-y-2">
+                        ${filtered.map((r, idx) => {
+                            const slotNum = isLigaGroup ? null : idx + 1;
+                            const teamName = r.teamName || r.email || '—';
+                            const leaderName = r.leaderName && r.leaderName !== r.teamName ? r.leaderName : null;
+                            const badge = slotNum != null
+                                ? `<span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-orange-600 text-white text-xs font-black flex-shrink-0">#${slotNum}</span>`
+                                : '';
+                            return `<div class="bg-slate-700 rounded-xl px-4 py-3 border border-slate-600">
+                                <div class="flex items-center gap-3">
+                                    ${badge}
+                                    <div class="flex-1 min-w-0">
+                                        <p class="font-bold text-slate-100 text-sm leading-tight truncate">${teamName}</p>
+                                        ${leaderName ? `<p class="text-xs text-slate-400 mt-0.5">Líder: ${leaderName}</p>` : ''}
+                                    </div>
                                 </div>
-                            </div>
-                        </div>`;
-                    }).join('')}
-                </div>
-            </div>`;
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </div>`;
+            }
+            return anyVisible ? html : '<div class="text-center py-6 text-slate-500 text-sm">Nenhuma equipe inscrita para este dia.</div>';
         }
 
-        container.innerHTML = filterHtml + `<div id="insGrpWrap">${groupsHtml}</div>`;
+        // Botão de filtro: "Hoje" (padrão) / "Todos os dias"
+        const btnStyle = (active) => active
+            ? 'ins-df px-4 py-1.5 text-xs rounded-full font-bold transition-colors bg-orange-600 text-white'
+            : 'ins-df px-4 py-1.5 text-xs rounded-full font-bold transition-colors bg-slate-700 text-slate-300 hover:bg-slate-600';
 
-        // Estilo ativo/inativo dos filtros via classes inline
-        const styleActive = 'ins-df active-filter px-3 py-1 text-xs rounded-full font-bold transition-colors bg-orange-600 text-white';
-        const styleInactive = 'ins-df px-3 py-1 text-xs rounded-full font-bold transition-colors bg-slate-700 text-slate-300 hover:bg-slate-600';
-        const styleSActive = 'ins-sf active-filter px-3 py-1 text-xs rounded-full font-bold transition-colors bg-orange-600 text-white';
-        const styleSInactive = 'ins-sf px-3 py-1 text-xs rounded-full font-bold transition-colors bg-slate-700 text-slate-300 hover:bg-slate-600';
+        let activeFilter = todayStr;
+        const filterButtons = hasMultipleDates
+            ? `<div class="flex flex-wrap gap-2 mb-5 items-center">
+                <span class="text-xs text-slate-400 mr-1"><i class="fas fa-calendar-alt mr-1"></i>Dia:</span>
+                <button class="ins-df" data-fd="${todayStr}">Hoje (${fmtDate(todayStr)})</button>
+                ${sortedDates.filter(d => d !== todayStr).map(d => `<button class="ins-df" data-fd="${d}">${fmtDate(d)}</button>`).join('')}
+                <button class="ins-df" data-fd="all">Todos</button>
+               </div>`
+            : '';
 
-        // Aplicar estilos iniciais
-        container.querySelectorAll('.ins-df').forEach(b => { b.className = b.dataset.fd === 'all' ? styleActive : styleInactive; });
-        container.querySelectorAll('.ins-sf').forEach(b => { b.className = b.dataset.fs === 'all' ? styleSActive : styleSInactive; });
+        const grpWrap = document.createElement('div');
+        grpWrap.id = 'insGrpWrap';
+        grpWrap.innerHTML = renderGroups(activeFilter);
 
-        let activeDate = 'all', activeSched = 'all';
-        function applyFilters() {
-            container.querySelectorAll('.ins-group').forEach(g => {
-                const matchD = activeDate === 'all' || g.dataset.gd === activeDate;
-                const matchS = activeSched === 'all' || g.dataset.gs === activeSched;
-                g.style.display = matchD && matchS ? '' : 'none';
-            });
-        }
+        const filterEl = document.createElement('div');
+        filterEl.innerHTML = filterButtons;
 
+        container.innerHTML = '';
+        if (hasMultipleDates) container.appendChild(filterEl);
+        container.appendChild(grpWrap);
+
+        // Aplicar estilos iniciais nos botões
+        container.querySelectorAll('.ins-df').forEach(b => { b.className = btnStyle(b.dataset.fd === activeFilter); });
+
+        // Click handler para filtros
         container.addEventListener('click', e => {
-            const df = e.target.closest('.ins-df');
-            if (df) {
-                activeDate = df.dataset.fd;
-                container.querySelectorAll('.ins-df').forEach(b => { b.className = b.dataset.fd === activeDate ? styleActive : styleInactive; });
-                applyFilters();
-                return;
-            }
-            const sf = e.target.closest('.ins-sf');
-            if (sf) {
-                activeSched = sf.dataset.fs;
-                container.querySelectorAll('.ins-sf').forEach(b => { b.className = b.dataset.fs === activeSched ? styleSActive : styleSInactive; });
-                applyFilters();
-            }
+            const btn = e.target.closest('.ins-df');
+            if (!btn) return;
+            activeFilter = btn.dataset.fd;
+            container.querySelectorAll('.ins-df').forEach(b => { b.className = btnStyle(b.dataset.fd === activeFilter); });
+            grpWrap.innerHTML = renderGroups(activeFilter);
         });
 
     } catch(e) {
