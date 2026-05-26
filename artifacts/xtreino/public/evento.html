@@ -596,8 +596,9 @@ async function loadInscritos(evId) {
                     <span class="text-xs text-slate-400">${regs.length} time(s)</span>
                 </div>
                 <div class="space-y-2">
-                    ${regs.map(r => {
-                        const slotNum = r.slot != null ? r.slot : r.slotNumber;
+                    ${regs.map((r, idx) => {
+                        const isLiga = !r.slot && !r.slotNumber && !r.slotDisplay;
+                        const slotNum = isLiga ? null : idx + 1;
                         const teamName = r.teamName || r.email || '—';
                         const leaderName = r.leaderName && r.leaderName !== r.teamName ? r.leaderName : null;
                         const slotBadge = slotNum != null
