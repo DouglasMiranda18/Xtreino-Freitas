@@ -3077,68 +3077,52 @@ async function reconcilePendingPayments() {
     if (!currentUser || !currentUser.uid) return;
 
     try {
-        
+        // Buscar registrations e orders pendentes do usuário
+        const [registrations, orders] = await Promise.all([
+            fetchUserDocs('registrations', 100, false).catch(() => []),
+            fetchUserDocs('orders', 100, false).catch(() => [])
+        ]);
 
-        // Buscar registrations pendentes do usuário
-        const registrations = await fetchUserDocs('registrations', 100, false);
-        const pendingRegs = registrations.filter(r => 
+        const pendingRegs = registrations.filter(r =>
             r.data.status === 'pending' && r.data.external_reference
         );
-
-        // Buscar orders pendentes do usuário
-        const orders = await fetchUserDocs('orders', 100, false);
-        const pendingOrders = orders.filter(o => 
+        const pendingOrders = orders.filter(o =>
             o.data.status === 'pending' && o.data.external_reference
         );
 
-        // Unir e remover duplicatas de external_reference
         const allRefs = [
             ...pendingRegs.map(r => r.data.external_reference),
             ...pendingOrders.map(o => o.data.external_reference)
         ];
         const uniqueRefs = [...new Set(allRefs)];
-
-        if (uniqueRefs.length === 0) {
-            
-            return;
-        }
-
-        
+        if (uniqueRefs.length === 0) return;
 
         for (const ref of uniqueRefs) {
-            
             try {
-                const response = await fetch('/.netlify/functions/check-payment-status', {
+                // Usa /api/check-payment-status (API Server interno) em vez da Netlify function
+                const response = await fetch('/api/check-payment-status', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ external_reference: ref })
                 });
+                if (!response.ok) continue;
                 const data = await response.json();
                 if (data.status === 'approved') {
-                    
                     await processSuccessfulPayment(ref);
-                } else {
-                    
                 }
-            } catch (err) {
-                
-                 // Add stack trace
-            }
-            // Pequena pausa para evitar sobrecarga
-            await new Promise(r => setTimeout(r, 300));
+            } catch (_) { /* ignora erros por ref */ }
+            await new Promise(r => setTimeout(r, 200));
         }
 
-        // Após reconciliar, recarregar pedidos se a aba atual for orders
+        // Recarregar aba atual após reconciliação
         const activeTab = document.querySelector('.tab-content:not(.hidden)')?.id;
         if (activeTab === 'ordersContent') {
             loadOrders();
         } else if (activeTab === 'dashboardContent') {
-            loadDashboard(); // atualiza cards
+            loadDashboard();
         }
 
-    } catch (error) {
-        
-    }
+    } catch (_) { /* ignora */ }
 }
 
 async function processSuccessfulPayment(externalRef = null) {
@@ -3158,64 +3142,78 @@ async function processSuccessfulPayment(externalRef = null) {
     } catch(e) {}
 
     try {
-        const { collection, query, where, getDocs, doc, updateDoc, addDoc, serverTimestamp, writeBatch } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const { collection, query, where, getDocs, doc, getDoc, updateDoc, addDoc, serverTimestamp, writeBatch } =
+            await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
 
+        // ── PRODUTO DIGITAL (external_reference = "digital_<orderId>") ──
+        if (extRef && extRef.startsWith('digital_')) {
+            const orderId = extRef.replace('digital_', '');
+            const orderRef = doc(window.firebaseDb, 'orders', orderId);
+            const orderSnap = await getDoc(orderRef);
+            if (orderSnap.exists() && orderSnap.data().status !== 'paid') {
+                await updateDoc(orderRef, { status: 'paid', paidAt: serverTimestamp() });
+            }
+            // Recarregar pedidos se estiver na aba correta
+            const activeTab = document.querySelector('.tab-content:not(.hidden)')?.id;
+            if (activeTab === 'ordersContent') loadOrders();
+            return;
+        }
+
+        // ── EVENTO (registrations) ──
         const regsRef = collection(window.firebaseDb, 'registrations');
         const q = query(
             regsRef,
             where('external_reference', '==', extRef),
             where('userId', '==', auth.currentUser.uid)
-        );             
-        
+        );
         const snap = await getDocs(q);
-        let groupLink = null;
 
         const batch = writeBatch(window.firebaseDb);
         snap.forEach(d => {
             const ref = doc(window.firebaseDb, 'registrations', d.id);
             batch.update(ref, { status: 'paid', paidAt: serverTimestamp() });
-            const data = d.data();
-            if (!groupLink && data && data.groupLink) groupLink = data.groupLink;
         });
-        await batch.commit();
+        if (!snap.empty) await batch.commit();
 
-        // 2) Garantir que exista um pedido correspondente em orders
+        // Garantir entrada em orders para eventos
         if (!snap.empty) {
             const firstReg = snap.docs[0].data();
             const ordersRef = collection(window.firebaseDb, 'orders');
-            const orderQ = query(ordersRef, where('external_reference', '==', extRef));
-            const orderSnap = await getDocs(orderQ);
-            if (orderSnap.empty) {
-                const totalAmount = firstReg.price || 0;
+            const orderQ = query(ordersRef,
+                where('external_reference', '==', extRef),
+                where('userId', '==', auth.currentUser.uid)
+            );
+            const orderSnap2 = await getDocs(orderQ);
+            if (orderSnap2.empty) {
                 await addDoc(ordersRef, {
                     title: firstReg.title || firstReg.eventType || 'Evento',
                     description: firstReg.title || firstReg.eventType || 'Evento',
                     item: firstReg.title || firstReg.eventType || 'Evento',
-                    amount: totalAmount,
-                    total: totalAmount,
+                    amount: firstReg.price || 0,
+                    total: firstReg.price || 0,
                     quantity: 1,
                     currency: 'BRL',
                     status: 'paid',
                     customer: firstReg.email || firstReg.contact || '',
                     customerName: firstReg.teamName || '',
                     buyerEmail: firstReg.email || '',
-                    userId: firstReg.userId || null,
-                    uid: firstReg.userId || null,
+                    userId: firstReg.userId || auth.currentUser.uid || null,
+                    uid: firstReg.userId || auth.currentUser.uid || null,
                     external_reference: extRef,
                     createdAt: serverTimestamp(),
                     timestamp: Date.now(),
                     type: 'event'
                 });
             } else {
-                const existingOrder = orderSnap.docs[0];
+                const existingOrder = orderSnap2.docs[0];
                 if (existingOrder.data().status !== 'paid') {
-                    await updateDoc(doc(window.firebaseDb, 'orders', existingOrder.id), { status: 'paid', paidAt: serverTimestamp() });
+                    await updateDoc(doc(window.firebaseDb, 'orders', existingOrder.id), {
+                        status: 'paid', paidAt: serverTimestamp()
+                    });
                 }
             }
-        }   
-    } catch (error) {
-               
-    }
+        }
+    } catch (_) { /* ignora */ }
 }
 
 // Token purchase functions - expostas globalmente
