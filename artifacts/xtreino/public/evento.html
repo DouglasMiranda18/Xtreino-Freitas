@@ -519,7 +519,8 @@ async function loadInscritos(evId) {
         };
         const fmtDate = d => d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d.split('-').reverse().join('/') : (d || '');
 
-        // Agrupa por horário normalizado (igual ao admin) — sem data na chave para não duplicar grupos
+        // Agrupa TODOS os registros por horário normalizado (sem filtro de data ainda)
+        // A deduplicação acontece DENTRO de cada renderização, após o filtro de data
         const bySchedMap = {};
         valid.forEach(d => {
             const r = { ...d.data(), _dbId: d.id };
@@ -528,60 +529,49 @@ async function loadInscritos(evId) {
             bySchedMap[schedKey].regs.push(r);
         });
 
-        // Dentro de cada horário: ordenar por createdAt crescente (mesma ordem do reparo) → dedup por teamName
+        // Ordena cada grupo por createdAt crescente (base para numeração)
         const schedKeys = Object.keys(bySchedMap).sort();
         for (const sk of schedKeys) {
-            const grp = bySchedMap[sk];
-            // Ordena por createdAt (mais antigo = slot 1), igual à função de reparo
-            grp.regs.sort((a, b) => (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0));
-            // Deduplicação global por teamName: mantém só o registro mais antigo por time
-            const seenTeams = new Set();
-            grp.regs = grp.regs.filter(r => {
-                const teamKey = (r.teamName || r.email || '').toLowerCase().trim();
-                if (!teamKey || seenTeams.has(teamKey)) return false;
-                seenTeams.add(teamKey);
-                return true;
-            });
+            bySchedMap[sk].regs.sort((a, b) => (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0));
         }
-
-        // Remove grupos vazios após dedup
-        for (const sk of [...schedKeys]) {
-            if (bySchedMap[sk].regs.length === 0) delete bySchedMap[sk];
-        }
-        const finalSchedKeys = Object.keys(bySchedMap).sort();
-
-        if (finalSchedKeys.length === 0) {
-            container.innerHTML = '<div class="text-center py-6 text-slate-500 text-sm">Nenhuma equipe inscrita.</div>';
-            return;
-        }
+        const finalSchedKeys = schedKeys;
 
         // Coleta datas disponíveis para botões de filtro
         const allDates = new Set();
         finalSchedKeys.forEach(sk => bySchedMap[sk].regs.forEach(r => {
-            const dt = r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : todayStr;
-            allDates.add(dt);
+            allDates.add(r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : todayStr);
         }));
         const sortedDates = [...allDates].sort();
         const hasMultipleDates = sortedDates.length > 1;
 
-        // Renderiza os grupos (por horário)
-        // Cada grupo exibe apenas regs do filtro de data ativo
-        // Padrão: "hoje" — toggle "Todos" revela todos os dias
-
+        // Renderiza grupos para uma data específica:
+        // 1. Filtra por data  2. Deduplica por teamName (dentro do conjunto filtrado)  3. Numera sequencialmente
         function renderGroups(filterDate) {
             let html = '';
             let anyVisible = false;
-            let globalSlot = 0; // numeração contínua entre todos os grupos
+            let globalSlot = 0;
             for (const sk of finalSchedKeys) {
                 const { label, regs } = bySchedMap[sk];
-                // Filtra por data: null/inválido → tratar como hoje
-                const filtered = filterDate === 'all'
-                    ? regs
+
+                // Passo 1 — filtro de data (registros sem data válida → tratados como hoje)
+                const byDate = filterDate === 'all'
+                    ? [...regs]
                     : regs.filter(r => {
                         const dt = r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : todayStr;
                         return dt === filterDate;
                     });
+                if (byDate.length === 0) continue;
+
+                // Passo 2 — deduplicação por teamName DENTRO deste filtro
+                const seenTeams = new Set();
+                const filtered = byDate.filter(r => {
+                    const tk = (r.teamName || r.email || '').toLowerCase().trim();
+                    if (!tk || seenTeams.has(tk)) return false;
+                    seenTeams.add(tk);
+                    return true;
+                });
                 if (filtered.length === 0) continue;
+
                 anyVisible = true;
                 html += `<div class="ins-group mb-5">
                     <div class="flex items-center gap-2 mb-3 flex-wrap">
