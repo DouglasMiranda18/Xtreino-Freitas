@@ -5555,6 +5555,11 @@ async function renderScheduleTimes() {
         }
 
         if (!isTimeAvailable) {
+            // Horário já passou → ocultar completamente do modal
+            if (timeMessage === 'Horário passou') {
+                return; // não adiciona o botão
+            }
+            // Ainda não disponível (< 12 min) → mostrar desabilitado
             btn.className = 'slot-btn bg-gray-300 text-gray-500 cursor-not-allowed';
             btn.disabled = true;
             btn.textContent = `${time} (${timeMessage})`;
@@ -5992,8 +5997,11 @@ async function updateOccupiedAndRefreshButtons(day, date, eventType, container) 
         } else if (available === 0) {
             // Horário lotado - OCULTAR
             btn.style.display = 'none';
+        } else if (!isTimeAvailable && timeMessage === 'Horário passou') {
+            // Horário já passou - OCULTAR
+            btn.style.display = 'none';
         } else if (!isTimeAvailable) {
-            // Verificar disponibilidade de tempo (12 minutos antes)
+            // Menos de 12 min para o horário — mostrar desabilitado
             btn.className = 'slot-btn bg-gray-300 text-gray-500 cursor-not-allowed';
             btn.disabled = true;
             btn.innerHTML = `<span class="font-semibold">${time}</span><span class="block text-xs opacity-75 mt-0.5">${timeMessage} • ${taken}/${capacity}</span>`;

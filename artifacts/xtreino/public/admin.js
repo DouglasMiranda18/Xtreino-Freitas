@@ -8834,7 +8834,8 @@ async function loadShirtOrders(){
             <td class="py-2 px-2">${status==='shipped' ? '<span class="text-green-600">Enviado</span>' : '<span class="text-yellow-600">Aguardando</span>'}</td>
             <td class="py-2 px-2">
               <button class="px-2 py-1 border rounded mr-2" onclick="openShirtOrder('${d.id}')">Abrir</button>
-              ${status==='shipped' ? '' : `<button class=\"px-2 py-1 bg-green-600 text-white rounded\" onclick=\"markShirtAsShipped('${d.id}')\">Marcar enviado</button>`}
+              ${status==='shipped' ? '' : `<button class=\"px-2 py-1 bg-green-600 text-white rounded mr-2\" onclick=\"markShirtAsShipped('${d.id}')\">Marcar enviado</button>`}
+              <button class="px-2 py-1 bg-red-600 text-white rounded" onclick="deleteShirtOrder('${d.id}')">🗑️ Remover</button>
             </td>
           </tr>
         `);
@@ -8859,6 +8860,17 @@ async function markShirtAsShipped(orderId){
     alert('Erro ao marcar enviado');
   }
 }
+async function deleteShirtOrder(orderId) {
+    if (!confirm('Remover este pedido de camisa? Esta ação não pode ser desfeita.')) return;
+    try {
+        const { doc, deleteDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        await deleteDoc(doc(collection(window.firebaseDb, 'orders'), orderId));
+        await loadShirtOrders();
+    } catch(e) {
+        alert('Erro ao remover pedido: ' + e.message);
+    }
+}
+window.deleteShirtOrder = deleteShirtOrder;
 window.markShirtAsShipped = markShirtAsShipped;
 window.loadShirtOrders = loadShirtOrders;
 function closeShirtOrderModal(){
