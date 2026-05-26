@@ -7440,6 +7440,10 @@ function showSlotConfirmationModal(slots, eventName, isLiga, eventId, groupLink)
                 <p class="text-gray-500 text-sm mt-1">${eventName}</p>
             </div>
             <div class="space-y-3 mb-6">${slotsHtml}</div>
+            <div class="p-4 bg-amber-50 border-2 border-amber-400 rounded-xl text-sm text-amber-900 mb-4 text-center leading-relaxed">
+                🔔 <strong>ATENÇÃO:</strong> O ID e senha da sala saem aqui no site mesmo.<br>
+                Fique atento ao sininho de notificações <strong>10 minutos antes do seu horário!</strong>
+            </div>
             ${!isLiga ? `<div class="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-700 mb-4 text-center">
                 💡 Guarde o número da sua vaga — ela é a sua posição no evento!
             </div>` : ''}
