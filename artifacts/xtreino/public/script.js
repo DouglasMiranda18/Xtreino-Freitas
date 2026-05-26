@@ -666,44 +666,67 @@ function updateNotifBadge(count) {
 
 // ===== NOTIFICAÇÕES EM TEMPO REAL =====
 
-// Desbloqueia AudioContext na primeira interação do usuário
+// ---- Áudio de notificação ----
 let _audioCtx = null;
-function _unlockAudio() {
-    if (_audioCtx) return;
-    try {
-        _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        // Resume imediatamente enquanto estamos dentro de um gesto do usuário
-        if (_audioCtx.state === 'suspended') _audioCtx.resume().catch(() => {});
-    } catch (_) {}
+
+function _getOrCreateAudioCtx() {
+    if (!_audioCtx) {
+        try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(_) {}
+    }
+    return _audioCtx;
 }
-['click', 'touchstart', 'keydown'].forEach(ev =>
-    document.addEventListener(ev, _unlockAudio, { once: false, passive: true })
+
+// Desbloqueia contexto em qualquer interação do usuário
+function _unlockAudio() {
+    const ctx = _getOrCreateAudioCtx();
+    if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
+}
+['click', 'touchstart', 'keydown', 'pointerdown'].forEach(ev =>
+    document.addEventListener(ev, _unlockAudio, { passive: true })
 );
 
-function playNotifSound() {
+// Tenta retomar o áudio quando o usuário volta para a aba
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        const ctx = _getOrCreateAudioCtx();
+        if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
+    }
+});
+
+// Toca o chime — retorna true se conseguiu, false se áudio bloqueado
+function _doChime() {
+    const ctx = _getOrCreateAudioCtx();
+    if (!ctx || ctx.state === 'suspended') return false;
     try {
-        // Garante que o contexto existe e está ativo
-        if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const ctx = _audioCtx;
-        const resume = ctx.state === 'suspended' ? ctx.resume() : Promise.resolve();
-        resume.then(() => {
-            [[880, 0], [1100, 0.13]].forEach(([freq, delay]) => {
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.type = 'sine';
-                osc.frequency.value = freq;
-                gain.gain.setValueAtTime(0.28, ctx.currentTime + delay);
-                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.45);
-                osc.start(ctx.currentTime + delay);
-                osc.stop(ctx.currentTime + delay + 0.5);
-            });
-        }).catch(() => {});
-    } catch (_) {}
+        [[880, 0], [1100, 0.13]].forEach(([freq, delay]) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.28, ctx.currentTime + delay);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.45);
+            osc.start(ctx.currentTime + delay);
+            osc.stop(ctx.currentTime + delay + 0.5);
+        });
+        return true;
+    } catch (_) { return false; }
 }
 
-function showNotifToast(notif) {
+// Retorna true se tocou, false se áudio bloqueado pelo navegador
+function playNotifSound() {
+    const ctx = _getOrCreateAudioCtx();
+    if (!ctx) return false;
+    if (ctx.state === 'suspended') {
+        // Tenta desbloquear e tocar
+        ctx.resume().then(() => { _doChime(); }).catch(() => {});
+        return false; // ainda bloqueado neste momento
+    }
+    return _doChime();
+}
+
+function showNotifToast(notif, { forceSoundBtn = false } = {}) {
     const isCredentials = notif.notifyType === 'credentials';
     const isTabela = notif.notifyType === 'tabela' || !!notif.tabelaLink;
     const icon = isCredentials ? '🎮' : isTabela ? '📊' : '🔔';
@@ -716,7 +739,12 @@ function showNotifToast(notif) {
     if (!document.getElementById('_notifToastStyle')) {
         const s = document.createElement('style');
         s.id = '_notifToastStyle';
-        s.textContent = `@keyframes _slideInR{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}`;
+        s.textContent = `
+            @keyframes _slideInR{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
+            @keyframes _bellShake{0%,100%{transform:rotate(0)}15%{transform:rotate(12deg)}30%{transform:rotate(-10deg)}45%{transform:rotate(8deg)}60%{transform:rotate(-6deg)}75%{transform:rotate(4deg)}}
+            ._soundBtn{display:flex;align-items:center;gap:5px;margin-top:8px;width:100%;background:rgba(255,255,255,0.22);border:none;color:#fff;border-radius:10px;padding:7px 12px;cursor:pointer;font-size:12px;font-weight:700;justify-content:center;animation:_bellShake 1s ease 0.5s 3}
+            ._soundBtn:active{background:rgba(255,255,255,0.35)}
+        `;
         document.head.appendChild(s);
     }
 
@@ -733,9 +761,14 @@ function showNotifToast(notif) {
            </div>` : '';
 
     const toast = document.createElement('div');
-    toast.style.cssText = `position:fixed;top:76px;right:12px;z-index:99999;max-width:310px;width:calc(100vw - 24px);background:${bg};color:#fff;border-radius:16px;padding:13px 14px;box-shadow:0 8px 32px rgba(0,0,0,0.28);animation:_slideInR 0.35s cubic-bezier(.25,.46,.45,.94);cursor:pointer;`;
+    toast.style.cssText = `position:fixed;top:76px;right:12px;z-index:99999;max-width:310px;width:calc(100vw - 24px);background:${bg};color:#fff;border-radius:16px;padding:13px 14px;box-shadow:0 8px 32px rgba(0,0,0,0.28);animation:_slideInR 0.35s cubic-bezier(.25,.46,.45,.94);`;
+    toast.dataset.notifToast = '1';
+
+    // Botão de som — sempre presente para garantir que o usuário pode ouvir
+    const soundBtnHtml = `<button class="_soundBtn" onclick="event.stopPropagation();_unlockAudio();if(_doChime()){this.textContent='🔔 Som tocado!';this.disabled=true;}else{this.textContent='🔕 Áudio bloqueado';}">🔔 Tocar som da notificação</button>`;
+
     toast.innerHTML = `
-        <div style="display:flex;align-items:flex-start;gap:9px">
+        <div style="display:flex;align-items:flex-start;gap:9px;cursor:pointer" onclick="this.closest('[data-notif-toast]').remove();try{toggleNotifDropdown();}catch(_){}">
             <span style="font-size:20px;flex-shrink:0;margin-top:1px">${icon}</span>
             <div style="min-width:0;flex:1">
                 <div style="font-weight:700;font-size:13px;line-height:1.3">${notif.title || 'Nova notificação'}</div>
@@ -744,9 +777,7 @@ function showNotifToast(notif) {
             <button onclick="event.stopPropagation();this.closest('[data-notif-toast]').remove()" style="background:rgba(255,255,255,0.22);border:none;color:#fff;width:20px;height:20px;border-radius:50%;cursor:pointer;font-size:11px;flex-shrink:0;line-height:1">✕</button>
         </div>
         ${credHtml}
-        <div style="margin-top:7px;font-size:10px;opacity:0.65;text-align:right">Toque para abrir o sininho 🔔</div>`;
-    toast.dataset.notifToast = '1';
-    toast.onclick = () => { toast.remove(); try { toggleNotifDropdown(); } catch(_) {} };
+        ${soundBtnHtml}`;
 
     document.body.appendChild(toast);
     setTimeout(() => {
@@ -754,7 +785,7 @@ function showNotifToast(notif) {
         toast.style.opacity = '0';
         toast.style.transform = 'translateX(120%)';
         setTimeout(() => toast.remove(), 420);
-    }, 7000);
+    }, 12000);
 }
 
 let _notifUnsubAll = null, _notifUnsubUser = null;
@@ -907,6 +938,8 @@ function stopNotifListener() {
 window.startNotifListener = startNotifListener;
 window.stopNotifListener = stopNotifListener;
 window.playNotifSound = playNotifSound;
+window._doChime = _doChime;
+window._unlockAudio = _unlockAudio;
 
 function toggleNotifDropdown() {
     const d = document.getElementById('notifDropdown');
