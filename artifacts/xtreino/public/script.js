@@ -664,6 +664,158 @@ function updateNotifBadge(count) {
     });
 }
 
+// ===== NOTIFICAÇÕES EM TEMPO REAL =====
+
+function playNotifSound() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        [[880, 0], [1100, 0.13]].forEach(([freq, delay]) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.28, ctx.currentTime + delay);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.45);
+            osc.start(ctx.currentTime + delay);
+            osc.stop(ctx.currentTime + delay + 0.5);
+        });
+    } catch (_) {}
+}
+
+function showNotifToast(notif) {
+    const isCredentials = notif.notifyType === 'credentials';
+    const isTabela = notif.notifyType === 'tabela' || !!notif.tabelaLink;
+    const icon = isCredentials ? '🎮' : isTabela ? '📊' : '🔔';
+    const bg = isCredentials
+        ? 'linear-gradient(135deg,#7c3aed,#4f46e5)'
+        : isTabela
+            ? 'linear-gradient(135deg,#16a34a,#15803d)'
+            : 'linear-gradient(135deg,#2563eb,#1d4ed8)';
+
+    if (!document.getElementById('_notifToastStyle')) {
+        const s = document.createElement('style');
+        s.id = '_notifToastStyle';
+        s.textContent = `@keyframes _slideInR{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}`;
+        document.head.appendChild(s);
+    }
+
+    const credHtml = isCredentials && notif.roomId
+        ? `<div style="margin-top:6px;display:flex;gap:8px">
+               <div style="flex:1;background:rgba(255,255,255,0.2);border-radius:8px;padding:5px 8px;text-align:center">
+                   <div style="font-size:9px;font-weight:700;opacity:0.8;letter-spacing:0.5px">🎮 ID</div>
+                   <div style="font-size:15px;font-weight:900;font-family:monospace;letter-spacing:2px">${notif.roomId}</div>
+               </div>
+               <div style="flex:1;background:rgba(255,255,255,0.2);border-radius:8px;padding:5px 8px;text-align:center">
+                   <div style="font-size:9px;font-weight:700;opacity:0.8;letter-spacing:0.5px">🔑 SENHA</div>
+                   <div style="font-size:15px;font-weight:900;font-family:monospace;letter-spacing:2px">${notif.roomPassword || '—'}</div>
+               </div>
+           </div>` : '';
+
+    const toast = document.createElement('div');
+    toast.style.cssText = `position:fixed;top:76px;right:12px;z-index:99999;max-width:310px;width:calc(100vw - 24px);background:${bg};color:#fff;border-radius:16px;padding:13px 14px;box-shadow:0 8px 32px rgba(0,0,0,0.28);animation:_slideInR 0.35s cubic-bezier(.25,.46,.45,.94);cursor:pointer;`;
+    toast.innerHTML = `
+        <div style="display:flex;align-items:flex-start;gap:9px">
+            <span style="font-size:20px;flex-shrink:0;margin-top:1px">${icon}</span>
+            <div style="min-width:0;flex:1">
+                <div style="font-weight:700;font-size:13px;line-height:1.3">${notif.title || 'Nova notificação'}</div>
+                ${notif.message && !isCredentials ? `<div style="font-size:11px;opacity:0.85;margin-top:2px;line-height:1.3">${notif.message}</div>` : ''}
+            </div>
+            <button onclick="event.stopPropagation();this.closest('[data-notif-toast]').remove()" style="background:rgba(255,255,255,0.22);border:none;color:#fff;width:20px;height:20px;border-radius:50%;cursor:pointer;font-size:11px;flex-shrink:0;line-height:1">✕</button>
+        </div>
+        ${credHtml}
+        <div style="margin-top:7px;font-size:10px;opacity:0.65;text-align:right">Toque para abrir o sininho 🔔</div>`;
+    toast.dataset.notifToast = '1';
+    toast.onclick = () => { toast.remove(); try { toggleNotifDropdown(); } catch(_) {} };
+
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.style.transition = 'opacity 0.4s,transform 0.4s';
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(120%)';
+        setTimeout(() => toast.remove(), 420);
+    }, 7000);
+}
+
+let _notifUnsubAll = null, _notifUnsubUser = null;
+let _notifKnownIds = null;
+
+async function startNotifListener() {
+    if (_notifUnsubAll) { try { _notifUnsubAll(); } catch(_) {} _notifUnsubAll = null; }
+    if (_notifUnsubUser) { try { _notifUnsubUser(); } catch(_) {} _notifUnsubUser = null; }
+    _notifKnownIds = null;
+
+    if (!window.isLoggedIn || !window.firebaseDb || !window.firebaseAuth?.currentUser) return;
+
+    const uid = window.firebaseAuth.currentUser.uid;
+    const db = window.firebaseDb;
+    const readKey = `notifRead_${uid}`;
+
+    try {
+        const { collection, query, where, onSnapshot, limit } =
+            await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+        const docsAll = new Map();
+        const docsUser = new Map();
+        let bothReady = 0;
+
+        function onUpdate(isAll, snap) {
+            snap.docs.forEach(d => (isAll ? docsAll : docsUser).set(d.id, d));
+
+            if (_notifKnownIds === null) {
+                bothReady++;
+                if (bothReady < 2) return;
+                // Primeira carga — só popula IDs conhecidos e atualiza badge, sem som/toast
+                _notifKnownIds = new Set([...docsAll.keys(), ...docsUser.keys()]);
+                const readIds = new Set(JSON.parse(localStorage.getItem(readKey) || '[]'));
+                _notifUnreadCount = [..._notifKnownIds].filter(id => !readIds.has(id)).length;
+                updateNotifBadge(_notifUnreadCount);
+                return;
+            }
+
+            const allIds = new Set([...docsAll.keys(), ...docsUser.keys()]);
+            const newIds = [...allIds].filter(id => !_notifKnownIds.has(id));
+
+            if (newIds.length > 0) {
+                const readIds = new Set(JSON.parse(localStorage.getItem(readKey) || '[]'));
+                _notifUnreadCount = [...allIds].filter(id => !readIds.has(id)).length;
+                updateNotifBadge(_notifUnreadCount);
+                playNotifSound();
+                newIds.forEach(id => {
+                    const d = docsAll.get(id) || docsUser.get(id);
+                    if (d) showNotifToast(d.data());
+                    _notifKnownIds.add(id);
+                });
+            }
+        }
+
+        _notifUnsubAll = onSnapshot(
+            query(collection(db, 'notifications'), where('type', '==', 'all'), limit(30)),
+            snap => onUpdate(true, snap),
+            err => console.warn('Notif listener (all):', err?.code)
+        );
+        _notifUnsubUser = onSnapshot(
+            query(collection(db, 'notifications'), where('targetUserId', '==', uid), limit(30)),
+            snap => onUpdate(false, snap),
+            err => console.warn('Notif listener (user):', err?.code)
+        );
+    } catch (err) {
+        console.warn('Erro ao iniciar listener de notificações:', err);
+        setTimeout(() => { try { loadUserNotifications(); } catch(_) {} }, 0);
+    }
+}
+
+function stopNotifListener() {
+    if (_notifUnsubAll) { try { _notifUnsubAll(); } catch(_) {} _notifUnsubAll = null; }
+    if (_notifUnsubUser) { try { _notifUnsubUser(); } catch(_) {} _notifUnsubUser = null; }
+    _notifKnownIds = null;
+}
+
+window.startNotifListener = startNotifListener;
+window.stopNotifListener = stopNotifListener;
+window.playNotifSound = playNotifSound;
+
 function toggleNotifDropdown() {
     const d = document.getElementById('notifDropdown');
     if (!d) return;
@@ -1128,7 +1280,7 @@ async function checkAuthState() {
                     // Carrega perfil do usuário
                     loadUserProfile(user.uid);
                     updateAdminLinkVisibility();
-                    setTimeout(() => { try { loadUserNotifications(); } catch(_) {} }, 1500);
+                    setTimeout(() => { try { startNotifListener(); } catch(_) {} }, 1500);
                 } else {
                     // Usuário não está logado
                     window.isLoggedIn = false;
@@ -1140,6 +1292,8 @@ async function checkAuthState() {
                     }
                     toggleAccountButtons(false);
                     updateAdminLinkVisibility();
+                    // Parar listener de notificações em tempo real
+                    try { stopNotifListener(); } catch(_) {}
                     // Limpar flag de sessão e ocultar sininho ao deslogar
                     try { localStorage.removeItem('xt_session'); } catch(_) {}
                     ['notifBellDesktop','notifBellMobile'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
