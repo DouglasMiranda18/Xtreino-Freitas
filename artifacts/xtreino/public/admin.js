@@ -2659,31 +2659,28 @@ window.showWarningToast = function(message, title = 'Atenção') {
   async function loadDynamicEventsIntoBoard() {
     const typeEl = document.getElementById('boardEventType');
     if (!typeEl || !window.firebaseDb) return;
-    // Remove opções dinâmicas anteriores
-    Array.from(typeEl.querySelectorAll('option[data-dynamic]')).forEach(o => o.remove());
     try {
       const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
       const snap = await getDocs(query(
         collection(window.firebaseDb, 'adminEvents'),
         where('status', '==', 'Aberto')
       ));
-      if (snap.empty) return;
-      const sep = document.createElement('option');
-      sep.disabled = true;
-      sep.textContent = '── Eventos Criados ──';
-      sep.dataset.dynamic = '1';
-      typeEl.appendChild(sep);
+      // Substituir TODAS as opções — apenas eventos do painel Criar/Gerenciar
+      typeEl.innerHTML = '';
+      if (snap.empty) {
+        typeEl.innerHTML = '<option value="">Nenhum evento ativo</option>';
+        return;
+      }
       snap.forEach(d => {
         const ev = d.data();
         const opt = document.createElement('option');
         opt.value = d.id;
         opt.textContent = ev.name || d.id;
-        opt.dataset.dynamic = '1';
-        opt.dataset.canonicalType = d.id;
         typeEl.appendChild(opt);
       });
     } catch (err) {
       console.warn('Erro ao carregar eventos dinâmicos no board:', err);
+      typeEl.innerHTML = '<option value="">Erro ao carregar</option>';
     }
   }
   window.loadDynamicEventsIntoBoard = loadDynamicEventsIntoBoard;
