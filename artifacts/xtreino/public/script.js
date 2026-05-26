@@ -742,8 +742,7 @@ function showNotifToast(notif, { forceSoundBtn = false } = {}) {
         s.textContent = `
             @keyframes _slideInR{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
             @keyframes _bellShake{0%,100%{transform:rotate(0)}15%{transform:rotate(12deg)}30%{transform:rotate(-10deg)}45%{transform:rotate(8deg)}60%{transform:rotate(-6deg)}75%{transform:rotate(4deg)}}
-            ._soundBtn{display:flex;align-items:center;gap:5px;margin-top:8px;width:100%;background:rgba(255,255,255,0.22);border:none;color:#fff;border-radius:10px;padding:7px 12px;cursor:pointer;font-size:12px;font-weight:700;justify-content:center;animation:_bellShake 1s ease 0.5s 3}
-            ._soundBtn:active{background:rgba(255,255,255,0.35)}
+            ._toastIcon{display:inline-block;animation:_bellShake 0.8s ease 0.4s 4}
         `;
         document.head.appendChild(s);
     }
@@ -764,20 +763,16 @@ function showNotifToast(notif, { forceSoundBtn = false } = {}) {
     toast.style.cssText = `position:fixed;top:76px;right:12px;z-index:99999;max-width:310px;width:calc(100vw - 24px);background:${bg};color:#fff;border-radius:16px;padding:13px 14px;box-shadow:0 8px 32px rgba(0,0,0,0.28);animation:_slideInR 0.35s cubic-bezier(.25,.46,.45,.94);`;
     toast.dataset.notifToast = '1';
 
-    // Botão de som — sempre presente para garantir que o usuário pode ouvir
-    const soundBtnHtml = `<button class="_soundBtn" onclick="event.stopPropagation();_unlockAudio();if(_doChime()){this.textContent='🔔 Som tocado!';this.disabled=true;}else{this.textContent='🔕 Áudio bloqueado';}">🔔 Tocar som da notificação</button>`;
-
     toast.innerHTML = `
         <div style="display:flex;align-items:flex-start;gap:9px;cursor:pointer" onclick="this.closest('[data-notif-toast]').remove();try{toggleNotifDropdown();}catch(_){}">
-            <span style="font-size:20px;flex-shrink:0;margin-top:1px">${icon}</span>
+            <span class="_toastIcon" style="font-size:20px;flex-shrink:0;margin-top:1px">${icon}</span>
             <div style="min-width:0;flex:1">
                 <div style="font-weight:700;font-size:13px;line-height:1.3">${notif.title || 'Nova notificação'}</div>
                 ${notif.message && !isCredentials ? `<div style="font-size:11px;opacity:0.85;margin-top:2px;line-height:1.3">${notif.message}</div>` : ''}
             </div>
             <button onclick="event.stopPropagation();this.closest('[data-notif-toast]').remove()" style="background:rgba(255,255,255,0.22);border:none;color:#fff;width:20px;height:20px;border-radius:50%;cursor:pointer;font-size:11px;flex-shrink:0;line-height:1">✕</button>
         </div>
-        ${credHtml}
-        ${soundBtnHtml}`;
+        ${credHtml}`;
 
     document.body.appendChild(toast);
     setTimeout(() => {
