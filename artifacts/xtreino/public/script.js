@@ -7433,13 +7433,15 @@ async function fetchRegsForSlotCount(rawEventType) {
 // ===== Helper: aloca slots a partir do maior slot já no banco =====
 // scheduleCounts: { "schedule_key": numSlotsNeeded }
 // Retorna: { "schedule_key": firstSlotNumber } ou null se ambos os métodos falharem
-// Nível 1: transação atômica via slotCounters (sem race condition quando regras estiverem deployadas)
-// Nível 2: fallback — busca o maior slotNumber existente nas registrations (requer allow list)
+// Nível 1: transação atômica via slotCounters
+// Nível 2: fallback com seeding atômico — elimina race condition entre compradores simultâneos
 async function allocateSlotsFromDB(rawEventType, scheduleCounts) {
+    const { doc, runTransaction, collection, query, where, getDocs } =
+        await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const counterRef = doc(window.firebaseDb, 'slotCounters', rawEventType);
+
     // --- Nível 1: transação atômica via slotCounters ---
     try {
-        const { doc, runTransaction } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const counterRef = doc(window.firebaseDb, 'slotCounters', rawEventType);
         const startSlots = {};
         await runTransaction(window.firebaseDb, async (tx) => {
             const counterDoc = await tx.get(counterRef);
@@ -7451,38 +7453,47 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts) {
             }
             tx.set(counterRef, counts, { merge: true });
         });
-        console.log('[SlotDB] transação atômica OK | evento:', rawEventType, '| slots:', JSON.stringify(startSlots));
         return startSlots;
     } catch (txErr) {
-        console.warn('[SlotDB] transação slotCounters falhou, buscando máx. no banco:', txErr.message);
+        console.warn('[SlotDB] Nível 1 falhou, tentando seeding atômico:', txErr.message);
     }
 
-    // --- Nível 2: buscar maior slotNumber por horário nas registrations ---
+    // --- Nível 2: seeding atômico ---
+    // Passo A: lê o máximo atual das registrations FORA da transação
+    // Passo B: confirma atomicamente no slotCounters — se outro usuário já inicializou, usa o valor dele
+    // Isso elimina a race condition entre dois compradores que caíram no fallback simultaneamente
     try {
-        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        // Passo A: pré-computar o máximo por horário
         const snap = await getDocs(query(
             collection(window.firebaseDb, 'registrations'),
             where('eventType', '==', rawEventType)
         ));
-        const maxSlotPerSchedule = {};
-        snap.forEach(docSnap => {
-            const r = docSnap.data();
+        const seedMax = {};
+        snap.forEach(d => {
+            const r = d.data();
             if (!r.schedule) return;
             const sn = Number(r.slotNumber || r.slot || 0);
-            if (!isNaN(sn) && sn > (maxSlotPerSchedule[r.schedule] || 0)) {
-                maxSlotPerSchedule[r.schedule] = sn;
-            }
+            if (!isNaN(sn) && sn > (seedMax[r.schedule] || 0)) seedMax[r.schedule] = sn;
         });
+
+        // Passo B: transação atômica — usa o counter existente se outro usuário já o criou,
+        // senão inicializa a partir do máximo lido (seed)
         const startSlots = {};
-        for (const [sched, numNeeded] of Object.entries(scheduleCounts)) {
-            const maxExisting = maxSlotPerSchedule[sched] || 0;
-            startSlots[sched] = maxExisting + 1;
-            console.log(`[SlotDB] evento="${rawEventType}" horário="${sched}" máx.existente=${maxExisting} → próxSlot=${maxExisting + 1} (${numNeeded} inscrição/ões)`);
-        }
-        console.log('[SlotDB] startSlots (via DB):', JSON.stringify(startSlots), '| evento:', rawEventType);
+        await runTransaction(window.firebaseDb, async (tx) => {
+            const counterDoc = await tx.get(counterRef);
+            // Se alguém criou o counter enquanto fazíamos o Passo A, usamos o valor dele (mais atualizado)
+            const counts = counterDoc.exists() ? { ...counterDoc.data() } : { ...seedMax };
+            for (const [sched, n] of Object.entries(scheduleCounts)) {
+                const current = Number(counts[sched]) || 0;
+                startSlots[sched] = current + 1;
+                counts[sched] = current + n;
+            }
+            tx.set(counterRef, counts, { merge: true });
+        });
+        console.log('[SlotDB] startSlots (seeding atômico):', JSON.stringify(startSlots));
         return startSlots;
     } catch (dbErr) {
-        console.error('[SlotDB] erro crítico ao buscar slots no banco:', dbErr.message, '| evento:', rawEventType);
+        console.error('[SlotDB] erro crítico ao alocar slots:', dbErr.message);
         return null;
     }
 }
