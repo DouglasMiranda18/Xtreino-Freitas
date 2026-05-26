@@ -530,7 +530,7 @@ async function loadInscritos(evId) {
         // Ordenar grupos por data crescente, depois horário crescente
         const groupKeys = Object.keys(groups).sort();
 
-        // Dentro de cada grupo: ordenar por slot crescente e deduplicar slots
+        // Dentro de cada grupo: ordenar por slot crescente e deduplicar por slot E por nome de time
         for (const key of groupKeys) {
             const grp = groups[key];
             grp.regs.sort((a, b) => {
@@ -539,10 +539,18 @@ async function loadInscritos(evId) {
                 return sa - sb;
             });
             const seenSlots = new Set();
+            const seenTeams = new Set();
             grp.regs = grp.regs.filter(r => {
-                const slotKey = r.slot != null ? String(r.slot) : (r.slotNumber != null ? String(r.slotNumber) : r.teamName);
-                if (seenSlots.has(slotKey)) return false;
-                seenSlots.add(slotKey);
+                // Chave do slot: usa slot → slotNumber (null = sem número)
+                const slotKey = r.slot != null ? String(r.slot) : (r.slotNumber != null ? String(r.slotNumber) : null);
+                // Chave do time: normaliza para comparar case-insensitive
+                const teamKey = (r.teamName || '').toLowerCase().trim();
+                // Filtra slot duplicado (mesmo número → mantém o primeiro, mais antigo na ordenação)
+                if (slotKey !== null && seenSlots.has(slotKey)) return false;
+                // Filtra time duplicado (mesmo time registrado duas vezes → mantém a inscrição com menor slot)
+                if (teamKey && seenTeams.has(teamKey)) return false;
+                if (slotKey !== null) seenSlots.add(slotKey);
+                if (teamKey) seenTeams.add(teamKey);
                 return true;
             });
         }
