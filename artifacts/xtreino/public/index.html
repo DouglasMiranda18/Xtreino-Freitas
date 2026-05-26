@@ -1475,6 +1475,14 @@
             b.classList.toggle('active', b.dataset.tab === tabId);
         });
 
+        // Loja: recarregar produtos se container estiver vazio ou com erro
+        if (tabId === 'loja') {
+            var pc = document.getElementById('productsContainer');
+            if (pc && (pc.children.length === 0 || pc.querySelector('.text-red-500'))) {
+                if (typeof loadProductsFromFirestore === 'function') loadProductsFromFirestore();
+            }
+        }
+
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
