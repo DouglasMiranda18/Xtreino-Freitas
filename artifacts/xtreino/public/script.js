@@ -7178,9 +7178,7 @@ async function submitSchedule(e, useTokens = false) {
                 }
                 if (Object.keys(_sc).length > 0) {
                     const _ss = await allocateSlotsFromDB(rawEventType, _sc);
-                    if (_ss) {
-                        for (const [_k, _v] of Object.entries(_ss)) mpSlotCount[_k] = _v - 1;
-                    }
+                    for (const [_k, _v] of Object.entries(_ss)) mpSlotCount[_k] = _v - 1;
                 }
             }
 
@@ -7494,7 +7492,9 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts) {
         return startSlots;
     } catch (dbErr) {
         console.error('[SlotDB] erro crítico ao alocar slots:', dbErr.message);
-        return null;
+        // Lançar em vez de retornar null — impede que qualquer caminho de compra
+        // prossiga com slot indefinido e potencialmente duplicado
+        throw new Error('Não foi possível reservar sua vaga. Verifique sua conexão e tente novamente.');
     }
 }
 
@@ -7561,9 +7561,7 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
             }
             if (Object.keys(_sc).length > 0) {
                 const _ss = await allocateSlotsFromDB(rawEventType, _sc);
-                if (_ss) {
-                    for (const [_k, _v] of Object.entries(_ss)) scheduleSlotCount[_k] = _v - 1;
-                }
+                for (const [_k, _v] of Object.entries(_ss)) scheduleSlotCount[_k] = _v - 1;
             }
         }
 
@@ -8329,9 +8327,7 @@ async function createRegistrationsForEvent(eventType, datesToUse, teamsData, tim
         }
         if (Object.keys(_sc).length > 0) {
             const _ss = await allocateSlotsFromDB(eventType, _sc);
-            if (_ss) {
-                for (const [_k, _v] of Object.entries(_ss)) slotCount[_k] = _v - 1;
-            }
+            for (const [_k, _v] of Object.entries(_ss)) slotCount[_k] = _v - 1;
         }
     }
 
