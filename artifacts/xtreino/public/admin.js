@@ -12193,9 +12193,10 @@ async function repairEventSlots() {
                 const newSlot = idx + 1;
                 const newSlotDisplay = `Vaga #${newSlot}`;
                 // Só atualiza se mudou
-                if (entry.data.slot !== newSlot || entry.data.slotDisplay !== newSlotDisplay) {
+                if (entry.data.slot !== newSlot || entry.data.slotNumber !== newSlot || entry.data.slotDisplay !== newSlotDisplay) {
                     batch.update(doc(window.firebaseDb, 'registrations', entry.id), {
                         slot: newSlot,
+                        slotNumber: newSlot,
                         slotDisplay: newSlotDisplay
                     });
                     updateCount++;
