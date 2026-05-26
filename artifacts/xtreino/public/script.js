@@ -7897,11 +7897,38 @@ async function processSuccessfulPayment(externalRef = null) {
     // ── PASSO 1b: Se não há registrations, tentar atualizar pedido de produto ──
     if (!snap || snap.empty) {
         try {
-            const ordersRef2 = collection(window.firebaseDb, 'orders');
-            const orderSnap2 = await getDocs(query(ordersRef2, where('external_reference', '==', extRef)));
-            if (!orderSnap2.empty) {
-                const orderDoc = orderSnap2.docs[0];
-                const orderData2 = orderDoc.data();
+            // Extrair o ID do pedido diretamente do external_reference (formato: "digital_<orderId>")
+            // Isso evita uma query por external_reference que seria bloqueada pelas regras do Firestore
+            let orderDoc = null;
+            let orderData2 = null;
+            const { getDoc: _getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+            if (extRef && extRef.startsWith('digital_')) {
+                const orderId = extRef.replace('digital_', '');
+                const snap2 = await _getDoc(doc(window.firebaseDb, 'orders', orderId));
+                if (snap2.exists()) {
+                    orderDoc = snap2;
+                    orderData2 = snap2.data();
+                }
+            }
+
+            // Fallback: buscar por external_reference + userId (query segura pelas regras)
+            if (!orderDoc) {
+                const currentUid2 = window.firebaseAuth?.currentUser?.uid;
+                if (currentUid2) {
+                    const ordersRef2 = collection(window.firebaseDb, 'orders');
+                    const qSnap = await getDocs(query(ordersRef2,
+                        where('external_reference', '==', extRef),
+                        where('userId', '==', currentUid2)
+                    ));
+                    if (!qSnap.empty) {
+                        orderDoc = qSnap.docs[0];
+                        orderData2 = qSnap.docs[0].data();
+                    }
+                }
+            }
+
+            if (orderDoc && orderData2) {
                 if (orderData2.status !== 'paid') {
                     try {
                         await updateDoc(doc(window.firebaseDb, 'orders', orderDoc.id), {
