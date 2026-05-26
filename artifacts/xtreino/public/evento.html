@@ -517,10 +517,13 @@ async function loadInscritos(evId) {
         }
 
         // Agrupar por (data + horário) — chave ordenável: "YYYY-MM-DD|horário"
+        // Registros sem data são tratados como hoje para evitar grupos duplicados
         const groups = {};
         valid.forEach(d => {
             const r = d.data();
-            const dt = r.date || '';
+            const rawDt = r.date || '';
+            // Normaliza: data ausente ou inválida → usa todayStr para agrupar junto com os datados
+            const dt = (rawDt && /^\d{4}-\d{2}-\d{2}$/.test(rawDt)) ? rawDt : todayStr;
             const sched = r.schedule || '—';
             const key = `${dt}|${sched}`;
             if (!groups[key]) groups[key] = { date: dt, sched, regs: [] };
