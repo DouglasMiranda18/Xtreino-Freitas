@@ -666,21 +666,40 @@ function updateNotifBadge(count) {
 
 // ===== NOTIFICAÇÕES EM TEMPO REAL =====
 
+// Desbloqueia AudioContext na primeira interação do usuário
+let _audioCtx = null;
+function _unlockAudio() {
+    if (_audioCtx) return;
+    try {
+        _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // Resume imediatamente enquanto estamos dentro de um gesto do usuário
+        if (_audioCtx.state === 'suspended') _audioCtx.resume().catch(() => {});
+    } catch (_) {}
+}
+['click', 'touchstart', 'keydown'].forEach(ev =>
+    document.addEventListener(ev, _unlockAudio, { once: false, passive: true })
+);
+
 function playNotifSound() {
     try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        [[880, 0], [1100, 0.13]].forEach(([freq, delay]) => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.type = 'sine';
-            osc.frequency.value = freq;
-            gain.gain.setValueAtTime(0.28, ctx.currentTime + delay);
-            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.45);
-            osc.start(ctx.currentTime + delay);
-            osc.stop(ctx.currentTime + delay + 0.5);
-        });
+        // Garante que o contexto existe e está ativo
+        if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const ctx = _audioCtx;
+        const resume = ctx.state === 'suspended' ? ctx.resume() : Promise.resolve();
+        resume.then(() => {
+            [[880, 0], [1100, 0.13]].forEach(([freq, delay]) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0.28, ctx.currentTime + delay);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.45);
+                osc.start(ctx.currentTime + delay);
+                osc.stop(ctx.currentTime + delay + 0.5);
+            });
+        }).catch(() => {});
     } catch (_) {}
 }
 
@@ -742,6 +761,7 @@ let _notifUnsubAll = null, _notifUnsubUser = null;
 let _notifKnownIds = null;
 
 async function startNotifListener() {
+    // Limpar listeners anteriores
     if (_notifUnsubAll) { try { _notifUnsubAll(); } catch(_) {} _notifUnsubAll = null; }
     if (_notifUnsubUser) { try { _notifUnsubUser(); } catch(_) {} _notifUnsubUser = null; }
     _notifKnownIds = null;
@@ -753,56 +773,84 @@ async function startNotifListener() {
     const readKey = `notifRead_${uid}`;
 
     try {
-        const { collection, query, where, onSnapshot, limit } =
+        const { collection, query, where, onSnapshot, getDocs, limit } =
             await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
 
-        const docsAll = new Map();
-        const docsUser = new Map();
-        let bothReady = 0;
+        // PASSO 1: Busca estado inicial com getDocs (uma vez) — define quais IDs já existem
+        const knownIds = new Set();
+        let initialUnread = 0;
+        const initReadIds = new Set(JSON.parse(localStorage.getItem(readKey) || '[]'));
 
-        function onUpdate(isAll, snap) {
-            snap.docs.forEach(d => (isAll ? docsAll : docsUser).set(d.id, d));
-
-            if (_notifKnownIds === null) {
-                bothReady++;
-                if (bothReady < 2) return;
-                // Primeira carga — só popula IDs conhecidos e atualiza badge, sem som/toast
-                _notifKnownIds = new Set([...docsAll.keys(), ...docsUser.keys()]);
-                const readIds = new Set(JSON.parse(localStorage.getItem(readKey) || '[]'));
-                _notifUnreadCount = [..._notifKnownIds].filter(id => !readIds.has(id)).length;
-                updateNotifBadge(_notifUnreadCount);
-                return;
-            }
-
-            const allIds = new Set([...docsAll.keys(), ...docsUser.keys()]);
-            const newIds = [...allIds].filter(id => !_notifKnownIds.has(id));
-
-            if (newIds.length > 0) {
-                const readIds = new Set(JSON.parse(localStorage.getItem(readKey) || '[]'));
-                _notifUnreadCount = [...allIds].filter(id => !readIds.has(id)).length;
-                updateNotifBadge(_notifUnreadCount);
-                playNotifSound();
-                newIds.forEach(id => {
-                    const d = docsAll.get(id) || docsUser.get(id);
-                    if (d) showNotifToast(d.data());
-                    _notifKnownIds.add(id);
+        const loadInitial = async (q) => {
+            try {
+                const snap = await getDocs(q);
+                snap.docs.forEach(d => {
+                    if (!knownIds.has(d.id)) {
+                        knownIds.add(d.id);
+                        if (!initReadIds.has(d.id)) initialUnread++;
+                    }
                 });
+            } catch (_) {}
+        };
+
+        await Promise.all([
+            loadInitial(query(collection(db, 'notifications'), where('type', '==', 'all'), limit(30))),
+            loadInitial(query(collection(db, 'notifications'), where('targetUserId', '==', uid), limit(30)))
+        ]);
+
+        _notifKnownIds = knownIds;
+        _notifUnreadCount = initialUnread;
+        updateNotifBadge(initialUnread);
+
+        // Mostra sininho
+        ['notifBellDesktop', 'notifBellMobile'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('hidden');
+        });
+
+        // PASSO 2: onSnapshot — só age em IDs que não estavam no estado inicial
+        function processNew(snap) {
+            if (!_notifKnownIds) return;
+            const newDocs = snap.docs.filter(d => !_notifKnownIds.has(d.id));
+            if (newDocs.length === 0) return;
+
+            const readIds = new Set(JSON.parse(localStorage.getItem(readKey) || '[]'));
+            newDocs.forEach(d => {
+                _notifKnownIds.add(d.id);
+                if (!readIds.has(d.id)) _notifUnreadCount++;
+            });
+            updateNotifBadge(_notifUnreadCount);
+
+            // Som + toast para cada notificação nova
+            playNotifSound();
+            newDocs.forEach(d => showNotifToast(d.data()));
+
+            // Recarrega lista se o dropdown estiver aberto
+            const dropdown = document.getElementById('notifDropdown');
+            if (dropdown && !dropdown.classList.contains('hidden')) {
+                try { loadUserNotifications(); } catch(_) {}
             }
         }
 
-        _notifUnsubAll = onSnapshot(
-            query(collection(db, 'notifications'), where('type', '==', 'all'), limit(30)),
-            snap => onUpdate(true, snap),
-            err => console.warn('Notif listener (all):', err?.code)
-        );
-        _notifUnsubUser = onSnapshot(
-            query(collection(db, 'notifications'), where('targetUserId', '==', uid), limit(30)),
-            snap => onUpdate(false, snap),
-            err => console.warn('Notif listener (user):', err?.code)
-        );
+        try {
+            _notifUnsubAll = onSnapshot(
+                query(collection(db, 'notifications'), where('type', '==', 'all'), limit(30)),
+                processNew,
+                err => console.warn('Notif listener (all):', err?.code)
+            );
+        } catch (_) {}
+
+        try {
+            _notifUnsubUser = onSnapshot(
+                query(collection(db, 'notifications'), where('targetUserId', '==', uid), limit(30)),
+                processNew,
+                err => console.warn('Notif listener (user):', err?.code)
+            );
+        } catch (_) {}
+
     } catch (err) {
         console.warn('Erro ao iniciar listener de notificações:', err);
-        setTimeout(() => { try { loadUserNotifications(); } catch(_) {} }, 0);
+        try { loadUserNotifications(); } catch(_) {}
     }
 }
 
