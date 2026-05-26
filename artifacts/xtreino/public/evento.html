@@ -589,7 +589,7 @@ async function loadInscritos(evId) {
                 </div>
                 <div class="space-y-2">
                     ${regs.map(r => {
-                        const slotNum = r.slotNumber != null ? r.slotNumber : r.slot;
+                        const slotNum = r.slot != null ? r.slot : r.slotNumber;
                         const teamName = r.teamName || r.email || '—';
                         const leaderName = r.leaderName && r.leaderName !== r.teamName ? r.leaderName : null;
                         const slotBadge = slotNum != null
