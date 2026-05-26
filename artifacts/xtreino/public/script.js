@@ -760,6 +760,26 @@ function showNotifToast(notif) {
 let _notifUnsubAll = null, _notifUnsubUser = null;
 let _notifKnownIds = null;
 
+// Salva timestamp de última atividade quando usuário sai da página
+function _saveNotifLastActive(uid) {
+    if (!uid) return;
+    try { localStorage.setItem(`notifLastActive_${uid}`, String(Date.now())); } catch(_) {}
+}
+
+// Registra evento de saída da página para salvar timestamp
+function _setupNotifPageHideTracker() {
+    const handler = () => {
+        const uid = window.firebaseAuth?.currentUser?.uid;
+        if (uid) _saveNotifLastActive(uid);
+    };
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') handler();
+    });
+    window.addEventListener('beforeunload', handler);
+    window.addEventListener('pagehide', handler);
+}
+_setupNotifPageHideTracker();
+
 async function startNotifListener() {
     // Limpar listeners anteriores
     if (_notifUnsubAll) { try { _notifUnsubAll(); } catch(_) {} _notifUnsubAll = null; }
@@ -771,23 +791,36 @@ async function startNotifListener() {
     const uid = window.firebaseAuth.currentUser.uid;
     const db = window.firebaseDb;
     const readKey = `notifRead_${uid}`;
+    const lastActiveKey = `notifLastActive_${uid}`;
+
+    // Quando usuário retorna: qualquer notificação criada depois que ele saiu é "nova"
+    const lastActiveTime = parseInt(localStorage.getItem(lastActiveKey) || '0', 10);
 
     try {
         const { collection, query, where, onSnapshot, getDocs, limit } =
             await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
 
-        // PASSO 1: Busca estado inicial com getDocs (uma vez) — define quais IDs já existem
+        // PASSO 1: Busca estado inicial — define IDs conhecidos
+        // Notificações criadas após lastActiveTime são tratadas como novas (som + toast)
         const knownIds = new Set();
         let initialUnread = 0;
+        const missedNotifs = []; // notificações que chegaram enquanto estava fora
         const initReadIds = new Set(JSON.parse(localStorage.getItem(readKey) || '[]'));
 
         const loadInitial = async (q) => {
             try {
                 const snap = await getDocs(q);
                 snap.docs.forEach(d => {
-                    if (!knownIds.has(d.id)) {
-                        knownIds.add(d.id);
-                        if (!initReadIds.has(d.id)) initialUnread++;
+                    if (knownIds.has(d.id)) return;
+                    knownIds.add(d.id);
+                    const data = d.data();
+                    if (!initReadIds.has(d.id)) {
+                        initialUnread++;
+                        // Criada depois que usuário saiu do site → alerta ao retornar
+                        const createdAt = data.createdAt?.toMillis?.() || data.createdAt || 0;
+                        if (lastActiveTime > 0 && createdAt > lastActiveTime) {
+                            missedNotifs.push(data);
+                        }
                     }
                 });
             } catch (_) {}
@@ -802,13 +835,24 @@ async function startNotifListener() {
         _notifUnreadCount = initialUnread;
         updateNotifBadge(initialUnread);
 
+        // Registra retorno ao site com timestamp atual (para próxima saída)
+        localStorage.setItem(lastActiveKey, String(Date.now()));
+
         // Mostra sininho
         ['notifBellDesktop', 'notifBellMobile'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.classList.remove('hidden');
         });
 
-        // PASSO 2: onSnapshot — só age em IDs que não estavam no estado inicial
+        // Notificações perdidas enquanto estava fora → som + toast ao retornar
+        if (missedNotifs.length > 0) {
+            setTimeout(() => {
+                playNotifSound();
+                missedNotifs.forEach(n => showNotifToast(n));
+            }, 800); // pequeno delay para página terminar de carregar
+        }
+
+        // PASSO 2: onSnapshot — detecta novas notificações em tempo real
         function processNew(snap) {
             if (!_notifKnownIds) return;
             const newDocs = snap.docs.filter(d => !_notifKnownIds.has(d.id));

@@ -12292,3 +12292,63 @@ window.limparInscricoesSemHorario = async function() {
     alert(`✅ ${deletadas} inscrição(ões) removida(s) com sucesso.`);
     try { await loadBoard(); } catch(_) {}
 };
+
+// ===== UTILITÁRIO: ZERAR HISTÓRICO DE VENDAS DE AFILIADO =====
+window.zeroCouponUsageForEmail = async function(targetEmail) {
+    if (!targetEmail) { alert('Informe o e-mail do afiliado.'); return; }
+    if (!window.firebaseDb) { alert('Firebase não conectado.'); return; }
+    const email = targetEmail.toLowerCase().trim();
+    try {
+        const { collection, query, where, getDocs, deleteDoc, doc } =
+            await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const db = window.firebaseDb;
+
+        // 1. Achar o cupom do afiliado pelo e-mail
+        let couponCode = null;
+        const affSnap = await getDocs(collection(db, 'affiliates'));
+        affSnap.forEach(d => {
+            const data = d.data();
+            if ((data.email || '').toLowerCase() === email) {
+                couponCode = data.couponCode || data.code || null;
+            }
+        });
+        if (!couponCode) {
+            // Tenta na coleção coupons
+            const coupSnap = await getDocs(collection(db, 'coupons'));
+            coupSnap.forEach(d => {
+                const data = d.data();
+                if ((data.affiliateEmail || data.email || '').toLowerCase() === email) {
+                    couponCode = d.id;
+                }
+            });
+        }
+        if (!couponCode) { alert(`Afiliado não encontrado para: ${email}`); return; }
+
+        const ok = confirm(`Zerar TODOS os registros de vendas do cupom "${couponCode}" (${email})?\nEsta ação não pode ser desfeita.`);
+        if (!ok) return;
+
+        // 2. Deletar couponUsage pelo couponCode
+        const q = query(collection(db, 'couponUsage'), where('couponCode', '==', couponCode));
+        const snap = await getDocs(q);
+        let count = 0;
+        for (const d of snap.docs) {
+            await deleteDoc(doc(db, 'couponUsage', d.id));
+            count++;
+        }
+        // Tenta também pela versão em maiúsculas (alguns sistemas salvam assim)
+        if (count === 0) {
+            const q2 = query(collection(db, 'couponUsage'), where('couponCode', '==', couponCode.toUpperCase()));
+            const snap2 = await getDocs(q2);
+            for (const d of snap2.docs) {
+                await deleteDoc(doc(db, 'couponUsage', d.id));
+                count++;
+            }
+        }
+
+        alert(`✅ ${count} registro(s) de vendas removido(s) para ${email} (cupom: ${couponCode}).`);
+        console.log(`[zeroCouponUsageForEmail] ${count} docs deletados para ${email} / ${couponCode}`);
+    } catch (err) {
+        console.error('[zeroCouponUsageForEmail] Erro:', err);
+        alert('Erro: ' + (err.message || err));
+    }
+};
