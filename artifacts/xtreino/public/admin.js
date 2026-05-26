@@ -11757,13 +11757,10 @@ function selectNotifyType(type) {
     if (tabSec)   tabSec.classList.toggle('hidden',  type !== 'tabela');
     if (optLabel) optLabel.textContent = (type === 'custom') ? '(obrigatória)' : '(opcional)';
     if (type === 'credentials') {
-        if (titleEl && !titleEl.value) titleEl.value = 'Credenciais do Evento 🎮';
         if (msgEl) msgEl.placeholder = 'Ex: Use as credenciais abaixo para entrar na sala. Boa sorte!';
     } else if (type === 'tabela') {
-        if (titleEl && !titleEl.value) titleEl.value = 'Tabela de Pontuação 📊';
         if (msgEl) msgEl.placeholder = 'Ex: A tabela do evento já está disponível!';
     } else {
-        if (titleEl && !titleEl.value) titleEl.value = '';
         if (msgEl) msgEl.placeholder = 'Digite sua mensagem para os participantes...';
     }
 }
