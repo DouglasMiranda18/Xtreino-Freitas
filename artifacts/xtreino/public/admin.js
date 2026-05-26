@@ -9123,13 +9123,15 @@ async function loadPasseBooyahControls(){
         <td class="py-2 px-2">${r.email}</td>
         <td class="py-2 px-2">${r.playerId || '<span class="text-gray-400">—</span>'}</td>
         <td class="py-2 px-2">${r.confirmed ? '<span class="px-2 py-1 text-[10px] rounded-full bg-green-100 text-green-700">Confirmado</span>' : '<span class="px-2 py-1 text-[10px] rounded-full bg-yellow-100 text-yellow-700">Pendente</span>'}</td>
-        <td class="py-2 px-2">
-          ${r.canConfirm ? `<button class="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-xs" onclick="confirmPasseBooyah('${r.id}')">Confirmar</button>` : '<span class="text-gray-400 text-xs">—</span>'}
+        <td class="py-2 px-2 flex items-center gap-2">
+          ${r.canConfirm ? `<button class="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-xs" onclick="confirmPasseBooyah('${r.id}')">Confirmar</button>` : ''}
+          ${r.confirmed ? `<button class="px-2 py-1.5 bg-red-100 hover:bg-red-200 text-red-600 rounded text-xs" onclick="deleteBooyahOrder('${r.id}')" title="Excluir pedido">🗑️</button>` : ''}
+          ${!r.canConfirm && !r.confirmed ? '<span class="text-gray-400 text-xs">—</span>' : ''}
         </td>
       </tr>
     `).join('');
 
-    // Expor função no escopo global
+    // Expor funções no escopo global
     window.confirmPasseBooyah = async function(orderId){
       try{
         const ok = confirm('Confirmar entrega do Passe Booyah?');
@@ -9141,7 +9143,20 @@ async function loadPasseBooyahControls(){
         console.error('Erro ao confirmar Passe Booyah:', err);
         alert('Erro ao confirmar. Tente novamente.');
       }
-    }
+    };
+
+    window.deleteBooyahOrder = async function(orderId){
+      try{
+        const ok = confirm('Excluir este pedido do Passe Booyah? Esta ação não pode ser desfeita.');
+        if (!ok) return;
+        const { deleteDoc, doc: docFn } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        await deleteDoc(docFn(window.firebaseDb, 'orders', orderId));
+        await loadPasseBooyahControls();
+      }catch(err){
+        console.error('Erro ao excluir pedido Booyah:', err);
+        alert('Erro ao excluir. Tente novamente.');
+      }
+    };
   }catch(err){
     console.error('Erro ao carregar Passe Booyah:', err);
   }
