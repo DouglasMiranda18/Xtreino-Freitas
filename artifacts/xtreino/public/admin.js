@@ -12511,3 +12511,95 @@ window.fixTeamSlot = async function(teamName, eventType, date, newSlot) {
         alert('Erro: ' + (err.message || err));
     }
 };
+
+// Utilitário: renumerar slots de um evento para uma data específica (ou hoje)
+// Uso: await repairDateSlots('xtreino-tokens', '2026-05-26')
+// Ou para hoje: await repairDateSlots('xtreino-tokens')
+window.repairDateSlots = async function(eventType, targetDate) {
+    if (!window.firebaseDb) { alert('Firebase não conectado.'); return; }
+    try {
+        const { collection, query, where, getDocs, writeBatch, doc, setDoc } =
+            await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const db = window.firebaseDb;
+
+        // Usar data de hoje em Brasília se não informada
+        if (!targetDate) {
+            const now = new Date(Date.now() - 3 * 60 * 60 * 1000);
+            targetDate = now.toISOString().slice(0, 10);
+        }
+
+        const snap = await getDocs(query(
+            collection(db, 'registrations'),
+            where('eventType', '==', eventType),
+            where('date', '==', targetDate)
+        ));
+
+        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
+        const docs = snap.docs.filter(d => validStatuses.has(d.data().status));
+
+        if (docs.length === 0) {
+            alert(`Nenhum registro encontrado para ${eventType} em ${targetDate}.`);
+            return;
+        }
+
+        // Agrupar por horário
+        const bySchedule = {};
+        docs.forEach(d => {
+            const r = d.data();
+            const sched = r.schedule || '—';
+            if (!bySchedule[sched]) bySchedule[sched] = [];
+            bySchedule[sched].push({ id: d.id, data: r });
+        });
+
+        // Ordenar por createdAt dentro de cada horário
+        Object.values(bySchedule).forEach(arr => {
+            arr.sort((a, b) => (a.data.createdAt?.seconds ?? 0) - (b.data.createdAt?.seconds ?? 0));
+        });
+
+        // Deduplicar por nome de time dentro de cada horário (manter o mais antigo)
+        Object.keys(bySchedule).forEach(sched => {
+            const seenTeams = new Set();
+            bySchedule[sched] = bySchedule[sched].filter(entry => {
+                const key = (entry.data.teamName || '').toLowerCase().trim();
+                if (seenTeams.has(key)) return false;
+                seenTeams.add(key);
+                return true;
+            });
+        });
+
+        // Renumerar e gravar
+        const batch = writeBatch(db);
+        let updateCount = 0;
+        const counterData = {};
+
+        for (const [sched, regs] of Object.entries(bySchedule)) {
+            regs.forEach((entry, idx) => {
+                const newSlot = idx + 1;
+                const newSlotDisplay = `Vaga #${newSlot}`;
+                batch.update(doc(db, 'registrations', entry.id), {
+                    slot: newSlot,
+                    slotNumber: newSlot,
+                    slotDisplay: newSlotDisplay
+                });
+                updateCount++;
+            });
+            counterData[sched] = regs.length;
+        }
+
+        await batch.commit();
+
+        // Sincronizar slotCounters
+        try {
+            await setDoc(doc(db, 'slotCounters', eventType), counterData, { merge: true });
+        } catch(_) {}
+
+        const resumo = Object.entries(bySchedule)
+            .map(([s, r]) => `  ${s}: ${r.length} time(s)`)
+            .join('\n');
+        alert(`✅ ${updateCount} registro(s) corrigidos em ${targetDate}:\n${resumo}`);
+        console.log(`[repairDateSlots] ${eventType} | ${targetDate} | ${updateCount} updates\n${resumo}`);
+    } catch(err) {
+        console.error('[repairDateSlots] Erro:', err);
+        alert('Erro: ' + (err.message || err));
+    }
+};
