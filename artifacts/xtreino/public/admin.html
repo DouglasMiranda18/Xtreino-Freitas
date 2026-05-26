@@ -1859,6 +1859,11 @@
                     <input id="addContact" class="w-full border rounded px-3 py-2" required />
                 </div>
                 <div>
+                    <label class="block text-sm mb-1">E-mail do cliente <span class="text-gray-400 font-normal">(para notificações no app)</span></label>
+                    <input id="addEmail" type="email" class="w-full border rounded px-3 py-2" placeholder="email@cadastrado.com" onblur="onAddEmailBlur()" />
+                    <p id="addEmailStatus" class="text-xs mt-1 text-gray-400"></p>
+                </div>
+                <div>
                     <label class="block text-sm mb-1">Responsável / Jogador</label>
                     <input id="addPerson" class="w-full border rounded px-3 py-2" />
                 </div>

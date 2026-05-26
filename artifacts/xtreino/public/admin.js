@@ -1034,6 +1034,46 @@ window.showWarningToast = function(message, title = 'Atenção') {
 
   // Submissão manual de equipe/cadastro rápido (confirma vaga sem pagamento)
   let _isSavingTeam = false;
+  // Busca userId de um cliente pelo e-mail na coleção 'users'
+  async function resolveUserIdByEmail(email) {
+    if (!email || !window.firebaseDb) return null;
+    try {
+      const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+      const snap = await getDocs(query(
+        collection(window.firebaseDb, 'users'),
+        where('email', '==', email.toLowerCase().trim())
+      ));
+      if (!snap.empty) return snap.docs[0].id;
+      // Tenta também pelo campo 'uid'
+      const snap2 = await getDocs(query(
+        collection(window.firebaseDb, 'users'),
+        where('uid', '==', email.toLowerCase().trim())
+      ));
+      return snap2.empty ? null : snap2.docs[0].id;
+    } catch (_) { return null; }
+  }
+  window.resolveUserIdByEmail = resolveUserIdByEmail;
+
+  // Verificação ao sair do campo de e-mail — mostra se o usuário existe
+  async function onAddEmailBlur() {
+    const emailEl = document.getElementById('addEmail');
+    const statusEl = document.getElementById('addEmailStatus');
+    if (!emailEl || !statusEl) return;
+    const email = emailEl.value.trim();
+    if (!email) { statusEl.textContent = ''; return; }
+    statusEl.textContent = 'Verificando...';
+    statusEl.className = 'text-xs mt-1 text-gray-400';
+    const uid = await resolveUserIdByEmail(email);
+    if (uid) {
+      statusEl.textContent = '✅ Usuário encontrado — notificações serão enviadas para ele.';
+      statusEl.className = 'text-xs mt-1 text-green-600';
+    } else {
+      statusEl.textContent = '⚠️ E-mail não encontrado no sistema. A vaga será salva, mas ele não receberá notificações.';
+      statusEl.className = 'text-xs mt-1 text-yellow-600';
+    }
+  }
+  window.onAddEmailBlur = onAddEmailBlur;
+
   async function submitAddTeam(e){
     if (_isSavingTeam) { e?.preventDefault(); return; }
     try{
@@ -1041,6 +1081,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
           const hourEl = document.getElementById('addHour');
           const teamEl = document.getElementById('addTeamName');
           const contactEl = document.getElementById('addContact');
+          const emailEl = document.getElementById('addEmail');
           const personEl = document.getElementById('addPerson');
           const notesEl = document.getElementById('addNotes');
           const msgEl = document.getElementById('addTeamMsg');
@@ -1049,6 +1090,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
           const schedule = (hourEl?.value || '').trim();
           const teamName = (teamEl?.value || '').trim();
           const contact = (contactEl?.value || '').trim();
+          const clientEmail = (emailEl?.value || '').trim().toLowerCase();
           const person = (personEl?.value || '').trim();
           const notes = (notesEl?.value || '').trim();
           const date = (dateEl?.value || '').trim();
@@ -1066,25 +1108,42 @@ window.showWarningToast = function(message, title = 'Atenção') {
           _isSavingTeam = true;
           if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Salvando...'; }
           if (msgEl) msgEl.textContent = '';
+
+          // Resolve o userId real do cliente pelo e-mail
+          let clientUserId = null;
+          if (clientEmail) {
+            clientUserId = await resolveUserIdByEmail(clientEmail);
+          }
+
           // Se horário não estiver definido, cria sem horário específico
           const payload = {
             teamName,
             contact,
+            email: clientEmail || null,
             person: person || null,
             notes: notes || null,
             date,
             schedule: schedule || '—',
             eventType: eventType || null,
             status: 'confirmed',
-            userId: window.firebaseAuth?.currentUser?.uid || null
+            userId: clientUserId || null,
+            addedManually: true
           };
           try{
             const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
             await addDoc(collection(window.firebaseDb,'registrations'), { ...payload, createdAt: serverTimestamp() });
-            if (msgEl) msgEl.textContent = 'Time adicionado com sucesso!';
+            const notifMsg = clientUserId
+              ? 'Time adicionado! O cliente receberá notificações de ID/senha.'
+              : clientEmail
+                ? 'Time adicionado. ⚠️ E-mail não encontrado — cliente não receberá notificações.'
+                : 'Time adicionado com sucesso!';
+            if (msgEl) msgEl.textContent = notifMsg;
             // limpar campos
             if (teamEl) teamEl.value = '';
             if (contactEl) contactEl.value = '';
+            if (emailEl) { emailEl.value = ''; }
+            const statusEl = document.getElementById('addEmailStatus');
+            if (statusEl) statusEl.textContent = '';
             if (personEl) personEl.value = '';
             if (notesEl) notesEl.value = '';
             // Atualiza quadro e pendências
