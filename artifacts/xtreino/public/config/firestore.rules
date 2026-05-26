@@ -180,7 +180,7 @@ service cloud.firestore {
 
     // products: gerente e designer podem editar
     match /products/{productId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow create, update, delete: if canWriteContent();
     }
 

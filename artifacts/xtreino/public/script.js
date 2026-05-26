@@ -8942,9 +8942,20 @@ async function loadProductsFromFirestore() {
         }
 
     } catch (error) {
-        
         const container = document.getElementById('productsContainer');
-        if (container) {
+        if (!container) return;
+        const isPermission = error && (error.code === 'permission-denied' ||
+            (error.message || '').toLowerCase().includes('permission'));
+        if (isPermission) {
+            // Regra do Firestore ainda não publicada ou token expirado — tentar de novo em 3s
+            setTimeout(() => {
+                const pc = document.getElementById('productsContainer');
+                if (pc && (pc.children.length === 0 || pc.querySelector('.text-red-500'))) {
+                    loadProductsFromFirestore();
+                }
+            }, 3000);
+            container.innerHTML = '<p class="col-span-full text-center text-gray-400">Carregando produtos...</p>';
+        } else {
             container.innerHTML = '<p class="col-span-full text-center text-red-500">Erro ao carregar produtos. Tente novamente mais tarde.</p>';
         }
     }
