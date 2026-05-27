@@ -5296,6 +5296,15 @@ function openScheduleModal(eventType) {
         const buyTokensBtn = document.getElementById('buyTokensBtn');
         if (buyTokensBtn) buyTokensBtn.classList.add('hidden');
 
+        // Mostrar botão "Pagar com Tokens" para produtos (exceto camisas/físicos)
+        const _prodTokenBtn = document.getElementById('schedPayTokens');
+        if (_prodTokenBtn) {
+            const isProdFisico = eventType === 'camisa'
+                || cfg.category === 'fisico'
+                || cfg.category === 'physical';
+            _prodTokenBtn.style.display = isProdFisico ? 'none' : '';
+        }
+
         // Adicionar opções específicas do produto
         addProductOptions(eventType);
 
