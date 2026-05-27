@@ -2970,12 +2970,21 @@ async function handlePurchase(event) {
 
         clearTimeout(timeoutId);
 
+        if (response.status === 404) {
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = originalBtnText; }
+            alert('⚠️ Pagamento via Mercado Pago não está disponível neste ambiente de desenvolvimento.\n\nO checkout funciona apenas na versão publicada do site (orgfreitas.com.br).');
+            return;
+        }
+
         if (!response.ok) {
             const errorText = await response.text();
             
             if (submitBtn) {
                 submitBtn.disabled = false;
                 submitBtn.textContent = originalBtnText;
+            }
+            if (String(errorText || '').includes('Missing MP_ACCESS_TOKEN')) {
+                throw new Error('Integração com Mercado Pago não configurada. Entre em contato com o suporte.');
             }
             throw new Error(errorText || `Erro ao criar preferência (${response.status})`);
         }
@@ -3446,6 +3455,7 @@ async function heroPurchaseTokens() {
         if (heroAppliedCoupon) prefBody.coupon_info = { id: heroAppliedCoupon.id, code: heroAppliedCoupon.code, discountType: heroAppliedCoupon.discountType, discountValue: heroAppliedCoupon.discountValue, context: 'tokens' };
         
         const response = await fetch('/.netlify/functions/create-preference', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(prefBody) });
+        if (response.status === 404) { showToast('info', 'Checkout disponível apenas na versão publicada do site.', 'Dev'); return; }
         if (!response.ok) throw new Error('Erro ao comunicar com Mercado Pago');
         const data = await response.json();
         if (data.init_point) {
@@ -6759,6 +6769,12 @@ async function handleProductPurchase(productId, cfg) {
             throw fetchErr;
         }
 
+        if (response.status === 404) {
+            storeCheckoutFailure({ location: 'product', payload: preferencePayload, responseStatus: 404 });
+            alert('⚠️ Pagamento via Mercado Pago não está disponível neste ambiente de desenvolvimento.\n\nO checkout funciona apenas na versão publicada do site (orgfreitas.com.br).');
+            return;
+        }
+
         if (!response.ok) {
             const errorText = await response.text().catch(() => null);
             
@@ -9217,8 +9233,17 @@ async function openEventPayment(eventId, eventName, preco) {
         });
         clearTimeout(timeoutId);
 
+        if (response.status === 404) {
+            showToast('info', 'Checkout disponível apenas na versão publicada do site (orgfreitas.com.br).', 'Dev');
+            return;
+        }
+
         if (!response.ok) {
             const errText = await response.text();
+            if (String(errText || '').includes('Missing MP_ACCESS_TOKEN')) {
+                showToast('error', 'Integração com Mercado Pago não configurada. Contate o suporte.', 'Erro');
+                return;
+            }
             throw new Error(errText || `Erro ${response.status}`);
         }
 
