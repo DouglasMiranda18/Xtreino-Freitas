@@ -1,5 +1,6 @@
 [build]
   publish = "artifacts/xtreino/public"
+  command = "find artifacts/xtreino/public -name '*.html' -exec sed -i \"s|__FIREBASE_API_KEY__|$FIREBASE_API_KEY|g\" {} +"
 
 [[redirects]]
   from = "/treinofreitas"
