@@ -7559,8 +7559,8 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
             return;
         }
 
-        // Aguardar Firebase ficar pronto (até 8s) antes de salvar
-        await waitForFirebase(8000);
+        // Aguardar Firebase ficar pronto (até 3s — já deve estar pronto na hora do clique)
+        await waitForFirebase(3000);
         if (!window.firebaseReady || !window.firebaseDb) throw new Error('Não foi possível conectar ao banco de dados. Verifique sua internet e tente novamente.');
 
         const { collection, query, where, getDocs, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
@@ -7587,18 +7587,34 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
 
         const dates = datesToUse && datesToUse.length > 0 ? datesToUse : [Object.keys(timesByDate)[0] || new Date().toISOString().slice(0, 10)];
 
-        // Alocar slots via transação atômica (slotCounters) — sem ler registrations de outros usuários
+        // Para eventos grátis: leitura direta (sem transações — slotCounters pode não ter permissão)
         {
-            const _sc = {};
+            const scheduleKeys = new Set();
             for (const _d of dates) {
                 for (const _t of (timesByDate[_d] || ['—'])) {
-                    const _k = _t !== '—' ? _t : cfg.label;
-                    _sc[_k] = (_sc[_k] || 0) + teamsData.length;
+                    scheduleKeys.add(_t !== '—' ? _t : cfg.label);
                 }
             }
-            if (Object.keys(_sc).length > 0) {
-                const _ss = await allocateSlotsFromDB(rawEventType, _sc);
-                for (const [_k, _v] of Object.entries(_ss)) scheduleSlotCount[_k] = _v - 1;
+            if (vagas > 0 && scheduleKeys.size > 0) {
+                // Com limite de vagas: ler contagem atual das registrations (1 query, sem transações)
+                try {
+                    const snap = await getDocs(query(
+                        collection(window.firebaseDb, 'registrations'),
+                        where('eventType', '==', rawEventType)
+                    ));
+                    snap.forEach(d => {
+                        const r = d.data();
+                        if (!r.schedule) return;
+                        const sn = Number(r.slotNumber || r.slot || 0);
+                        if (!isNaN(sn) && sn > (scheduleSlotCount[r.schedule] || 0)) {
+                            scheduleSlotCount[r.schedule] = sn;
+                        }
+                    });
+                } catch (_) { /* continua sem contagem exata */ }
+            }
+            // Inicializar chaves ausentes em 0 (slots começam em 1 no loop abaixo)
+            for (const k of scheduleKeys) {
+                if (scheduleSlotCount[k] == null) scheduleSlotCount[k] = 0;
             }
         }
 
