@@ -12052,7 +12052,17 @@ async function openEventSlotsModal(eventId, eventName) {
             where('eventType', '==', eventId)
         ));
         const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
-        const docs = snap.docs.filter(d => validStatuses.has(d.data().status));
+        // Data de hoje em horário de Brasília (UTC-3)
+        const _brNow = new Date(Date.now() - 3 * 60 * 60 * 1000);
+        const todayStr = _brNow.toISOString().split('T')[0];
+
+        const docs = snap.docs.filter(d => {
+            const r = d.data();
+            if (!validStatuses.has(r.status)) return false;
+            // Remove registros de datas passadas (mantém: sem data, data inválida, hoje ou futuro)
+            if (r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date) && r.date < todayStr) return false;
+            return true;
+        });
 
         if (docs.length === 0) {
             document.getElementById('eventSlotsBody').innerHTML =
@@ -12173,7 +12183,17 @@ async function repairEventSlots() {
             where('eventType', '==', eventId)
         ));
         const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
-        const docs = snap.docs.filter(d => validStatuses.has(d.data().status));
+        // Data de hoje em horário de Brasília (UTC-3)
+        const _brNow = new Date(Date.now() - 3 * 60 * 60 * 1000);
+        const todayStr = _brNow.toISOString().split('T')[0];
+
+        const docs = snap.docs.filter(d => {
+            const r = d.data();
+            if (!validStatuses.has(r.status)) return false;
+            // Ignora registros de datas passadas ao reparar slots
+            if (r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date) && r.date < todayStr) return false;
+            return true;
+        });
 
         if (docs.length === 0) {
             alert('Nenhum participante encontrado para corrigir.');
