@@ -549,8 +549,8 @@ async function loadInscritos(evId) {
         function renderGroups(filterDate) {
             let html = '';
             let anyVisible = false;
-            let globalSlot = 0;
             for (const sk of finalSchedKeys) {
+                let globalSlot = 0;
                 const { label, regs } = bySchedMap[sk];
 
                 // Passo 1 — filtro de data (registros sem data válida → tratados como hoje)
