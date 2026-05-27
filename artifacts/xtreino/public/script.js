@@ -7457,29 +7457,30 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts) {
     }
 
     // --- Nível 2: seeding atômico ---
-    // Passo A: lê o máximo atual das registrations FORA da transação
-    // Passo B: confirma atomicamente no slotCounters — se outro usuário já inicializou, usa o valor dele
-    // Isso elimina a race condition entre dois compradores que caíram no fallback simultaneamente
+    // Passo A: lê o máximo atual das registrations FORA da transação (allow list: if true — sempre funciona)
+    // Passo B: confirma atomicamente no slotCounters — pode falhar se regras não deployadas
+    let seedMax = {};
     try {
-        // Passo A: pré-computar o máximo por horário
         const snap = await getDocs(query(
             collection(window.firebaseDb, 'registrations'),
             where('eventType', '==', rawEventType)
         ));
-        const seedMax = {};
         snap.forEach(d => {
             const r = d.data();
             if (!r.schedule) return;
             const sn = Number(r.slotNumber || r.slot || 0);
             if (!isNaN(sn) && sn > (seedMax[r.schedule] || 0)) seedMax[r.schedule] = sn;
         });
+    } catch (readErr) {
+        console.warn('[SlotDB] Nível 2 leitura de registrations falhou:', readErr.message);
+    }
 
+    try {
         // Passo B: transação atômica — usa o counter existente se outro usuário já o criou,
         // senão inicializa a partir do máximo lido (seed)
         const startSlots = {};
         await runTransaction(window.firebaseDb, async (tx) => {
             const counterDoc = await tx.get(counterRef);
-            // Se alguém criou o counter enquanto fazíamos o Passo A, usamos o valor dele (mais atualizado)
             const counts = counterDoc.exists() ? { ...counterDoc.data() } : { ...seedMax };
             for (const [sched, n] of Object.entries(scheduleCounts)) {
                 const current = Number(counts[sched]) || 0;
@@ -7490,12 +7491,19 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts) {
         });
         console.log('[SlotDB] startSlots (seeding atômico):', JSON.stringify(startSlots));
         return startSlots;
-    } catch (dbErr) {
-        console.error('[SlotDB] erro crítico ao alocar slots:', dbErr.message);
-        // Lançar em vez de retornar null — impede que qualquer caminho de compra
-        // prossiga com slot indefinido e potencialmente duplicado
-        throw new Error('Não foi possível reservar sua vaga. Verifique sua conexão e tente novamente.');
+    } catch (txErr2) {
+        console.warn('[SlotDB] Nível 2 transação falhou (slotCounters sem permissão?), usando fallback:', txErr2.message);
     }
+
+    // --- Nível 3: fallback puro sem escrita em slotCounters ---
+    // Usa seedMax já lido das registrations — aceita risco de race condition em alta concorrência,
+    // mas garante que a inscrição não trava por falta de permissão no slotCounters
+    const startSlotsFallback = {};
+    for (const [sched] of Object.entries(scheduleCounts)) {
+        startSlotsFallback[sched] = (Number(seedMax[sched]) || 0) + 1;
+    }
+    console.log('[SlotDB] startSlots (nível 3 - fallback sem slotCounters):', JSON.stringify(startSlotsFallback));
+    return startSlotsFallback;
 }
 
 // ===== Helper: calcula o texto do slot (Vaga #N ou Grupo X • Vaga Y) =====
@@ -7525,6 +7533,10 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
             alert('Selecione pelo menos um horário antes de confirmar.');
             return;
         }
+
+        // Aguardar Firebase ficar pronto (até 8s) antes de salvar
+        await waitForFirebase(8000);
+        if (!window.firebaseReady || !window.firebaseDb) throw new Error('Não foi possível conectar ao banco de dados. Verifique sua internet e tente novamente.');
 
         const { collection, query, where, getDocs, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
 
