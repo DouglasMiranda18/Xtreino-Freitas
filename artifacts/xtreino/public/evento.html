@@ -536,106 +536,58 @@ async function loadInscritos(evId) {
         }
         const finalSchedKeys = schedKeys;
 
-        // Coleta datas disponíveis para botões de filtro
-        const allDates = new Set();
-        finalSchedKeys.forEach(sk => bySchedMap[sk].regs.forEach(r => {
-            allDates.add(r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : todayStr);
-        }));
-        const sortedDates = [...allDates].sort();
-        const hasMultipleDates = sortedDates.length > 1;
+        // Renderiza apenas as equipes do dia atual
+        let html = '';
+        let anyVisible = false;
+        for (const sk of finalSchedKeys) {
+            let slotNum = 0;
+            const { label, regs } = bySchedMap[sk];
 
-        // Renderiza grupos para uma data específica:
-        // 1. Filtra por data  2. Deduplica por teamName (dentro do conjunto filtrado)  3. Numera sequencialmente
-        function renderGroups(filterDate) {
-            let html = '';
-            let anyVisible = false;
-            for (const sk of finalSchedKeys) {
-                let globalSlot = 0;
-                const { label, regs } = bySchedMap[sk];
+            // Filtra somente pelo dia de hoje
+            const byDate = regs.filter(r => {
+                const dt = r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : todayStr;
+                return dt === todayStr;
+            });
+            if (byDate.length === 0) continue;
 
-                // Passo 1 — filtro de data (registros sem data válida → tratados como hoje)
-                const byDate = filterDate === 'all'
-                    ? [...regs]
-                    : regs.filter(r => {
-                        const dt = r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : todayStr;
-                        return dt === filterDate;
-                    });
-                if (byDate.length === 0) continue;
+            // Deduplicação por teamName dentro do filtro de hoje
+            const seenTeams = new Set();
+            const filtered = byDate.filter(r => {
+                const tk = (r.teamName || r.email || '').toLowerCase().trim();
+                if (!tk || seenTeams.has(tk)) return false;
+                seenTeams.add(tk);
+                return true;
+            });
+            if (filtered.length === 0) continue;
 
-                // Passo 2 — deduplicação por teamName DENTRO deste filtro
-                const seenTeams = new Set();
-                const filtered = byDate.filter(r => {
-                    const tk = (r.teamName || r.email || '').toLowerCase().trim();
-                    if (!tk || seenTeams.has(tk)) return false;
-                    seenTeams.add(tk);
-                    return true;
-                });
-                if (filtered.length === 0) continue;
-
-                anyVisible = true;
-                html += `<div class="ins-group mb-5">
-                    <div class="flex items-center gap-2 mb-3 flex-wrap">
-                        <span class="bg-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-clock mr-1"></i>${label}</span>
-                        <span class="text-xs text-slate-400">${filtered.length} time(s)</span>
-                    </div>
-                    <div class="space-y-2">
-                        ${filtered.map(r => {
-                            globalSlot++;
-                            const teamName = r.teamName || r.email || '—';
-                            const leaderName = r.leaderName && r.leaderName !== r.teamName ? r.leaderName : null;
-                            return `<div class="bg-slate-700 rounded-xl px-4 py-3 border border-slate-600">
-                                <div class="flex items-center gap-3">
-                                    <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-orange-600 text-white text-xs font-black flex-shrink-0">#${globalSlot}</span>
-                                    <div class="flex-1 min-w-0">
-                                        <p class="font-bold text-slate-100 text-sm leading-tight truncate">${teamName}</p>
-                                        ${leaderName ? `<p class="text-xs text-slate-400 mt-0.5">Líder: ${leaderName}</p>` : ''}
-                                    </div>
+            anyVisible = true;
+            html += `<div class="ins-group mb-5">
+                <div class="flex items-center gap-2 mb-3 flex-wrap">
+                    <span class="bg-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-clock mr-1"></i>${label}</span>
+                    <span class="text-xs text-slate-400">${filtered.length} time(s)</span>
+                </div>
+                <div class="space-y-2">
+                    ${filtered.map(r => {
+                        slotNum++;
+                        const teamName = r.teamName || r.email || '—';
+                        const leaderName = r.leaderName && r.leaderName !== r.teamName ? r.leaderName : null;
+                        return `<div class="bg-slate-700 rounded-xl px-4 py-3 border border-slate-600">
+                            <div class="flex items-center gap-3">
+                                <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-orange-600 text-white text-xs font-black flex-shrink-0">#${slotNum}</span>
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-bold text-slate-100 text-sm leading-tight truncate">${teamName}</p>
+                                    ${leaderName ? `<p class="text-xs text-slate-400 mt-0.5">Líder: ${leaderName}</p>` : ''}
                                 </div>
-                            </div>`;
-                        }).join('')}
-                    </div>
-                </div>`;
-            }
-            return anyVisible ? html : '<div class="text-center py-6 text-slate-500 text-sm">Nenhuma equipe inscrita para este dia.</div>';
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>
+            </div>`;
         }
 
-        // Botão de filtro: "Hoje" (padrão) / "Todos os dias"
-        const btnStyle = (active) => active
-            ? 'ins-df px-4 py-1.5 text-xs rounded-full font-bold transition-colors bg-orange-600 text-white'
-            : 'ins-df px-4 py-1.5 text-xs rounded-full font-bold transition-colors bg-slate-700 text-slate-300 hover:bg-slate-600';
-
-        let activeFilter = todayStr;
-        const filterButtons = hasMultipleDates
-            ? `<div class="flex flex-wrap gap-2 mb-5 items-center">
-                <span class="text-xs text-slate-400 mr-1"><i class="fas fa-calendar-alt mr-1"></i>Dia:</span>
-                <button class="ins-df" data-fd="${todayStr}">Hoje (${fmtDate(todayStr)})</button>
-                ${sortedDates.filter(d => d !== todayStr).map(d => `<button class="ins-df" data-fd="${d}">${fmtDate(d)}</button>`).join('')}
-                <button class="ins-df" data-fd="all">Todos</button>
-               </div>`
-            : '';
-
-        const grpWrap = document.createElement('div');
-        grpWrap.id = 'insGrpWrap';
-        grpWrap.innerHTML = renderGroups(activeFilter);
-
-        const filterEl = document.createElement('div');
-        filterEl.innerHTML = filterButtons;
-
-        container.innerHTML = '';
-        if (hasMultipleDates) container.appendChild(filterEl);
-        container.appendChild(grpWrap);
-
-        // Aplicar estilos iniciais nos botões
-        container.querySelectorAll('.ins-df').forEach(b => { b.className = btnStyle(b.dataset.fd === activeFilter); });
-
-        // Click handler para filtros
-        container.addEventListener('click', e => {
-            const btn = e.target.closest('.ins-df');
-            if (!btn) return;
-            activeFilter = btn.dataset.fd;
-            container.querySelectorAll('.ins-df').forEach(b => { b.className = btnStyle(b.dataset.fd === activeFilter); });
-            grpWrap.innerHTML = renderGroups(activeFilter);
-        });
+        container.innerHTML = anyVisible
+            ? html
+            : '<div class="text-center py-6 text-slate-500 text-sm">Nenhuma equipe inscrita para hoje.</div>';
 
     } catch(e) {
         console.error('[loadInscritos] erro ao carregar inscritos:', e?.message || e);
