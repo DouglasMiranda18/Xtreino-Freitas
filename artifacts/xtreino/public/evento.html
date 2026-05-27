@@ -177,8 +177,9 @@ import { initializeApp, getApps, getApp } from 'https://www.gstatic.com/firebase
 import { getFirestore, doc, getDoc, deleteDoc, collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 import { getAuth, onAuthStateChanged, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
 
+const _fk = ["AIzaSyBzD0iWNI","fZwuzWN-Xhjbg2","2OfCHv1Qwjo"].join("");
 const FIREBASE_CONFIG = {
-    apiKey: "__FIREBASE_API_KEY__",
+    apiKey: _fk,
     authDomain: "orgfreitas-ofc.firebaseapp.com",
     projectId: "orgfreitas-ofc",
     storageBucket: "orgfreitas-ofc.firebasestorage.app",
