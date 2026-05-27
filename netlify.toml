@@ -1,6 +1,9 @@
 [build]
   publish = "artifacts/xtreino/public"
 
+[functions]
+  directory = "netlify/functions"
+
 [[redirects]]
   from = "/treinofreitas"
   to = "/evento.html"
