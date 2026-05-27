@@ -40,6 +40,13 @@ export default defineConfig({
     strictPort: true,
     host: "0.0.0.0",
     allowedHosts: true,
+    proxy: {
+      "/.netlify/functions": {
+        target: "http://localhost:80",
+        rewrite: (path) => path.replace(/^\/.netlify\/functions/, "/api"),
+        changeOrigin: false,
+      },
+    },
   },
   preview: {
     port,
