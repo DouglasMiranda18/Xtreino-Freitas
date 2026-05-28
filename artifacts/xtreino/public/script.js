@@ -5195,7 +5195,8 @@ function openScheduleModal(eventType) {
     if (!cfg || !modal) return;
 
     // Eventos de time (xtreino-tokens) abrem o modal de equipe
-    if (eventType === 'xtreino-tokens' || cfg.eventType === 'xtreino-tokens') {
+    // (opts.skipTeam = true quando chamado após confirmação do time → vai direto ao agendamento)
+    if (!(arguments[1] && arguments[1].skipTeam) && (eventType === 'xtreino-tokens' || cfg.eventType === 'xtreino-tokens')) {
         if (typeof window.abrirModalEquipe === 'function') window.abrirModalEquipe(eventType);
         return;
     }
@@ -9310,10 +9311,13 @@ window.openEventPayment = openEventPayment;
     const urlParams = new URLSearchParams(window.location.search);
     const openEventId = urlParams.get('openEvent');
     if (!openEventId) return;
-    // Remove param da URL sem recarregar
+    // fromTeam=1 → vem após confirmação de time, pula modal de equipe
+    const fromTeam = urlParams.get('fromTeam') === '1';
+    // Remove params da URL sem recarregar
     try {
         const url = new URL(window.location.href);
         url.searchParams.delete('openEvent');
+        url.searchParams.delete('fromTeam');
         window.history.replaceState({}, '', url.toString());
     } catch (_) {}
     // Aguarda Firebase + openScheduleModal + scheduleConfig[id] estar disponível
@@ -9325,7 +9329,7 @@ window.openEventPayment = openEventPayment;
             && scheduleConfig[openEventId];
         if (ready) {
             if (typeof switchMainTab === 'function') switchMainTab('eventos');
-            setTimeout(() => openScheduleModal(openEventId), 200);
+            setTimeout(() => openScheduleModal(openEventId, fromTeam ? { skipTeam: true } : undefined), 200);
         } else if (attempts < 60) {
             setTimeout(() => tryOpen(attempts + 1), 250);
         }
@@ -9941,5 +9945,5 @@ window.confirmarInscricaoEquipe = function() {
     if (titulares < 4) { showToast('warning', 'O time precisa de 4 titulares confirmados'); return; }
     fecharModalEquipe();
     showToast('success', `Time "${_equipeAtual.nome}" confirmado! Escolha o horário do treino.`);
-    if (typeof openScheduleModal === 'function') openScheduleModal('xtreino-tokens');
+    if (typeof openScheduleModal === 'function') openScheduleModal('xtreino-tokens', { skipTeam: true });
 };
