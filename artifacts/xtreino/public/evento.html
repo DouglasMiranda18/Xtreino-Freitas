@@ -1154,6 +1154,8 @@ window.confirmarInscricaoEquipe = function() {
     if (!_equipeAtual) { showToast('error','Nenhum time carregado'); return; }
     const tit = (_equipeAtual.membros||[]).filter(m=>m.role!=='reserva').length;
     if (tit<4) { showToast('warning','O time precisa de 4 titulares confirmados'); return; }
+    // Persistir dados do time para recuperar após redirect de página
+    try { sessionStorage.setItem('_equipeAtualPendente', JSON.stringify(_equipeAtual)); } catch(_) {}
     fecharModalEquipe();
     showToast('success',`Time "${_equipeAtual.nome}" confirmado! Redirecionando para escolher o horário…`);
     const eid = window._currentEventId;
