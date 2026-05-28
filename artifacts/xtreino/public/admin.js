@@ -11885,6 +11885,36 @@ async function openEventNotifyModal(eventId, eventName) {
             _notifyScheduleMap[key].users.add(r.userId);
         }
 
+        // Expandir para todos os membros do time (via teamId ou teamName como fallback)
+        try {
+            const teamIds = [...new Set(_notifyEventDocs.map(d => d.data().teamId).filter(Boolean))];
+            const teamNames = [...new Set(_notifyEventDocs.map(d => d.data().teamName).filter(Boolean))];
+            if (teamIds.length > 0 || teamNames.length > 0) {
+                const teamsSnap = await getDocs(collection(window.firebaseDb, 'teams'));
+                // mapa schedKey → membrosUids expandidos
+                teamsSnap.docs.forEach(td => {
+                    const t = td.data();
+                    const matchId   = teamIds.includes(td.id);
+                    const matchNome = t.nome && teamNames.includes(t.nome);
+                    if (!matchId && !matchNome) return;
+                    const membros = t.membrosUids || [];
+                    if (!membros.length) return;
+                    // Adiciona membros a todos os slots que têm esse time inscrito
+                    for (const d of _notifyEventDocs) {
+                        const r = d.data();
+                        if ((td.id && r.teamId === td.id) || (t.nome && r.teamName === t.nome)) {
+                            const sched = r.schedule || r.slotDisplay || '—';
+                            const date  = r.date || '';
+                            const key   = date ? `${date}||${sched}` : `||${sched}`;
+                            if (_notifyScheduleMap[key]) {
+                                membros.forEach(uid => _notifyScheduleMap[key].users.add(uid));
+                            }
+                        }
+                    }
+                });
+            }
+        } catch(_) {}
+
         const today = new Date();
         const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
         const todayDD  = String(today.getDate()).padStart(2,'0');
@@ -11898,7 +11928,8 @@ async function openEventNotifyModal(eventId, eventName) {
         document.getElementById('notifyLoadingSlots').classList.add('hidden');
         document.getElementById('notifyTodaySlots').classList.remove('hidden');
 
-        const totalUnique = new Set(_notifyEventDocs.map(d => d.data().userId).filter(Boolean)).size;
+        // Totaliza membros únicos já expandidos (inclui membros do time)
+        const totalUnique = new Set([...Object.values(_notifyScheduleMap).flatMap(v => [...v.users])]).size || new Set(_notifyEventDocs.map(d => d.data().userId).filter(Boolean)).size;
         const todaySlotsEl = document.getElementById('notifyTodaySlots');
 
         if (todayKeys.length === 0) {
@@ -12002,20 +12033,21 @@ async function sendEventNotification() {
         }
 
         // Coletar usuários das inscrições e expandir para todos os membros do time
+        // Usa teamId (inscrições novas) OU teamName como fallback (inscrições antigas)
         const regUsers = [...new Set(docsToNotify.map(d => d.data().userId).filter(Boolean))];
         const allUsersSet = new Set(regUsers);
-        const teamIds = [...new Set(docsToNotify.map(d => d.data().teamId).filter(Boolean))];
-        if (teamIds.length > 0) {
+        const teamIds   = [...new Set(docsToNotify.map(d => d.data().teamId).filter(Boolean))];
+        const teamNames = [...new Set(docsToNotify.map(d => d.data().teamName).filter(Boolean))];
+        if (teamIds.length > 0 || teamNames.length > 0) {
             try {
-                const { doc: _tdoc, getDoc: _tget } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-                await Promise.all(teamIds.map(async tid => {
-                    try {
-                        const snap = await _tget(_tdoc(window.firebaseDb, 'teams', tid));
-                        if (snap.exists()) {
-                            (snap.data().membrosUids || []).forEach(u => allUsersSet.add(u));
-                        }
-                    } catch(_) {}
-                }));
+                const { collection: _col2, getDocs: _gd2, query: _q2 } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+                const teamsSnap = await _gd2(_q2(_col2(window.firebaseDb, 'teams')));
+                teamsSnap.docs.forEach(td => {
+                    const t = td.data();
+                    if (teamIds.includes(td.id) || (t.nome && teamNames.includes(t.nome))) {
+                        (t.membrosUids || []).forEach(u => allUsersSet.add(u));
+                    }
+                });
             } catch(_) {}
         }
         const uniqueUsers = [...allUsersSet];
