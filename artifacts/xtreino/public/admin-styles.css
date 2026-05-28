@@ -770,3 +770,7 @@ main.with-sidebar { padding-left: calc(var(--sidebar-w) + 1.5rem) !important; }
     .admin-login-left { width: 100%; padding: 2rem 1.5rem 1.5rem; }
     .admin-login-right { padding: 1.5rem; }
 }
+
+/* sectionKPIs: oculto por padrão — só CEO e sócio veem */
+#sectionKPIs { display: none !important; }
+html.kpis-enabled #sectionKPIs { display: grid !important; }
