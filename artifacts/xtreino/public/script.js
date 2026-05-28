@@ -5347,7 +5347,10 @@ function openScheduleModal(eventType) {
 
     const teamsSection = document.getElementById('teamsSection');
     if (teamsSection) {
-        teamsSection.style.display = 'block';
+        // Ocultar permanentemente para eventos de time (xtreino-tokens e dinâmicos do tipo xtreino-tokens)
+        const _isTeamEvtSched = eventType === 'xtreino-tokens'
+            || (scheduleConfig[eventType]?.eventType === 'xtreino-tokens');
+        teamsSection.style.display = _isTeamEvtSched ? 'none' : 'block';
     }
 
     // Restaurar texto original do botão para eventos
@@ -7259,6 +7262,7 @@ async function submitSchedule(e, useTokens = false) {
                         userId: window.firebaseAuth.currentUser.uid,
                         teamName: team.name,
                         teamLogoUrl: _equipeAtual?.logoUrl || null,
+                        teamId: _equipeAtual?.id || null,
                         email: team.email,
                         phone: team.phone,
                         schedule: p.schedule,
@@ -8423,6 +8427,7 @@ async function createRegistrationsForEvent(eventType, datesToUse, teamsData, tim
                     userId: window.firebaseAuth.currentUser.uid,
                     teamName: team.name,
                     teamLogoUrl: _equipeAtual?.logoUrl || null,
+                    teamId: _equipeAtual?.id || null,
                     leaderName: window.currentUserProfile?.name || team.name,
                     email: team.email,
                     phone: team.phone,
