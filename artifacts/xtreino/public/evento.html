@@ -848,7 +848,20 @@ async function _carregarTimeExistente() {
         const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const db = window.firebaseDb; if (!db) return;
         const snap = await getDocs(query(collection(db, 'teams'), where('membrosUids', 'array-contains', user.uid)));
-        if (!snap.empty) _mostrarTimeExistente({ id: snap.docs[0].id, ...snap.docs[0].data() });
+        if (!snap.empty) {
+            // Ir direto para step 2 sem passar pelo card intermediário
+            const time = { id: snap.docs[0].id, ...snap.docs[0].data() };
+            _equipeAtual = time;
+            const ehCap = time.capitaoId === user.uid;
+            const sec = document.getElementById('equipeCodigoSection');
+            if (sec) {
+                sec.classList.toggle('hidden', !ehCap);
+                if (ehCap) { const d = document.getElementById('equipeCodigoDisplay'); if(d) d.textContent = time.codigoConvite||''; }
+            }
+            _renderInfoTime(time);
+            await _iniciarEscuta(time.id);
+            irParaStep(2);
+        }
     } catch(_) {}
 }
 
@@ -1015,7 +1028,12 @@ function _renderMembros(time) {
     const cEl = document.getElementById('equipeContadorMembros'); if(cEl) cEl.textContent=`${cnt}/4`;
     const stEl = document.getElementById('equipeStatusTexto'); if(stEl) stEl.textContent=cnt>=4?'Time completo ✓':`Faltam ${4-cnt} jogador${4-cnt!==1?'es':''}`;
     const aw=document.getElementById('equipeAguardandoInfo'), co=document.getElementById('equipeCompletoInfo');
-    if(cnt>=4){aw?.classList.add('hidden');co?.classList.remove('hidden');}else{aw?.classList.remove('hidden');co?.classList.add('hidden');}
+    if(cnt>=4){
+        aw?.classList.add('hidden');co?.classList.remove('hidden');
+        // Botão "Confirmar Inscrição do Time" visível apenas para o capitão
+        const btnConf = co?.querySelector('button');
+        if(btnConf) btnConf.style.display = (_equipeAtual?.capitaoId === window.currentUser?.uid) ? '' : 'none';
+    }else{aw?.classList.remove('hidden');co?.classList.add('hidden');}
 }
 
 async function _uploadLogo(file, teamId) {
