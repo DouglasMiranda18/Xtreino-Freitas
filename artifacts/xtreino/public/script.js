@@ -8979,7 +8979,7 @@ async function loadProductsFromFirestore() {
                 <div class="product-card relative">
                     ${badgeHtml}
                     <div class="product-media">
-                        <img src="${imageUrl}" alt="${product.name}" loading="lazy">
+                        <img src="${imageUrl}" alt="${product.name}" loading="eager">
                     </div>
                     <div class="product-title">${product.name}</div>
                     <div class="product-meta flex justify-between items-center mb-2">
