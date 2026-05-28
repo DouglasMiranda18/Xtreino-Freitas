@@ -7020,6 +7020,16 @@ async function submitSchedule(e, useTokens = false) {
             }
         });
 
+        // Eventos de time (xtreino-tokens) vêm sem formulário DOM — usar dados do time confirmado
+        const _isTeamEvt = rawEventType === 'xtreino-tokens' || scheduleConfig[rawEventType]?.eventType === 'xtreino-tokens';
+        if (_isTeamEvt && teamsData.length === 0 && _equipeAtual) {
+            teamsData.push({
+                name: _equipeAtual.nome || '',
+                email: _equipeAtual.email || window.currentUserProfile?.email || '',
+                phone: _equipeAtual.phone || window.currentUserProfile?.phone || ''
+            });
+        }
+
         if (teamsData.length === 0) {
             alert('Adicione pelo menos um time.');
             if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
@@ -9673,7 +9683,11 @@ function _gerarCodigoUnico() {
 
 window.confirmarCriarTime = async function() {
     const nome = document.getElementById('equipeNomeInput')?.value?.trim();
+    const email = document.getElementById('equipeEmailInput')?.value?.trim();
+    const phone = document.getElementById('equipePhoneInput')?.value?.trim();
     if (!nome) { showToast('warning', 'Digite o nome do time'); return; }
+    if (!email) { showToast('warning', 'Digite o e-mail de contato do time'); return; }
+    if (!phone) { showToast('warning', 'Digite o WhatsApp do time'); return; }
     if (!window.currentUser) { showToast('error', 'Você precisa estar logado para criar um time'); return; }
 
     const btn = document.getElementById('btnCriarTime');
@@ -9681,7 +9695,7 @@ window.confirmarCriarTime = async function() {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Criando…';
 
     try {
-        const { collection, doc, setDoc, query, where, getDocs, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const { collection, doc, setDoc, query, where, getDocs, serverTimestamp, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const db = window.firebaseDb;
         if (!db) throw new Error('Firebase não conectado');
 
@@ -9694,9 +9708,18 @@ window.confirmarCriarTime = async function() {
         const teamRef = doc(collection(db, 'teams'));
         const membro = { uid: window.currentUser.uid, nome: nomeUsuario, role: 'capitao', fotoUrl: window.currentUser.photoURL || null, entradaEm: Date.now() };
 
+        // Redimensionar e converter logo para base64 (salvo direto no Firestore, visível a todos)
+        let logoBase64 = null;
+        const logoFile = document.getElementById('equipeLogo')?.files[0];
+        if (logoFile) {
+            try { logoBase64 = await _resizeLogoParaBase64(logoFile); } catch (_) {}
+        }
+
         const teamData = {
             nome,
-            logoUrl: null,
+            email,
+            phone,
+            logoUrl: logoBase64,
             capitaoId: window.currentUser.uid,
             capitaoNome: nomeUsuario,
             codigoConvite: codigo,
@@ -9708,10 +9731,6 @@ window.confirmarCriarTime = async function() {
 
         await setDoc(teamRef, teamData);
         _equipeAtual = { id: teamRef.id, ...teamData, membros: [membro] };
-
-        // Upload de logo em background (não bloqueia)
-        const logoFile = document.getElementById('equipeLogo')?.files[0];
-        if (logoFile) _uploadLogoEquipe(logoFile, teamRef.id);
 
         // Mostrar sala de espera
         document.getElementById('equipeCodigoDisplay').textContent = codigo;
@@ -9838,6 +9857,7 @@ function _renderizarMembrosTime(time) {
     const membros = time.membros || [];
     const titulares = membros.filter(m => m.role !== 'reserva');
     const reservas = membros.filter(m => m.role === 'reserva');
+    const ehCapitao = time.capitaoId === window.currentUser?.uid;
 
     // Grid de titulares (4 slots)
     const grid = document.getElementById('equipeMembrosGrid');
@@ -9847,15 +9867,21 @@ function _renderizarMembrosTime(time) {
         const m = titulares[i];
         if (m) {
             const isCapitao = m.role === 'capitao';
+            // Capitão pode remover qualquer membro (exceto ele mesmo)
+            const podeRemover = ehCapitao && !isCapitao;
+            const btnRemover = podeRemover
+                ? `<button onclick="removerMembroTime('${m.uid}')" class="flex-shrink-0 w-5 h-5 rounded-full bg-red-100 hover:bg-red-200 text-red-500 flex items-center justify-center transition-colors" title="Remover jogador"><i class="fas fa-times text-xs"></i></button>`
+                : '';
             grid.innerHTML += `
             <div class="equipe-membro-card preenchido">
                 <div class="equipe-avatar">
                     ${m.fotoUrl ? `<img src="${m.fotoUrl}" class="w-full h-full object-cover">` : `<span class="text-white font-black text-sm">${(m.nome || '?').charAt(0).toUpperCase()}</span>`}
                 </div>
-                <div class="equipe-membro-info">
+                <div class="equipe-membro-info flex-1 min-w-0">
                     <p class="font-semibold text-gray-800 text-xs leading-tight truncate">${m.nome}</p>
                     <p class="text-xs mt-0.5 font-semibold ${isCapitao ? 'text-indigo-500' : 'text-sky-500'}">${isCapitao ? '★ Capitão' : 'Titular'}</p>
                 </div>
+                ${btnRemover}
             </div>`;
         } else {
             grid.innerHTML += `
@@ -9881,15 +9907,19 @@ function _renderizarMembrosTime(time) {
             for (let i = 0; i < 2; i++) {
                 const r = reservas[i];
                 if (r) {
+                    const btnRemoverR = ehCapitao
+                        ? `<button onclick="removerMembroTime('${r.uid}')" class="flex-shrink-0 w-5 h-5 rounded-full bg-red-100 hover:bg-red-200 text-red-500 flex items-center justify-center transition-colors" title="Remover reserva"><i class="fas fa-times text-xs"></i></button>`
+                        : '';
                     reservasGrid.innerHTML += `
                     <div class="equipe-membro-card preenchido reserva">
                         <div class="equipe-avatar reserva">
                             ${r.fotoUrl ? `<img src="${r.fotoUrl}" class="w-full h-full object-cover">` : `<span class="text-white font-black text-xs">${(r.nome || '?').charAt(0).toUpperCase()}</span>`}
                         </div>
-                        <div class="equipe-membro-info">
+                        <div class="equipe-membro-info flex-1 min-w-0">
                             <p class="font-semibold text-gray-800 text-xs leading-tight truncate">${r.nome}</p>
                             <p class="text-xs text-orange-500 font-semibold mt-0.5">Reserva</p>
                         </div>
+                        ${btnRemoverR}
                     </div>`;
                 } else {
                     reservasGrid.innerHTML += `
@@ -9914,35 +9944,120 @@ function _renderizarMembrosTime(time) {
     const statusEl = document.getElementById('equipeStatusTexto');
     if (statusEl) statusEl.textContent = count >= 4 ? 'Time completo ✓' : `Faltam ${4 - count} jogador${4 - count !== 1 ? 'es' : ''}`;
 
-    // Botão de confirmar
+    // Botão de confirmar (só capitão)
     const aguardando = document.getElementById('equipeAguardandoInfo');
     const completo = document.getElementById('equipeCompletoInfo');
     if (count >= 4) {
         if (aguardando) aguardando.classList.add('hidden');
         if (completo) completo.classList.remove('hidden');
-        // Botão "Confirmar Inscrição do Time" visível apenas para o capitão
-        const btnConfirmar = completo?.querySelector('button');
-        const ehCapitao = _equipeAtual?.capitaoId === window.currentUser?.uid;
+        const btnConfirmar = document.getElementById('btnConfirmarInscricao');
         if (btnConfirmar) btnConfirmar.style.display = ehCapitao ? '' : 'none';
     } else {
         if (aguardando) aguardando.classList.remove('hidden');
         if (completo) completo.classList.add('hidden');
     }
+
+    // Botões Sair/Apagar
+    const btnApagar = document.getElementById('btnApagarTime');
+    const btnSair = document.getElementById('btnSairTime');
+    if (btnApagar) btnApagar.classList.toggle('hidden', !ehCapitao);
+    if (btnSair) btnSair.classList.toggle('hidden', ehCapitao);
 }
 
-async function _uploadLogoEquipe(file, teamId) {
+// ── Remover membro do time (capitão) ──
+window.removerMembroTime = async function(uid) {
+    if (!_equipeAtual || !window.currentUser) return;
+    if (_equipeAtual.capitaoId !== window.currentUser.uid) return;
+    if (!confirm('Remover este jogador do time?')) return;
     try {
-        const { ref, uploadBytes, getDownloadURL } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js');
         const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const storage = window.firebaseStorage;
         const db = window.firebaseDb;
-        if (!storage || !db) return;
-        const storageRef = ref(storage, `teams/${teamId}/logo`);
-        await uploadBytes(storageRef, file);
-        const url = await getDownloadURL(storageRef);
-        await updateDoc(doc(db, 'teams', teamId), { logoUrl: url });
-        if (_equipeAtual) { _equipeAtual.logoUrl = url; _renderizarInfoTime(_equipeAtual); }
-    } catch (_) {}
+        if (!db) return;
+        const novosMembros = (_equipeAtual.membros || []).filter(m => m.uid !== uid);
+        const novosUids = (_equipeAtual.membrosUids || []).filter(u => u !== uid);
+        const titulares = novosMembros.filter(m => m.role !== 'reserva').length;
+        await updateDoc(doc(db, 'teams', _equipeAtual.id), {
+            membros: novosMembros,
+            membrosUids: novosUids,
+            status: titulares >= 4 ? 'completo' : 'aguardando'
+        });
+        showToast('success', 'Jogador removido do time');
+    } catch (e) {
+        showToast('error', 'Erro ao remover jogador: ' + (e.message || e));
+    }
+};
+
+// ── Sair do time (membro convidado) ──
+window.sairDoTime = async function() {
+    if (!_equipeAtual || !window.currentUser) return;
+    if (_equipeAtual.capitaoId === window.currentUser.uid) return; // capitão não sai, apaga
+    if (!confirm(`Sair do time "${_equipeAtual.nome}"?`)) return;
+    try {
+        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const db = window.firebaseDb;
+        if (!db) return;
+        const uid = window.currentUser.uid;
+        const novosMembros = (_equipeAtual.membros || []).filter(m => m.uid !== uid);
+        const novosUids = (_equipeAtual.membrosUids || []).filter(u => u !== uid);
+        const titulares = novosMembros.filter(m => m.role !== 'reserva').length;
+        await updateDoc(doc(db, 'teams', _equipeAtual.id), {
+            membros: novosMembros,
+            membrosUids: novosUids,
+            status: titulares >= 4 ? 'completo' : 'aguardando'
+        });
+        _equipeAtual = null;
+        if (_equipeListenerUnsubscribe) { _equipeListenerUnsubscribe(); _equipeListenerUnsubscribe = null; }
+        fecharModalEquipe();
+        showToast('success', 'Você saiu do time');
+    } catch (e) {
+        showToast('error', 'Erro ao sair do time: ' + (e.message || e));
+    }
+};
+
+// ── Apagar time (capitão) ──
+window.apagarTime = async function() {
+    if (!_equipeAtual || !window.currentUser) return;
+    if (_equipeAtual.capitaoId !== window.currentUser.uid) return;
+    if (!confirm(`Apagar o time "${_equipeAtual.nome}" permanentemente? Esta ação não pode ser desfeita.`)) return;
+    try {
+        const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const db = window.firebaseDb;
+        if (!db) return;
+        await deleteDoc(doc(db, 'teams', _equipeAtual.id));
+        _equipeAtual = null;
+        if (_equipeListenerUnsubscribe) { _equipeListenerUnsubscribe(); _equipeListenerUnsubscribe = null; }
+        fecharModalEquipe();
+        showToast('success', 'Time apagado com sucesso');
+    } catch (e) {
+        showToast('error', 'Erro ao apagar time: ' + (e.message || e));
+    }
+};
+
+// Redimensiona logo para 128×128px e retorna data URL base64 (JPEG 0.7)
+// Salvo direto no Firestore → todos os membros veem via listener em tempo real
+async function _resizeLogoParaBase64(file) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const SIZE = 128;
+                const canvas = document.createElement('canvas');
+                canvas.width = SIZE; canvas.height = SIZE;
+                const ctx = canvas.getContext('2d');
+                // Corte quadrado centralizado
+                const min = Math.min(img.width, img.height);
+                const sx = (img.width - min) / 2;
+                const sy = (img.height - min) / 2;
+                ctx.drawImage(img, sx, sy, min, min, 0, 0, SIZE, SIZE);
+                resolve(canvas.toDataURL('image/jpeg', 0.7));
+            };
+            img.onerror = () => resolve(null);
+            img.src = e.target.result;
+        };
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(file);
+    });
 }
 
 window.copiarCodigo = function() {
