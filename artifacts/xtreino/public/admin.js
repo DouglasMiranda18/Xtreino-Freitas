@@ -417,6 +417,12 @@ window.showWarningToast = function(message, title = 'Atenção') {
       }
     });
 
+    // Garantia extra: sectionKPIs só visível para CEO e sócio — nunca para outros cargos
+    const _kpiEl = document.getElementById('sectionKPIs');
+    if (_kpiEl && !['ceo','socio'].includes(resolvedRole)) {
+      _kpiEl.style.display = 'none';
+    }
+
     // Ocultar labels de categoria quando todos os itens estão escondidos
     document.querySelectorAll('.sidebar-section-label').forEach(label => {
       const ul = label.nextElementSibling;
@@ -1503,10 +1509,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
     try{
       const el = document.getElementById(id);
       if (!el) return;
-      // Se a seção estiver oculta por visibilidade, torná-la visível
-      if (el.style && el.style.display === 'none') {
-        el.style.display = 'block';
-      }
+      // Nunca reexibir seções ocultas por controle de cargo
+      // (apenas rolar se já estiver visível)
+      if (el.style && el.style.display === 'none') return;
       el.scrollIntoView({ behavior:'smooth', block:'start' });
     }catch(_){ }
   }
@@ -1736,6 +1741,10 @@ window.showWarningToast = function(message, title = 'Atenção') {
   function brl(n){ try {return n.toLocaleString('pt-BR', {style:'currency',currency:'BRL'})} catch(_) {return `R$ ${Number(n||0).toFixed(2)}`;} }
 
   async function loadKpis(){
+    // KPIs financeiros só para CEO e sócio
+    const _roleLower = (window.adminRoleLower || '').toLowerCase().trim();
+    if (!['ceo','socio'].includes(_roleLower)) return;
+
     const kpiTodayEl  = document.getElementById('kpiToday');
     const kpiMonthEl  = document.getElementById('kpiMonth');
     const kpiRecEl    = document.getElementById('kpiReceivable');
