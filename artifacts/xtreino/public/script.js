@@ -7248,6 +7248,7 @@ async function submitSchedule(e, useTokens = false) {
                         _meta: { team: team.name, slotNum, slotDisplay, schedule: p.schedule, date: p.d, whatsappLink: p.whatsappLink },
                         userId: window.firebaseAuth.currentUser.uid,
                         teamName: team.name,
+                        teamLogoUrl: _equipeAtual?.logoUrl || null,
                         email: team.email,
                         phone: team.phone,
                         schedule: p.schedule,
@@ -8411,6 +8412,7 @@ async function createRegistrationsForEvent(eventType, datesToUse, teamsData, tim
                 const docRef = await addDoc(collection(window.firebaseDb, 'registrations'), {
                     userId: window.firebaseAuth.currentUser.uid,
                     teamName: team.name,
+                    teamLogoUrl: _equipeAtual?.logoUrl || null,
                     leaderName: window.currentUserProfile?.name || team.name,
                     email: team.email,
                     phone: team.phone,
@@ -9502,9 +9504,20 @@ let _equipeSlotInfo = null;
     const params = new URLSearchParams(window.location.search);
     const convite = params.get('convite') || params.get('invite');
     if (!convite) return;
-    document.addEventListener('DOMContentLoaded', function() {
-        setTimeout(() => abrirModalEquipe(null, convite), 1400);
-    });
+    // Remover o param da URL sem recarregar
+    try {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('convite');
+        url.searchParams.delete('invite');
+        window.history.replaceState({}, '', url.toString());
+    } catch (_) {}
+    const abrir = () => setTimeout(() => abrirModalEquipe(null, convite), 1400);
+    // DOMContentLoaded pode já ter disparado se script está no final do body
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', abrir);
+    } else {
+        abrir();
+    }
 })();
 
 window.abrirModalEquipe = function(slotInfo, codigoPreenchido) {
@@ -9965,5 +9978,7 @@ window.confirmarInscricaoEquipe = function() {
     if (titulares < 4) { showToast('warning', 'O time precisa de 4 titulares confirmados'); return; }
     fecharModalEquipe();
     showToast('success', `Time "${_equipeAtual.nome}" confirmado! Escolha o horário do treino.`);
-    if (typeof openScheduleModal === 'function') openScheduleModal('xtreino-tokens', { skipTeam: true });
+    // Usar o evento dinâmico correto (_equipeSlotInfo) se disponível, senão fallback para xtreino-tokens
+    const eventoId = _equipeSlotInfo || 'xtreino-tokens';
+    if (typeof openScheduleModal === 'function') openScheduleModal(eventoId, { skipTeam: true });
 };
