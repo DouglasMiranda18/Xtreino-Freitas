@@ -908,7 +908,7 @@ function _mostrarTimeExistente(time) {
     const badge = document.getElementById('equipeStatusBadge');
     badge.textContent = time.status === 'completo' ? '✓ Completo' : '⏳ Aguardando';
     badge.className = 'text-xs font-bold px-2 py-1 rounded-full flex-shrink-0 ' + (time.status==='completo' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700');
-    if (time.logoUrl) document.getElementById('equipeLogoExistente').innerHTML = `<img src="${time.logoUrl}" class="w-full h-full object-cover">`;
+    if (time.logoUrl) { const _el=document.getElementById('equipeLogoExistente'); if(_el){_el.style.background='transparent'; _el.innerHTML=`<img src="${time.logoUrl}" class="w-full h-full object-contain p-0.5">`;} }
     _equipeAtual = time;
 }
 
@@ -991,7 +991,7 @@ window.buscarPreviewTime = async function(codigo) {
         document.getElementById('equipeConviteNome').textContent = t.nome;
         const cnt = (t.membros||[]).filter(m=>m.role!=='reserva').length;
         document.getElementById('equipeConviteMembros').textContent = `${cnt}/4 titulares · ${t.status==='completo'?'Time completo':'Aguardando jogadores'}`;
-        if (t.logoUrl) document.getElementById('equipeConviteLogoPreview').innerHTML=`<img src="${t.logoUrl}" class="w-full h-full object-cover rounded-lg">`;
+        if (t.logoUrl) { const _el=document.getElementById('equipeConviteLogoPreview'); if(_el){_el.style.background='transparent'; _el.innerHTML=`<img src="${t.logoUrl}" class="w-full h-full object-contain rounded-lg p-0.5">`;} }
         prev?.classList.remove('hidden');
     } catch(_) {}
 };
@@ -1028,7 +1028,7 @@ window.confirmarEntrarTime = async function() {
 
 function _renderInfoTime(time) {
     const n = document.getElementById('equipeTimeNomeDisplay'); if(n) n.textContent = time.nome||'';
-    if (time.logoUrl) { const l=document.getElementById('equipeTimeLogo'); if(l) l.innerHTML=`<img src="${time.logoUrl}" class="w-full h-full object-cover">`; }
+    if (time.logoUrl) { const l=document.getElementById('equipeTimeLogo'); if(l){l.style.background='transparent'; l.innerHTML=`<img src="${time.logoUrl}" class="w-full h-full object-contain p-0.5">`;} }
 }
 
 async function _iniciarEscuta(teamId) {
@@ -1093,7 +1093,7 @@ async function _resizeLogoParaBase64(file) {
                 const ctx=c.getContext('2d'); const min=Math.min(img.width,img.height);
                 const sx=(img.width-min)/2, sy=(img.height-min)/2;
                 ctx.drawImage(img,sx,sy,min,min,0,0,S,S);
-                resolve(c.toDataURL('image/jpeg',0.7));
+                resolve(c.toDataURL('image/png'));
             };
             img.onerror=()=>resolve(null); img.src=e.target.result;
         };
