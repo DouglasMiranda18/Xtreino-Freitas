@@ -9333,6 +9333,16 @@ window.openEventPayment = openEventPayment;
     if (!openEventId) return;
     // fromTeam=1 → vem após confirmação de time, pula modal de equipe
     const fromTeam = urlParams.get('fromTeam') === '1';
+    // Restaurar dados do time vindos do redirect de evento.html
+    if (fromTeam) {
+        try {
+            const saved = sessionStorage.getItem('_equipeAtualPendente');
+            if (saved) {
+                _equipeAtual = JSON.parse(saved);
+                sessionStorage.removeItem('_equipeAtualPendente');
+            }
+        } catch(_) {}
+    }
     // Remove params da URL sem recarregar
     try {
         const url = new URL(window.location.href);
