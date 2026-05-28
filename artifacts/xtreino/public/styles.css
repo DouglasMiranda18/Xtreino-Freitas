@@ -877,6 +877,52 @@ body {
     .product-title { font-size: 1rem; margin-bottom: 6px; }
 }
 
+/* ==================== MODAL DE EQUIPE ==================== */
+.equipe-step { animation: tabFadeIn .2s ease; }
+
+.equipe-dot { transition: all .25s ease; }
+
+.equipe-membro-card {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.875rem;
+  border: 2px solid transparent;
+  min-width: 0;
+}
+.equipe-membro-card.preenchido {
+  background: #f0f9ff;
+  border-color: #bae6fd;
+}
+.equipe-membro-card.preenchido.reserva {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+.equipe-membro-card.vazio {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+  border-style: dashed;
+}
+.equipe-avatar {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1d4ed8, #7c3aed);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.equipe-avatar.vazio {
+  background: #e5e7eb;
+}
+.equipe-avatar.reserva {
+  background: linear-gradient(135deg, #f97316, #ef4444);
+}
+.equipe-membro-info { min-width: 0; flex: 1; }
+
 /* ==================== CHAT INTERNO ==================== */
 #chatWidget {
   font-family: 'Inter', sans-serif;
