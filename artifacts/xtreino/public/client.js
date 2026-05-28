@@ -1978,7 +1978,8 @@ async function fetchUserDocs(colName, max = 50, sortDesc = false){
             where('contact','==', currentUser.email),
             where('email','==', currentUser.email),
             where('userId','==', currentUser.uid),
-            where('uid','==', currentUser.uid)
+            where('uid','==', currentUser.uid),
+            where('membrosUids','array-contains', currentUser.uid)
         ];
     } else {
         candidates = [
