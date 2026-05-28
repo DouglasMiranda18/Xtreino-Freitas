@@ -25,6 +25,12 @@ service firebase.storage {
         ];
     }
 
+    // Logos de times: qualquer membro autenticado pode ler/escrever no próprio time
+    match /teams/{teamId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
     // Outros arquivos: leitura pública, escrita bloqueada
     match /{allPaths=**} {
       allow read: if true;
