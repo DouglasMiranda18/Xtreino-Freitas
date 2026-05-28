@@ -5236,8 +5236,11 @@ function openScheduleModal(eventType) {
     })();
     updateScheduleCouponUI();
 
-    // Initialize with one team
-    addTeam();
+    // Para eventos de time (xtreino-tokens), ocultar seção admin de times
+    const _isTeamEventSched = eventType === 'xtreino-tokens' || (scheduleConfig[eventType]?.eventType === 'xtreino-tokens');
+    const _teamsSectionEl = document.getElementById('teamsSection');
+    if (_teamsSectionEl) _teamsSectionEl.style.display = _isTeamEventSched ? 'none' : '';
+    if (!_isTeamEventSched) addTeam();
 
     // Sincronizar tokens do usuário antes de qualquer checagem
     try { if (typeof syncUserTokens === 'function') { syncUserTokens(); } } catch (_) { }
@@ -9570,8 +9573,21 @@ async function _carregarTimeExistente() {
         if (!db) return;
         const snap = await getDocs(query(collection(db, 'teams'), where('membrosUids', 'array-contains', window.currentUser.uid)));
         if (!snap.empty) {
+            // Time encontrado → ir direto para o step 2 (sem passar pelo card de "time existente")
             const time = { id: snap.docs[0].id, ...snap.docs[0].data() };
-            _mostrarTimeExistente(time);
+            _equipeAtual = time;
+            const ehCapitao = time.capitaoId === window.currentUser.uid;
+            const codSection = document.getElementById('equipeCodigoSection');
+            if (codSection) {
+                codSection.classList.toggle('hidden', !ehCapitao);
+                if (ehCapitao) {
+                    const codDisplay = document.getElementById('equipeCodigoDisplay');
+                    if (codDisplay) codDisplay.textContent = time.codigoConvite || '';
+                }
+            }
+            _renderizarInfoTime(time);
+            await _iniciarEscutaTime(time.id);
+            irParaStep(2);
         }
     } catch (_) {}
 }
@@ -9891,6 +9907,10 @@ function _renderizarMembrosTime(time) {
     if (count >= 4) {
         if (aguardando) aguardando.classList.add('hidden');
         if (completo) completo.classList.remove('hidden');
+        // Botão "Confirmar Inscrição do Time" visível apenas para o capitão
+        const btnConfirmar = completo?.querySelector('button');
+        const ehCapitao = _equipeAtual?.capitaoId === window.currentUser?.uid;
+        if (btnConfirmar) btnConfirmar.style.display = ehCapitao ? '' : 'none';
     } else {
         if (aguardando) aguardando.classList.remove('hidden');
         if (completo) completo.classList.add('hidden');
