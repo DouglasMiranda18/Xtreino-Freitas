@@ -1385,7 +1385,7 @@ async function checkAuthState() {
         if (window.firebaseReady && window.firebaseAuth) {
             const { onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
             onAuthStateChanged(window.firebaseAuth, (user) => {
-                
+                window.currentUser = user || null;
                 if (user) {
                     // Usuário está logado
                     window.isLoggedIn = true;
