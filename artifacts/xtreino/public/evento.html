@@ -572,9 +572,13 @@ async function loadInscritos(evId) {
                         slotNum++;
                         const teamName = r.teamName || r.email || '—';
                         const leaderName = r.leaderName && r.leaderName !== r.teamName ? r.leaderName : null;
+                        const logoHtml = r.teamLogoUrl
+                            ? `<img src="${r.teamLogoUrl}" alt="logo" class="w-9 h-9 rounded-lg object-cover flex-shrink-0 border border-slate-500">`
+                            : `<span class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-slate-600 text-slate-400 flex-shrink-0 text-xs"><i class="fas fa-shield-alt"></i></span>`;
                         return `<div class="bg-slate-700 rounded-xl px-4 py-3 border border-slate-600">
                             <div class="flex items-center gap-3">
                                 <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-orange-600 text-white text-xs font-black flex-shrink-0">#${slotNum}</span>
+                                ${logoHtml}
                                 <div class="flex-1 min-w-0">
                                     <p class="font-bold text-slate-100 text-sm leading-tight truncate">${teamName}</p>
                                     ${leaderName ? `<p class="text-xs text-slate-400 mt-0.5">Líder: ${leaderName}</p>` : ''}
