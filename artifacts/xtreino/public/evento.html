@@ -191,12 +191,11 @@ let _db = null;
 let _auth = null;
 
 function initFirebase() {
-    // Usa o app padrão (sem nome) para compartilhar o estado de auth com o site principal.
-    // Isso garante que usuários logados no index.html também estejam autenticados aqui.
     const existing = getApps().find(a => a.name === '[DEFAULT]') || (getApps().length > 0 ? getApps()[0] : null);
     const app = existing || initializeApp(FIREBASE_CONFIG);
     _db = getFirestore(app);
     _auth = getAuth(app);
+    window.firebaseDb = _db;
     return _db;
 }
 
@@ -406,7 +405,7 @@ async function loadEvent() {
 
         // Garantir autenticação (pelo menos anônima) para poder consultar inscrições
         await new Promise(resolve => {
-            const unsub = onAuthStateChanged(_auth, () => { unsub(); resolve(); });
+            const unsub = onAuthStateChanged(_auth, (u) => { window.currentUser = u || null; unsub(); resolve(); });
         });
         if (!_auth.currentUser) {
             try { await signInAnonymously(_auth); } catch(_e) {}
@@ -421,6 +420,7 @@ async function loadEvent() {
         } else {
             // Verificar se usuário já está inscrito (aguarda auth resolver)
             onAuthStateChanged(_auth, (user) => {
+                window.currentUser = user || null;
                 if (user) checkUserRegistration(eventId);
             });
         }
@@ -603,10 +603,456 @@ async function loadInscritos(evId) {
 
 window.goRegister = function() {
     const eid = window._currentEventId;
+    if (_resolvedEventType === 'xtreino-tokens') {
+        if (typeof window.abrirModalEquipe === 'function') {
+            window.abrirModalEquipe(eid);
+        }
+        return;
+    }
     window.location.href = eid ? `index.html?openEvent=${encodeURIComponent(eid)}#eventos` : 'index.html#eventos';
 };
 
 loadEvent();
+</script>
+
+<!-- ==================== MODAL DE EQUIPE ==================== -->
+<div id="modalEquipe" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+  <div class="bg-white rounded-3xl w-full max-w-md relative shadow-2xl mx-auto my-auto">
+    <div class="rounded-t-3xl text-white relative" style="background:linear-gradient(135deg,#1d4ed8 0%,#7c3aed 100%);padding:1.25rem 1.25rem 1rem;">
+      <button onclick="fecharModalEquipe()" class="absolute top-4 right-4 text-white opacity-70 hover:opacity-100 transition-opacity">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 bg-white bg-opacity-20 rounded-xl flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-users text-white text-lg"></i>
+        </div>
+        <div>
+          <h3 id="equipeModalTitulo" class="text-lg font-bold leading-tight">Registro de Equipe</h3>
+          <p class="text-white text-xs mt-0.5" style="opacity:.8;">Free Fire · Treino Gratuito</p>
+        </div>
+      </div>
+      <div class="flex justify-center gap-1.5 mt-3">
+        <div class="equipe-dot w-5 h-1.5 rounded-full bg-white" data-step="0" style="transition:all .25s;"></div>
+        <div class="equipe-dot w-2 h-1.5 rounded-full bg-white" data-step="1" style="opacity:.4;transition:all .25s;"></div>
+        <div class="equipe-dot w-2 h-1.5 rounded-full bg-white" data-step="2" style="opacity:.4;transition:all .25s;"></div>
+      </div>
+    </div>
+    <div class="p-5">
+      <!-- STEP 0 -->
+      <div id="equipeStep0" class="equipe-step">
+        <div id="equipeTimeExistente" class="hidden mb-4 p-4 bg-blue-50 border border-blue-200 rounded-2xl">
+          <p class="text-xs text-blue-600 font-semibold mb-2"><i class="fas fa-shield-alt mr-1"></i>Seu time atual</p>
+          <div class="flex items-center gap-3">
+            <div id="equipeLogoExistente" class="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center overflow-hidden flex-shrink-0"><i class="fas fa-shield-alt text-blue-300 text-xl"></i></div>
+            <div class="flex-1 min-w-0">
+              <p id="equipeNomeExistente" class="font-bold text-gray-800 truncate text-sm"></p>
+              <p id="equipeMembrosExistente" class="text-xs text-gray-500 mt-0.5"></p>
+            </div>
+            <span id="equipeStatusBadge" class="text-xs font-bold px-2 py-1 rounded-full flex-shrink-0"></span>
+          </div>
+          <button onclick="usarTimeExistente()" class="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl transition-colors text-sm"><i class="fas fa-check mr-1.5"></i>Usar Este Time</button>
+          <button onclick="document.getElementById('equipeTimeExistente').classList.add('hidden')" class="mt-1.5 w-full text-xs text-gray-400 hover:text-gray-600 py-1 transition-colors">Criar ou entrar em outro time</button>
+        </div>
+        <p class="text-gray-500 text-sm text-center mb-4">Como você quer continuar?</p>
+        <div class="grid grid-cols-2 gap-3">
+          <button onclick="irParaStep(1,'criar')" class="flex flex-col items-center gap-2.5 p-4 rounded-2xl text-white transition-all" style="background:linear-gradient(135deg,#1d4ed8,#7c3aed);">
+            <div class="w-11 h-11 bg-white bg-opacity-20 rounded-xl flex items-center justify-center"><i class="fas fa-plus text-lg"></i></div>
+            <div class="text-center"><p class="font-bold text-sm">Criar Time</p><p class="text-white text-xs opacity-75 mt-0.5">Você é capitão</p></div>
+          </button>
+          <button onclick="irParaStep(1,'entrar')" class="flex flex-col items-center gap-2.5 p-4 bg-white border-2 border-gray-200 rounded-2xl hover:border-purple-400 transition-all">
+            <div class="w-11 h-11 bg-gray-100 rounded-xl flex items-center justify-center"><i class="fas fa-ticket-alt text-gray-500 text-lg"></i></div>
+            <div class="text-center"><p class="text-gray-700 font-bold text-sm">Tenho Código</p><p class="text-gray-400 text-xs mt-0.5">Entrar no time</p></div>
+          </button>
+        </div>
+      </div>
+      <!-- STEP 1A: Criar -->
+      <div id="equipeStep1Criar" class="equipe-step hidden">
+        <h4 class="font-bold text-gray-800 mb-1 text-center">Configure seu time</h4>
+        <p class="text-xs text-gray-400 text-center mb-4">Nome obrigatório · Logo opcional</p>
+        <div class="flex justify-center mb-3">
+          <label for="equipeLogo" class="cursor-pointer group block">
+            <div id="equipeLogoPreview" class="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-dashed border-blue-300 flex flex-col items-center justify-center overflow-hidden transition-all group-hover:border-blue-500">
+              <i class="fas fa-camera text-blue-300 text-xl"></i><span class="text-xs text-blue-300 mt-1 font-medium">Logo</span>
+            </div>
+            <input type="file" id="equipeLogo" accept="image/*" class="hidden" onchange="previewLogoEquipe(this)">
+          </label>
+        </div>
+        <div class="mb-4">
+          <label class="text-xs font-semibold text-gray-600 mb-1.5 block">NOME DO TIME <span class="text-red-500">*</span></label>
+          <input type="text" id="equipeNomeInput" maxlength="30" placeholder="Ex: Team Freitas, Alpha Squad…"
+            class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-blue-500 focus:outline-none transition-colors text-gray-800 font-semibold text-sm">
+          <p class="text-xs text-gray-400 mt-1 text-right"><span id="equipeNomeCount">0</span>/30</p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="irParaStep(0)" class="flex-1 py-2.5 border border-gray-200 rounded-xl text-gray-500 font-semibold text-sm hover:bg-gray-50 transition-colors"><i class="fas fa-arrow-left mr-1"></i>Voltar</button>
+          <button onclick="confirmarCriarTime()" id="btnCriarTime" class="flex-[2] py-2.5 text-white font-bold rounded-xl text-sm" style="background:linear-gradient(135deg,#1d4ed8,#7c3aed);">Criar Time <i class="fas fa-arrow-right ml-1"></i></button>
+        </div>
+      </div>
+      <!-- STEP 1B: Entrar -->
+      <div id="equipeStep1Entrar" class="equipe-step hidden">
+        <h4 class="font-bold text-gray-800 mb-1 text-center">Entrar no Time</h4>
+        <p class="text-sm text-gray-500 text-center mb-4">Digite o código de 6 dígitos do seu capitão</p>
+        <div class="mb-3">
+          <input type="text" id="equipeCodigoInput" maxlength="6" placeholder="XXXXXX"
+            class="w-full border-2 border-gray-200 rounded-2xl px-4 py-4 text-center text-3xl font-black tracking-[.35em] uppercase focus:border-purple-500 focus:outline-none transition-colors"
+            oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,''); equipeOnCodigoInput(this.value)">
+        </div>
+        <div id="equipePreviewConvite" class="hidden mb-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+          <div class="flex items-center gap-3">
+            <div id="equipeConviteLogoPreview" class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center overflow-hidden flex-shrink-0"><i class="fas fa-shield-alt text-blue-300"></i></div>
+            <div class="flex-1 min-w-0">
+              <p id="equipeConviteNome" class="font-bold text-gray-800 text-sm truncate"></p>
+              <p id="equipeConviteMembros" class="text-xs text-gray-500"></p>
+            </div>
+            <i class="fas fa-check-circle text-green-500"></i>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="irParaStep(0)" class="flex-1 py-2.5 border border-gray-200 rounded-xl text-gray-500 font-semibold text-sm hover:bg-gray-50 transition-colors"><i class="fas fa-arrow-left mr-1"></i>Voltar</button>
+          <button onclick="confirmarEntrarTime()" class="flex-[2] py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-sm transition-colors">Entrar no Time <i class="fas fa-sign-in-alt ml-1"></i></button>
+        </div>
+      </div>
+      <!-- STEP 2: Sala do time -->
+      <div id="equipeStep2" class="equipe-step hidden">
+        <div id="equipeCodigoSection" class="hidden mb-4 rounded-2xl p-4 border" style="background:linear-gradient(135deg,#eff6ff,#f5f3ff);border-color:#c7d2fe;">
+          <p class="text-xs font-bold text-indigo-600 mb-2"><i class="fas fa-key mr-1.5"></i>Código de Convite — Compartilhe com seu time</p>
+          <div class="flex items-center gap-2 mb-3">
+            <div class="flex-1 bg-white border-2 border-indigo-200 rounded-xl py-2.5 text-center text-2xl font-black tracking-[.35em] text-indigo-800 select-all" id="equipeCodigoDisplay"></div>
+            <button onclick="copiarCodigo()" class="p-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-colors flex-shrink-0"><i class="fas fa-copy"></i></button>
+          </div>
+          <button onclick="compartilharConvite()" class="w-full flex items-center justify-center gap-2 text-white font-bold py-2.5 rounded-xl text-sm" style="background:#25d366;">
+            <i class="fab fa-whatsapp text-base"></i>Compartilhar no WhatsApp
+          </button>
+        </div>
+        <div class="flex items-center gap-3 mb-4">
+          <div id="equipeTimeLogo" class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden flex-shrink-0"><i class="fas fa-shield-alt text-indigo-300 text-xl"></i></div>
+          <div class="flex-1 min-w-0">
+            <p id="equipeTimeNomeDisplay" class="font-black text-gray-800 truncate"></p>
+            <div class="flex items-center gap-1 mt-0.5">
+              <span id="equipeContadorMembros" class="text-xs font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">0/4</span>
+              <span id="equipeStatusTexto" class="text-xs text-gray-400"></span>
+            </div>
+          </div>
+        </div>
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Titulares</p>
+        <div id="equipeMembrosGrid" class="grid grid-cols-2 gap-2 mb-3"></div>
+        <div id="equipeReservasSection" class="hidden">
+          <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Reservas <span class="normal-case text-gray-300">(opcional)</span></p>
+          <div id="equipeReservasGrid" class="grid grid-cols-2 gap-2 mb-3"></div>
+        </div>
+        <div id="equipeAguardandoInfo" class="text-center py-2">
+          <div class="inline-flex items-center gap-2 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-full px-4 py-2 text-xs font-semibold">
+            <span class="w-2 h-2 rounded-full bg-yellow-400 inline-block" style="animation:pulse 2s infinite;"></span>Aguardando jogadores…
+          </div>
+        </div>
+        <div id="equipeCompletoInfo" class="hidden">
+          <div class="text-center mb-3"><div class="inline-flex items-center gap-2 bg-green-50 text-green-700 border border-green-200 rounded-full px-4 py-2 text-xs font-semibold"><i class="fas fa-check-circle text-green-500"></i>Time Completo!</div></div>
+          <button onclick="confirmarInscricaoEquipe()" class="w-full text-white font-bold py-3 rounded-xl text-sm shadow-lg" style="background:linear-gradient(135deg,#1d4ed8,#7c3aed);">
+            <i class="fas fa-shield-alt mr-2"></i>Confirmar Inscrição do Time
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+.equipe-step { animation: eqFade .2s ease; }
+@keyframes eqFade { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+.equipe-membro-card { display:flex; align-items:center; gap:.6rem; padding:.6rem .75rem; border-radius:.875rem; border:2px solid transparent; min-width:0; }
+.equipe-membro-card.preenchido { background:#f0f9ff; border-color:#bae6fd; }
+.equipe-membro-card.preenchido.reserva { background:#fff7ed; border-color:#fed7aa; }
+.equipe-membro-card.vazio { background:#f9fafb; border-color:#e5e7eb; border-style:dashed; }
+.equipe-avatar { width:2.25rem; height:2.25rem; border-radius:50%; background:linear-gradient(135deg,#1d4ed8,#7c3aed); display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; }
+.equipe-avatar.vazio { background:#e5e7eb; }
+.equipe-avatar.reserva { background:linear-gradient(135deg,#f97316,#ef4444); }
+.equipe-membro-info { min-width:0; flex:1; }
+@media (max-width: 767px) {
+  #modalEquipe { align-items: flex-end !important; padding: 0 !important; overflow-y: hidden !important; }
+  #modalEquipe > div { border-radius: 1.5rem 1.5rem 0 0 !important; max-height: 92dvh !important; overflow-y: auto !important; width: 100% !important; max-width: 100% !important; }
+}
+</style>
+
+<script>
+// ===== SISTEMA DE TIMES — evento.html =====
+
+// Toast simples (fallback para evento.html sem script.js)
+function showToast(type, msg) {
+    const c = document.getElementById('toastContainer') || (() => {
+        const el = document.createElement('div');
+        el.id = 'toastContainer';
+        el.style.cssText = 'position:fixed;top:1rem;right:1rem;z-index:9999;display:flex;flex-direction:column;gap:.5rem;max-width:320px;';
+        document.body.appendChild(el);
+        return el;
+    })();
+    const colors = { success:'#16a34a', error:'#dc2626', warning:'#d97706', info:'#2563eb' };
+    const t = document.createElement('div');
+    t.style.cssText = `background:${colors[type]||'#374151'};color:#fff;padding:.75rem 1rem;border-radius:.875rem;font-size:.875rem;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.2);display:flex;align-items:center;gap:.5rem;`;
+    t.innerHTML = `<span style="flex:1">${msg}</span><button onclick="this.parentElement.remove()" style="background:none;border:none;color:rgba(255,255,255,.8);cursor:pointer;font-size:1rem;padding:0;line-height:1;">&times;</button>`;
+    c.appendChild(t);
+    setTimeout(() => t.remove(), 4000);
+}
+
+let _equipeAtual = null, _equipeListenerUnsubscribe = null, _equipeModo = 'criar';
+
+// Verificar URL para convite automático
+(function() {
+    const p = new URLSearchParams(location.search);
+    const conv = p.get('convite') || p.get('invite');
+    if (!conv) return;
+    window.addEventListener('load', () => setTimeout(() => abrirModalEquipe(null, conv), 1600));
+})();
+
+window.abrirModalEquipe = function(slotInfo, codigoPreenchido) {
+    const modal = document.getElementById('modalEquipe');
+    if (!modal) return;
+    modal.classList.remove('hidden'); modal.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+    if (codigoPreenchido) {
+        irParaStep(1, 'entrar');
+        const inp = document.getElementById('equipeCodigoInput');
+        if (inp) { inp.value = codigoPreenchido.toUpperCase(); buscarPreviewTime(inp.value); }
+    } else {
+        irParaStep(0);
+        _carregarTimeExistente();
+    }
+};
+
+window.fecharModalEquipe = function() {
+    const modal = document.getElementById('modalEquipe');
+    if (!modal) return;
+    modal.classList.add('hidden'); modal.classList.remove('flex');
+    document.body.style.overflow = '';
+    if (_equipeListenerUnsubscribe) { _equipeListenerUnsubscribe(); _equipeListenerUnsubscribe = null; }
+};
+
+window.irParaStep = function(step, modo) {
+    if (modo) _equipeModo = modo;
+    document.querySelectorAll('.equipe-step').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('.equipe-dot').forEach((d, i) => {
+        d.style.opacity = i === step ? '1' : '0.4';
+        d.style.width = i === step ? '1.25rem' : '0.5rem';
+    });
+    if (step === 0) { document.getElementById('equipeStep0').classList.remove('hidden'); document.getElementById('equipeModalTitulo').textContent = 'Registro de Equipe'; }
+    else if (step === 1) {
+        if (_equipeModo === 'criar') { document.getElementById('equipeStep1Criar').classList.remove('hidden'); document.getElementById('equipeModalTitulo').textContent = 'Criar Novo Time'; }
+        else { document.getElementById('equipeStep1Entrar').classList.remove('hidden'); document.getElementById('equipeModalTitulo').textContent = 'Entrar no Time'; }
+    } else if (step === 2) { document.getElementById('equipeStep2').classList.remove('hidden'); document.getElementById('equipeModalTitulo').textContent = _equipeAtual?.nome || 'Seu Time'; }
+};
+
+async function _carregarTimeExistente() {
+    const user = window.currentUser;
+    if (!user) return;
+    try {
+        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const db = window.firebaseDb; if (!db) return;
+        const snap = await getDocs(query(collection(db, 'teams'), where('membrosUids', 'array-contains', user.uid)));
+        if (!snap.empty) _mostrarTimeExistente({ id: snap.docs[0].id, ...snap.docs[0].data() });
+    } catch(_) {}
+}
+
+function _mostrarTimeExistente(time) {
+    const div = document.getElementById('equipeTimeExistente'); if (!div) return;
+    div.classList.remove('hidden');
+    document.getElementById('equipeNomeExistente').textContent = time.nome;
+    const t = (time.membros||[]).filter(m=>m.role!=='reserva').length;
+    document.getElementById('equipeMembrosExistente').textContent = `${t} de 4 titulares confirmados`;
+    const badge = document.getElementById('equipeStatusBadge');
+    badge.textContent = time.status === 'completo' ? '✓ Completo' : '⏳ Aguardando';
+    badge.className = 'text-xs font-bold px-2 py-1 rounded-full flex-shrink-0 ' + (time.status==='completo' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700');
+    if (time.logoUrl) document.getElementById('equipeLogoExistente').innerHTML = `<img src="${time.logoUrl}" class="w-full h-full object-cover">`;
+    _equipeAtual = time;
+}
+
+window.usarTimeExistente = async function() {
+    if (!_equipeAtual) return;
+    const ehCap = _equipeAtual.capitaoId === window.currentUser?.uid;
+    const sec = document.getElementById('equipeCodigoSection');
+    if (sec) { sec.classList.toggle('hidden', !ehCap); if (ehCap) document.getElementById('equipeCodigoDisplay').textContent = _equipeAtual.codigoConvite||''; }
+    _renderInfoTime(_equipeAtual);
+    await _iniciarEscuta(_equipeAtual.id);
+    irParaStep(2);
+};
+
+window.previewLogoEquipe = function(input) {
+    const file = input.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => { const el = document.getElementById('equipeLogoPreview'); if (el) el.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover">`; };
+    reader.readAsDataURL(file);
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    const inp = document.getElementById('equipeNomeInput');
+    if (inp) inp.addEventListener('input', function() { const ct=document.getElementById('equipeNomeCount'); if(ct) ct.textContent=this.value.length; });
+    // Fechar clicando fora
+    document.getElementById('modalEquipe')?.addEventListener('click', function(e) { if(e.target===this) fecharModalEquipe(); });
+});
+
+function _gerarCodigo() { const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let r=''; for(let i=0;i<6;i++) r+=c[Math.floor(Math.random()*c.length)]; return r; }
+
+window.confirmarCriarTime = async function() {
+    const nome = document.getElementById('equipeNomeInput')?.value?.trim();
+    if (!nome) { showToast('warning','Digite o nome do time'); return; }
+    const user = window.currentUser;
+    if (!user || user.isAnonymous) { showToast('error','Faça login para criar um time'); return; }
+    const btn = document.getElementById('btnCriarTime');
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Criando…';
+    try {
+        const { collection, doc, setDoc, query, where, getDocs, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const db = window.firebaseDb; if (!db) throw new Error('Firebase não conectado');
+        let codigo = _gerarCodigo();
+        const existSnap = await getDocs(query(collection(db,'teams'),where('codigoConvite','==',codigo)));
+        if (!existSnap.empty) codigo = _gerarCodigo();
+        const nomeUs = user.displayName || 'Capitão';
+        const teamRef = doc(collection(db,'teams'));
+        const membro = { uid:user.uid, nome:nomeUs, role:'capitao', fotoUrl:user.photoURL||null, entradaEm:Date.now() };
+        await setDoc(teamRef, { nome, logoUrl:null, capitaoId:user.uid, capitaoNome:nomeUs, codigoConvite:codigo, membros:[membro], membrosUids:[user.uid], status:'aguardando', criadoEm:serverTimestamp() });
+        _equipeAtual = { id:teamRef.id, nome, capitaoId:user.uid, codigoConvite:codigo, membros:[membro], membrosUids:[user.uid], status:'aguardando' };
+        const logoFile = document.getElementById('equipeLogo')?.files[0];
+        if (logoFile) _uploadLogo(logoFile, teamRef.id);
+        document.getElementById('equipeCodigoDisplay').textContent = codigo;
+        document.getElementById('equipeCodigoSection').classList.remove('hidden');
+        _renderInfoTime(_equipeAtual);
+        await _iniciarEscuta(teamRef.id);
+        irParaStep(2);
+    } catch(e) { showToast('error','Erro ao criar time: '+(e.message||e)); }
+    finally { btn.disabled=false; btn.innerHTML='Criar Time <i class="fas fa-arrow-right ml-1"></i>'; }
+};
+
+window.equipeOnCodigoInput = function(v) {
+    clearTimeout(window._eqDebounce);
+    if (v.length===6) window._eqDebounce = setTimeout(()=>buscarPreviewTime(v), 400);
+    else document.getElementById('equipePreviewConvite')?.classList.add('hidden');
+};
+
+window.buscarPreviewTime = async function(codigo) {
+    if (!codigo||codigo.length<6) return;
+    try {
+        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const db = window.firebaseDb; if (!db) return;
+        const snap = await getDocs(query(collection(db,'teams'),where('codigoConvite','==',codigo)));
+        const prev = document.getElementById('equipePreviewConvite');
+        if (snap.empty) { prev?.classList.add('hidden'); return; }
+        const t = { id:snap.docs[0].id, ...snap.docs[0].data() };
+        document.getElementById('equipeConviteNome').textContent = t.nome;
+        const cnt = (t.membros||[]).filter(m=>m.role!=='reserva').length;
+        document.getElementById('equipeConviteMembros').textContent = `${cnt}/4 titulares · ${t.status==='completo'?'Time completo':'Aguardando jogadores'}`;
+        if (t.logoUrl) document.getElementById('equipeConviteLogoPreview').innerHTML=`<img src="${t.logoUrl}" class="w-full h-full object-cover rounded-lg">`;
+        prev?.classList.remove('hidden');
+    } catch(_) {}
+};
+
+window.confirmarEntrarTime = async function() {
+    const codigo = document.getElementById('equipeCodigoInput')?.value?.trim().toUpperCase();
+    if (!codigo||codigo.length!==6) { showToast('warning','Digite o código de 6 dígitos'); return; }
+    const user = window.currentUser;
+    if (!user||user.isAnonymous) { showToast('error','Faça login para entrar em um time'); return; }
+    try {
+        const { collection, query, where, getDocs, doc, updateDoc, arrayUnion } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const db = window.firebaseDb; if (!db) throw new Error('Firebase não conectado');
+        const snap = await getDocs(query(collection(db,'teams'),where('codigoConvite','==',codigo)));
+        if (snap.empty) { showToast('error','Código inválido'); return; }
+        const time = { id:snap.docs[0].id, ...snap.docs[0].data() };
+        if ((time.membrosUids||[]).includes(user.uid)) {
+            _equipeAtual = time;
+            document.getElementById('equipeCodigoSection').classList.add('hidden');
+            _renderInfoTime(time); await _iniciarEscuta(time.id); irParaStep(2); return;
+        }
+        if ((time.membrosUids||[]).length>=6) { showToast('error','Time já está cheio'); return; }
+        const nomeUs = user.displayName || 'Jogador';
+        const titulares = (time.membros||[]).filter(m=>m.role!=='reserva').length;
+        const novoRole = titulares>=4 ? 'reserva' : 'titular';
+        const novoMembro = { uid:user.uid, nome:nomeUs, role:novoRole, fotoUrl:user.photoURL||null, entradaEm:Date.now() };
+        const novosTit = titulares+(novoRole!=='reserva'?1:0);
+        await updateDoc(doc(db,'teams',time.id), { membros:arrayUnion(novoMembro), membrosUids:arrayUnion(user.uid), status:novosTit>=4?'completo':'aguardando' });
+        _equipeAtual = { ...time };
+        document.getElementById('equipeCodigoSection').classList.add('hidden');
+        await _iniciarEscuta(time.id); irParaStep(2);
+        showToast('success',`Você entrou no time "${time.nome}"!`);
+    } catch(e) { showToast('error','Erro ao entrar no time: '+(e.message||e)); }
+};
+
+function _renderInfoTime(time) {
+    const n = document.getElementById('equipeTimeNomeDisplay'); if(n) n.textContent = time.nome||'';
+    if (time.logoUrl) { const l=document.getElementById('equipeTimeLogo'); if(l) l.innerHTML=`<img src="${time.logoUrl}" class="w-full h-full object-cover">`; }
+}
+
+async function _iniciarEscuta(teamId) {
+    if (_equipeListenerUnsubscribe) _equipeListenerUnsubscribe();
+    try {
+        const { doc, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const db = window.firebaseDb; if (!db) return;
+        _equipeListenerUnsubscribe = onSnapshot(doc(db,'teams',teamId), snap => {
+            if (!snap.exists()) return;
+            const t = { id:snap.id, ...snap.data() };
+            _equipeAtual = t; _renderMembros(t); _renderInfoTime(t);
+        });
+    } catch(_) {}
+}
+
+function _renderMembros(time) {
+    const membros = time.membros||[];
+    const titulares = membros.filter(m=>m.role!=='reserva');
+    const reservas = membros.filter(m=>m.role==='reserva');
+    const grid = document.getElementById('equipeMembrosGrid'); if(!grid) return;
+    grid.innerHTML = '';
+    for (let i=0;i<4;i++) {
+        const m = titulares[i];
+        if (m) {
+            grid.innerHTML += `<div class="equipe-membro-card preenchido"><div class="equipe-avatar">${m.fotoUrl?`<img src="${m.fotoUrl}" class="w-full h-full object-cover">`:`<span class="text-white font-black text-sm">${(m.nome||'?').charAt(0).toUpperCase()}</span>`}</div><div class="equipe-membro-info"><p class="font-semibold text-gray-800 text-xs leading-tight truncate">${m.nome}</p><p class="text-xs mt-0.5 font-semibold ${m.role==='capitao'?'text-indigo-500':'text-sky-500'}">${m.role==='capitao'?'★ Capitão':'Titular'}</p></div></div>`;
+        } else {
+            grid.innerHTML += `<div class="equipe-membro-card vazio"><div class="equipe-avatar vazio"><i class="fas fa-user-plus text-gray-300 text-sm"></i></div><div class="equipe-membro-info"><p class="text-xs text-gray-400 font-medium">Aguardando…</p><p class="text-xs text-gray-300">Slot ${i+1}</p></div></div>`;
+        }
+    }
+    const resSection = document.getElementById('equipeReservasSection');
+    const resGrid = document.getElementById('equipeReservasGrid');
+    if (titulares.length>=4&&resSection) {
+        resSection.classList.remove('hidden');
+        if (resGrid) { resGrid.innerHTML=''; for(let i=0;i<2;i++){const r=reservas[i]; resGrid.innerHTML+=r?`<div class="equipe-membro-card preenchido reserva"><div class="equipe-avatar reserva">${r.fotoUrl?`<img src="${r.fotoUrl}" class="w-full h-full object-cover">`:`<span class="text-white font-black text-xs">${(r.nome||'?').charAt(0).toUpperCase()}</span>`}</div><div class="equipe-membro-info"><p class="font-semibold text-gray-800 text-xs leading-tight truncate">${r.nome}</p><p class="text-xs text-orange-500 font-semibold mt-0.5">Reserva</p></div></div>`:`<div class="equipe-membro-card vazio"><div class="equipe-avatar vazio"><i class="fas fa-user-plus text-gray-300 text-xs"></i></div><div class="equipe-membro-info"><p class="text-xs text-gray-400">Reserva ${i+1}</p><p class="text-xs text-gray-300">Opcional</p></div></div>`;} }
+    }
+    const cnt = titulares.length;
+    const cEl = document.getElementById('equipeContadorMembros'); if(cEl) cEl.textContent=`${cnt}/4`;
+    const stEl = document.getElementById('equipeStatusTexto'); if(stEl) stEl.textContent=cnt>=4?'Time completo ✓':`Faltam ${4-cnt} jogador${4-cnt!==1?'es':''}`;
+    const aw=document.getElementById('equipeAguardandoInfo'), co=document.getElementById('equipeCompletoInfo');
+    if(cnt>=4){aw?.classList.add('hidden');co?.classList.remove('hidden');}else{aw?.classList.remove('hidden');co?.classList.add('hidden');}
+}
+
+async function _uploadLogo(file, teamId) {
+    try {
+        const { ref, uploadBytes, getDownloadURL } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js');
+        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const storage = window.firebaseStorage; const db = window.firebaseDb; if(!storage||!db) return;
+        const r = ref(storage,`teams/${teamId}/logo`);
+        await uploadBytes(r, file);
+        const url = await getDownloadURL(r);
+        await updateDoc(doc(db,'teams',teamId),{logoUrl:url});
+        if(_equipeAtual){_equipeAtual.logoUrl=url;_renderInfoTime(_equipeAtual);}
+    } catch(_){}
+}
+
+window.copiarCodigo = function() {
+    const c = document.getElementById('equipeCodigoDisplay')?.textContent?.trim(); if(!c) return;
+    navigator.clipboard?.writeText(c).then(()=>showToast('success',`Código ${c} copiado!`)).catch(()=>{const el=document.createElement('textarea');el.value=c;document.body.appendChild(el);el.select();try{document.execCommand('copy');showToast('success',`Código ${c} copiado!`);}catch(_){}document.body.removeChild(el);});
+};
+
+window.compartilharConvite = function() {
+    const codigo = document.getElementById('equipeCodigoDisplay')?.textContent?.trim();
+    const nome = _equipeAtual?.nome||'Meu Time';
+    const link = `${location.origin}${location.pathname}?convite=${codigo}`;
+    const msg = `🎮 *${nome}* — XTreino Freitas\n\nEntrei no treino e preciso de você no time!\n\n🔑 Código: *${codigo}*\n🔗 Entre aqui: ${link}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+};
+
+window.confirmarInscricaoEquipe = function() {
+    if (!_equipeAtual) { showToast('error','Nenhum time carregado'); return; }
+    const tit = (_equipeAtual.membros||[]).filter(m=>m.role!=='reserva').length;
+    if (tit<4) { showToast('warning','O time precisa de 4 titulares confirmados'); return; }
+    fecharModalEquipe();
+    showToast('success',`Time "${_equipeAtual.nome}" confirmado! Redirecionando para escolher o horário…`);
+    const eid = window._currentEventId;
+    setTimeout(()=>{ window.location.href = eid ? `index.html?openEvent=${encodeURIComponent(eid)}#eventos` : 'index.html#eventos'; }, 1400);
+};
 </script>
 </body>
 </html>
