@@ -417,10 +417,11 @@ window.showWarningToast = function(message, title = 'Atenção') {
       }
     });
 
-    // Garantia extra: sectionKPIs só visível para CEO e sócio — nunca para outros cargos
-    const _kpiEl = document.getElementById('sectionKPIs');
-    if (_kpiEl && !['ceo','socio'].includes(resolvedRole)) {
-      _kpiEl.style.display = 'none';
+    // sectionKPIs: controla via classe no <html> (CSS !important — imune a qualquer override)
+    if (['ceo','socio'].includes(resolvedRole)) {
+      document.documentElement.classList.add('kpis-enabled');
+    } else {
+      document.documentElement.classList.remove('kpis-enabled');
     }
 
     // Ocultar labels de categoria quando todos os itens estão escondidos
