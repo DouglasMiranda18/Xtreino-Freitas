@@ -12132,6 +12132,16 @@ async function openEventSlotsModal(eventId, eventName) {
             return;
         }
 
+        // Buscar logos dos times da coleção teams (fallback para inscrições sem teamLogoUrl)
+        const _slotsLogoMap = {};
+        try {
+            const teamsSnap = await getDocs(collection(window.firebaseDb, 'teams'));
+            teamsSnap.docs.forEach(td => {
+                const t = td.data();
+                if (t.nome && t.logoUrl) _slotsLogoMap[t.nome.toLowerCase().trim()] = t.logoUrl;
+            });
+        } catch(_) {}
+
         // Agrupar por horário
         const bySchedule = {};
         docs.forEach(d => {
@@ -12204,10 +12214,11 @@ async function openEventSlotsModal(eventId, eventName) {
                                 ? r.date.split('-').reverse().join('/') : (r.date || '—');
                             const leaderName = r.leaderName && r.leaderName !== r.teamName ? r.leaderName : null;
                             const nomeArq = (r.teamName || 'time').replace(/[^a-zA-Z0-9]/g,'_');
-                            const logoCell = r.teamLogoUrl
+                            const _slotLogoUrl = r.teamLogoUrl || _slotsLogoMap[(r.teamName||'').toLowerCase().trim()] || null;
+                            const logoCell = _slotLogoUrl
                                 ? `<div class="flex flex-col items-center gap-1">
-                                    <img src="${r.teamLogoUrl}" class="w-9 h-9 rounded-lg object-cover border border-gray-200" title="${escapeAdminHtml(r.teamName||'')}">
-                                    <a href="${r.teamLogoUrl}" download="logo_${nomeArq}.jpg" class="text-xs text-blue-600 hover:text-blue-800 font-medium" title="Baixar logo"><i class="fas fa-download"></i></a>
+                                    <img src="${_slotLogoUrl}" class="w-9 h-9 rounded-lg object-cover border border-gray-200" title="${escapeAdminHtml(r.teamName||'')}">
+                                    <a href="${_slotLogoUrl}" download="logo_${nomeArq}.jpg" class="text-xs text-blue-600 hover:text-blue-800 font-medium" title="Baixar logo"><i class="fas fa-download"></i></a>
                                    </div>`
                                 : `<div class="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-100 text-gray-300 mx-auto" title="Sem logo cadastrada"><i class="fas fa-image text-lg"></i></div>`;
                             return `<tr class="border-t border-gray-100 hover:bg-orange-50 transition-colors">
