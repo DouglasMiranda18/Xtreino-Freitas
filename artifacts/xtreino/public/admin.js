@@ -12217,8 +12217,8 @@ async function openEventSlotsModal(eventId, eventName) {
                             const _slotLogoUrl = r.teamLogoUrl || _slotsLogoMap[(r.teamName||'').toLowerCase().trim()] || null;
                             const logoCell = _slotLogoUrl
                                 ? `<div class="flex flex-col items-center gap-1">
-                                    <img src="${_slotLogoUrl}" class="w-9 h-9 rounded-lg object-cover border border-gray-200" title="${escapeAdminHtml(r.teamName||'')}">
-                                    <a href="${_slotLogoUrl}" download="logo_${nomeArq}.jpg" class="text-xs text-blue-600 hover:text-blue-800 font-medium" title="Baixar logo"><i class="fas fa-download"></i></a>
+                                    <img src="${_slotLogoUrl}" class="w-9 h-9 rounded-lg object-contain" style="background:transparent" title="${escapeAdminHtml(r.teamName||'')}">
+                                    <a href="${_slotLogoUrl}" download="logo_${nomeArq}.png" class="text-xs text-blue-600 hover:text-blue-800 font-medium" title="Baixar logo"><i class="fas fa-download"></i></a>
                                    </div>`
                                 : `<div class="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-100 text-gray-300 mx-auto" title="Sem logo cadastrada"><i class="fas fa-image text-lg"></i></div>`;
                             return `<tr class="border-t border-gray-100 hover:bg-orange-50 transition-colors">
