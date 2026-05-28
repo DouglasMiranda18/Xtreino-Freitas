@@ -9475,3 +9475,463 @@ window.closePixModal = function() {
     if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
     try { window.location.href = 'client.html?tab=myRegistrations'; } catch (_) {}
 };
+
+// ==================== SISTEMA DE TIMES ====================
+let _equipeAtual = null;
+let _equipeListenerUnsubscribe = null;
+let _equipeModo = 'criar';
+let _equipeSlotInfo = null;
+
+// Verificar URL para convite automático na carga da página
+(function verificarConviteUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const convite = params.get('convite') || params.get('invite');
+    if (!convite) return;
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(() => abrirModalEquipe(null, convite), 1400);
+    });
+})();
+
+window.abrirModalEquipe = function(slotInfo, codigoPreenchido) {
+    _equipeSlotInfo = slotInfo || null;
+    const modal = document.getElementById('modalEquipe');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.classList.add('modal-open-mobile');
+
+    if (codigoPreenchido) {
+        irParaStep(1, 'entrar');
+        const inp = document.getElementById('equipeCodigoInput');
+        if (inp) { inp.value = codigoPreenchido.toUpperCase(); buscarPreviewTime(inp.value); }
+    } else {
+        irParaStep(0);
+        _carregarTimeExistente();
+    }
+};
+
+window.fecharModalEquipe = function() {
+    const modal = document.getElementById('modalEquipe');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.body.classList.remove('modal-open-mobile');
+    if (_equipeListenerUnsubscribe) { _equipeListenerUnsubscribe(); _equipeListenerUnsubscribe = null; }
+};
+
+window.irParaStep = function(step, modo) {
+    if (modo) _equipeModo = modo;
+    document.querySelectorAll('.equipe-step').forEach(el => el.classList.add('hidden'));
+    // Atualizar dots
+    document.querySelectorAll('.equipe-dot').forEach((dot, i) => {
+        if (i === step) {
+            dot.style.opacity = '1';
+            dot.style.width = '1.25rem';
+        } else {
+            dot.style.opacity = '0.4';
+            dot.style.width = '0.5rem';
+        }
+    });
+
+    if (step === 0) {
+        document.getElementById('equipeStep0').classList.remove('hidden');
+        document.getElementById('equipeModalTitulo').textContent = 'Registro de Equipe';
+    } else if (step === 1) {
+        if (_equipeModo === 'criar') {
+            document.getElementById('equipeStep1Criar').classList.remove('hidden');
+            document.getElementById('equipeModalTitulo').textContent = 'Criar Novo Time';
+        } else {
+            document.getElementById('equipeStep1Entrar').classList.remove('hidden');
+            document.getElementById('equipeModalTitulo').textContent = 'Entrar no Time';
+        }
+    } else if (step === 2) {
+        document.getElementById('equipeStep2').classList.remove('hidden');
+        document.getElementById('equipeModalTitulo').textContent = _equipeAtual?.nome || 'Seu Time';
+    }
+};
+
+async function _carregarTimeExistente() {
+    if (!window.currentUser) return;
+    try {
+        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const db = window.firebaseDb;
+        if (!db) return;
+        const snap = await getDocs(query(collection(db, 'teams'), where('membrosUids', 'array-contains', window.currentUser.uid)));
+        if (!snap.empty) {
+            const time = { id: snap.docs[0].id, ...snap.docs[0].data() };
+            _mostrarTimeExistente(time);
+        }
+    } catch (_) {}
+}
+
+function _mostrarTimeExistente(time) {
+    const div = document.getElementById('equipeTimeExistente');
+    if (!div) return;
+    div.classList.remove('hidden');
+    document.getElementById('equipeNomeExistente').textContent = time.nome;
+    const titulares = (time.membros || []).filter(m => m.role !== 'reserva').length;
+    document.getElementById('equipeMembrosExistente').textContent = `${titulares} de 4 titular${titulares !== 1 ? 'es' : ''} confirmado${titulares !== 1 ? 's' : ''}`;
+    const badge = document.getElementById('equipeStatusBadge');
+    if (time.status === 'completo') {
+        badge.textContent = '✓ Completo';
+        badge.className = 'text-xs font-bold px-2 py-1 rounded-full flex-shrink-0 bg-green-100 text-green-700';
+    } else {
+        badge.textContent = '⏳ Aguardando';
+        badge.className = 'text-xs font-bold px-2 py-1 rounded-full flex-shrink-0 bg-yellow-100 text-yellow-700';
+    }
+    if (time.logoUrl) {
+        document.getElementById('equipeLogoExistente').innerHTML = `<img src="${time.logoUrl}" class="w-full h-full object-cover">`;
+    }
+    _equipeAtual = time;
+}
+
+window.usarTimeExistente = async function() {
+    if (!_equipeAtual) return;
+    const ehCapitao = _equipeAtual.capitaoId === window.currentUser?.uid;
+    const codSection = document.getElementById('equipeCodigoSection');
+    if (codSection) {
+        codSection.classList.toggle('hidden', !ehCapitao);
+        if (ehCapitao) document.getElementById('equipeCodigoDisplay').textContent = _equipeAtual.codigoConvite || '';
+    }
+    _renderizarInfoTime(_equipeAtual);
+    await _iniciarEscutaTime(_equipeAtual.id);
+    irParaStep(2);
+};
+
+window.previewLogoEquipe = function(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const el = document.getElementById('equipeLogoPreview');
+        if (el) el.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover">`;
+    };
+    reader.readAsDataURL(file);
+    // Atualizar contador de nome
+    const nomeInput = document.getElementById('equipeNomeInput');
+    if (nomeInput) nomeInput.dispatchEvent(new Event('input'));
+};
+
+// Contador de caracteres no nome do time
+document.addEventListener('DOMContentLoaded', function() {
+    const inp = document.getElementById('equipeNomeInput');
+    if (inp) {
+        inp.addEventListener('input', function() {
+            const ct = document.getElementById('equipeNomeCount');
+            if (ct) ct.textContent = this.value.length;
+        });
+    }
+});
+
+function _gerarCodigoUnico() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let c = '';
+    for (let i = 0; i < 6; i++) c += chars[Math.floor(Math.random() * chars.length)];
+    return c;
+}
+
+window.confirmarCriarTime = async function() {
+    const nome = document.getElementById('equipeNomeInput')?.value?.trim();
+    if (!nome) { showToast('warning', 'Digite o nome do time'); return; }
+    if (!window.currentUser) { showToast('error', 'Você precisa estar logado para criar um time'); return; }
+
+    const btn = document.getElementById('btnCriarTime');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Criando…';
+
+    try {
+        const { collection, doc, setDoc, query, where, getDocs, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const db = window.firebaseDb;
+        if (!db) throw new Error('Firebase não conectado');
+
+        // Gerar código único (evitar colisão)
+        let codigo = _gerarCodigoUnico();
+        const existSnap = await getDocs(query(collection(db, 'teams'), where('codigoConvite', '==', codigo)));
+        if (!existSnap.empty) codigo = _gerarCodigoUnico();
+
+        const nomeUsuario = window.currentUserProfile?.name || window.currentUserProfile?.nickname || window.currentUser.displayName || 'Capitão';
+        const teamRef = doc(collection(db, 'teams'));
+        const membro = { uid: window.currentUser.uid, nome: nomeUsuario, role: 'capitao', fotoUrl: window.currentUser.photoURL || null, entradaEm: Date.now() };
+
+        const teamData = {
+            nome,
+            logoUrl: null,
+            capitaoId: window.currentUser.uid,
+            capitaoNome: nomeUsuario,
+            codigoConvite: codigo,
+            membros: [membro],
+            membrosUids: [window.currentUser.uid],
+            status: 'aguardando',
+            criadoEm: serverTimestamp()
+        };
+
+        await setDoc(teamRef, teamData);
+        _equipeAtual = { id: teamRef.id, ...teamData, membros: [membro] };
+
+        // Upload de logo em background (não bloqueia)
+        const logoFile = document.getElementById('equipeLogo')?.files[0];
+        if (logoFile) _uploadLogoEquipe(logoFile, teamRef.id);
+
+        // Mostrar sala de espera
+        document.getElementById('equipeCodigoDisplay').textContent = codigo;
+        document.getElementById('equipeCodigoSection').classList.remove('hidden');
+        _renderizarInfoTime(_equipeAtual);
+        await _iniciarEscutaTime(teamRef.id);
+        irParaStep(2);
+    } catch (e) {
+        showToast('error', 'Erro ao criar time: ' + (e.message || e));
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Criar Time <i class="fas fa-arrow-right ml-1"></i>';
+    }
+};
+
+window.equipeOnCodigoInput = function(valor) {
+    if (valor.length === 6) {
+        clearTimeout(window._equipeCodigoDebounce);
+        window._equipeCodigoDebounce = setTimeout(() => buscarPreviewTime(valor), 400);
+    } else {
+        const el = document.getElementById('equipePreviewConvite');
+        if (el) el.classList.add('hidden');
+    }
+};
+
+window.buscarPreviewTime = async function(codigo) {
+    if (!codigo || codigo.length < 6) return;
+    try {
+        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const db = window.firebaseDb;
+        if (!db) return;
+        const snap = await getDocs(query(collection(db, 'teams'), where('codigoConvite', '==', codigo)));
+        const preview = document.getElementById('equipePreviewConvite');
+        if (snap.empty) { if (preview) preview.classList.add('hidden'); return; }
+        const time = { id: snap.docs[0].id, ...snap.docs[0].data() };
+        document.getElementById('equipeConviteNome').textContent = time.nome;
+        const count = (time.membros || []).filter(m => m.role !== 'reserva').length;
+        document.getElementById('equipeConviteMembros').textContent = `${count}/4 titulares · ${time.status === 'completo' ? 'Time completo' : 'Aguardando jogadores'}`;
+        if (time.logoUrl) {
+            document.getElementById('equipeConviteLogoPreview').innerHTML = `<img src="${time.logoUrl}" class="w-full h-full object-cover rounded-lg">`;
+        }
+        if (preview) preview.classList.remove('hidden');
+    } catch (_) {}
+};
+
+window.confirmarEntrarTime = async function() {
+    const codigo = document.getElementById('equipeCodigoInput')?.value?.trim().toUpperCase();
+    if (!codigo || codigo.length !== 6) { showToast('warning', 'Digite o código de 6 dígitos'); return; }
+    if (!window.currentUser) { showToast('error', 'Você precisa estar logado'); return; }
+
+    try {
+        const { collection, query, where, getDocs, doc, updateDoc, arrayUnion } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const db = window.firebaseDb;
+        if (!db) throw new Error('Firebase não conectado');
+
+        const snap = await getDocs(query(collection(db, 'teams'), where('codigoConvite', '==', codigo)));
+        if (snap.empty) { showToast('error', 'Código inválido. Verifique e tente novamente.'); return; }
+
+        const timeDoc = snap.docs[0];
+        const time = { id: timeDoc.id, ...timeDoc.data() };
+
+        // Já é membro → ir direto para a sala
+        if ((time.membrosUids || []).includes(window.currentUser.uid)) {
+            _equipeAtual = time;
+            document.getElementById('equipeCodigoSection').classList.add('hidden');
+            _renderizarInfoTime(time);
+            await _iniciarEscutaTime(time.id);
+            irParaStep(2);
+            return;
+        }
+
+        // Verificar limite (4 titulares + 2 reservas = 6 máx)
+        if ((time.membrosUids || []).length >= 6) { showToast('error', 'Time já está cheio'); return; }
+
+        const nomeUsuario = window.currentUserProfile?.name || window.currentUserProfile?.nickname || window.currentUser.displayName || 'Jogador';
+        const titulares = (time.membros || []).filter(m => m.role !== 'reserva').length;
+        const novoRole = titulares >= 4 ? 'reserva' : 'titular';
+
+        const novoMembro = { uid: window.currentUser.uid, nome: nomeUsuario, role: novoRole, fotoUrl: window.currentUser.photoURL || null, entradaEm: Date.now() };
+        const novosTitulares = titulares + (novoRole !== 'reserva' ? 1 : 0);
+
+        await updateDoc(doc(db, 'teams', time.id), {
+            membros: arrayUnion(novoMembro),
+            membrosUids: arrayUnion(window.currentUser.uid),
+            status: novosTitulares >= 4 ? 'completo' : 'aguardando'
+        });
+
+        _equipeAtual = { ...time };
+        document.getElementById('equipeCodigoSection').classList.add('hidden');
+        await _iniciarEscutaTime(time.id);
+        irParaStep(2);
+        showToast('success', `Você entrou no time "${time.nome}"!`);
+    } catch (e) {
+        showToast('error', 'Erro ao entrar no time: ' + (e.message || e));
+    }
+};
+
+function _renderizarInfoTime(time) {
+    const nomeEl = document.getElementById('equipeTimeNomeDisplay');
+    if (nomeEl) nomeEl.textContent = time.nome || '';
+    if (time.logoUrl) {
+        const logoEl = document.getElementById('equipeTimeLogo');
+        if (logoEl) logoEl.innerHTML = `<img src="${time.logoUrl}" class="w-full h-full object-cover">`;
+    }
+}
+
+async function _iniciarEscutaTime(teamId) {
+    if (_equipeListenerUnsubscribe) _equipeListenerUnsubscribe();
+    try {
+        const { doc, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const db = window.firebaseDb;
+        if (!db) return;
+        _equipeListenerUnsubscribe = onSnapshot(doc(db, 'teams', teamId), (snap) => {
+            if (!snap.exists()) return;
+            const time = { id: snap.id, ...snap.data() };
+            _equipeAtual = time;
+            _renderizarMembrosTime(time);
+            _renderizarInfoTime(time);
+        });
+    } catch (_) {}
+}
+
+function _renderizarMembrosTime(time) {
+    const membros = time.membros || [];
+    const titulares = membros.filter(m => m.role !== 'reserva');
+    const reservas = membros.filter(m => m.role === 'reserva');
+
+    // Grid de titulares (4 slots)
+    const grid = document.getElementById('equipeMembrosGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    for (let i = 0; i < 4; i++) {
+        const m = titulares[i];
+        if (m) {
+            const isCapitao = m.role === 'capitao';
+            grid.innerHTML += `
+            <div class="equipe-membro-card preenchido">
+                <div class="equipe-avatar">
+                    ${m.fotoUrl ? `<img src="${m.fotoUrl}" class="w-full h-full object-cover">` : `<span class="text-white font-black text-sm">${(m.nome || '?').charAt(0).toUpperCase()}</span>`}
+                </div>
+                <div class="equipe-membro-info">
+                    <p class="font-semibold text-gray-800 text-xs leading-tight truncate">${m.nome}</p>
+                    <p class="text-xs mt-0.5 font-semibold ${isCapitao ? 'text-indigo-500' : 'text-sky-500'}">${isCapitao ? '★ Capitão' : 'Titular'}</p>
+                </div>
+            </div>`;
+        } else {
+            grid.innerHTML += `
+            <div class="equipe-membro-card vazio">
+                <div class="equipe-avatar vazio">
+                    <i class="fas fa-user-plus text-gray-300 text-sm"></i>
+                </div>
+                <div class="equipe-membro-info">
+                    <p class="text-xs text-gray-400 font-medium">Aguardando…</p>
+                    <p class="text-xs text-gray-300">Slot ${i + 1}</p>
+                </div>
+            </div>`;
+        }
+    }
+
+    // Reservas (aparece quando os 4 titulares estiverem completos)
+    const reservasSection = document.getElementById('equipeReservasSection');
+    const reservasGrid = document.getElementById('equipeReservasGrid');
+    if (titulares.length >= 4 && reservasSection) {
+        reservasSection.classList.remove('hidden');
+        if (reservasGrid) {
+            reservasGrid.innerHTML = '';
+            for (let i = 0; i < 2; i++) {
+                const r = reservas[i];
+                if (r) {
+                    reservasGrid.innerHTML += `
+                    <div class="equipe-membro-card preenchido reserva">
+                        <div class="equipe-avatar reserva">
+                            ${r.fotoUrl ? `<img src="${r.fotoUrl}" class="w-full h-full object-cover">` : `<span class="text-white font-black text-xs">${(r.nome || '?').charAt(0).toUpperCase()}</span>`}
+                        </div>
+                        <div class="equipe-membro-info">
+                            <p class="font-semibold text-gray-800 text-xs leading-tight truncate">${r.nome}</p>
+                            <p class="text-xs text-orange-500 font-semibold mt-0.5">Reserva</p>
+                        </div>
+                    </div>`;
+                } else {
+                    reservasGrid.innerHTML += `
+                    <div class="equipe-membro-card vazio">
+                        <div class="equipe-avatar vazio">
+                            <i class="fas fa-user-plus text-gray-300 text-xs"></i>
+                        </div>
+                        <div class="equipe-membro-info">
+                            <p class="text-xs text-gray-400">Reserva ${i + 1}</p>
+                            <p class="text-xs text-gray-300">Opcional</p>
+                        </div>
+                    </div>`;
+                }
+            }
+        }
+    }
+
+    // Contador e status
+    const count = titulares.length;
+    const contEl = document.getElementById('equipeContadorMembros');
+    if (contEl) contEl.textContent = `${count}/4`;
+    const statusEl = document.getElementById('equipeStatusTexto');
+    if (statusEl) statusEl.textContent = count >= 4 ? 'Time completo ✓' : `Faltam ${4 - count} jogador${4 - count !== 1 ? 'es' : ''}`;
+
+    // Botão de confirmar
+    const aguardando = document.getElementById('equipeAguardandoInfo');
+    const completo = document.getElementById('equipeCompletoInfo');
+    if (count >= 4) {
+        if (aguardando) aguardando.classList.add('hidden');
+        if (completo) completo.classList.remove('hidden');
+    } else {
+        if (aguardando) aguardando.classList.remove('hidden');
+        if (completo) completo.classList.add('hidden');
+    }
+}
+
+async function _uploadLogoEquipe(file, teamId) {
+    try {
+        const { ref, uploadBytes, getDownloadURL } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js');
+        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const storage = window.firebaseStorage;
+        const db = window.firebaseDb;
+        if (!storage || !db) return;
+        const storageRef = ref(storage, `teams/${teamId}/logo`);
+        await uploadBytes(storageRef, file);
+        const url = await getDownloadURL(storageRef);
+        await updateDoc(doc(db, 'teams', teamId), { logoUrl: url });
+        if (_equipeAtual) { _equipeAtual.logoUrl = url; _renderizarInfoTime(_equipeAtual); }
+    } catch (_) {}
+}
+
+window.copiarCodigo = function() {
+    const codigo = document.getElementById('equipeCodigoDisplay')?.textContent?.trim();
+    if (!codigo) return;
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(codigo).then(() => showToast('success', `Código ${codigo} copiado!`)).catch(() => _copiarFallback(codigo));
+    } else { _copiarFallback(codigo); }
+};
+
+function _copiarFallback(texto) {
+    const el = document.createElement('textarea');
+    el.value = texto;
+    Object.assign(el.style, { position: 'fixed', opacity: '0' });
+    document.body.appendChild(el);
+    el.select();
+    try { document.execCommand('copy'); showToast('success', `Código ${texto} copiado!`); } catch (_) {}
+    document.body.removeChild(el);
+}
+
+window.compartilharConvite = function() {
+    const codigo = document.getElementById('equipeCodigoDisplay')?.textContent?.trim();
+    const nome = _equipeAtual?.nome || 'Meu Time';
+    const base = window.location.origin + window.location.pathname;
+    const link = `${base}?convite=${codigo}`;
+    const msg = `🎮 *${nome}* — XTreino Freitas\n\nEntrei no treino e preciso de você no time!\n\n🔑 Código: *${codigo}*\n🔗 Entre aqui: ${link}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+};
+
+window.confirmarInscricaoEquipe = function() {
+    if (!_equipeAtual) { showToast('error', 'Nenhum time carregado'); return; }
+    const titulares = (_equipeAtual.membros || []).filter(m => m.role !== 'reserva').length;
+    if (titulares < 4) { showToast('warning', 'O time precisa de 4 titulares confirmados'); return; }
+    fecharModalEquipe();
+    showToast('success', `Time "${_equipeAtual.nome}" confirmado! Escolha o horário do treino.`);
+    if (typeof openScheduleModal === 'function') openScheduleModal('xtreino-tokens');
+};
