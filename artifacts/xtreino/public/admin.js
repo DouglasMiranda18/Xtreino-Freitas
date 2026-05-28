@@ -12001,7 +12001,24 @@ async function sendEventNotification() {
             }
         }
 
-        const uniqueUsers = [...new Set(docsToNotify.map(d => d.data().userId).filter(Boolean))];
+        // Coletar usuários das inscrições e expandir para todos os membros do time
+        const regUsers = [...new Set(docsToNotify.map(d => d.data().userId).filter(Boolean))];
+        const allUsersSet = new Set(regUsers);
+        const teamIds = [...new Set(docsToNotify.map(d => d.data().teamId).filter(Boolean))];
+        if (teamIds.length > 0) {
+            try {
+                const { doc: _tdoc, getDoc: _tget } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+                await Promise.all(teamIds.map(async tid => {
+                    try {
+                        const snap = await _tget(_tdoc(window.firebaseDb, 'teams', tid));
+                        if (snap.exists()) {
+                            (snap.data().membrosUids || []).forEach(u => allUsersSet.add(u));
+                        }
+                    } catch(_) {}
+                }));
+            } catch(_) {}
+        }
+        const uniqueUsers = [...allUsersSet];
         if (uniqueUsers.length === 0) {
             showToast('warning', 'Nenhum participante encontrado para o dia/horário selecionado.', 'Atenção');
             if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Enviar'; }
@@ -12140,6 +12157,7 @@ async function openEventSlotsModal(eventId, eventName) {
                     <thead>
                         <tr class="bg-gray-50 text-xs text-gray-500 uppercase">
                             <th class="px-3 py-2 text-left w-20">Slot</th>
+                            <th class="px-3 py-2 text-center w-14">Logo</th>
                             <th class="px-3 py-2 text-left">Equipe / Nome</th>
                             <th class="px-3 py-2 text-left w-24">Data</th>
                             <th class="px-3 py-2 text-left w-28">Status</th>
@@ -12153,8 +12171,16 @@ async function openEventSlotsModal(eventId, eventName) {
                             const dateFmt = r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date)
                                 ? r.date.split('-').reverse().join('/') : (r.date || '—');
                             const leaderName = r.leaderName && r.leaderName !== r.teamName ? r.leaderName : null;
+                            const nomeArq = (r.teamName || 'time').replace(/[^a-zA-Z0-9]/g,'_');
+                            const logoCell = r.teamLogoUrl
+                                ? `<div class="flex flex-col items-center gap-1">
+                                    <img src="${r.teamLogoUrl}" class="w-9 h-9 rounded-lg object-cover border border-gray-200" title="${escapeAdminHtml(r.teamName||'')}">
+                                    <a href="${r.teamLogoUrl}" download="logo_${nomeArq}.jpg" class="text-xs text-blue-600 hover:text-blue-800 font-medium" title="Baixar logo"><i class="fas fa-download"></i></a>
+                                   </div>`
+                                : `<div class="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-100 text-gray-300 mx-auto" title="Sem logo cadastrada"><i class="fas fa-image text-lg"></i></div>`;
                             return `<tr class="border-t border-gray-100 hover:bg-orange-50 transition-colors">
                                 <td class="px-3 py-2 font-bold text-orange-600 text-base">${escapeAdminHtml(slotLabel)}</td>
+                                <td class="px-3 py-2 text-center">${logoCell}</td>
                                 <td class="px-3 py-2">
                                     <p class="font-medium text-gray-800">${escapeAdminHtml(r.teamName || r.email || '—')}</p>
                                     ${leaderName ? `<p class="text-xs text-gray-400">Líder: ${escapeAdminHtml(leaderName)}</p>` : ''}
