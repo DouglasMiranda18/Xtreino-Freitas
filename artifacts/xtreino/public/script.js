@@ -7263,6 +7263,7 @@ async function submitSchedule(e, useTokens = false) {
                         teamName: team.name,
                         teamLogoUrl: _equipeAtual?.logoUrl || null,
                         teamId: _equipeAtual?.id || null,
+                        membrosUids: _equipeAtual?.membrosUids || null,
                         email: team.email,
                         phone: team.phone,
                         schedule: p.schedule,
@@ -8428,6 +8429,7 @@ async function createRegistrationsForEvent(eventType, datesToUse, teamsData, tim
                     teamName: team.name,
                     teamLogoUrl: _equipeAtual?.logoUrl || null,
                     teamId: _equipeAtual?.id || null,
+                    membrosUids: _equipeAtual?.membrosUids || null,
                     leaderName: window.currentUserProfile?.name || team.name,
                     email: team.email,
                     phone: team.phone,
@@ -9646,7 +9648,8 @@ function _mostrarTimeExistente(time) {
         badge.className = 'text-xs font-bold px-2 py-1 rounded-full flex-shrink-0 bg-yellow-100 text-yellow-700';
     }
     if (time.logoUrl) {
-        document.getElementById('equipeLogoExistente').innerHTML = `<img src="${time.logoUrl}" class="w-full h-full object-cover">`;
+        const _elExist = document.getElementById('equipeLogoExistente');
+        if (_elExist) { _elExist.style.background = 'transparent'; _elExist.innerHTML = `<img src="${time.logoUrl}" class="w-full h-full object-contain p-0.5">`; }
     }
     _equipeAtual = time;
 }
@@ -9785,7 +9788,8 @@ window.buscarPreviewTime = async function(codigo) {
         const count = (time.membros || []).filter(m => m.role !== 'reserva').length;
         document.getElementById('equipeConviteMembros').textContent = `${count}/4 titulares · ${time.status === 'completo' ? 'Time completo' : 'Aguardando jogadores'}`;
         if (time.logoUrl) {
-            document.getElementById('equipeConviteLogoPreview').innerHTML = `<img src="${time.logoUrl}" class="w-full h-full object-cover rounded-lg">`;
+            const _elConv = document.getElementById('equipeConviteLogoPreview');
+            if (_elConv) { _elConv.style.background = 'transparent'; _elConv.innerHTML = `<img src="${time.logoUrl}" class="w-full h-full object-contain rounded-lg p-0.5">`; }
         }
         if (preview) preview.classList.remove('hidden');
     } catch (_) {}
@@ -9848,7 +9852,7 @@ function _renderizarInfoTime(time) {
     if (nomeEl) nomeEl.textContent = time.nome || '';
     if (time.logoUrl) {
         const logoEl = document.getElementById('equipeTimeLogo');
-        if (logoEl) logoEl.innerHTML = `<img src="${time.logoUrl}" class="w-full h-full object-cover">`;
+        if (logoEl) { logoEl.style.background = 'transparent'; logoEl.innerHTML = `<img src="${time.logoUrl}" class="w-full h-full object-contain p-0.5">`; }
     }
 }
 
@@ -10065,7 +10069,7 @@ async function _resizeLogoParaBase64(file) {
                 const sx = (img.width - min) / 2;
                 const sy = (img.height - min) / 2;
                 ctx.drawImage(img, sx, sy, min, min, 0, 0, SIZE, SIZE);
-                resolve(canvas.toDataURL('image/jpeg', 0.7));
+                resolve(canvas.toDataURL('image/png'));
             };
             img.onerror = () => resolve(null);
             img.src = e.target.result;
