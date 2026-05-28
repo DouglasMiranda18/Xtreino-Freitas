@@ -5194,6 +5194,12 @@ function openScheduleModal(eventType) {
     const modal = document.getElementById('scheduleModal');
     if (!cfg || !modal) return;
 
+    // Eventos de time (xtreino-tokens) abrem o modal de equipe
+    if (eventType === 'xtreino-tokens' || cfg.eventType === 'xtreino-tokens') {
+        if (typeof window.abrirModalEquipe === 'function') window.abrirModalEquipe(eventType);
+        return;
+    }
+
     // Pré-aquecer a Netlify Function para eliminar o cold start no pagamento
     // (dispara OPTIONS em background — o usuário ainda vai preencher o formulário)
     try {
@@ -9108,6 +9114,7 @@ async function loadDynamicEvents() {
             const ev = d.data();
             const _isFreeEv = !ev.preco || ev.entrada === 'GRÁTIS' || Number(ev.preco) === 0;
             // Registrar no scheduleConfig para openScheduleModal funcionar com eventos dinâmicos
+            const _isEquipeEvent = ev.eventType === 'xtreino-tokens';
             scheduleConfig[d.id] = {
                 label: ev.name || 'Evento',
                 price: Number(ev.preco) || 0,
@@ -9118,7 +9125,7 @@ async function loadDynamicEvents() {
                 modo: (ev.modo || '').toUpperCase(),
                 category: ev.category || '',
                 regras: ev.regras || '',
-                // Padrão: segunda a sexta, 14h-23h, sem data de corte automática
+                eventType: ev.eventType || '',
                 allowedWeekdays: [1, 2, 3, 4, 5],
                 slots: ['14h','15h','16h','17h','18h','19h','20h','21h','22h','23h'],
             };
@@ -9129,10 +9136,11 @@ async function loadDynamicEvents() {
             const formatoStr = (ev.formato || '').toUpperCase();
             const modoStr = (ev.modo || '').toUpperCase();
             const tipoStr = (ev.tipo || '').toUpperCase();
-            const btnLabel = ev.entrada === 'PAGO' && ev.preco ? `INSCREVER — ${preco}` : 'RESERVAR VAGA';
+            const btnLabel = _isEquipeEvent ? 'INSCREVER TIME' : (ev.entrada === 'PAGO' && ev.preco ? `INSCREVER — ${preco}` : 'RESERVAR VAGA');
+            const btnOnclick = _isEquipeEvent ? `abrirModalEquipe('${d.id}')` : `openScheduleModal('${d.id}')`;
             const hasRegras = !!(ev.regras && ev.regras.trim());
             const btnHtml = `<div class="flex flex-col gap-2">
-                <button onclick="openScheduleModal('${d.id}')" class="w-full btn-primary py-2 rounded-lg font-semibold">${btnLabel}</button>
+                <button onclick="${btnOnclick}" class="w-full btn-primary py-2 rounded-lg font-semibold">${btnLabel}</button>
                 <div class="flex gap-2">
                     <a href="${_eventoUrl(ev.eventType, d.id)}" class="flex-1 text-center border border-gray-300 hover:border-orange-400 text-gray-600 hover:text-orange-600 py-2 rounded-lg font-semibold text-sm transition-colors block">
                         <i class="fas fa-info-circle mr-1"></i>Ver Detalhes
