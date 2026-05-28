@@ -315,7 +315,7 @@
             </div>
             
             <!-- Container dinâmico para os produtos -->
-            <div id="productsContainer" class="grid md:grid-cols-2 lg:grid-cols-5 gap-6">
+            <div id="productsContainer" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <!-- Os produtos serão carregados aqui via JavaScript -->
             </div>
         </div>
@@ -1474,12 +1474,9 @@
             b.classList.toggle('active', b.dataset.tab === tabId);
         });
 
-        // Loja: recarregar produtos se container estiver vazio ou com erro
+        // Loja: recarregar produtos sempre que entrar na aba (garante imagens no desktop)
         if (tabId === 'loja') {
-            var pc = document.getElementById('productsContainer');
-            if (pc && (pc.children.length === 0 || pc.querySelector('.text-red-500'))) {
-                if (typeof loadProductsFromFirestore === 'function') loadProductsFromFirestore();
-            }
+            if (typeof loadProductsFromFirestore === 'function') loadProductsFromFirestore();
         }
 
         window.scrollTo({ top: 0, behavior: 'smooth' });
