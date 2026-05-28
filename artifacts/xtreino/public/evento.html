@@ -499,6 +499,16 @@ async function loadInscritos(evId) {
         const allDocs = [];
         snaps.forEach(snap => snap.docs.forEach(d => { if (!seen.has(d.id)) { seen.add(d.id); allDocs.push(d); } }));
 
+        // Buscar logos dos times direto do Firestore (fallback para inscrições antigas sem teamLogoUrl)
+        const teamsLogoMap = {};
+        try {
+            const teamsSnap = await getDocs(collection(_db, 'teams'));
+            teamsSnap.docs.forEach(td => {
+                const t = td.data();
+                if (t.nome && t.logoUrl) teamsLogoMap[t.nome.toLowerCase().trim()] = t.logoUrl;
+            });
+        } catch(_) {}
+
         // Data de hoje em horário de Brasília (UTC-3)
         const _brNow = new Date(Date.now() - 3 * 60 * 60 * 1000);
         const todayStr = _brNow.toISOString().split('T')[0];
@@ -572,8 +582,9 @@ async function loadInscritos(evId) {
                         slotNum++;
                         const teamName = r.teamName || r.email || '—';
                         const leaderName = r.leaderName && r.leaderName !== r.teamName ? r.leaderName : null;
-                        const logoHtml = r.teamLogoUrl
-                            ? `<img src="${r.teamLogoUrl}" alt="logo" class="w-9 h-9 rounded-lg object-cover flex-shrink-0 border border-slate-500">`
+                        const _logoUrl = r.teamLogoUrl || teamsLogoMap[(teamName||'').toLowerCase().trim()] || null;
+                        const logoHtml = _logoUrl
+                            ? `<img src="${_logoUrl}" alt="logo" class="w-9 h-9 rounded-lg object-cover flex-shrink-0 border border-slate-500">`
                             : `<span class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-slate-600 text-slate-400 flex-shrink-0 text-xs"><i class="fas fa-shield-alt"></i></span>`;
                         return `<div class="bg-slate-700 rounded-xl px-4 py-3 border border-slate-600">
                             <div class="flex items-center gap-3">
