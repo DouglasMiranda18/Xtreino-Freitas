@@ -3633,7 +3633,10 @@ window.showWarningToast = function(message, title = 'Atenção') {
           : '<span class="text-xs bg-green-100 text-green-700 border border-green-300 rounded px-1.5 py-0.5 ml-1">✓ Pago</span>';
         const row = document.createElement('div');
         row.className = `flex items-center justify-between border-b py-2 ${isPending ? 'bg-yellow-50' : ''}`;
-        row.innerHTML = `<div class="text-sm"><div class="font-semibold flex items-center flex-wrap gap-1">${r.teamName||r.email||'-'}${statusBadge}</div><div class="text-gray-500">${r.contact||r.phone||''}</div></div>
+        const logoHtml = r.teamLogoUrl
+          ? `<img src="${r.teamLogoUrl}" class="w-6 h-6 rounded object-cover flex-shrink-0">`
+          : '';
+        row.innerHTML = `<div class="text-sm"><div class="font-semibold flex items-center flex-wrap gap-1">${logoHtml}${r.teamName||r.email||'-'}${statusBadge}</div><div class="text-gray-500">${r.contact||r.phone||''}</div></div>
           <button class="px-2 py-1 bg-red-600 text-white rounded text-xs" data-remove-reg-id="${d.id}">Remover</button>`;
         list.appendChild(row);
       });
