@@ -1051,7 +1051,7 @@ window.confirmarInscricaoEquipe = function() {
     fecharModalEquipe();
     showToast('success',`Time "${_equipeAtual.nome}" confirmado! Redirecionando para escolher o horário…`);
     const eid = window._currentEventId;
-    setTimeout(()=>{ window.location.href = eid ? `index.html?openEvent=${encodeURIComponent(eid)}#eventos` : 'index.html#eventos'; }, 1400);
+    setTimeout(()=>{ window.location.href = eid ? `index.html?openEvent=${encodeURIComponent(eid)}&fromTeam=1#eventos` : 'index.html#eventos'; }, 1400);
 };
 </script>
 </body>
