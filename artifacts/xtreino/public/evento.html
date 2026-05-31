@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Evento - X-TREINO FREITAS</title>
+    <title>Evento - PLATAFORMA FREITAS</title>
     <link rel="icon" type="image/png" href="assets/images/Logo - Xtreino Freitas.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -28,7 +28,7 @@
         <a href="index.html" class="flex items-center gap-2 text-slate-300 hover:text-white transition-colors">
             <i class="fas fa-arrow-left"></i>
             <img src="assets/images/Logo - Xtreino Freitas.png" alt="Logo" class="h-9 w-9 rounded-lg object-contain">
-            <span class="font-bold text-sm hidden sm:block">X-TREINO FREITAS</span>
+            <span class="font-bold text-sm hidden sm:block">PLATAFORMA FREITAS</span>
         </a>
         <div class="flex-1"></div>
         <button onclick="goRegister()" id="headerRegBtn" class="hidden bg-orange-600 hover:bg-orange-700 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors">
@@ -366,7 +366,7 @@ async function loadEvent() {
 
         // Title & meta
         document.getElementById('evName').textContent = ev.name || 'Evento';
-        document.title = (ev.name || 'Evento') + ' — X-TREINO FREITAS';
+        document.title = (ev.name || 'Evento') + ' — PLATAFORMA FREITAS';
 
         const catColors = { camp:'bg-orange-600', xtreino:'bg-blue-600', diario:'bg-green-600' };
         const badges = [];
