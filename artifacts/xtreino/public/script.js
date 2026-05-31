@@ -5213,6 +5213,7 @@ function openScheduleModal(eventType) {
     teamCounter = 0;
 
     modal.dataset.eventType = eventType;
+    window._currentScheduleEventType = eventType;
     document.getElementById('schedPrice').textContent = cfg.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     document.getElementById('schedEventType').textContent = cfg.label;
 
@@ -5793,9 +5794,9 @@ async function renderScheduleTimes() {
     if (!timesWrap) return;
     timesWrap.innerHTML = '';
     const date = document.getElementById('schedDate').value;
-    // eventType do modal atual
+    // eventType do modal atual (fallback para variável global em caso de race condition)
     const modal = document.getElementById('scheduleModal');
-    const eventType = modal?.dataset?.eventType || null;
+    const eventType = modal?.dataset?.eventType || window._currentScheduleEventType || null;
 
     // Valida data antes de renderizar
     if (!isValidScheduleDate(date, eventType)) {
