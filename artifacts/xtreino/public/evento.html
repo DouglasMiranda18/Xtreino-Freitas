@@ -527,13 +527,17 @@ async function loadInscritos(evId) {
         // Normaliza schedule para chave de agrupamento: "Terça - 21h" / "21:00" / "21h" → "21h"
         const normSched = s => {
             if (!s || s === '—') return s || '—';
-            const str = String(s);
-            // Formato HH:MM (admin board usa "21:00") → "21h"
-            const mColon = str.match(/\b(\d{1,2}):(\d{2})\b/);
-            if (mColon) return mColon[1] + 'h';
-            // Formato com sufixo "h" → "21h"
-            const mH = str.match(/(\d{1,2}h\S*)/i);
-            return mH ? mH[1].toLowerCase() : str.trim();
+            const str = String(s).trim();
+            // Formato HH:MM (ex: "21:00") → "21h"
+            const mColon = str.match(/(\d{1,2}):(\d{2})/);
+            if (mColon) return `${parseInt(mColon[1], 10)}h`;
+            // Formato Nh / NNh / N h / NN h (com ou sem espaço antes do h)
+            const mH = str.match(/(\d{1,2})\s*h/i);
+            if (mH) return `${parseInt(mH[1], 10)}h`;
+            // Número puro no final da string (ex: "Domingo 21")
+            const mNum = str.match(/(\d{1,2})\s*$/);
+            if (mNum) return `${parseInt(mNum[1], 10)}h`;
+            return str;
         };
         // Monta label com o dia real de hoje: "Domingo - 21h"
         const buildLabel = s => {
