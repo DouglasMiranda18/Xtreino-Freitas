@@ -5616,7 +5616,7 @@ function initScheduleDate() {
     const modal = document.getElementById('scheduleModal');
     const eventType = modal?.dataset?.eventType || null;
     const dow = today.getDay();
-    if (dow === 0) today.setDate(today.getDate() + 1); // domingo → sempre vai para segunda
+    if (dow === 0 && eventType !== 'xtreino-tokens') today.setDate(today.getDate() + 1); // domingo → segunda (exceto gratuito)
     else if (dow === 6 && eventType !== 'xtreino-tokens') today.setDate(today.getDate() + 2); // sábado → segunda (exceto gratuito)
     const y = today.getFullYear();
     const m = String(today.getMonth() + 1).padStart(2, '0');
@@ -5733,11 +5733,9 @@ function isValidScheduleDate(dateStr, eventType) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Xtreino Tokens (gratuito): permite segunda a sábado
+    // Xtreino Tokens (gratuito): permite todos os dias da semana
     if (eventType === 'xtreino-tokens') {
-        if (date < today) return false;
-        const dow = date.getDay();
-        return dow >= 1 && dow <= 6;
+        return date >= today;
     }
 
     // Regras específicas por evento
@@ -5803,7 +5801,7 @@ async function renderScheduleTimes() {
     if (!isValidScheduleDate(date, eventType)) {
         let msg = 'Agendamentos apenas de segunda a sexta-feira e não em datas passadas.';
         if (eventType === 'xtreino-tokens') {
-            msg = 'Agendamentos de segunda a sábado e não em datas passadas.';
+            msg = 'Agendamentos não disponíveis em datas passadas.';
         } else if (eventType === 'camp-freitas') {
             msg = 'Camp Freitas (Semifinal) disponível somente em 22/11 e 23/11 às 17h.';
         } else if (eventType === 'camp-final') {
