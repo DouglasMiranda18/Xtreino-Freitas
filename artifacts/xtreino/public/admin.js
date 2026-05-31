@@ -12180,15 +12180,12 @@ async function openEventSlotsModal(eventId, eventName) {
                 // Sem slot: usa createdAt
                 return (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0);
             });
-            // Deduplicar: mesmo slotNumber OU mesmo nome de time → manter apenas primeiro
-            const seenSlots = new Set();
+            // Deduplicar apenas por nome de time (igual ao site/inscritos)
+            // Não deduplica por slotNumber para não ocultar times válidos
             const seenTeams = new Set();
             bySchedule[sched] = arr.filter(r => {
-                const slotKey = r.slot != null ? String(r.slot) : (r.slotNumber != null ? String(r.slotNumber) : null);
-                const teamKey = (r.teamName || '').toLowerCase().trim();
-                if (slotKey !== null && seenSlots.has(slotKey)) return false;
+                const teamKey = (r.teamName || r.email || '').toLowerCase().trim();
                 if (teamKey && seenTeams.has(teamKey)) return false;
-                if (slotKey !== null) seenSlots.add(slotKey);
                 if (teamKey) seenTeams.add(teamKey);
                 return true;
             });
