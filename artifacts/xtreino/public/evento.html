@@ -553,10 +553,17 @@ async function loadInscritos(evId) {
             bySchedMap[schedKey].regs.push(r);
         });
 
-        // Ordena cada grupo por createdAt crescente (base para numeração)
+        // Ordena cada grupo por slot/slotNumber crescente; fallback: createdAt crescente
         const schedKeys = Object.keys(bySchedMap).sort();
         for (const sk of schedKeys) {
-            bySchedMap[sk].regs.sort((a, b) => (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0));
+            bySchedMap[sk].regs.sort((a, b) => {
+                const sa = a.slot != null ? Number(a.slot) : (a.slotNumber != null ? Number(a.slotNumber) : null);
+                const sb = b.slot != null ? Number(b.slot) : (b.slotNumber != null ? Number(b.slotNumber) : null);
+                if (sa !== null && sb !== null) return sa - sb;
+                if (sa !== null) return -1;
+                if (sb !== null) return 1;
+                return (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0);
+            });
         }
         const finalSchedKeys = schedKeys;
 
