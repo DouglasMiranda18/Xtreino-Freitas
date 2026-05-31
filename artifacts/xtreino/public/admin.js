@@ -12144,11 +12144,19 @@ async function openEventSlotsModal(eventId, eventName) {
             });
         } catch(_) {}
 
-        // Agrupar por horário
+        // Normaliza formato de horário: "21:00" → "21h", "09:00" → "9h"
+        const normSched = s => {
+            if (!s) return '—';
+            const m = String(s).match(/^(\d{1,2}):(\d{2})$/);
+            if (m) return `${parseInt(m[1], 10)}h`;
+            return String(s);
+        };
+
+        // Agrupar por horário (normalizado)
         const bySchedule = {};
         docs.forEach(d => {
             const r = d.data();
-            const sched = r.schedule || '—';
+            const sched = normSched(r.schedule);
             if (!bySchedule[sched]) bySchedule[sched] = [];
             bySchedule[sched].push(r);
         });
