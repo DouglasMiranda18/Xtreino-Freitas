@@ -592,7 +592,7 @@
 /* ==================== FOOTER MOBILE ==================== */
 @media (max-width: 767px) {
     footer .grid.md\:grid-cols-4 {
-        grid-template-columns: 1fr 1fr !important;
+        grid-template-columns: 1fr !important;
         gap: 1.5rem !important;
     }
     footer .border-t.border-gray-300 {
