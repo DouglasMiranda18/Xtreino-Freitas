@@ -7035,11 +7035,12 @@ async function submitSchedule(e, useTokens = false) {
 
         // Eventos de time (xtreino-tokens) vêm sem formulário DOM — usar dados do time confirmado
         const _isTeamEvt = rawEventType === 'xtreino-tokens' || scheduleConfig[rawEventType]?.eventType === 'xtreino-tokens';
-        if (_isTeamEvt && teamsData.length === 0 && _equipeAtual) {
+        if (_isTeamEvt && teamsData.length === 0) {
+            // Fallback em cascata: _equipeAtual → perfil do usuário → string vazia
             teamsData.push({
-                name: _equipeAtual.nome || '',
-                email: _equipeAtual.email || window.currentUserProfile?.email || '',
-                phone: _equipeAtual.phone || window.currentUserProfile?.phone || ''
+                name: _equipeAtual?.nome || window.currentUserProfile?.teamName || window.currentUserProfile?.name || '',
+                email: _equipeAtual?.email || window.currentUserProfile?.email || '',
+                phone: _equipeAtual?.phone || window.currentUserProfile?.phone || ''
             });
         }
 
