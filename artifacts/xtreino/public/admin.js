@@ -1094,7 +1094,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
           const msgEl = document.getElementById('addTeamMsg');
           const dateEl = document.getElementById('boardDate');
           const typeEl = document.getElementById('boardEventType');
-          const schedule = (hourEl?.value || '').trim();
+          const _rawHour = (hourEl?.value || '').trim();
+          // Normaliza "21:00" → "21h" para ficar consistente com inscrições normais
+          const schedule = _rawHour.replace(/^(\d{1,2}):(\d{2})$/, (_, h) => h + 'h');
           const teamName = (teamEl?.value || '').trim();
           const contact = (contactEl?.value || '').trim();
           const clientEmail = (emailEl?.value || '').trim().toLowerCase();
