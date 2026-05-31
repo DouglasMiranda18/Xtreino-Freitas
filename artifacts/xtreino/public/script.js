@@ -5612,9 +5612,12 @@ function initScheduleDate() {
     const input = document.getElementById('schedDate');
     const today = new Date();
     // Avançar para próximo dia útil se hoje é fim de semana
+    // Exceção: xtreino-tokens (gratuito) permite sábado
+    const modal = document.getElementById('scheduleModal');
+    const eventType = modal?.dataset?.eventType || null;
     const dow = today.getDay();
-    if (dow === 0) today.setDate(today.getDate() + 1); // domingo → segunda
-    else if (dow === 6) today.setDate(today.getDate() + 2); // sábado → segunda
+    if (dow === 0) today.setDate(today.getDate() + 1); // domingo → sempre vai para segunda
+    else if (dow === 6 && eventType !== 'xtreino-tokens') today.setDate(today.getDate() + 2); // sábado → segunda (exceto gratuito)
     const y = today.getFullYear();
     const m = String(today.getMonth() + 1).padStart(2, '0');
     const d = String(today.getDate()).padStart(2, '0');
@@ -5730,6 +5733,13 @@ function isValidScheduleDate(dateStr, eventType) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    // Xtreino Tokens (gratuito): permite segunda a sábado
+    if (eventType === 'xtreino-tokens') {
+        if (date < today) return false;
+        const dow = date.getDay();
+        return dow >= 1 && dow <= 6;
+    }
+
     // Regras específicas por evento
     if (eventType === 'camp-freitas') {
         // Prioridade: manter suporte a semifinais já definidas
@@ -5792,7 +5802,9 @@ async function renderScheduleTimes() {
     // Valida data antes de renderizar
     if (!isValidScheduleDate(date, eventType)) {
         let msg = 'Agendamentos apenas de segunda a sexta-feira e não em datas passadas.';
-        if (eventType === 'camp-freitas') {
+        if (eventType === 'xtreino-tokens') {
+            msg = 'Agendamentos de segunda a sábado e não em datas passadas.';
+        } else if (eventType === 'camp-freitas') {
             msg = 'Camp Freitas (Semifinal) disponível somente em 22/11 e 23/11 às 17h.';
         } else if (eventType === 'camp-final') {
             msg = 'Vaga Direto na Final disponível apenas em 28/11 às 18h.';
