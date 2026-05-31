@@ -512,6 +512,8 @@ async function loadInscritos(evId) {
         // Data de hoje em horário de Brasília (UTC-3)
         const _brNow = new Date(Date.now() - 3 * 60 * 60 * 1000);
         const todayStr = _brNow.toISOString().split('T')[0];
+        const _diasSemana = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+        const _diaHoje = _diasSemana[_brNow.getDay()]; // ex: "Domingo"
 
         const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
         const valid = allDocs.filter(d => validStatuses.has(d.data().status));
@@ -528,6 +530,12 @@ async function loadInscritos(evId) {
             const m = String(s).match(/(\d{1,2}h\S*)/i);
             return m ? m[1].toLowerCase() : String(s).trim();
         };
+        // Monta label com o dia real de hoje: "Domingo - 21h"
+        const buildLabel = s => {
+            const horario = normSched(s);
+            if (!horario || horario === '—') return horario || '—';
+            return `${_diaHoje} - ${horario}`;
+        };
         const fmtDate = d => d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d.split('-').reverse().join('/') : (d || '');
 
         // Agrupa TODOS os registros por horário normalizado (sem filtro de data ainda)
@@ -536,7 +544,7 @@ async function loadInscritos(evId) {
         valid.forEach(d => {
             const r = { ...d.data(), _dbId: d.id };
             const schedKey = normSched(r.schedule || '—');
-            if (!bySchedMap[schedKey]) bySchedMap[schedKey] = { label: r.schedule || '—', regs: [] };
+            if (!bySchedMap[schedKey]) bySchedMap[schedKey] = { label: buildLabel(r.schedule || '—'), regs: [] };
             bySchedMap[schedKey].regs.push(r);
         });
 
