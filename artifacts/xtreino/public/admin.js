@@ -12149,12 +12149,15 @@ async function openEventSlotsModal(eventId, eventName) {
         const normSched = s => {
             if (!s) return '—';
             const str = String(s).trim();
-            // Extrai padrão HH:MM
+            // Extrai padrão HH:MM (ex: "21:00", "09:30")
             const mColon = str.match(/(\d{1,2}):(\d{2})/);
             if (mColon) return `${parseInt(mColon[1], 10)}h`;
-            // Extrai padrão Nh ou NNh (possivelmente precedido de dia da semana)
-            const mH = str.match(/(\d{1,2})h/i);
+            // Extrai padrão Nh, NNh, N h, NN h (com ou sem espaço antes do h)
+            const mH = str.match(/(\d{1,2})\s*h/i);
             if (mH) return `${parseInt(mH[1], 10)}h`;
+            // Extrai número puro no final (ex: "Domingo 21")
+            const mNum = str.match(/(\d{1,2})\s*$/);
+            if (mNum) return `${parseInt(mNum[1], 10)}h`;
             return str;
         };
 
@@ -12305,8 +12308,10 @@ async function repairEventSlots() {
             const str = String(s).trim();
             const mColon = str.match(/(\d{1,2}):(\d{2})/);
             if (mColon) return `${parseInt(mColon[1], 10)}h`;
-            const mH = str.match(/(\d{1,2})h/i);
+            const mH = str.match(/(\d{1,2})\s*h/i);
             if (mH) return `${parseInt(mH[1], 10)}h`;
+            const mNum = str.match(/(\d{1,2})\s*$/);
+            if (mNum) return `${parseInt(mNum[1], 10)}h`;
             return str;
         };
 
