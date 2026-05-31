@@ -12299,21 +12299,35 @@ async function repairEventSlots() {
             return;
         }
 
-        // Agrupar por horário
+        // Normaliza schedule (mesma lógica do modal de exibição)
+        const _normSched = s => {
+            if (!s) return '—';
+            const str = String(s).trim();
+            const mColon = str.match(/(\d{1,2}):(\d{2})/);
+            if (mColon) return `${parseInt(mColon[1], 10)}h`;
+            const mH = str.match(/(\d{1,2})h/i);
+            if (mH) return `${parseInt(mH[1], 10)}h`;
+            return str;
+        };
+
+        // Agrupar por horário NORMALIZADO (evita grupos separados p/ "21h" e "Domingo 21h")
         const bySchedule = {};
         docs.forEach(d => {
             const r = d.data();
-            const sched = r.schedule || '—';
+            const sched = _normSched(r.schedule);
             if (!bySchedule[sched]) bySchedule[sched] = [];
             bySchedule[sched].push({ id: d.id, data: r });
         });
 
-        // Dentro de cada horário, ordenar por createdAt crescente → slot mais antigo = #1
+        // Dentro de cada horário, ordenar por slotNumber existente → createdAt como fallback
         Object.values(bySchedule).forEach(arr => {
             arr.sort((a, b) => {
-                const ta = a.data.createdAt?.seconds ?? 0;
-                const tb = b.data.createdAt?.seconds ?? 0;
-                return ta - tb;
+                const sa = a.data.slot != null ? Number(a.data.slot) : (a.data.slotNumber != null ? Number(a.data.slotNumber) : null);
+                const sb = b.data.slot != null ? Number(b.data.slot) : (b.data.slotNumber != null ? Number(b.data.slotNumber) : null);
+                if (sa !== null && sb !== null) return sa - sb;
+                if (sa !== null) return -1;
+                if (sb !== null) return 1;
+                return (a.data.createdAt?.seconds ?? 0) - (b.data.createdAt?.seconds ?? 0);
             });
         });
 
