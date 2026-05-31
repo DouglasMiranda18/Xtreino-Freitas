@@ -5612,13 +5612,7 @@ function clearSelectedDates() {
 function initScheduleDate() {
     const input = document.getElementById('schedDate');
     const today = new Date();
-    // Avançar para próximo dia útil se hoje é fim de semana
-    // Exceção: xtreino-tokens (gratuito) permite sábado
-    const modal = document.getElementById('scheduleModal');
-    const eventType = modal?.dataset?.eventType || null;
-    const dow = today.getDay();
-    if (dow === 0 && eventType !== 'xtreino-tokens') today.setDate(today.getDate() + 1); // domingo → segunda (exceto gratuito)
-    else if (dow === 6 && eventType !== 'xtreino-tokens') today.setDate(today.getDate() + 2); // sábado → segunda (exceto gratuito)
+    // Sempre mostra a data de hoje — a validação de dia da semana fica a cargo de renderScheduleTimes/isValidScheduleDate
     const y = today.getFullYear();
     const m = String(today.getMonth() + 1).padStart(2, '0');
     const d = String(today.getDate()).padStart(2, '0');
