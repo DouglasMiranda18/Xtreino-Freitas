@@ -12144,12 +12144,18 @@ async function openEventSlotsModal(eventId, eventName) {
             });
         } catch(_) {}
 
-        // Normaliza formato de horário: "21:00" → "21h", "09:00" → "9h"
+        // Normaliza formato de horário para comparação uniforme:
+        // "21:00" → "21h", "Domingo 21h" → "21h", "Segunda 14:00" → "14h"
         const normSched = s => {
             if (!s) return '—';
-            const m = String(s).match(/^(\d{1,2}):(\d{2})$/);
-            if (m) return `${parseInt(m[1], 10)}h`;
-            return String(s);
+            const str = String(s).trim();
+            // Extrai padrão HH:MM
+            const mColon = str.match(/(\d{1,2}):(\d{2})/);
+            if (mColon) return `${parseInt(mColon[1], 10)}h`;
+            // Extrai padrão Nh ou NNh (possivelmente precedido de dia da semana)
+            const mH = str.match(/(\d{1,2})h/i);
+            if (mH) return `${parseInt(mH[1], 10)}h`;
+            return str;
         };
 
         // Agrupar por horário (normalizado)
