@@ -5784,9 +5784,14 @@ function isValidScheduleDate(dateStr, eventType) {
     // Não pode ser no passado (padrão)
     if (date < today) return false;
 
-    // Só segunda a sexta (1-5)
-    const dayOfWeek = date.getDay();
-    return dayOfWeek >= 1 && dayOfWeek <= 5;
+    // Modo Liga e Semanal Freitas: somente segunda a sexta
+    if (eventType === 'modo-liga' || eventType === 'semanal-freitas') {
+        const dayOfWeek = date.getDay();
+        return dayOfWeek >= 1 && dayOfWeek <= 5;
+    }
+
+    // Por padrão: qualquer dia não-passado é válido
+    return true;
 }
 
 async function renderScheduleTimes() {
