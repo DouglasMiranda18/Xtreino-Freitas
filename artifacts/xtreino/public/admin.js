@@ -12170,11 +12170,15 @@ async function openEventSlotsModal(eventId, eventName) {
         // Ordenar cada horário por slot crescente (null vai pro final) e deduplicar
         Object.keys(bySchedule).forEach(sched => {
             let arr = bySchedule[sched];
-            // Ordenar por slot/slotNumber crescente
+            // Ordenar por slot/slotNumber crescente; fallback: createdAt crescente
             arr.sort((a, b) => {
-                const sa = a.slot != null ? Number(a.slot) : (a.slotNumber != null ? Number(a.slotNumber) : Infinity);
-                const sb = b.slot != null ? Number(b.slot) : (b.slotNumber != null ? Number(b.slotNumber) : Infinity);
-                return sa - sb;
+                const sa = a.slot != null ? Number(a.slot) : (a.slotNumber != null ? Number(a.slotNumber) : null);
+                const sb = b.slot != null ? Number(b.slot) : (b.slotNumber != null ? Number(b.slotNumber) : null);
+                if (sa !== null && sb !== null) return sa - sb;
+                if (sa !== null) return -1;
+                if (sb !== null) return 1;
+                // Sem slot: usa createdAt
+                return (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0);
             });
             // Deduplicar: mesmo slotNumber OU mesmo nome de time → manter apenas primeiro
             const seenSlots = new Set();
