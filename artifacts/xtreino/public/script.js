@@ -2406,6 +2406,9 @@ async function payCurrentProductWithTokens() {
         // Debitar tokens
         const ok = await spendTokens(total);
         if (!ok) { alert('Não foi possível debitar os tokens.'); return; }
+        // Capturar código de afiliado ativo
+        const _tokenAffCode = getActiveAffiliateCode(appliedCoupon?.affiliateId || null);
+        console.log('[Afiliado DEBUG tokens] affiliateId do cupom:', appliedCoupon?.affiliateId, '| localStorage ref:', localStorage.getItem('xf_affiliate_ref'), '| _tokenAffCode:', _tokenAffCode);
         // Criar pedido pago
         const { addDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const orderData = {
@@ -2426,12 +2429,16 @@ async function payCurrentProductWithTokens() {
             uid: window.firebaseAuth?.currentUser?.uid,
             productId: productId,
             productOptions: productOptions,
+            affiliateCode: _tokenAffCode || null,
             shippingStatus: (productId === 'camisa') ? 'pending' : undefined,
             createdAt: new Date(),
             timestamp: Date.now(),
             type: 'digital_product'
         };
         const docRef = await addDoc(collection(window.firebaseDb, 'orders'), orderData);
+        if (_tokenAffCode) {
+            try { await createPendingAffiliateSale(docRef.id, _tokenAffCode, orderData, 'product'); } catch (_) {}
+        }
         if (productId === 'passe-booyah') {
             _notifyAdminBooyah(orderData.customerName, orderData.customer, productOptions.playerId, docRef.id);
         }
@@ -2835,6 +2842,7 @@ async function handlePurchase(event) {
 
     // Informações do cupom aplicado
     const activeAffiliateCode = getActiveAffiliateCode(appliedCoupon?.affiliateId || null);
+    console.log('[Afiliado DEBUG MP] affiliateId do cupom:', appliedCoupon?.affiliateId, '| localStorage ref:', localStorage.getItem('xf_affiliate_ref'), '| activeAffiliateCode:', activeAffiliateCode);
     const couponInfo = appliedCoupon ? {
         code: appliedCoupon.code,
         discountType: appliedCoupon.discountType,
@@ -3079,66 +3087,75 @@ async function handlePurchase(event) {
 }
 
 async function createPendingAffiliateSale(orderId, affiliateCode, orderData, saleType) {
-    
-
-    if (!affiliateCode || !orderId) {
-        
-        return;
-    }
+    if (!affiliateCode || !orderId) return;
+    console.log('[Afiliado] Iniciando registro de comissão:', { orderId, affiliateCode, saleType });
 
     try {
         const { doc, getDoc, collection, query, where, getDocs, addDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const db = window.firebaseDb;
-        
 
-        const usersRef = collection(db, 'users');
+        // Busca perfil do afiliado para obter taxa de comissão
+        let affId = affiliateCode;
+        let commissionRate = 10; // padrão seguro
 
-        // Busca por UID
-        const affDocById = await getDoc(doc(usersRef, affiliateCode));
-        
+        try {
+            const usersRef = collection(db, 'users');
+            const affDocById = await getDoc(doc(usersRef, affiliateCode));
 
-        let affDoc = affDocById;
-        if (!affDoc.exists()) {
-            // Busca por email
-            
-            const q = query(usersRef, where('email', '==', affiliateCode));
-            const snap = await getDocs(q);
-            affDoc = snap.empty ? null : snap.docs[0];
-            
+            if (affDocById.exists()) {
+                const d = affDocById.data();
+                commissionRate = saleType === 'event'
+                    ? (d.commissionRateEvents || d.commissionRate || 10)
+                    : (d.commissionRateProducts || d.commissionRate || 10);
+                console.log('[Afiliado] Perfil lido, taxa:', commissionRate + '%');
+            } else {
+                // Fallback por email
+                try {
+                    const q = query(usersRef, where('email', '==', affiliateCode));
+                    const snap = await getDocs(q);
+                    if (!snap.empty) {
+                        const d = snap.docs[0].data();
+                        affId = snap.docs[0].id;
+                        commissionRate = saleType === 'event'
+                            ? (d.commissionRateEvents || d.commissionRate || 10)
+                            : (d.commissionRateProducts || d.commissionRate || 10);
+                        console.log('[Afiliado] Perfil por email, taxa:', commissionRate + '%');
+                    } else {
+                        console.warn('[Afiliado] Perfil não encontrado — usando taxa padrão 10%');
+                    }
+                } catch (_) {
+                    console.warn('[Afiliado] Sem permissão para buscar por email — usando taxa padrão 10%');
+                }
+            }
+        } catch (readErr) {
+            console.warn('[Afiliado] Sem permissão para ler perfil — usando taxa padrão 10%:', readErr?.code);
+            // NÃO abortar — prosseguir com taxa padrão
         }
 
-        if (!affDoc || !affDoc.exists()) {
-            
-            return;
-        }
-
-        const affData = affDoc.data();
-        const affId = affDoc.id;
-        const commissionRate = saleType === 'event'
-            ? (affData.commissionRateEvents || affData.commissionRate || 10)
-            : (affData.commissionRateProducts || affData.commissionRate || 10);
         const saleValue = Number(orderData.amount || 0);
         const commissionAmount = (saleValue * commissionRate) / 100;
-        
 
-        // Verificação de duplicata
         const salesRef = collection(db, 'affiliate_sales');
-        const dupQ = query(salesRef, where('orderId', '==', orderId), where('affiliateId', '==', affId));
-        const dupSnap = await getDocs(dupQ);
-        
 
-        if (!dupSnap.empty) {
-            
-            return;
+        // Verificação de duplicata (best-effort)
+        try {
+            const dupQ = query(salesRef, where('orderId', '==', orderId), where('affiliateId', '==', affId));
+            const dupSnap = await getDocs(dupQ);
+            if (!dupSnap.empty) {
+                console.log('[Afiliado] Duplicata detectada, ignorando');
+                return;
+            }
+        } catch (_dupErr) {
+            // sem permissão de leitura — prosseguir
         }
 
-        // Criação do documento
-        await addDoc(salesRef, {
+        // Criar registro de comissão
+        const saleDoc = await addDoc(salesRef, {
             affiliateId: affId,
             orderId,
-            customerEmail: orderData.customer || null,
+            customerEmail: orderData.customer || orderData.buyerEmail || null,
             customerName: orderData.customerName || null,
-            productName: orderData.title || '',
+            productName: orderData.title || orderData.item || '',
             saleValue,
             commissionRate,
             commissionAmount,
@@ -3146,9 +3163,10 @@ async function createPendingAffiliateSale(orderId, affiliateCode, orderData, sal
             status: 'pending',
             createdAt: new Date()
         });
-        
+        console.log('[Afiliado] Comissão registrada com sucesso! Doc:', saleDoc.id);
+
     } catch (error) {
-        
+        console.error('[Afiliado] ERRO ao registrar comissão:', error?.code || error?.message, error);
     }
 }
 
@@ -6787,6 +6805,11 @@ async function handleProductPurchase(productId, cfg) {
                 externalRef = `digital_${docRef.id}`;
                 await updateDoc(docRef, { external_reference: externalRef });
                 try { sessionStorage.setItem('lastExternalRef', externalRef); } catch (_) { }
+
+                // Registrar comissão de afiliado imediatamente (não esperar redirect do MP)
+                if (orderData.affiliateCode) {
+                    try { await createPendingAffiliateSale(docRef.id, orderData.affiliateCode, orderData, 'product'); } catch (_) {}
+                }
             } catch (firebaseError) {
                 
                 // Continua com externalRef gerado acima
@@ -7946,8 +7969,8 @@ async function checkPaymentStatus(preferenceId) {
         // Marcar que estamos verificando um pagamento real
         sessionStorage.setItem('checkingPayment', 'true');
 
-        // Fazer requisição para o API server interno que verifica o status
-        const response = await fetch('/api/check-payment-status', {
+        // Verificar status do pagamento via Netlify function
+        const response = await fetch('/.netlify/functions/check-pix-status', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -8043,22 +8066,13 @@ async function processSuccessfulPayment(externalRef = null) {
             }
 
             if (orderDoc && orderData2) {
-                if (orderData2.status !== 'paid') {
+                // Registrar comissão e cupom ANTES de tentar atualizar status
+                // (o updateDoc pode falhar por permissão, mas comissão/cupom não devem ser bloqueados)
+                if (orderData2.affiliateCode) {
                     try {
-                        await updateDoc(doc(window.firebaseDb, 'orders', orderDoc.id), {
-                            status: 'paid',
-                            paidAt: serverTimestamp()
-                        });
-                    } catch (updateErr) {
-                        console.warn('[processSuccessfulPayment] Sem permissão para atualizar status (admin precisa aprovar manualmente):', updateErr?.code || updateErr?.message);
-                        // Mostrar toast mesmo assim — pagamento foi aprovado pelo MP
-                        if (typeof showToast === 'function') {
-                            showToast('success', 'Pagamento aprovado pelo Mercado Pago! Em breve seu produto estará disponível em Minha Conta → Meus Produtos.', 'Pagamento Aprovado ✅', 10000);
-                        }
-                        return;
-                    }
+                        await createPendingAffiliateSale(orderDoc.id, orderData2.affiliateCode, orderData2, 'product');
+                    } catch (_) {}
                 }
-                // Registrar uso de cupom se houver
                 if (orderData2.couponId && orderData2.couponCode) {
                     try {
                         await recordCouponUsage(
@@ -8072,11 +8086,20 @@ async function processSuccessfulPayment(externalRef = null) {
                         );
                     } catch (_) {}
                 }
-                // Registrar comissão de afiliado se houver
-                if (orderData2.affiliateCode) {
+                // Atualizar status do pedido
+                if (orderData2.status !== 'paid') {
                     try {
-                        await createPendingAffiliateSale(orderDoc.id, orderData2.affiliateCode, orderData2, 'product');
-                    } catch (_) {}
+                        await updateDoc(doc(window.firebaseDb, 'orders', orderDoc.id), {
+                            status: 'paid',
+                            paidAt: serverTimestamp()
+                        });
+                    } catch (updateErr) {
+                        console.warn('[processSuccessfulPayment] Sem permissão para atualizar status (admin precisa aprovar manualmente):', updateErr?.code || updateErr?.message);
+                        if (typeof showToast === 'function') {
+                            showToast('success', 'Pagamento aprovado pelo Mercado Pago! Em breve seu produto estará disponível em Minha Conta → Meus Produtos.', 'Pagamento Aprovado ✅', 10000);
+                        }
+                        return;
+                    }
                 }
                 // Notificar admin para pedidos de Passe Booyah
                 if (orderData2.productId === 'passe-booyah') {
@@ -9499,7 +9522,7 @@ window.openPixModal = function(pixData, regIds, externalRef, assignedSlotsData, 
     clearInterval(_pixPollingInterval);
     _pixPollingInterval = setInterval(async function() {
         try {
-            const r = await fetch('/api/check-payment-status', {
+            const r = await fetch('/.netlify/functions/check-pix-status', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ external_reference: externalRef }),
