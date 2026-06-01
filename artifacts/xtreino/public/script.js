@@ -2847,13 +2847,7 @@ async function handlePurchase(event) {
 
     // Informações do cupom aplicado
     const activeAffiliateCode = getActiveAffiliateCode(appliedCoupon?.affiliateId || null);
-    console.log('[Afiliado DEBUG MP] affiliateId do cupom:', appliedCoupon?.affiliateId, '| localStorage ref:', localStorage.getItem('xf_affiliate_ref'), '| activeAffiliateCode:', activeAffiliateCode);
-    // Toast de diagnóstico visível (remover após confirmar funcionamento)
-    if (activeAffiliateCode) {
-        showToast('🔗 Afiliado detectado: …' + activeAffiliateCode.slice(-6), 3000);
-    } else {
-        showToast('⚠️ Nenhum afiliado detectado (link/cupom)', 3000);
-    }
+    console.log('[Afiliado] activeAffiliateCode:', activeAffiliateCode ? '✓ ' + activeAffiliateCode.slice(-6) : 'null');
     const couponInfo = appliedCoupon ? {
         code: appliedCoupon.code,
         discountType: appliedCoupon.discountType,
@@ -3180,12 +3174,10 @@ async function createPendingAffiliateSale(orderId, affiliateCode, orderData, sal
             status: 'pending',
             createdAt: new Date()
         });
-        console.log('[Afiliado] Comissão registrada com sucesso! Doc:', saleDoc.id);
-        if (typeof showToast === 'function') showToast('✅ Comissão de afiliado registrada!', 3000);
+        console.log('[Afiliado] Comissão registrada! Doc:', saleDoc.id);
 
     } catch (error) {
-        console.error('[Afiliado] ERRO ao registrar comissão:', error?.code || error?.message, error);
-        if (typeof showToast === 'function') showToast('❌ Erro comissão: ' + (error?.code || error?.message), 4000);
+        console.error('[Afiliado] ERRO ao registrar comissão:', error?.code || error?.message);
     }
 }
 
@@ -7374,9 +7366,8 @@ async function submitSchedule(e, useTokens = false) {
             // ── Registrar venda de afiliado para cada inscrição (se houver ref ativo) ──
             try {
                 const _affRef = getActiveAffiliateCode(appliedScheduleCoupon?.affiliateId || null);
-                console.log('[Afiliado DEBUG sched] affiliateId cupom:', appliedScheduleCoupon?.affiliateId, '| localStorage:', localStorage.getItem('xf_affiliate_ref'), '| _affRef:', _affRef);
+                console.log('[Afiliado sched]', _affRef ? '✓ ' + _affRef.slice(-6) : 'null');
                 if (_affRef) {
-                    showToast('🔗 Afiliado evento: …' + _affRef.slice(-6), 3000);
                     for (let _ai = 0; _ai < _docRefs.length; _ai++) {
                         const _p = _regPayloads[_ai];
                         await createPendingAffiliateSale(_docRefs[_ai].id, _affRef, {
@@ -7386,11 +7377,9 @@ async function submitSchedule(e, useTokens = false) {
                             customerName: _p.teamName
                         }, 'event');
                     }
-                } else {
-                    showToast('⚠️ Sem afiliado no evento (link/cupom)', 3000);
                 }
             } catch (_affErr) {
-                console.error('[Afiliado sched] erro:', _affErr);
+                console.error('[Afiliado sched] erro:', _affErr?.code || _affErr?.message);
             }
 
             if (regIds.length > 0) {
