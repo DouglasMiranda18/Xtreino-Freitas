@@ -2843,6 +2843,12 @@ async function handlePurchase(event) {
     // Informações do cupom aplicado
     const activeAffiliateCode = getActiveAffiliateCode(appliedCoupon?.affiliateId || null);
     console.log('[Afiliado DEBUG MP] affiliateId do cupom:', appliedCoupon?.affiliateId, '| localStorage ref:', localStorage.getItem('xf_affiliate_ref'), '| activeAffiliateCode:', activeAffiliateCode);
+    // Toast de diagnóstico visível (remover após confirmar funcionamento)
+    if (activeAffiliateCode) {
+        showToast('🔗 Afiliado detectado: …' + activeAffiliateCode.slice(-6), 3000);
+    } else {
+        showToast('⚠️ Nenhum afiliado detectado (link/cupom)', 3000);
+    }
     const couponInfo = appliedCoupon ? {
         code: appliedCoupon.code,
         discountType: appliedCoupon.discountType,
@@ -3164,9 +3170,11 @@ async function createPendingAffiliateSale(orderId, affiliateCode, orderData, sal
             createdAt: new Date()
         });
         console.log('[Afiliado] Comissão registrada com sucesso! Doc:', saleDoc.id);
+        if (typeof showToast === 'function') showToast('✅ Comissão de afiliado registrada!', 3000);
 
     } catch (error) {
         console.error('[Afiliado] ERRO ao registrar comissão:', error?.code || error?.message, error);
+        if (typeof showToast === 'function') showToast('❌ Erro comissão: ' + (error?.code || error?.message), 4000);
     }
 }
 
