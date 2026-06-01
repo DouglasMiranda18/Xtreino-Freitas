@@ -2980,13 +2980,19 @@ async function handlePurchase(event) {
             }
         }
 
+        // Persistir affiliate code no sessionStorage antes do redirect ao MP (fallback para retorno)
+        if (activeAffiliateCode) {
+            try { sessionStorage.setItem('xf_pending_aff', activeAffiliateCode); } catch(_) {}
+        }
+
         // Chamar function segura (Netlify) para criar Preference
+        const _affBackParam = activeAffiliateCode ? `?ref=${encodeURIComponent(activeAffiliateCode)}` : '';
         const preferencePayload = {
             title: product.name || 'Produto',
             unit_price: Number(totalNum.toFixed(2)),
             currency_id: 'BRL',
             quantity: 1,
-            back_url: window.location.origin,
+            back_url: `${window.location.origin}/${_affBackParam}`,
             coupon_info: couponInfo,
             external_reference: externalRef
         };
@@ -7417,12 +7423,18 @@ async function submitSchedule(e, useTokens = false) {
         };
 
         try {
+            // Persistir affiliate code no sessionStorage antes do redirect ao MP
+            const _schedAff = getActiveAffiliateCode(appliedScheduleCoupon?.affiliateId || null);
+            if (_schedAff) {
+                try { sessionStorage.setItem('xf_pending_aff', _schedAff); } catch(_) {}
+            }
+            const _affBackParamSched = _schedAff ? `?ref=${encodeURIComponent(_schedAff)}` : '';
             const _prefPayload = {
                 title: `${cfg.label} - ${totalReservations} reserva(s)`,
                 unit_price: Number(finalPrice.toFixed(2)),
                 currency_id: 'BRL',
                 quantity: 1,
-                back_url: `${window.location.origin}/`,
+                back_url: `${window.location.origin}/${_affBackParamSched}`,
                 coupon_info: couponInfo,
                 external_reference: externalRef,
                 multiple_reservations: {
@@ -8091,10 +8103,14 @@ async function processSuccessfulPayment(externalRef = null) {
 
             if (orderDoc && orderData2) {
                 // Registrar comissão e cupom ANTES de tentar atualizar status
-                // (o updateDoc pode falhar por permissão, mas comissão/cupom não devem ser bloqueados)
-                if (orderData2.affiliateCode) {
+                // Fallback: se a order não tem affiliateCode, tenta sessionStorage → localStorage
+                const _orderAff = orderData2.affiliateCode
+                    || sessionStorage.getItem('xf_pending_aff')
+                    || getActiveAffiliateCode(null);
+                if (_orderAff) {
+                    try { sessionStorage.removeItem('xf_pending_aff'); } catch(_) {}
                     try {
-                        await createPendingAffiliateSale(orderDoc.id, orderData2.affiliateCode, orderData2, 'product');
+                        await createPendingAffiliateSale(orderDoc.id, _orderAff, orderData2, 'product');
                     } catch (_) {}
                 }
                 if (orderData2.couponId && orderData2.couponCode) {
