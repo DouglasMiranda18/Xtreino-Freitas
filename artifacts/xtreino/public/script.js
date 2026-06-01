@@ -7358,7 +7358,9 @@ async function submitSchedule(e, useTokens = false) {
             // ── Registrar venda de afiliado para cada inscrição (se houver ref ativo) ──
             try {
                 const _affRef = getActiveAffiliateCode(appliedScheduleCoupon?.affiliateId || null);
+                console.log('[Afiliado DEBUG sched] affiliateId cupom:', appliedScheduleCoupon?.affiliateId, '| localStorage:', localStorage.getItem('xf_affiliate_ref'), '| _affRef:', _affRef);
                 if (_affRef) {
+                    showToast('🔗 Afiliado evento: …' + _affRef.slice(-6), 3000);
                     for (let _ai = 0; _ai < _docRefs.length; _ai++) {
                         const _p = _regPayloads[_ai];
                         await createPendingAffiliateSale(_docRefs[_ai].id, _affRef, {
@@ -7368,8 +7370,12 @@ async function submitSchedule(e, useTokens = false) {
                             customerName: _p.teamName
                         }, 'event');
                     }
+                } else {
+                    showToast('⚠️ Sem afiliado no evento (link/cupom)', 3000);
                 }
-            } catch (_affErr) {}
+            } catch (_affErr) {
+                console.error('[Afiliado sched] erro:', _affErr);
+            }
 
             if (regIds.length > 0) {
                 try { sessionStorage.setItem('lastRegIds', JSON.stringify(regIds)); } catch (_) { }
