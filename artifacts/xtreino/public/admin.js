@@ -9843,10 +9843,30 @@ window.filterWhatsAppLinks = filterWhatsAppLinks;
 // ==================== PAINEL DO AFILIADO ====================
 
 // Carregar dados do painel de afiliado
+window.copyAffiliatePanelLink = function() {
+  const input = document.getElementById('affiliatePanelLinkInput');
+  if (!input) return;
+  const url = input.value;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(() => {
+      const btn = input.nextElementSibling;
+      if (btn) { const orig = btn.innerHTML; btn.innerHTML = '<i class="fas fa-check"></i> Copiado!'; btn.classList.add('bg-green-600'); setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('bg-green-600'); }, 2000); }
+    }).catch(() => { input.select(); document.execCommand('copy'); });
+  } else {
+    input.select();
+    document.execCommand('copy');
+  }
+};
+
 async function loadAffiliatePanelData(affiliateId) {
   try {
-    
-    
+    // Gerar e exibir link de afiliado
+    const linkInput = document.getElementById('affiliatePanelLinkInput');
+    if (linkInput) {
+      const baseUrl = window.location.origin + window.location.pathname.replace(/\/admin\.html$/, '/');
+      linkInput.value = `${baseUrl}index.html?ref=${affiliateId}`;
+    }
+
     // Carregar vendas do afiliado
     const { collection, query, where, getDocs, orderBy } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     const salesRef = collection(window.firebaseDb, 'affiliate_sales');
@@ -10652,7 +10672,7 @@ async function loadAdminNotifications() {
 
     try {
         const { collection, getDocs, query, orderBy, limit, deleteDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const q = query(collection(window.firebaseDb, 'notifications'), orderBy('createdAt', 'desc'), limit(30));
+        const q = query(collection(window.firebaseDb, 'notifications'), orderBy('createdAt', 'desc'), limit(300));
         const snap = await getDocs(q);
 
         if (snap.empty) {
@@ -12090,6 +12110,8 @@ async function sendEventNotification() {
         const horarioMsg = filterLabel ? ` (${filterLabel})` : '';
         showToast('success', `Notificação enviada para ${uniqueUsers.length} participante(s)${horarioMsg}!`, 'Sucesso');
         closeEventNotifyModal();
+        // Atualizar lista de notificações enviadas no painel
+        if (document.getElementById('adminNotifList')) loadAdminNotifications();
     } catch (err) {
         console.error('Erro ao enviar notificação de evento:', err);
         showToast('error', 'Erro ao enviar: ' + (err.message || err), 'Erro');
