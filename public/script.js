@@ -6781,6 +6781,11 @@ async function handleProductPurchase(productId, cfg) {
                 externalRef = `digital_${docRef.id}`;
                 await updateDoc(docRef, { external_reference: externalRef });
                 try { sessionStorage.setItem('lastExternalRef', externalRef); } catch (_) { }
+
+                // Registrar comissão de afiliado imediatamente (não esperar redirect do MP)
+                if (orderData.affiliateCode) {
+                    try { await createPendingAffiliateSale(docRef.id, orderData.affiliateCode, orderData, 'product'); } catch (_) {}
+                }
             } catch (firebaseError) {
                 
                 // Continua com externalRef gerado acima
@@ -8037,22 +8042,13 @@ async function processSuccessfulPayment(externalRef = null) {
             }
 
             if (orderDoc && orderData2) {
-                if (orderData2.status !== 'paid') {
+                // Registrar comissão e cupom ANTES de tentar atualizar status
+                // (o updateDoc pode falhar por permissão, mas comissão/cupom não devem ser bloqueados)
+                if (orderData2.affiliateCode) {
                     try {
-                        await updateDoc(doc(window.firebaseDb, 'orders', orderDoc.id), {
-                            status: 'paid',
-                            paidAt: serverTimestamp()
-                        });
-                    } catch (updateErr) {
-                        console.warn('[processSuccessfulPayment] Sem permissão para atualizar status (admin precisa aprovar manualmente):', updateErr?.code || updateErr?.message);
-                        // Mostrar toast mesmo assim — pagamento foi aprovado pelo MP
-                        if (typeof showToast === 'function') {
-                            showToast('success', 'Pagamento aprovado pelo Mercado Pago! Em breve seu produto estará disponível em Minha Conta → Meus Produtos.', 'Pagamento Aprovado ✅', 10000);
-                        }
-                        return;
-                    }
+                        await createPendingAffiliateSale(orderDoc.id, orderData2.affiliateCode, orderData2, 'product');
+                    } catch (_) {}
                 }
-                // Registrar uso de cupom se houver
                 if (orderData2.couponId && orderData2.couponCode) {
                     try {
                         await recordCouponUsage(
@@ -8066,11 +8062,20 @@ async function processSuccessfulPayment(externalRef = null) {
                         );
                     } catch (_) {}
                 }
-                // Registrar comissão de afiliado se houver
-                if (orderData2.affiliateCode) {
+                // Atualizar status do pedido
+                if (orderData2.status !== 'paid') {
                     try {
-                        await createPendingAffiliateSale(orderDoc.id, orderData2.affiliateCode, orderData2, 'product');
-                    } catch (_) {}
+                        await updateDoc(doc(window.firebaseDb, 'orders', orderDoc.id), {
+                            status: 'paid',
+                            paidAt: serverTimestamp()
+                        });
+                    } catch (updateErr) {
+                        console.warn('[processSuccessfulPayment] Sem permissão para atualizar status (admin precisa aprovar manualmente):', updateErr?.code || updateErr?.message);
+                        if (typeof showToast === 'function') {
+                            showToast('success', 'Pagamento aprovado pelo Mercado Pago! Em breve seu produto estará disponível em Minha Conta → Meus Produtos.', 'Pagamento Aprovado ✅', 10000);
+                        }
+                        return;
+                    }
                 }
                 // Notificar admin para pedidos de Passe Booyah
                 if (orderData2.productId === 'passe-booyah') {
