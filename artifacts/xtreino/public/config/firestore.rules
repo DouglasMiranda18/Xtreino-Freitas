@@ -96,9 +96,10 @@ service cloud.firestore {
       ]);
     }
 
-    // users: leitura para staff; atualização por admin, gerente e vendedor (gestão de usuários)
+    // users: leitura para staff; afiliados ativos podem ser lidos por qualquer usuário autenticado (necessário para calcular comissão)
     match /users/{userId} {
-      allow read: if isSelf(userId) || canReadAll();
+      allow read: if isSelf(userId) || canReadAll() ||
+        (isSignedIn() && resource.data.affiliateStatus in ['active', 'pending', 'inactive']);
       allow create: if isSelf(userId) || isAdmin();
       allow update: if (isSelf(userId) && hasNoProtectedFieldChanges()) ||
                        (isSelf(userId) &&
@@ -287,7 +288,7 @@ service cloud.firestore {
           )
         )
       );
-      allow create: if isSignedIn() && (isAdmin() || isGerente() || isStaff() || isVendedor());
+      allow create: if isSignedIn();
       allow update: if isAdmin() || isGerente() || isStaff() || isVendedor();
       allow delete: if isAdmin() || isGerente();
     }
@@ -339,10 +340,12 @@ service cloud.firestore {
       allow create, update, delete: if isAuthorizedAdminOrDesign() || isGerente();
     }
 
-    // notifications: gerente, staff e admin podem criar/editar
+    // notifications: gerente, staff e admin podem criar/editar; usuários podem criar notificações de pedido para admin
     match /notifications/{notifId} {
       allow read: if isSignedIn();
-      allow create, update, delete: if isAuthorizedAdmin() || isGerente() || isStaff();
+      allow create: if isAuthorizedAdmin() || isGerente() || isStaff() ||
+        (isSignedIn() && request.resource.data.type == 'admin_booyah');
+      allow update, delete: if isAuthorizedAdmin() || isGerente() || isStaff();
     }
 
     // notificationReads
