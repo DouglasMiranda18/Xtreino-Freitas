@@ -7930,13 +7930,12 @@ async function checkPaymentStatus(preferenceId) {
         // Marcar que estamos verificando um pagamento real
         sessionStorage.setItem('checkingPayment', 'true');
 
-        // Fazer requisição para nossa Netlify Function que verifica o status
-        const response = await fetch('/.netlify/functions/check-payment-status', {
+        // Fazer requisição para o API server interno que verifica o status
+        const response = await fetch('/api/check-payment-status', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                preference_id: preferenceId,
-                external_reference: sessionStorage.getItem('lastExternalRef')
+                external_reference: sessionStorage.getItem('lastExternalRef') || preferenceId
             })
         });
 
@@ -9475,10 +9474,10 @@ window.openPixModal = function(pixData, regIds, externalRef, assignedSlotsData, 
     clearInterval(_pixPollingInterval);
     _pixPollingInterval = setInterval(async function() {
         try {
-            const r = await fetch('/.netlify/functions/check-pix-status', {
+            const r = await fetch('/api/check-payment-status', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ payment_id: pixData.payment_id }),
+                body: JSON.stringify({ external_reference: externalRef }),
             });
             if (!r.ok) return;
             const d = await r.json();
