@@ -7952,8 +7952,8 @@ async function checkPaymentStatus(preferenceId) {
         // Marcar que estamos verificando um pagamento real
         sessionStorage.setItem('checkingPayment', 'true');
 
-        // Fazer requisição para o API server interno que verifica o status
-        const response = await fetch('/api/check-payment-status', {
+        // Verificar status do pagamento via Netlify function
+        const response = await fetch('/.netlify/functions/check-pix-status', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -9505,7 +9505,7 @@ window.openPixModal = function(pixData, regIds, externalRef, assignedSlotsData, 
     clearInterval(_pixPollingInterval);
     _pixPollingInterval = setInterval(async function() {
         try {
-            const r = await fetch('/api/check-payment-status', {
+            const r = await fetch('/.netlify/functions/check-pix-status', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ external_reference: externalRef }),
