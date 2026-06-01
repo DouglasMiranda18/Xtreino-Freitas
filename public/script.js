@@ -3085,38 +3085,27 @@ async function handlePurchase(event) {
 }
 
 async function createPendingAffiliateSale(orderId, affiliateCode, orderData, saleType) {
-    
-
-    if (!affiliateCode || !orderId) {
-        
-        return;
-    }
+    if (!affiliateCode || !orderId) return;
 
     try {
         const { doc, getDoc, collection, query, where, getDocs, addDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const db = window.firebaseDb;
-        
-
         const usersRef = collection(db, 'users');
 
-        // Busca por UID
+        // Busca afiliado por UID
         const affDocById = await getDoc(doc(usersRef, affiliateCode));
-        
-
         let affDoc = affDocById;
+
         if (!affDoc.exists()) {
-            // Busca por email
-            
-            const q = query(usersRef, where('email', '==', affiliateCode));
-            const snap = await getDocs(q);
-            affDoc = snap.empty ? null : snap.docs[0];
-            
+            // Fallback: busca por email
+            try {
+                const q = query(usersRef, where('email', '==', affiliateCode));
+                const snap = await getDocs(q);
+                affDoc = snap.empty ? null : snap.docs[0];
+            } catch (_) { affDoc = null; }
         }
 
-        if (!affDoc || !affDoc.exists()) {
-            
-            return;
-        }
+        if (!affDoc || !affDoc.exists()) return;
 
         const affData = affDoc.data();
         const affId = affDoc.id;
@@ -3125,26 +3114,25 @@ async function createPendingAffiliateSale(orderId, affiliateCode, orderData, sal
             : (affData.commissionRateProducts || affData.commissionRate || 10);
         const saleValue = Number(orderData.amount || 0);
         const commissionAmount = (saleValue * commissionRate) / 100;
-        
 
-        // Verificação de duplicata
         const salesRef = collection(db, 'affiliate_sales');
-        const dupQ = query(salesRef, where('orderId', '==', orderId), where('affiliateId', '==', affId));
-        const dupSnap = await getDocs(dupQ);
-        
 
-        if (!dupSnap.empty) {
-            
-            return;
+        // Verificação de duplicata (best-effort — pode falhar por permissão para compradores comuns)
+        try {
+            const dupQ = query(salesRef, where('orderId', '==', orderId), where('affiliateId', '==', affId));
+            const dupSnap = await getDocs(dupQ);
+            if (!dupSnap.empty) return;
+        } catch (_dupErr) {
+            // sem permissão de leitura em affiliate_sales — prosseguir com a criação
         }
 
-        // Criação do documento
+        // Criar registro de comissão
         await addDoc(salesRef, {
             affiliateId: affId,
             orderId,
-            customerEmail: orderData.customer || null,
+            customerEmail: orderData.customer || orderData.buyerEmail || null,
             customerName: orderData.customerName || null,
-            productName: orderData.title || '',
+            productName: orderData.title || orderData.item || '',
             saleValue,
             commissionRate,
             commissionAmount,
@@ -3152,9 +3140,9 @@ async function createPendingAffiliateSale(orderId, affiliateCode, orderData, sal
             status: 'pending',
             createdAt: new Date()
         });
-        
+
     } catch (error) {
-        
+        console.warn('[Afiliado] Erro ao registrar comissão:', error?.code || error?.message);
     }
 }
 
