@@ -2300,6 +2300,19 @@ function syncMapsQtyWithNames() {
     updatePurchaseTotal('imagens');
 }
 
+async function _notifyAdminBooyah(customerName, customerEmail, playerId, orderId) {
+    try {
+        if (!window.firebaseDb) return;
+        const { addDoc, collection, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        await addDoc(collection(window.firebaseDb, 'notifications'), {
+            title: '🎮 Novo pedido — Passe Booyah',
+            message: `Cliente: ${customerName || customerEmail || 'Desconhecido'} (${customerEmail || ''})\nPlayer ID: ${playerId || 'Não informado'}\nPedido #${orderId || '—'}`,
+            type: 'admin_booyah',
+            createdAt: serverTimestamp()
+        });
+    } catch (_) {}
+}
+
 function closePurchaseModal() {
     document.getElementById('purchaseModal').classList.add('hidden');
     currentProduct = null;
@@ -2419,6 +2432,9 @@ async function payCurrentProductWithTokens() {
             type: 'digital_product'
         };
         const docRef = await addDoc(collection(window.firebaseDb, 'orders'), orderData);
+        if (productId === 'passe-booyah') {
+            _notifyAdminBooyah(orderData.customerName, orderData.customer, productOptions.playerId, docRef.id);
+        }
         closePurchaseModal();
         
         // Mostrar sucesso e redirecionar
@@ -8061,6 +8077,15 @@ async function processSuccessfulPayment(externalRef = null) {
                     try {
                         await createPendingAffiliateSale(orderDoc.id, orderData2.affiliateCode, orderData2, 'product');
                     } catch (_) {}
+                }
+                // Notificar admin para pedidos de Passe Booyah
+                if (orderData2.productId === 'passe-booyah') {
+                    _notifyAdminBooyah(
+                        orderData2.customerName,
+                        orderData2.customer || orderData2.buyerEmail,
+                        orderData2.productOptions?.playerId,
+                        orderDoc.id
+                    );
                 }
                 // Notificar cliente
                 if (typeof showToast === 'function') {
