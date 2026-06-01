@@ -2070,6 +2070,11 @@ const imgMap = {
 };
 
 function openPurchaseModal(productId) {
+    if (!window.isLoggedIn || !window.firebaseAuth?.currentUser) {
+        showToast('Faça login para comprar produtos.', 3000);
+        openLoginModal();
+        return;
+    }
     showProductModal(productId);
 }
 
@@ -5232,6 +5237,11 @@ let teamCounter = 0;
 let selectedDates = [];
 
 function openScheduleModal(eventType) {
+    if (!window.isLoggedIn || !window.firebaseAuth?.currentUser) {
+        showToast('Faça login para se inscrever em eventos.', 3000);
+        openLoginModal();
+        return;
+    }
     const cfg = scheduleConfig[eventType];
     const modal = document.getElementById('scheduleModal');
     if (!cfg || !modal) return;
@@ -9620,6 +9630,11 @@ let _equipeSlotInfo = null;
 })();
 
 window.abrirModalEquipe = function(slotInfo, codigoPreenchido) {
+    if (!window.isLoggedIn || !window.firebaseAuth?.currentUser) {
+        showToast('Faça login para se inscrever em eventos.', 3000);
+        openLoginModal();
+        return;
+    }
     _equipeSlotInfo = slotInfo || null;
     const modal = document.getElementById('modalEquipe');
     if (!modal) return;
