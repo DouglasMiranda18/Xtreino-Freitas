@@ -96,9 +96,10 @@ service cloud.firestore {
       ]);
     }
 
-    // users: leitura para staff; atualização por admin, gerente e vendedor (gestão de usuários)
+    // users: leitura para staff; afiliados ativos podem ser lidos por qualquer usuário autenticado (necessário para calcular comissão)
     match /users/{userId} {
-      allow read: if isSelf(userId) || canReadAll();
+      allow read: if isSelf(userId) || canReadAll() ||
+        (isSignedIn() && resource.data.affiliateStatus in ['active', 'pending', 'inactive']);
       allow create: if isSelf(userId) || isAdmin();
       allow update: if (isSelf(userId) && hasNoProtectedFieldChanges()) ||
                        (isSelf(userId) &&
