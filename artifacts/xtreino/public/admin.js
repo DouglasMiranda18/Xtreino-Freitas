@@ -12164,7 +12164,7 @@ async function openEventSlotsModal(eventId, eventName) {
         // Agrupar por horário (normalizado)
         const bySchedule = {};
         docs.forEach(d => {
-            const r = d.data();
+            const r = { ...d.data(), _docId: d.id };
             const sched = normSched(r.schedule);
             if (!bySchedule[sched]) bySchedule[sched] = [];
             bySchedule[sched].push(r);
@@ -12183,13 +12183,12 @@ async function openEventSlotsModal(eventId, eventName) {
                 // Sem slot: usa createdAt
                 return (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0);
             });
-            // Deduplicar apenas por nome de time (igual ao site/inscritos)
-            // Não deduplica por slotNumber para não ocultar times válidos
-            const seenTeams = new Set();
+            // Admin: sem deduplicação — mostra todos os registros para gestão completa
+            // Deduplica apenas por ID de documento para evitar o mesmo registro aparecer duas vezes
+            const seenIds = new Set();
             bySchedule[sched] = arr.filter(r => {
-                const teamKey = (r.teamName || r.email || '').toLowerCase().trim();
-                if (teamKey && seenTeams.has(teamKey)) return false;
-                if (teamKey) seenTeams.add(teamKey);
+                if (r._docId && seenIds.has(r._docId)) return false;
+                if (r._docId) seenIds.add(r._docId);
                 return true;
             });
         });
