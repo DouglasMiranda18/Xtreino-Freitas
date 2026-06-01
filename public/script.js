@@ -2408,6 +2408,7 @@ async function payCurrentProductWithTokens() {
         if (!ok) { alert('Não foi possível debitar os tokens.'); return; }
         // Capturar código de afiliado ativo
         const _tokenAffCode = getActiveAffiliateCode(appliedCoupon?.affiliateId || null);
+        console.log('[Afiliado DEBUG tokens] affiliateId do cupom:', appliedCoupon?.affiliateId, '| localStorage ref:', localStorage.getItem('xf_affiliate_ref'), '| _tokenAffCode:', _tokenAffCode);
         // Criar pedido pago
         const { addDoc, collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const orderData = {
@@ -2841,6 +2842,7 @@ async function handlePurchase(event) {
 
     // Informações do cupom aplicado
     const activeAffiliateCode = getActiveAffiliateCode(appliedCoupon?.affiliateId || null);
+    console.log('[Afiliado DEBUG MP] affiliateId do cupom:', appliedCoupon?.affiliateId, '| localStorage ref:', localStorage.getItem('xf_affiliate_ref'), '| activeAffiliateCode:', activeAffiliateCode);
     const couponInfo = appliedCoupon ? {
         code: appliedCoupon.code,
         discountType: appliedCoupon.discountType,
