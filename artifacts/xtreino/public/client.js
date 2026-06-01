@@ -3152,7 +3152,19 @@ async function processSuccessfulPayment(externalRef = null) {
             const orderRef = doc(window.firebaseDb, 'orders', orderId);
             const orderSnap = await getDoc(orderRef);
             if (orderSnap.exists() && orderSnap.data().status !== 'paid') {
+                const orderData = orderSnap.data();
                 await updateDoc(orderRef, { status: 'paid', paidAt: serverTimestamp() });
+                // Notificar admin se for Passe Booyah
+                if (orderData.productId === 'passe-booyah') {
+                    try {
+                        await addDoc(collection(window.firebaseDb, 'notifications'), {
+                            title: '🎮 Novo pedido — Passe Booyah',
+                            message: `Cliente: ${orderData.customerName || orderData.customer || 'Desconhecido'} (${orderData.buyerEmail || orderData.customer || ''})\nPlayer ID: ${orderData.productOptions?.playerId || 'Não informado'}\nPedido #${orderId}`,
+                            type: 'admin_booyah',
+                            createdAt: serverTimestamp()
+                        });
+                    } catch (_) {}
+                }
             }
             // Recarregar pedidos se estiver na aba correta
             const activeTab = document.querySelector('.tab-content:not(.hidden)')?.id;
