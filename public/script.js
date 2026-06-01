@@ -3086,48 +3086,69 @@ async function handlePurchase(event) {
 
 async function createPendingAffiliateSale(orderId, affiliateCode, orderData, saleType) {
     if (!affiliateCode || !orderId) return;
+    console.log('[Afiliado] Iniciando registro de comissão:', { orderId, affiliateCode, saleType });
 
     try {
         const { doc, getDoc, collection, query, where, getDocs, addDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const db = window.firebaseDb;
-        const usersRef = collection(db, 'users');
 
-        // Busca afiliado por UID
-        const affDocById = await getDoc(doc(usersRef, affiliateCode));
-        let affDoc = affDocById;
+        // Busca perfil do afiliado para obter taxa de comissão
+        let affId = affiliateCode;
+        let commissionRate = 10; // padrão seguro
 
-        if (!affDoc.exists()) {
-            // Fallback: busca por email
-            try {
-                const q = query(usersRef, where('email', '==', affiliateCode));
-                const snap = await getDocs(q);
-                affDoc = snap.empty ? null : snap.docs[0];
-            } catch (_) { affDoc = null; }
+        try {
+            const usersRef = collection(db, 'users');
+            const affDocById = await getDoc(doc(usersRef, affiliateCode));
+
+            if (affDocById.exists()) {
+                const d = affDocById.data();
+                commissionRate = saleType === 'event'
+                    ? (d.commissionRateEvents || d.commissionRate || 10)
+                    : (d.commissionRateProducts || d.commissionRate || 10);
+                console.log('[Afiliado] Perfil lido, taxa:', commissionRate + '%');
+            } else {
+                // Fallback por email
+                try {
+                    const q = query(usersRef, where('email', '==', affiliateCode));
+                    const snap = await getDocs(q);
+                    if (!snap.empty) {
+                        const d = snap.docs[0].data();
+                        affId = snap.docs[0].id;
+                        commissionRate = saleType === 'event'
+                            ? (d.commissionRateEvents || d.commissionRate || 10)
+                            : (d.commissionRateProducts || d.commissionRate || 10);
+                        console.log('[Afiliado] Perfil por email, taxa:', commissionRate + '%');
+                    } else {
+                        console.warn('[Afiliado] Perfil não encontrado — usando taxa padrão 10%');
+                    }
+                } catch (_) {
+                    console.warn('[Afiliado] Sem permissão para buscar por email — usando taxa padrão 10%');
+                }
+            }
+        } catch (readErr) {
+            console.warn('[Afiliado] Sem permissão para ler perfil — usando taxa padrão 10%:', readErr?.code);
+            // NÃO abortar — prosseguir com taxa padrão
         }
 
-        if (!affDoc || !affDoc.exists()) return;
-
-        const affData = affDoc.data();
-        const affId = affDoc.id;
-        const commissionRate = saleType === 'event'
-            ? (affData.commissionRateEvents || affData.commissionRate || 10)
-            : (affData.commissionRateProducts || affData.commissionRate || 10);
         const saleValue = Number(orderData.amount || 0);
         const commissionAmount = (saleValue * commissionRate) / 100;
 
         const salesRef = collection(db, 'affiliate_sales');
 
-        // Verificação de duplicata (best-effort — pode falhar por permissão para compradores comuns)
+        // Verificação de duplicata (best-effort)
         try {
             const dupQ = query(salesRef, where('orderId', '==', orderId), where('affiliateId', '==', affId));
             const dupSnap = await getDocs(dupQ);
-            if (!dupSnap.empty) return;
+            if (!dupSnap.empty) {
+                console.log('[Afiliado] Duplicata detectada, ignorando');
+                return;
+            }
         } catch (_dupErr) {
-            // sem permissão de leitura em affiliate_sales — prosseguir com a criação
+            // sem permissão de leitura — prosseguir
         }
 
         // Criar registro de comissão
-        await addDoc(salesRef, {
+        const saleDoc = await addDoc(salesRef, {
             affiliateId: affId,
             orderId,
             customerEmail: orderData.customer || orderData.buyerEmail || null,
@@ -3140,9 +3161,10 @@ async function createPendingAffiliateSale(orderId, affiliateCode, orderData, sal
             status: 'pending',
             createdAt: new Date()
         });
+        console.log('[Afiliado] Comissão registrada com sucesso! Doc:', saleDoc.id);
 
     } catch (error) {
-        console.warn('[Afiliado] Erro ao registrar comissão:', error?.code || error?.message);
+        console.error('[Afiliado] ERRO ao registrar comissão:', error?.code || error?.message, error);
     }
 }
 
