@@ -6388,37 +6388,77 @@ async function updateOccupiedAndRefreshButtons(day, date, eventType, container) 
 function addTeam() {
     teamCounter++;
     const teamId = `team_${teamCounter}`;
-    const teamData = {
-        id: teamId,
-        name: '',
-        email: '',
-        phone: ''
-    };
+    const teamData = { id: teamId, name: '', email: '', phone: '', logoBase64: null };
     teams.push(teamData);
 
     const container = document.getElementById('teamsContainer');
     const teamDiv = document.createElement('div');
     teamDiv.id = teamId;
-    teamDiv.className = 'bg-gray-50 rounded-xl p-4 border border-gray-200';
+    teamDiv.className = 'bg-gray-50 rounded-xl border border-gray-200 overflow-hidden';
     teamDiv.innerHTML = `
-        <div class="flex items-center justify-between mb-2">
-            <h5 class="font-semibold text-gray-900">Time ${teamCounter}</h5>
-            ${teamCounter > 1 ? `<button type="button" onclick="removeTeam('${teamId}')" class="text-red-600 hover:text-red-800 text-sm">Remover</button>` : ''}
-        </div>
-        <div class="space-y-3">
-            <input type="text" placeholder="Nome do time" 
-                   class="w-full bg-white border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-0 transition-colors"
-                   oninput="updateTeam('${teamId}', 'name', this.value)">
-            <input type="email" placeholder="Email" 
-                   class="w-full bg-white border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-0 transition-colors"
-                   oninput="updateTeam('${teamId}', 'email', this.value)">
-            <input type="tel" placeholder="WhatsApp (11) 99999-9999" 
-                   class="w-full bg-white border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-0 transition-colors"
-                   oninput="updateTeam('${teamId}', 'phone', this.value)">
+        ${teamCounter > 1 ? `
+        <div class="flex items-center justify-between px-4 py-2 bg-gray-100 border-b border-gray-200">
+            <span class="text-xs font-bold text-gray-600">Time ${teamCounter}</span>
+            <button type="button" onclick="removeTeam('${teamId}')" class="text-red-500 hover:text-red-700 text-xs font-semibold flex items-center gap-1 transition-colors">
+                <i class="fas fa-times"></i> Remover
+            </button>
+        </div>` : ''}
+        <div class="p-4">
+            <!-- Logo + Nome lado a lado -->
+            <div class="flex items-start gap-3 mb-3">
+                <label for="teamLogoInput_${teamId}" class="cursor-pointer flex-shrink-0 group" title="Clique para enviar a logo do time">
+                    <div id="teamLogoPreview_${teamId}" class="w-16 h-16 rounded-2xl bg-white border-2 border-dashed border-purple-300 flex flex-col items-center justify-center overflow-hidden hover:border-purple-500 transition-colors group-hover:bg-purple-50">
+                        <i class="fas fa-camera text-purple-300 text-lg group-hover:text-purple-500 transition-colors"></i>
+                        <span class="text-xs text-purple-300 group-hover:text-purple-500 mt-0.5 font-medium transition-colors">Logo</span>
+                    </div>
+                    <input type="file" id="teamLogoInput_${teamId}" accept="image/*" class="hidden" onchange="previewTeamLogo('${teamId}', this)">
+                    <p class="text-center text-xs text-gray-400 mt-1">Opcional</p>
+                </label>
+                <div class="flex-1 space-y-2">
+                    <div>
+                        <label class="text-xs font-bold text-gray-500 mb-1 block uppercase tracking-wide">Nome / Nick no Free Fire <span class="text-red-500">*</span></label>
+                        <input type="text" data-field="name" placeholder="Ex: Team Freitas, xGamer123…"
+                               class="w-full bg-white border-2 border-gray-200 rounded-xl px-3 py-2 text-sm font-semibold focus:border-purple-400 focus:outline-none transition-colors"
+                               oninput="updateTeam('${teamId}', 'name', this.value)">
+                    </div>
+                </div>
+            </div>
+            <!-- Email + WhatsApp -->
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="text-xs font-bold text-gray-500 mb-1 block uppercase tracking-wide">E-mail <span class="text-red-500">*</span></label>
+                    <input type="email" data-field="email" placeholder="seu@email.com"
+                           class="w-full bg-white border-2 border-gray-200 rounded-xl px-3 py-2 text-xs focus:border-purple-400 focus:outline-none transition-colors"
+                           oninput="updateTeam('${teamId}', 'email', this.value)">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-500 mb-1 block uppercase tracking-wide">WhatsApp <span class="text-red-500">*</span></label>
+                    <input type="tel" data-field="phone" placeholder="(11) 99999-9999"
+                           class="w-full bg-white border-2 border-gray-200 rounded-xl px-3 py-2 text-xs focus:border-purple-400 focus:outline-none transition-colors"
+                           oninput="updateTeam('${teamId}', 'phone', this.value)">
+                </div>
+            </div>
         </div>
     `;
     container.appendChild(teamDiv);
     updateReservationsSummary();
+}
+
+function previewTeamLogo(teamId, input) {
+    const file = input.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+        alert('A logo deve ter no máximo 2 MB.');
+        input.value = '';
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const preview = document.getElementById(`teamLogoPreview_${teamId}`);
+        if (preview) preview.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover">`;
+        updateTeam(teamId, 'logoBase64', e.target.result);
+    };
+    reader.readAsDataURL(file);
 }
 // Function to remove a team
 function removeTeam(teamId) {
@@ -7067,15 +7107,17 @@ async function submitSchedule(e, useTokens = false) {
         const teamElements = document.querySelectorAll('#teamsContainer > div');
         const teamsData = [];
         teamElements.forEach((teamDiv) => {
-            const nameInput = teamDiv.querySelector('input[placeholder="Nome do time"]');
-            const emailInput = teamDiv.querySelector('input[placeholder="Email"]');
-            const phoneInput = teamDiv.querySelector('input[placeholder="WhatsApp (11) 99999-9999"]');
+            const nameInput = teamDiv.querySelector('input[data-field="name"], input[placeholder="Nome do time"]');
+            const emailInput = teamDiv.querySelector('input[data-field="email"], input[placeholder="Email"]');
+            const phoneInput = teamDiv.querySelector('input[data-field="phone"], input[placeholder="WhatsApp (11) 99999-9999"]');
+            const teamRecord = teams.find(t => t.id === teamDiv.id);
 
             if (nameInput && emailInput && phoneInput) {
                 teamsData.push({
                     name: nameInput.value.trim(),
                     email: emailInput.value.trim(),
-                    phone: phoneInput.value.trim()
+                    phone: phoneInput.value.trim(),
+                    logoBase64: teamRecord?.logoBase64 || null
                 });
             }
         });
@@ -7319,7 +7361,7 @@ async function submitSchedule(e, useTokens = false) {
                         _meta: { team: team.name, slotNum, slotDisplay, schedule: p.schedule, date: p.d, whatsappLink: p.whatsappLink },
                         userId: window.firebaseAuth.currentUser.uid,
                         teamName: team.name,
-                        teamLogoUrl: _equipeAtual?.logoUrl || null,
+                        teamLogoUrl: team.logoBase64 || _equipeAtual?.logoUrl || null,
                         teamId: _equipeAtual?.id || null,
                         membrosUids: _equipeAtual?.membrosUids || null,
                         email: team.email,
