@@ -1139,7 +1139,35 @@ window.showWarningToast = function(message, title = 'Atenção') {
             addedManually: true
           };
           try{
-            const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            const { collection, addDoc, serverTimestamp, query: _q, where: _w, getDocs: _gd } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            // Calcular próximo slot sequencial (unificado com PIX/tokens)
+            const _normH = s => {
+                const str = String(s||'').trim();
+                const mColon = str.match(/(\d{1,2}):(\d{2})/);
+                if (mColon) return parseInt(mColon[1],10)+'h';
+                const mH = str.match(/(\d{1,2})\s*h/i);
+                if (mH) return parseInt(mH[1],10)+'h';
+                return str;
+            };
+            let nextSlot = 1;
+            if (eventType && schedule && schedule !== '—') {
+                try {
+                    const normSchedule = _normH(schedule);
+                    const _snap = await _gd(_q(collection(window.firebaseDb,'registrations'), _w('eventType','==',eventType)));
+                    let maxSlot = 0;
+                    _snap.forEach(d => {
+                        const rd = d.data();
+                        if (_normH(rd.schedule||'') === normSchedule) {
+                            const s = Number(rd.slot ?? rd.slotNumber) || 0;
+                            if (s > maxSlot) maxSlot = s;
+                        }
+                    });
+                    nextSlot = maxSlot + 1;
+                } catch(_) {}
+            }
+            payload.slot = nextSlot;
+            payload.slotNumber = nextSlot;
+            payload.slotDisplay = `Vaga #${nextSlot}`;
             await addDoc(collection(window.firebaseDb,'registrations'), { ...payload, createdAt: serverTimestamp() });
             const notifMsg = clientUserId
               ? 'Time adicionado! O cliente receberá notificações de ID/senha.'
@@ -3701,9 +3729,16 @@ async function buildExportList(date, eventType, hour){
     const st = String(r.status||'').toLowerCase();
     if (!['paid','confirmed'].includes(st)) return;
     const name = r.teamName || r.name || r.email || 'Time';
-    teams.push({ name, createdAt: r.createdAt?.toDate?.() || new Date(0) });
+    const slotNum = r.slot != null ? Number(r.slot) : (r.slotNumber != null ? Number(r.slotNumber) : null);
+    teams.push({ name, slot: slotNum, createdAt: r.createdAt?.toDate?.() || new Date(0) });
   });
-  teams.sort((a,b)=> (a.createdAt?.getTime?.()||0) - (b.createdAt?.getTime?.()||0));
+  // Ordenar por slot crescente (mesma ordem do painel Inscritos); sem slot → por data de criação
+  teams.sort((a, b) => {
+    if (a.slot !== null && b.slot !== null) return a.slot - b.slot;
+    if (a.slot !== null) return -1;
+    if (b.slot !== null) return 1;
+    return (a.createdAt?.getTime?.() || 0) - (b.createdAt?.getTime?.() || 0);
+  });
   // Definir capacidade por tipo (modo liga = 15; demais = 12)
   const type = String(eventType||'').toLowerCase();
   const capacity = type.includes('liga') ? 15 : 12;
@@ -12725,9 +12760,16 @@ window.repairDateSlots = async function(eventType, targetDate) {
             bySchedule[sched].push({ id: d.id, data: r });
         });
 
-        // Ordenar por createdAt dentro de cada horário
+        // Ordenar por slot crescente → createdAt como fallback (mesma lógica do repairEventSlots)
         Object.values(bySchedule).forEach(arr => {
-            arr.sort((a, b) => (a.data.createdAt?.seconds ?? 0) - (b.data.createdAt?.seconds ?? 0));
+            arr.sort((a, b) => {
+                const sa = a.data.slot != null ? Number(a.data.slot) : (a.data.slotNumber != null ? Number(a.data.slotNumber) : null);
+                const sb = b.data.slot != null ? Number(b.data.slot) : (b.data.slotNumber != null ? Number(b.data.slotNumber) : null);
+                if (sa !== null && sb !== null) return sa - sb;
+                if (sa !== null) return -1;
+                if (sb !== null) return 1;
+                return (a.data.createdAt?.seconds ?? 0) - (b.data.createdAt?.seconds ?? 0);
+            });
         });
 
         // Deduplicar por nome de time dentro de cada horário (manter o mais antigo)
