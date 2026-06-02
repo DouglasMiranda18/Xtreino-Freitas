@@ -3676,63 +3676,142 @@ window.showWarningToast = function(message, title = 'Atenção') {
     }
   }
 
+  // Troca a aba ativa no modal de gerenciar horário
+  window.switchManageHourTab = function(tab) {
+    const confirmedList = document.getElementById('manageHourListConfirmed');
+    const pendingList   = document.getElementById('manageHourListPending');
+    const tabConfirmed  = document.getElementById('mhTabConfirmed');
+    const tabPending    = document.getElementById('mhTabPending');
+    if (!confirmedList || !pendingList) return;
+
+    if (tab === 'confirmed') {
+      confirmedList.classList.remove('hidden');
+      pendingList.classList.add('hidden');
+      tabConfirmed.className = 'flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold border-2 transition-all border-green-500 bg-green-50 text-green-700';
+      tabPending.className   = 'flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold border-2 transition-all border-gray-200 bg-white text-gray-500';
+    } else {
+      confirmedList.classList.add('hidden');
+      pendingList.classList.remove('hidden');
+      tabPending.className   = 'flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold border-2 transition-all border-yellow-400 bg-yellow-50 text-yellow-700';
+      tabConfirmed.className = 'flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold border-2 transition-all border-gray-200 bg-white text-gray-500';
+    }
+  };
+
   async function openManageHourModal(date, eventType, hour){
     try{
-      const title = document.getElementById('manageHourTitle');
-      const list = document.getElementById('manageHourList');
-      const modal = document.getElementById('modalManageHour');
-      if (!list || !modal) return;
+      const title         = document.getElementById('manageHourTitle');
+      const listConfirmed = document.getElementById('manageHourListConfirmed');
+      const listPending   = document.getElementById('manageHourListPending');
+      const modal         = document.getElementById('modalManageHour');
+      if (!listConfirmed || !modal) return;
+
       if (title) title.textContent = `Gerenciar ${hour} — ${date}`;
-      list.innerHTML = '<div class="text-sm text-gray-500">Carregando...</div>';
+
+      // Reset: mostrar aba "Confirmados" por padrão
+      listConfirmed.innerHTML = '<div class="text-sm text-gray-500 py-4 text-center">Carregando...</div>';
+      if (listPending) listPending.innerHTML = '';
+      switchManageHourTab('confirmed');
+
       const { collection, query, where, getDocs, doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
       const regs = collection(window.firebaseDb,'registrations');
-      // Busca reservas do dia incluindo pendentes — admin precisa ver todos
       const snap = await getDocs(query(regs, where('date','==', date), where('status','in',['paid','confirmed','approved','pending'])));
-      list.innerHTML = '';
-      let any = false;
+
+      listConfirmed.innerHTML = '';
+      if (listPending) listPending.innerHTML = '';
+
       const evLower = String(eventType||'').toLowerCase();
       const normalizeHour = (s)=>{ const m = String(s||'').match(/(\d{1,2})/); return m? String(parseInt(m[1],10)).padStart(2,'0') : null; };
       const targetHH = normalizeHour(hour);
-      snap.forEach(d=>{
-        const r = d.data();
-        if (evLower && r.eventType && !String(r.eventType).toLowerCase().includes(evLower)) return;
-        const schedStr = String(r.schedule||'');
-        const hourStr = String(r.hour||'');
-        const regHH = normalizeHour(schedStr) || normalizeHour(hourStr);
-        // Se não tem horário válido, não aparece em modais de horários específicos
-        if (targetHH && !regHH) return;
-        if (targetHH && regHH && targetHH !== regHH) return;
-        any = true;
-        const isPending = r.status === 'pending';
-        const isFreeManual = r.freeSlot === true || r.listingType === 'free';
-        const statusBadge = isFreeManual
-          ? '<span class="text-xs bg-orange-100 text-orange-700 border border-orange-300 rounded px-1.5 py-0.5 ml-1">🎁 Listagem Grátis</span>'
-          : isPending
-            ? '<span class="text-xs bg-yellow-100 text-yellow-700 border border-yellow-300 rounded px-1.5 py-0.5 ml-1">⏳ Aguardando pagto</span>'
-            : '<span class="text-xs bg-green-100 text-green-700 border border-green-300 rounded px-1.5 py-0.5 ml-1">✓ Pago</span>';
-        const row = document.createElement('div');
-        row.className = `flex items-center justify-between border-b py-2 ${isPending ? 'bg-yellow-50' : ''}`;
+
+      let countConfirmed = 0, countPending = 0;
+
+      // Função auxiliar para criar uma linha de time
+      const makeRow = (d, r, isPending, isFreeManual) => {
         const _adminLogoUrl = r.teamLogoUrl || r.teamLogoThumb || null;
         const logoHtml = _adminLogoUrl
-          ? `<img src="${_adminLogoUrl}" class="w-6 h-6 rounded object-cover flex-shrink-0">`
-          : '';
+          ? `<img src="${_adminLogoUrl}" class="w-7 h-7 rounded object-cover flex-shrink-0">`
+          : `<div class="w-7 h-7 rounded bg-gray-100 flex items-center justify-center text-gray-400 flex-shrink-0 text-xs">${(r.teamName||'?').charAt(0).toUpperCase()}</div>`;
+        const statusBadge = isFreeManual
+          ? '<span class="text-xs bg-orange-100 text-orange-700 border border-orange-300 rounded px-1.5 py-0.5">🎁 Grátis</span>'
+          : isPending
+            ? '<span class="text-xs bg-yellow-100 text-yellow-700 border border-yellow-300 rounded px-1.5 py-0.5">⏳ Pendente</span>'
+            : '<span class="text-xs bg-green-100 text-green-700 border border-green-300 rounded px-1.5 py-0.5">✓ Pago</span>';
         const _mgEmail = r.email || r.clientEmail || '';
         const _mgPhone = r.contact || r.phone || '';
-        row.innerHTML = `<div class="text-sm"><div class="font-semibold flex items-center flex-wrap gap-1">${logoHtml}${r.teamName||_mgEmail||'-'}${statusBadge}</div>${_mgPhone ? `<div class="text-gray-500">📞 ${_mgPhone}</div>` : ''}${_mgEmail ? `<div class="text-gray-400 text-xs">✉️ ${_mgEmail}</div>` : ''}</div>
-          <button class="px-2 py-1 bg-red-600 text-white rounded text-xs" data-remove-reg-id="${d.id}">Remover</button>`;
-        list.appendChild(row);
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between gap-3 p-2.5 rounded-lg border ' + (isPending ? 'border-yellow-200 bg-yellow-50' : 'border-green-100 bg-green-50/40');
+        row.innerHTML = `
+          <div class="flex items-center gap-2 min-w-0">
+            ${logoHtml}
+            <div class="min-w-0">
+              <div class="font-semibold text-sm flex items-center flex-wrap gap-1">
+                <span class="truncate">${r.teamName||_mgEmail||'-'}</span>
+                ${statusBadge}
+              </div>
+              ${_mgPhone ? `<div class="text-gray-500 text-xs">📞 ${_mgPhone}</div>` : ''}
+              ${_mgEmail ? `<div class="text-gray-400 text-xs truncate">✉️ ${_mgEmail}</div>` : ''}
+            </div>
+          </div>
+          <button class="flex-shrink-0 px-2.5 py-1 bg-red-50 border border-red-200 text-red-600 rounded-lg text-xs hover:bg-red-600 hover:text-white transition-colors" data-remove-reg-id="${d.id}">Remover</button>`;
+        return row;
+      };
+
+      snap.forEach(d=>{
+        const r = d.data();
+        // Filtro de tipo de evento
+        if (evLower && r.eventType && !String(r.eventType).toLowerCase().includes(evLower)) return;
+        // Filtro de horário
+        const schedStr = String(r.schedule||'');
+        const hourStr  = String(r.hour||'');
+        const regHH    = normalizeHour(schedStr) || normalizeHour(hourStr);
+        if (targetHH && !regHH) return;
+        if (targetHH && regHH && targetHH !== regHH) return;
+
+        const isPending    = r.status === 'pending';
+        const isFreeManual = r.freeSlot === true || r.listingType === 'free';
+        const row          = makeRow(d, r, isPending, isFreeManual);
+
+        if (isPending) {
+          countPending++;
+          if (listPending) listPending.appendChild(row);
+        } else {
+          countConfirmed++;
+          listConfirmed.appendChild(row);
+        }
       });
-      if (!any){ list.innerHTML = '<div class="text-sm text-gray-500">Nenhum time neste horário.</div>'; }
-      list.addEventListener('click', async (e)=>{
+
+      // Atualizar contadores nas abas
+      const elCC = document.getElementById('mhCountConfirmed');
+      const elCP = document.getElementById('mhCountPending');
+      if (elCC) elCC.textContent = countConfirmed;
+      if (elCP) elCP.textContent = countPending;
+
+      // Mensagens de vazio
+      if (countConfirmed === 0) listConfirmed.innerHTML = '<div class="text-sm text-gray-400 py-6 text-center">Nenhum time confirmado neste horário.</div>';
+      if (listPending && countPending === 0) listPending.innerHTML = '<div class="text-sm text-gray-400 py-6 text-center">Nenhum time aguardando pagamento.</div>';
+
+      // Abre na aba com mais relevância: se só há pendentes, abre na aba pendentes
+      if (countConfirmed === 0 && countPending > 0) switchManageHourTab('pending');
+
+      // Delegação de eventos para botão "Remover" em ambas as listas
+      const handleRemove = async (e) => {
         const btn = e.target.closest('[data-remove-reg-id]');
         if (!btn) return;
         const id = btn.getAttribute('data-remove-reg-id');
         try{
           await deleteDoc(doc(collection(window.firebaseDb,'registrations'), id));
           btn.closest('.flex')?.remove();
+          // Atualizar contador
+          const listEl = btn.closest('#manageHourListConfirmed') ? listConfirmed : listPending;
+          const remaining = listEl?.querySelectorAll('[data-remove-reg-id]').length || 0;
+          if (listEl === listConfirmed) { countConfirmed--; if (elCC) elCC.textContent = Math.max(0, countConfirmed); }
+          else                          { countPending--;   if (elCP) elCP.textContent = Math.max(0, countPending);   }
           try{ await loadBoard(); }catch(_){ }
         }catch(_){ alert('Falha ao remover.'); }
-      });
+      };
+      listConfirmed.addEventListener('click', handleRemove);
+      if (listPending) listPending.addEventListener('click', handleRemove);
+
       modal.classList.remove('hidden');
     }catch(e){ console.error('openManageHourModal error', e); }
   }
