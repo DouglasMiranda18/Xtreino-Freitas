@@ -2002,12 +2002,35 @@
 
     <!-- Modal Gerenciar Horário -->
     <div id="modalManageHour" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl max-w-xl w-full p-6">
+        <div class="bg-white rounded-xl max-w-xl w-full p-6 max-h-[90vh] flex flex-col">
+            <!-- Cabeçalho -->
             <div class="flex items-center justify-between mb-4">
                 <h3 id="manageHourTitle" class="font-bold text-lg">Gerenciar horário</h3>
-                <button onclick="document.getElementById('modalManageHour').classList.add('hidden')">✕</button>
+                <button onclick="document.getElementById('modalManageHour').classList.add('hidden')" class="text-gray-400 hover:text-gray-700 text-xl leading-none">✕</button>
             </div>
-            <div id="manageHourList" class="space-y-2"></div>
+
+            <!-- Abas -->
+            <div class="flex gap-2 mb-4">
+                <button id="mhTabConfirmed" onclick="switchManageHourTab('confirmed')"
+                        class="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold border-2 transition-all border-green-500 bg-green-50 text-green-700">
+                    ✅ Confirmados
+                    <span id="mhCountConfirmed" class="bg-green-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center">0</span>
+                </button>
+                <button id="mhTabPending" onclick="switchManageHourTab('pending')"
+                        class="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold border-2 transition-all border-gray-200 bg-white text-gray-500">
+                    ⏳ Aguardando Pagamento
+                    <span id="mhCountPending" class="bg-yellow-400 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center">0</span>
+                </button>
+            </div>
+
+            <!-- Listas (apenas uma visível por vez) -->
+            <div class="overflow-y-auto flex-1">
+                <div id="manageHourListConfirmed" class="space-y-2"></div>
+                <div id="manageHourListPending"   class="space-y-2 hidden"></div>
+            </div>
+
+            <!-- Compatibilidade: div original oculta (JS ainda pode usar) -->
+            <div id="manageHourList" class="hidden"></div>
         </div>
     </div>
 
