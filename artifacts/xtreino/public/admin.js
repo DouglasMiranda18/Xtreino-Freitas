@@ -12014,12 +12014,19 @@ async function openEventNotifyModal(eventId, eventName) {
         const validStatuses = new Set(['confirmed', 'paid', 'approved']);
         _notifyEventDocs = snap.docs.filter(d => validStatuses.has(d.data().status));
 
+        // Normaliza horário: "Terça - 22h", "22:00", "22h" → "22h"
+        const _normSchedH = s => {
+            const m = String(s || '').match(/(\d{1,2})(?:h|:00)?\s*$/i);
+            return m ? String(parseInt(m[1], 10)) + 'h' : String(s || '—').trim();
+        };
+
         for (const d of _notifyEventDocs) {
             const r = d.data();
             if (!r.userId) continue;
-            const sched = r.schedule || r.slotDisplay || '—';
-            const date  = r.date || '';
-            const key   = date ? `${date}||${sched}` : `||${sched}`;
+            const schedRaw = r.schedule || r.slotDisplay || '—';
+            const sched    = _normSchedH(schedRaw);   // canonical: "22h"
+            const date     = r.date || '';
+            const key      = date ? `${date}||${sched}` : `||${sched}`;
             if (!_notifyScheduleMap[key]) {
                 let dateLabel = '';
                 if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -12054,7 +12061,7 @@ async function openEventNotifyModal(eventId, eventName) {
                     for (const d of _notifyEventDocs) {
                         const r = d.data();
                         if ((td.id && r.teamId === td.id) || (t.nome && r.teamName === t.nome)) {
-                            const sched = r.schedule || r.slotDisplay || '—';
+                            const sched = _normSchedH(r.schedule || r.slotDisplay || '—');
                             const date  = r.date || '';
                             const key   = date ? `${date}||${sched}` : `||${sched}`;
                             if (_notifyScheduleMap[key]) {
