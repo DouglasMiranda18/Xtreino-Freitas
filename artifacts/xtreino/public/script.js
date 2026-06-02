@@ -7184,83 +7184,95 @@ async function submitSchedule(e, useTokens = false) {
             if (!timesByDate[item.date]) timesByDate[item.date] = [];
             timesByDate[item.date].push(item.schedule);
         });
-        
-        // Verificar disponibilidade
-        for (const d of datesToUse) {
-            const times = timesByDate[d] || [];
-            if (times.length === 0) continue;
-            const availabilityCheck = await checkMultipleSlotAvailability(d, times, eventType, teamsData.length);
-            if (!availabilityCheck.available) {
-                alert(availabilityCheck.message || 'Não há vagas suficientes.');
+
+        // ── DISPARAR TUDO EM PARALELO ─────────────────────────────────────────
+        // 1) waitForFirebase começa AGORA (não espera os checks terminarem)
+        const _fbReadyPromise = waitForFirebase(5000);
+
+        // 2) Checks de disponibilidade para TODAS as datas em paralelo
+        const _availPromises = datesToUse
+            .filter(d => (timesByDate[d] || []).length > 0)
+            .map(d => checkMultipleSlotAvailability(d, timesByDate[d], eventType, teamsData.length)
+                .catch(() => ({ available: true })));
+
+        // 3) Travas permanentes: global + horários em paralelo
+        const _lockPromise = (async () => {
+            try {
+                const { doc: _ld, getDoc: _lg, collection: _lc, query: _lq, where: _lw, getDocs: _lgs } =
+                    await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+                const [globalLock, hourLocksSnap] = await Promise.all([
+                    _lg(_ld(window.firebaseDb, 'event_global_locks', rawEventType)),
+                    _lgs(_lq(_lc(window.firebaseDb, 'event_hour_locks'), _lw('eventType', '==', rawEventType)))
+                ]);
+                return { globalLock, hourLocksSnap };
+            } catch (_) { return null; }
+        })();
+
+        // 4) Anti-duplicação para campeonatos (em paralelo com o resto)
+        const _isCampEvent = (cfg?.category === 'camp') ||
+            rawEventType === 'camp-freitas' || rawEventType === 'camp-final' ||
+            rawEventType.toLowerCase().startsWith('camp');
+        const _campDupPromise = (_isCampEvent && teamsData.length > 0) ? (async () => {
+            try {
+                const { collection: _dc, query: _dq, where: _dw, getDocs: _ddg } =
+                    await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+                const _existSnap = await _ddg(_dq(_dc(window.firebaseDb, 'registrations'), _dw('eventType', '==', rawEventType)));
+                const _existNames = new Set();
+                _existSnap.docs.forEach(_d => { const _tn = _d.data().teamName; if (_tn) _existNames.add(_tn.trim().toLowerCase().replace(/\s+/g, ' ')); });
+                return _existNames;
+            } catch (_) { return null; }
+        })() : Promise.resolve(null);
+
+        // ── AGUARDAR TUDO DE UMA VEZ ──────────────────────────────────────────
+        const [availResults, lockResult, campExistNames] = await Promise.all([
+            Promise.all(_availPromises),
+            _lockPromise,
+            _campDupPromise,
+            _fbReadyPromise
+        ]);
+
+        // Processar disponibilidade
+        for (const check of availResults) {
+            if (!check.available) {
+                alert(check.message || 'Não há vagas suficientes.');
                 if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
                 return;
             }
         }
 
-        // Verificar travas permanentes ANTES de criar cobrança (event_global_locks + event_hour_locks)
-        try {
-            const { doc: _ld, getDoc: _lg, collection: _lc, query: _lq, where: _lw, getDocs: _lgs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-            // 1. Trava global do evento inteiro
-            const globalLock = await _lg(_ld(window.firebaseDb, 'event_global_locks', rawEventType));
+        // Processar travas
+        if (lockResult) {
+            const { globalLock, hourLocksSnap } = lockResult;
             if (globalLock.exists() && globalLock.data().locked === true) {
                 alert('Este evento está temporariamente suspenso. Nenhuma nova inscrição pode ser feita no momento.');
                 if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
                 return;
             }
-            // 2. Travas permanentes por horário — 1 filtro apenas (evita índice composto no Firestore)
-            const hourLocksSnap = await _lgs(_lq(
-                _lc(window.firebaseDb, 'event_hour_locks'),
-                _lw('eventType', '==', rawEventType)
-            ));
             const lockedHoursSet = new Set();
             hourLocksSnap.forEach(ld => {
                 const ldata = ld.data();
-                if (ldata.locked !== true) return; // filtrar em JS
-                if (ldata.hour) lockedHoursSet.add(String(ldata.hour).toLowerCase().trim());
+                if (ldata.locked === true && ldata.hour) lockedHoursSet.add(String(ldata.hour).toLowerCase().trim());
             });
-            if (lockedHoursSet.size > 0) {
-                for (const item of selectedTimes) {
-                    const parts = (item.schedule || '').split(' - ');
-                    const rawHourStr = (parts[1] || parts[0] || '').trim();
-                    const normH = normalizeHour(rawHourStr);
-                    if (normH && lockedHoursSet.has(normH)) {
-                        alert(`O horário ${normH} está permanentemente bloqueado para este evento e não aceita novas inscrições.`);
-                        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
-                        return;
-                    }
+            for (const item of selectedTimes) {
+                const parts = (item.schedule || '').split(' - ');
+                const normH = normalizeHour((parts[1] || parts[0] || '').trim());
+                if (normH && lockedHoursSet.has(normH)) {
+                    alert(`O horário ${normH} está permanentemente bloqueado para este evento e não aceita novas inscrições.`);
+                    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+                    return;
                 }
             }
-        } catch (_lockErr) {
-            // Se a checagem de travas falhar por qualquer motivo, não bloquear o fluxo
-            // (a UI já oculta os botões dos horários travados)
         }
 
-        // Anti-duplicação: campeonatos não permitem o mesmo nome de equipe duas vezes
-        const _isCampEvent = (cfg?.category === 'camp') ||
-            rawEventType === 'camp-freitas' || rawEventType === 'camp-final' ||
-            rawEventType.toLowerCase().startsWith('camp');
-        if (_isCampEvent && teamsData.length > 0) {
-            try {
-                const { collection: _dc, query: _dq, where: _dw, getDocs: _ddg } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-                const _existSnap = await _ddg(_dq(
-                    _dc(window.firebaseDb, 'registrations'),
-                    _dw('eventType', '==', rawEventType)
-                ));
-                const _existNames = new Set();
-                _existSnap.docs.forEach(_d => {
-                    const _tn = _d.data().teamName;
-                    if (_tn) _existNames.add(_tn.trim().toLowerCase().replace(/\s+/g, ' '));
-                });
-                for (const _team of teamsData) {
-                    const _norm = (_team.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
-                    if (_norm && _existNames.has(_norm)) {
-                        alert(`Já existe uma equipe inscrita com esse nome nas fases iniciais: "${_team.name}"\n\nVerifique se sua equipe já está inscrita neste campeonato.`);
-                        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
-                        return;
-                    }
+        // Processar anti-duplicação camp
+        if (campExistNames) {
+            for (const _team of teamsData) {
+                const _norm = (_team.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+                if (_norm && campExistNames.has(_norm)) {
+                    alert(`Já existe uma equipe inscrita com esse nome nas fases iniciais: "${_team.name}"\n\nVerifique se sua equipe já está inscrita neste campeonato.`);
+                    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+                    return;
                 }
-            } catch (_dupErr) {
-                console.warn('[Camp] Verificação anti-duplicata falhou:', _dupErr);
             }
         }
 
@@ -7318,18 +7330,8 @@ async function submitSchedule(e, useTokens = false) {
         let regIds = [];
 
         try {
-            // Aguardar Firebase ficar pronto (até 8s) antes de salvar registrations
-            await waitForFirebase(8000);
+            // Firebase já foi aguardado em paralelo acima — verificação rápida
             if (!window.firebaseReady || !window.firebaseDb) throw new Error('Não foi possível conectar ao banco de dados. Verifique sua internet e tente novamente.');
-
-            // Aguardar currentUser de auth estar disponível (até 5s extra)
-            if (!window.firebaseAuth?.currentUser) {
-                let _authWait = 0;
-                while (!window.firebaseAuth?.currentUser && _authWait < 5000) {
-                    await new Promise(r => setTimeout(r, 200));
-                    _authWait += 200;
-                }
-            }
             if (!window.firebaseAuth?.currentUser) {
                 alert('Faça login para se inscrever no evento.');
                 if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
@@ -7368,19 +7370,20 @@ async function submitSchedule(e, useTokens = false) {
                 }
             }
 
-            // ── Buscar todos os links WhatsApp em paralelo (era sequencial) ──
-            const _wlArr = await Promise.all(
-                _schedPairs.map(p => getWhatsAppLink(rawEventType, p.normalizedHour, p.d).catch(() => null))
-            );
+            // ── Links WhatsApp + upload de logos em paralelo ──────────────────
+            const [_wlArr, _teamLogoUrlMap] = await Promise.all([
+                Promise.all(_schedPairs.map(p => getWhatsAppLink(rawEventType, p.normalizedHour, p.d).catch(() => null))),
+                (async () => {
+                    const _map = {};
+                    await Promise.all(teamsData.map(async team => {
+                        if (team.logoBase64) {
+                            _map[team.name] = await uploadTeamLogo(team.logoBase64, team.name, rawEventType);
+                        }
+                    }));
+                    return _map;
+                })()
+            ]);
             _schedPairs.forEach((p, i) => { p.whatsappLink = _wlArr[i]; });
-
-            // ── Upload de logos para Firebase Storage (antes de salvar no Firestore) ──
-            const _teamLogoUrlMap = {};
-            for (const team of teamsData) {
-                if (team.logoBase64) {
-                    _teamLogoUrlMap[team.name] = await uploadTeamLogo(team.logoBase64, team.name, rawEventType);
-                }
-            }
 
             // ── Calcular slots (síncrono — preserva ordem) e montar payloads ──
             const _regPayloads = [];
