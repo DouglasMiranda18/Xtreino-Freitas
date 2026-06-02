@@ -12219,7 +12219,10 @@ async function sendEventNotification() {
             const selSched = schedParts.join('||');
             docsToNotify = _notifyEventDocs.filter(d => {
                 const r = d.data();
-                return (r.date || '') === selDate && (r.schedule || r.slotDisplay || '—') === selSched;
+                const rawSched = r.schedule || r.slotDisplay || '—';
+                const mNorm = String(rawSched).match(/(\d{1,2})(?:h|:00)?\s*$/i);
+                const normSched = mNorm ? String(parseInt(mNorm[1], 10)) + 'h' : String(rawSched).trim();
+                return (r.date || '') === selDate && normSched === selSched;
             });
             if (selDate && /^\d{4}-\d{2}-\d{2}$/.test(selDate)) {
                 const [, m, dd] = selDate.split('-');
