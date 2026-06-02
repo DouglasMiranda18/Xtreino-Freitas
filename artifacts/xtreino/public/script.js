@@ -6478,7 +6478,7 @@ async function _resizeLogoBase64(dataUrl, size = 128) {
             const min = Math.min(img.width, img.height);
             const sx = (img.width - min) / 2, sy = (img.height - min) / 2;
             ctx.drawImage(img, sx, sy, min, min, 0, 0, size, size);
-            resolve(canvas.toDataURL('image/jpeg', 0.7));
+            resolve(canvas.toDataURL('image/png'));
         };
         img.onerror = () => resolve(null);
         img.src = dataUrl;
