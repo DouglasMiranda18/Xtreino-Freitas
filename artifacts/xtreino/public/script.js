@@ -7669,7 +7669,18 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts) {
         await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     const counterRef = doc(window.firebaseDb, 'slotCounters', rawEventType);
 
-    // Lê as registrations reais como fonte de verdade (inclui inserções manuais do admin)
+    // Normaliza horário para chave canônica: "Domingo - 21h" → "21h", "21:00" → "21h"
+    const _normH = s => {
+        const str = String(s || '').trim();
+        const mColon = str.match(/(\d{1,2}):(\d{2})/);
+        if (mColon) return parseInt(mColon[1], 10) + 'h';
+        const mH = str.match(/(\d{1,2})\s*h/i);
+        if (mH) return parseInt(mH[1], 10) + 'h';
+        return str;
+    };
+
+    // Lê registrations reais como fonte de verdade (inclui inserções manuais do admin)
+    // Usa chave normalizada para casar "21h" (manual) com "Domingo - 21h" (PIX/tokens)
     const regSlotMax = {};
     try {
         const _snap = await getDocs(query(
@@ -7680,7 +7691,8 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts) {
             const data = d.data();
             if (data.schedule && (data.slot != null || data.slotNumber != null)) {
                 const num = Number(data.slot ?? data.slotNumber) || 0;
-                if (num > (regSlotMax[data.schedule] || 0)) regSlotMax[data.schedule] = num;
+                const normKey = _normH(data.schedule);
+                if (num > (regSlotMax[normKey] || 0)) regSlotMax[normKey] = num;
             }
         });
     } catch (_) {}
@@ -7693,7 +7705,7 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts) {
             const counts = counterDoc.exists() ? { ...counterDoc.data() } : {};
             for (const [sched, n] of Object.entries(scheduleCounts)) {
                 const fromCounter = Number(counts[sched]) || 0;
-                const fromRegs    = Number(regSlotMax[sched]) || 0;
+                const fromRegs    = Number(regSlotMax[_normH(sched)]) || 0;
                 const current     = Math.max(fromCounter, fromRegs);
                 startSlots[sched] = current + 1;
                 counts[sched]     = current + n;
@@ -7709,7 +7721,7 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts) {
     // Fallback puro sem escrita no slotCounters
     const startSlotsFallback = {};
     for (const [sched] of Object.entries(scheduleCounts)) {
-        startSlotsFallback[sched] = (Number(regSlotMax[sched]) || 0) + 1;
+        startSlotsFallback[sched] = (Number(regSlotMax[_normH(sched)]) || 0) + 1;
     }
     console.log('[SlotDB] startSlots (fallback):', JSON.stringify(startSlotsFallback));
     return startSlotsFallback;
