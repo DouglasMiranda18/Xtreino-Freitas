@@ -2808,6 +2808,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
         const opt = document.createElement('option');
         opt.value = d.id;
         opt.textContent = ev.name || d.id;
+        // Armazena o tipo canônico para que getCapacityForHour funcione com IDs auto-gerados
+        const canon = canonicalType(ev.eventType || d.id);
+        opt.dataset.canonicalType = canon;
         typeEl.appendChild(opt);
       });
     } catch (err) {
@@ -3254,7 +3257,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
       const mergedMap = {};
       defaultHours.forEach(hour => {
         const occupied = occupancyMap[hour] || 0;
-        const cap = getCapacityForHour(eventType, hour, isCampFinalDate, isCampSemifinalDate);
+        const cap = getCapacityForHour(ovEventType, hour, isCampFinalDate, isCampSemifinalDate);
         let final = occupied;
         
         const ovData = overridesMap[hour];
@@ -3301,7 +3304,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
       } catch(_) {}
 
       entries.forEach(hour => {
-        const cap = getCapacityForHour(eventType, hour, isCampFinalDate, isCampSemifinalDate);
+        const cap = getCapacityForHour(ovEventType, hour, isCampFinalDate, isCampSemifinalDate);
         const occupied = mergedMap[hour] || 0;
         const tr = createBoardTableRow(hour, cap, occupied, overridesMap, ovEventType, permLockedHours);
         tbody.appendChild(tr);
