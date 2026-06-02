@@ -8153,11 +8153,14 @@ async function loadAffiliates() {
                 id: doc.id,
                 email: data.email || '',
                 name: data.name || data.displayName || data.email?.split('@')[0] || 'N/A',
-                commissionRate: data.commissionRate || 10, // Mantido para compatibilidade
+                commissionRate: data.commissionRate || 10,
                 commissionRateEvents: data.commissionRateEvents || data.commissionRate || 10,
                 commissionRateProducts: data.commissionRateProducts || data.commissionRate || 10,
                 status: data.affiliateStatus || 'active',
-                affiliateStatus: data.affiliateStatus || 'active', // Manter ambos para compatibilidade
+                affiliateStatus: data.affiliateStatus || 'active',
+                managerId: data.managerId || null,
+                managerEmail: data.managerEmail || null,
+                managerCommissionRate: data.managerCommissionRate != null ? data.managerCommissionRate : 10,
                 createdAt: createdAt
             });
         });
@@ -8299,10 +8302,17 @@ function renderAffiliatesRows(affiliatesList, tbody) {
             ? '<span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Ativo</span>'
             : '<span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs">Inativo</span>';
         
+        const managerBadge = affiliate.managerEmail
+            ? `<div class="mt-1"><span class="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">👔 ${affiliate.managerEmail.split('@')[0]} (${affiliate.managerCommissionRate ?? 10}%)</span></div>`
+            : '';
+
         return `
             <tr class="border-b border-gray-100 hover:bg-gray-50">
                 <td class="py-2 px-2 text-xs font-medium">${affiliate.name}</td>
-                <td class="py-2 px-2 text-xs">${affiliate.email}</td>
+                <td class="py-2 px-2 text-xs">
+                    <div>${affiliate.email}</div>
+                    ${managerBadge}
+                </td>
                 <td class="py-2 px-2 text-xs">
                     <div>Eventos: ${affiliate.commissionRateEvents || affiliate.commissionRate || 10}%</div>
                     <div class="text-gray-500">Produtos: ${affiliate.commissionRateProducts || affiliate.commissionRate || 10}%</div>
@@ -8431,6 +8441,13 @@ function closeCreateAffiliateModal() {
     }
 }
 
+// Mostrar/ocultar campo de comissão do gerente conforme e-mail preenchido
+window.toggleManagerCommissionField = function() {
+    const emailVal = (document.getElementById('affiliateManagerEmail')?.value || '').trim();
+    const wrap = document.getElementById('affiliateManagerCommissionWrap');
+    if (wrap) wrap.classList.toggle('hidden', !emailVal);
+};
+
 // Criar/editar afiliado
 async function createOrUpdateAffiliate(event) {
     if (event) event.preventDefault();
@@ -8440,56 +8457,70 @@ async function createOrUpdateAffiliate(event) {
     const commissionRateProducts = parseFloat(document.getElementById('affiliateCommissionRateProducts')?.value || 0);
     const status = document.getElementById('affiliateStatus')?.value || 'active';
     const editId = document.getElementById('affiliateEditId')?.value;
-    
+    const managerEmail = (document.getElementById('affiliateManagerEmail')?.value || '').trim().toLowerCase() || null;
+    const managerCommissionRate = managerEmail ? parseFloat(document.getElementById('affiliateManagerCommissionRate')?.value || 10) : null;
+
     if (!email) {
         showToast('error', 'Email é obrigatório', 'Erro');
         return;
     }
-    
     if (commissionRateEvents < 0 || commissionRateEvents > 100) {
         showToast('error', 'Percentual de comissão de eventos deve estar entre 0 e 100', 'Erro');
         return;
     }
-    
     if (commissionRateProducts < 0 || commissionRateProducts > 100) {
         showToast('error', 'Percentual de comissão de produtos deve estar entre 0 e 100', 'Erro');
         return;
     }
-    
+    if (managerEmail && (managerCommissionRate < 0 || managerCommissionRate > 100)) {
+        showToast('error', 'Comissão do gerente deve estar entre 0 e 100', 'Erro');
+        return;
+    }
+
     try {
         const { collection, query, where, getDocs, doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        
-        // Buscar usuário pelo email
         const usersRef = collection(window.firebaseDb, 'users');
+
+        // Buscar usuário do afiliado pelo email
         const q = query(usersRef, where('email', '==', email));
         const snapshot = await getDocs(q);
-        
         if (snapshot.empty) {
             showToast('error', 'Usuário não encontrado. O usuário deve estar cadastrado no sistema primeiro.', 'Erro');
             return;
         }
-        
         const userDoc = snapshot.docs[0];
         const userId = userDoc.id;
-        
+
+        // Resolver UID do gerente pelo e-mail (se informado)
+        let managerId = null;
+        if (managerEmail) {
+            try {
+                const mqSnap = await getDocs(query(usersRef, where('email', '==', managerEmail)));
+                if (!mqSnap.empty) managerId = mqSnap.docs[0].id;
+                else showToast('warning', `Gerente "${managerEmail}" não encontrado no sistema — vínculo salvo apenas com o e-mail.`, 'Aviso');
+            } catch (_) {}
+        }
+
         // Atualizar role e dados do afiliado
         await updateDoc(doc(window.firebaseDb, 'users', userId), {
             role: 'Afiliado',
-            commissionRate: commissionRateEvents, // Mantido para compatibilidade (usa eventos como padrão)
+            commissionRate: commissionRateEvents,
             commissionRateEvents: commissionRateEvents,
             commissionRateProducts: commissionRateProducts,
             affiliateStatus: status,
+            managerId: managerId || null,
+            managerEmail: managerEmail || null,
+            managerCommissionRate: managerEmail ? managerCommissionRate : null,
             updatedAt: new Date()
         });
-        
-        await logAdminAction('manage_affiliate', editId ? `Editou afiliado ${email}` : `Criou afiliado ${email} com ${commissionRateEvents}% eventos e ${commissionRateProducts}% produtos`);
-        
-        // Recarregar dados
+
+        const gerenteMsg = managerEmail ? ` | gerente: ${managerEmail} (${managerCommissionRate}%)` : '';
+        await logAdminAction('manage_affiliate', editId
+            ? `Editou afiliado ${email}${gerenteMsg}`
+            : `Criou afiliado ${email} — eventos:${commissionRateEvents}% produtos:${commissionRateProducts}%${gerenteMsg}`);
+
         await loadAffiliates();
-        
-        // Fechar modal
         closeCreateAffiliateModal();
-        
         showToast('success', editId ? 'Afiliado atualizado com sucesso!' : 'Afiliado criado com sucesso!', 'Sucesso');
     } catch (error) {
         console.error('❌ Erro ao criar/editar afiliado:', error);
@@ -8518,6 +8549,14 @@ function editAffiliate(affiliateId) {
         if (commissionProductsInput) commissionProductsInput.value = affiliate.commissionRateProducts || affiliate.commissionRate || 10;
         if (statusSelect) statusSelect.value = affiliate.status;
         if (editId) editId.value = affiliateId;
+
+        // Preencher campos do gerente
+        const mgrEmailEl = document.getElementById('affiliateManagerEmail');
+        const mgrRateEl  = document.getElementById('affiliateManagerCommissionRate');
+        const mgrWrap    = document.getElementById('affiliateManagerCommissionWrap');
+        if (mgrEmailEl) mgrEmailEl.value = affiliate.managerEmail || '';
+        if (mgrRateEl)  mgrRateEl.value  = affiliate.managerCommissionRate != null ? affiliate.managerCommissionRate : 10;
+        if (mgrWrap)    mgrWrap.classList.toggle('hidden', !affiliate.managerEmail);
     }
 }
 
