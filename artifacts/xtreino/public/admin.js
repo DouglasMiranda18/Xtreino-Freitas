@@ -3749,6 +3749,51 @@ window.showWarningToast = function(message, title = 'Atenção') {
   // [removido duplicado]
 })();
 
+// ===== Dados estruturados da lista de slots (para notificações) =====
+async function buildSlotData(date, eventType, hour) {
+  try {
+    const hh = String(hour).match(/(\d{1,2})/)?.[1] || '';
+    const { collection, getDocs, query, where } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const normalize = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const normalizeHour = s => { const m = String(s || '').match(/(\d{1,2})/); return m ? String(parseInt(m[1], 10)).padStart(2, '0') : null; };
+    const evLower = normalize(eventType);
+    const snap = await getDocs(query(collection(window.firebaseDb, 'registrations'), where('date', '==', date)));
+    const teams = [];
+    snap.forEach(doc => {
+      const r = doc.data();
+      const rType = normalize(r.eventType);
+      if (evLower) {
+        if (evLower.includes('liga')) { if (!rType.includes('liga')) return; }
+        else if (evLower.includes('semanal')) { if (!rType.includes('semanal')) return; }
+        else if (evLower.includes('camp')) { if (!rType.includes('camp')) return; }
+        else if (evLower.includes('xtreino') || evLower.includes('tokens')) {
+          if (!(rType.includes('xtreino') || rType.includes('tokens'))) return;
+        }
+      }
+      const regHH = normalizeHour(r.schedule) || normalizeHour(r.hour);
+      if (regHH !== hh) return;
+      const st = String(r.status || '').toLowerCase();
+      if (!['paid', 'confirmed'].includes(st)) return;
+      const slotNum = r.slot != null ? Number(r.slot) : (r.slotNumber != null ? Number(r.slotNumber) : null);
+      teams.push({ teamName: r.teamName || r.name || r.email || 'Time', slot: slotNum, createdAt: r.createdAt?.toDate?.() || new Date(0) });
+    });
+    teams.sort((a, b) => {
+      if (a.slot !== null && b.slot !== null) return a.slot - b.slot;
+      if (a.slot !== null) return -1;
+      if (b.slot !== null) return 1;
+      return (a.createdAt?.getTime?.() || 0) - (b.createdAt?.getTime?.() || 0);
+    });
+    const capacity = normalize(eventType).includes('liga') ? 15 : 12;
+    const slots = [];
+    for (let i = 1; i <= capacity; i++) {
+      slots.push({ slot: i, teamName: teams[i - 1]?.teamName || '' });
+    }
+    return { slots, capacity };
+  } catch (_) {
+    return { slots: [], capacity: 12 };
+  }
+}
+
 // ===== Exportação de lista por horário =====
 async function buildExportList(date, eventType, hour){
   const hh = String(hour).match(/(\d{1,2})/)?.[1] || '';
@@ -12169,6 +12214,21 @@ async function sendEventNotification() {
         // batchId agrupa todas as notificações deste envio — evita duplicatas na listagem do admin
         const batchId = `batch_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
+        // Ao enviar credenciais para um horário específico, incluir lista de slots na notificação
+        let slotList = null;
+        let slotCapacity = null;
+        if (notifyType === 'credentials' && selectedSchedule !== 'all') {
+            try {
+                const [selDate2, ...schedParts2] = selectedSchedule.split('||');
+                const selSched2 = schedParts2.join('||');
+                const slotData = await buildSlotData(selDate2, eventId, selSched2);
+                if (slotData.slots.length > 0) {
+                    slotList = slotData.slots;
+                    slotCapacity = slotData.capacity;
+                }
+            } catch (_) {}
+        }
+
         await Promise.all(uniqueUsers.map(uid =>
             addDoc(collection(window.firebaseDb, 'notifications'), {
                 title: `[${eventName}]${scheduleLabel} ${title}`,
@@ -12183,6 +12243,8 @@ async function sendEventNotification() {
                 roomPassword: roomPassword || null,
                 roomLink: roomLink || null,
                 tabelaLink: tabelaLink || null,
+                slotList: slotList || null,
+                slotCapacity: slotCapacity || null,
                 createdAt: serverTimestamp(),
                 createdBy,
                 createdByUid: user?.uid || null,
