@@ -5244,13 +5244,6 @@ function openScheduleModal(eventType) {
     const modal = document.getElementById('scheduleModal');
     if (!cfg || !modal) return;
 
-    // Eventos de time (xtreino-tokens) abrem o modal de equipe
-    // (opts.skipTeam = true quando chamado após confirmação do time → vai direto ao agendamento)
-    if (!(arguments[1] && arguments[1].skipTeam) && (eventType === 'xtreino-tokens' || cfg.eventType === 'xtreino-tokens')) {
-        if (typeof window.abrirModalEquipe === 'function') window.abrirModalEquipe(eventType);
-        return;
-    }
-
     // Pré-aquecer a Netlify Function para eliminar o cold start no pagamento
     // (dispara OPTIONS em background — o usuário ainda vai preencher o formulário)
     try {
@@ -5287,11 +5280,10 @@ function openScheduleModal(eventType) {
     })();
     updateScheduleCouponUI();
 
-    // Para eventos de time (xtreino-tokens), ocultar seção admin de times
-    const _isTeamEventSched = eventType === 'xtreino-tokens' || (scheduleConfig[eventType]?.eventType === 'xtreino-tokens');
+    // Mostrar seção de times para todos os eventos pagos (inclui xtreino-tokens)
     const _teamsSectionEl = document.getElementById('teamsSection');
-    if (_teamsSectionEl) _teamsSectionEl.style.display = _isTeamEventSched ? 'none' : '';
-    if (!_isTeamEventSched) addTeam();
+    if (_teamsSectionEl) _teamsSectionEl.style.display = '';
+    addTeam();
 
     // Sincronizar tokens do usuário antes de qualquer checagem
     try { if (typeof syncUserTokens === 'function') { syncUserTokens(); } } catch (_) { }
