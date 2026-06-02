@@ -5932,9 +5932,7 @@ async function renderScheduleTimes() {
             const date = document.getElementById('schedDate')?.value || null;
             btn.textContent = `${time} (Carregando...)`;
             btn.onclick = () => {
-                document.getElementById('schedSelectedTime').value = schedule;
-                document.getElementById('schedSelectedTimeDisplay').textContent = time;
-                highlightSelectedSlot(btn, timesWrap);
+                toggleTimeSelection(schedule, btn);
             };
         }
 
@@ -6592,8 +6590,15 @@ function selectTime(schedule, element) {
     const displayField = document.getElementById('schedSelectedTimeDisplay');
     if (hiddenField) hiddenField.value = schedule;
     if (displayField) {
-        const hour = schedule.split(' - ')[1] || schedule;
-        displayField.textContent = hour;
+        // Mostrar TODOS os horários selecionados, não apenas o último
+        if (selectedTimes.length === 0) {
+            displayField.textContent = '—';
+        } else {
+            const horasExibidas = selectedTimes
+                .map(item => item.schedule.split(' - ')[1] || item.schedule)
+                .join(', ');
+            displayField.textContent = horasExibidas;
+        }
     }
 
     updateReservationsSummary();
