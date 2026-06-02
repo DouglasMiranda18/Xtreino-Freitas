@@ -6467,6 +6467,24 @@ function previewTeamLogo(teamId, input) {
     reader.readAsDataURL(file);
 }
 
+// Redimensiona base64 data URL para thumbnail 128px JPEG — salvo no Firestore como fallback
+async function _resizeLogoBase64(dataUrl, size = 128) {
+    return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = size; canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            const min = Math.min(img.width, img.height);
+            const sx = (img.width - min) / 2, sy = (img.height - min) / 2;
+            ctx.drawImage(img, sx, sy, min, min, 0, 0, size, size);
+            resolve(canvas.toDataURL('image/jpeg', 0.7));
+        };
+        img.onerror = () => resolve(null);
+        img.src = dataUrl;
+    });
+}
+
 async function uploadTeamLogo(base64DataUrl, teamName, eventType) {
     if (!base64DataUrl || !window.firebaseStorage) return null;
     try {
@@ -7378,13 +7396,18 @@ async function submitSchedule(e, useTokens = false) {
             }
 
             // ── Links WhatsApp + upload de logos em paralelo ──────────────────
-            const [_wlArr, _teamLogoUrlMap] = await Promise.all([
+            // _teamLogoDataMap: { [teamName]: { url: storageUrl|null, thumb: base64Thumb|null } }
+            const [_wlArr, _teamLogoDataMap] = await Promise.all([
                 Promise.all(_schedPairs.map(p => getWhatsAppLink(rawEventType, p.normalizedHour, p.d).catch(() => null))),
                 (async () => {
                     const _map = {};
                     await Promise.all(teamsData.map(async team => {
                         if (team.logoBase64) {
-                            _map[team.name] = await uploadTeamLogo(team.logoBase64, team.name, rawEventType);
+                            const [url, thumb] = await Promise.all([
+                                uploadTeamLogo(team.logoBase64, team.name, rawEventType),
+                                _resizeLogoBase64(team.logoBase64)
+                            ]);
+                            _map[team.name] = { url, thumb };
                         }
                     }));
                     return _map;
@@ -7403,7 +7426,8 @@ async function submitSchedule(e, useTokens = false) {
                         _meta: { team: team.name, slotNum, slotDisplay, schedule: p.schedule, date: p.d, whatsappLink: p.whatsappLink },
                         userId: window.firebaseAuth.currentUser.uid,
                         teamName: team.name,
-                        teamLogoUrl: _teamLogoUrlMap[team.name] || _equipeAtual?.logoUrl || null,
+                        teamLogoUrl: _teamLogoDataMap[team.name]?.url || _equipeAtual?.logoUrl || null,
+                        teamLogoThumb: _teamLogoDataMap[team.name]?.thumb || null,
                         teamId: _equipeAtual?.id || null,
                         membrosUids: _equipeAtual?.membrosUids || null,
                         email: team.email,
