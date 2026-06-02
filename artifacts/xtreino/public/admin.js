@@ -3667,7 +3667,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
         const logoHtml = _adminLogoUrl
           ? `<img src="${_adminLogoUrl}" class="w-6 h-6 rounded object-cover flex-shrink-0">`
           : '';
-        row.innerHTML = `<div class="text-sm"><div class="font-semibold flex items-center flex-wrap gap-1">${logoHtml}${r.teamName||r.email||'-'}${statusBadge}</div><div class="text-gray-500">${r.contact||r.phone||''}</div></div>
+        const _mgEmail = r.email || r.clientEmail || '';
+        const _mgPhone = r.contact || r.phone || '';
+        row.innerHTML = `<div class="text-sm"><div class="font-semibold flex items-center flex-wrap gap-1">${logoHtml}${r.teamName||_mgEmail||'-'}${statusBadge}</div>${_mgPhone ? `<div class="text-gray-500">📞 ${_mgPhone}</div>` : ''}${_mgEmail ? `<div class="text-gray-400 text-xs">✉️ ${_mgEmail}</div>` : ''}</div>
           <button class="px-2 py-1 bg-red-600 text-white rounded text-xs" data-remove-reg-id="${d.id}">Remover</button>`;
         list.appendChild(row);
       });
