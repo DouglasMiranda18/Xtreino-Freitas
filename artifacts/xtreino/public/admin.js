@@ -3635,8 +3635,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
           : '<span class="text-xs bg-green-100 text-green-700 border border-green-300 rounded px-1.5 py-0.5 ml-1">✓ Pago</span>';
         const row = document.createElement('div');
         row.className = `flex items-center justify-between border-b py-2 ${isPending ? 'bg-yellow-50' : ''}`;
-        const logoHtml = r.teamLogoUrl
-          ? `<img src="${r.teamLogoUrl}" class="w-6 h-6 rounded object-cover flex-shrink-0">`
+        const _adminLogoUrl = r.teamLogoUrl || r.teamLogoThumb || null;
+        const logoHtml = _adminLogoUrl
+          ? `<img src="${_adminLogoUrl}" class="w-6 h-6 rounded object-cover flex-shrink-0">`
           : '';
         row.innerHTML = `<div class="text-sm"><div class="font-semibold flex items-center flex-wrap gap-1">${logoHtml}${r.teamName||r.email||'-'}${statusBadge}</div><div class="text-gray-500">${r.contact||r.phone||''}</div></div>
           <button class="px-2 py-1 bg-red-600 text-white rounded text-xs" data-remove-reg-id="${d.id}">Remover</button>`;
@@ -11882,7 +11883,7 @@ async function openEventNotifyModal(eventId, eventName) {
             collection(window.firebaseDb, 'registrations'),
             where('eventType', '==', eventId)
         ));
-        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
+        const validStatuses = new Set(['confirmed', 'paid', 'approved']);
         _notifyEventDocs = snap.docs.filter(d => validStatuses.has(d.data().status));
 
         for (const d of _notifyEventDocs) {
@@ -12137,7 +12138,7 @@ async function openEventSlotsModal(eventId, eventName) {
             collection(window.firebaseDb, 'registrations'),
             where('eventType', '==', eventId)
         ));
-        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
+        const validStatuses = new Set(['confirmed', 'paid', 'approved']);
         // Data de hoje em horário de Brasília (UTC-3)
         const _brNow = new Date(Date.now() - 3 * 60 * 60 * 1000);
         const todayStr = _brNow.toISOString().split('T')[0];
@@ -12255,7 +12256,7 @@ async function openEventSlotsModal(eventId, eventName) {
                                 ? r.date.split('-').reverse().join('/') : (r.date || '—');
                             const leaderName = r.leaderName && r.leaderName !== r.teamName ? r.leaderName : null;
                             const nomeArq = (r.teamName || 'time').replace(/[^a-zA-Z0-9]/g,'_');
-                            const _slotLogoUrl = r.teamLogoUrl || _slotsLogoMap[(r.teamName||'').toLowerCase().trim()] || null;
+                            const _slotLogoUrl = r.teamLogoUrl || r.teamLogoThumb || _slotsLogoMap[(r.teamName||'').toLowerCase().trim()] || null;
                             const logoCell = _slotLogoUrl
                                 ? `<div class="flex flex-col items-center gap-1">
                                     <img src="${_slotLogoUrl}" class="w-9 h-9 rounded-lg object-contain" style="background:transparent" title="${escapeAdminHtml(r.teamName||'')}">
@@ -12305,7 +12306,7 @@ async function repairEventSlots() {
             collection(window.firebaseDb, 'registrations'),
             where('eventType', '==', eventId)
         ));
-        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
+        const validStatuses = new Set(['confirmed', 'paid', 'approved']);
         // Data de hoje em horário de Brasília (UTC-3)
         const _brNow = new Date(Date.now() - 3 * 60 * 60 * 1000);
         const todayStr = _brNow.toISOString().split('T')[0];
@@ -12707,7 +12708,7 @@ window.repairDateSlots = async function(eventType, targetDate) {
             where('date', '==', targetDate)
         ));
 
-        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
+        const validStatuses = new Set(['confirmed', 'paid', 'approved']);
         const docs = snap.docs.filter(d => validStatuses.has(d.data().status));
 
         if (docs.length === 0) {
