@@ -6173,20 +6173,27 @@ async function checkMultipleSlotAvailability(date, selectedTimes, eventType, num
       return { available: true };
     }
 
-    // 🔥 ÚNICO ponto de verdade agora é o backend
-    const response = await fetch('/.netlify/functions/check-availability', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        date: normalizedDate,
-        selectedTimes,
-        eventType: eventType || null,
-        numberOfTeams: Number(numberOfTeams || 1)
-      })
-    });
+    // 🔥 ÚNICO ponto de verdade agora é o backend — timeout de 4s para não travar o checkout
+    const _ctrl = new AbortController();
+    const _tid = setTimeout(() => _ctrl.abort(), 4000);
+    let response;
+    try {
+      response = await fetch('/.netlify/functions/check-availability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: normalizedDate,
+          selectedTimes,
+          eventType: eventType || null,
+          numberOfTeams: Number(numberOfTeams || 1)
+        }),
+        signal: _ctrl.signal
+      });
+    } finally {
+      clearTimeout(_tid);
+    }
 
     if (!response.ok) {
-      
       return { available: true }; // fail-safe
     }
 
@@ -7651,24 +7658,9 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts) {
         console.warn('[SlotDB] Nível 1 falhou, tentando seeding atômico:', txErr.message);
     }
 
-    // --- Nível 2: seeding atômico ---
-    // Passo A: lê o máximo atual das registrations FORA da transação (allow list: if true — sempre funciona)
-    // Passo B: confirma atomicamente no slotCounters — pode falhar se regras não deployadas
+    // --- Nível 2: fallback rápido sem leitura pesada ---
+    // Evita ler todas as registrations (lento). Slots ficam não-numerados (null) — aceitável.
     let seedMax = {};
-    try {
-        const snap = await getDocs(query(
-            collection(window.firebaseDb, 'registrations'),
-            where('eventType', '==', rawEventType)
-        ));
-        snap.forEach(d => {
-            const r = d.data();
-            if (!r.schedule) return;
-            const sn = Number(r.slotNumber || r.slot || 0);
-            if (!isNaN(sn) && sn > (seedMax[r.schedule] || 0)) seedMax[r.schedule] = sn;
-        });
-    } catch (readErr) {
-        console.warn('[SlotDB] Nível 2 leitura de registrations falhou:', readErr.message);
-    }
 
     try {
         // Passo B: transação atômica — usa o counter existente se outro usuário já o criou,
@@ -8440,7 +8432,9 @@ async function getCampSemifinalLinkByDate(date) {
 
 // Função para obter link do WhatsApp dinamicamente
 async function getWhatsAppLink(eventType, schedule = null, date = null) {
-    try {
+    // ID/senha agora são enviados direto no site — WhatsApp links não são mais usados
+    return null;
+    try { // eslint-disable-line no-unreachable
         const { collection, getDocs, query, where } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
 
         
