@@ -7688,12 +7688,9 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts) {
     }
 
     // --- Nível 2: fallback rápido sem leitura pesada ---
-    // Evita ler todas as registrations (lento). Slots ficam não-numerados (null) — aceitável.
     let seedMax = {};
 
     try {
-        // Passo B: transação atômica — usa o counter existente se outro usuário já o criou,
-        // senão inicializa a partir do máximo lido (seed)
         const startSlots = {};
         await runTransaction(window.firebaseDb, async (tx) => {
             const counterDoc = await tx.get(counterRef);
@@ -7705,20 +7702,35 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts) {
             }
             tx.set(counterRef, counts, { merge: true });
         });
-        console.log('[SlotDB] startSlots (seeding atômico):', JSON.stringify(startSlots));
+        console.log('[SlotDB] startSlots (nível 2):', JSON.stringify(startSlots));
         return startSlots;
     } catch (txErr2) {
-        console.warn('[SlotDB] Nível 2 transação falhou (slotCounters sem permissão?), usando fallback:', txErr2.message);
+        console.warn('[SlotDB] Nível 2 falhou, usando fallback com leitura de registrations:', txErr2.message);
     }
 
-    // --- Nível 3: fallback puro sem escrita em slotCounters ---
-    // Usa seedMax já lido das registrations — aceita risco de race condition em alta concorrência,
-    // mas garante que a inscrição não trava por falta de permissão no slotCounters
+    // --- Nível 3: seed real a partir das registrations existentes ---
+    // Garante numeração correta mesmo sem acesso ao slotCounters
+    try {
+        const { query: _q, where: _w, getDocs: _gd } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const _snap = await _gd(_q(
+            collection(window.firebaseDb, 'registrations'),
+            _w('eventType', '==', rawEventType),
+            _w('status', 'in', ['paid', 'confirmed', 'approved', 'pending'])
+        ));
+        _snap.forEach(d => {
+            const data = d.data();
+            if (data.schedule && (data.slot || data.slotNumber)) {
+                const num = Number(data.slot || data.slotNumber) || 0;
+                if (num > (seedMax[data.schedule] || 0)) seedMax[data.schedule] = num;
+            }
+        });
+    } catch (_) {}
+
     const startSlotsFallback = {};
     for (const [sched] of Object.entries(scheduleCounts)) {
         startSlotsFallback[sched] = (Number(seedMax[sched]) || 0) + 1;
     }
-    console.log('[SlotDB] startSlots (nível 3 - fallback sem slotCounters):', JSON.stringify(startSlotsFallback));
+    console.log('[SlotDB] startSlots (nível 3 - leitura registrations):', JSON.stringify(startSlotsFallback));
     return startSlotsFallback;
 }
 
@@ -8571,23 +8583,39 @@ async function createRegistrationsForEvent(eventType, datesToUse, teamsData, tim
     const vagas = cfg.vagas || 0;
     const grupos = Math.max(1, cfg.grupos || 1);
     const regIds = [];
-    const assignedSlots = []; // para o modal de confirmação
-    const { collection, query, where, getDocs, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const assignedSlots = [];
+    const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
 
-    // Alocar slots via transação atômica (slotCounters) — fonte unificada para admin e usuários normais
-    const slotCount = {};
-    {
-        const _sc = {};
-        for (const _d of datesToUse) {
-            for (const _t of (timesByDate[_d] || [])) {
-                _sc[_t] = (_sc[_t] || 0) + teamsData.length;
-            }
-        }
-        if (Object.keys(_sc).length > 0) {
-            const _ss = await allocateSlotsFromDB(eventType, _sc);
-            for (const [_k, _v] of Object.entries(_ss)) slotCount[_k] = _v - 1;
+    // Preparar contagem de slots por horário
+    const _sc = {};
+    for (const _d of datesToUse) {
+        for (const _t of (timesByDate[_d] || [])) {
+            _sc[_t] = (_sc[_t] || 0) + teamsData.length;
         }
     }
+
+    // ── Alocar slots (transação) + upload logos em PARALELO ──────────────
+    const [_slotAlloc, _logoMap] = await Promise.all([
+        Object.keys(_sc).length > 0
+            ? allocateSlotsFromDB(eventType, _sc)
+            : Promise.resolve({}),
+        (async () => {
+            const _map = {};
+            await Promise.all(teamsData.map(async team => {
+                if (team.logoBase64) {
+                    const [url, thumb] = await Promise.all([
+                        uploadTeamLogo(team.logoBase64, team.name, eventType),
+                        _resizeLogoBase64(team.logoBase64)
+                    ]);
+                    _map[team.name] = { url, thumb };
+                }
+            }));
+            return _map;
+        })()
+    ]);
+
+    const slotCount = {};
+    for (const [_k, _v] of Object.entries(_slotAlloc)) slotCount[_k] = _v - 1;
 
     for (const d of datesToUse) {
         const times = timesByDate[d] || [];
@@ -8598,15 +8626,19 @@ async function createRegistrationsForEvent(eventType, datesToUse, teamsData, tim
             const whatsappLink = await getWhatsAppLink(eventType, normalizedHour, d);
 
             for (let team of teamsData) {
-                // Slot por horário independente (cada horário tem sua sequência própria)
                 slotCount[schedule] = (slotCount[schedule] || 0) + 1;
                 const slotNum = slotCount[schedule];
                 const slotDisplay = computeSlotDisplay(slotNum, vagas, grupos, isLiga);
 
+                const _logoData = _logoMap[team.name];
+                const teamLogoUrl = _logoData?.url || _equipeAtual?.logoUrl || null;
+                const teamLogoThumb = _logoData?.thumb || null;
+
                 const docRef = await addDoc(collection(window.firebaseDb, 'registrations'), {
                     userId: window.firebaseAuth.currentUser.uid,
                     teamName: team.name,
-                    teamLogoUrl: _equipeAtual?.logoUrl || null,
+                    teamLogoUrl: teamLogoUrl,
+                    teamLogoThumb: teamLogoThumb,
                     teamId: _equipeAtual?.id || null,
                     membrosUids: _equipeAtual?.membrosUids || null,
                     leaderName: window.currentUserProfile?.name || team.name,
@@ -8635,12 +8667,13 @@ async function createRegistrationsForEvent(eventType, datesToUse, teamsData, tim
                 regIds.push(docRef.id);
                 assignedSlots.push({ team: team.name, slot: slotDisplay, schedule, isLiga });
 
-                await createPendingAffiliateSale(docRef.id, getActiveAffiliateCode(couponInfo?.affiliateId || null), {
+                // fire-and-forget — não bloqueia o fluxo de confirmação
+                createPendingAffiliateSale(docRef.id, getActiveAffiliateCode(couponInfo?.affiliateId || null), {
                     amount: price,
                     title: `${cfg.label} - ${schedule}`,
                     customer: team.email,
                     customerName: team.name
-                }, 'event');
+                }, 'event').catch(e => console.warn('[Afiliado token] erro:', e?.code || e?.message));
             }
         }
     }
