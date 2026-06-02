@@ -7669,68 +7669,49 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts) {
         await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     const counterRef = doc(window.firebaseDb, 'slotCounters', rawEventType);
 
-    // --- Nível 1: transação atômica via slotCounters ---
+    // Lê as registrations reais como fonte de verdade (inclui inserções manuais do admin)
+    const regSlotMax = {};
+    try {
+        const _snap = await getDocs(query(
+            collection(window.firebaseDb, 'registrations'),
+            where('eventType', '==', rawEventType)
+        ));
+        _snap.forEach(d => {
+            const data = d.data();
+            if (data.schedule && (data.slot != null || data.slotNumber != null)) {
+                const num = Number(data.slot ?? data.slotNumber) || 0;
+                if (num > (regSlotMax[data.schedule] || 0)) regSlotMax[data.schedule] = num;
+            }
+        });
+    } catch (_) {}
+
+    // Transação atômica: usa max(slotCounters, registrations) — auto-corrige dessincronia
     try {
         const startSlots = {};
         await runTransaction(window.firebaseDb, async (tx) => {
             const counterDoc = await tx.get(counterRef);
             const counts = counterDoc.exists() ? { ...counterDoc.data() } : {};
             for (const [sched, n] of Object.entries(scheduleCounts)) {
-                const current = Number(counts[sched]) || 0;
+                const fromCounter = Number(counts[sched]) || 0;
+                const fromRegs    = Number(regSlotMax[sched]) || 0;
+                const current     = Math.max(fromCounter, fromRegs);
                 startSlots[sched] = current + 1;
-                counts[sched] = current + n;
+                counts[sched]     = current + n;
             }
             tx.set(counterRef, counts, { merge: true });
         });
+        console.log('[SlotDB] startSlots:', JSON.stringify(startSlots));
         return startSlots;
     } catch (txErr) {
-        console.warn('[SlotDB] Nível 1 falhou, tentando seeding atômico:', txErr.message);
+        console.warn('[SlotDB] transação falhou, usando base de registrations:', txErr.message);
     }
 
-    // --- Nível 2: fallback rápido sem leitura pesada ---
-    let seedMax = {};
-
-    try {
-        const startSlots = {};
-        await runTransaction(window.firebaseDb, async (tx) => {
-            const counterDoc = await tx.get(counterRef);
-            const counts = counterDoc.exists() ? { ...counterDoc.data() } : { ...seedMax };
-            for (const [sched, n] of Object.entries(scheduleCounts)) {
-                const current = Number(counts[sched]) || 0;
-                startSlots[sched] = current + 1;
-                counts[sched] = current + n;
-            }
-            tx.set(counterRef, counts, { merge: true });
-        });
-        console.log('[SlotDB] startSlots (nível 2):', JSON.stringify(startSlots));
-        return startSlots;
-    } catch (txErr2) {
-        console.warn('[SlotDB] Nível 2 falhou, usando fallback com leitura de registrations:', txErr2.message);
-    }
-
-    // --- Nível 3: seed real a partir das registrations existentes ---
-    // Garante numeração correta mesmo sem acesso ao slotCounters
-    try {
-        const { query: _q, where: _w, getDocs: _gd } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const _snap = await _gd(_q(
-            collection(window.firebaseDb, 'registrations'),
-            _w('eventType', '==', rawEventType),
-            _w('status', 'in', ['paid', 'confirmed', 'approved', 'pending'])
-        ));
-        _snap.forEach(d => {
-            const data = d.data();
-            if (data.schedule && (data.slot || data.slotNumber)) {
-                const num = Number(data.slot || data.slotNumber) || 0;
-                if (num > (seedMax[data.schedule] || 0)) seedMax[data.schedule] = num;
-            }
-        });
-    } catch (_) {}
-
+    // Fallback puro sem escrita no slotCounters
     const startSlotsFallback = {};
     for (const [sched] of Object.entries(scheduleCounts)) {
-        startSlotsFallback[sched] = (Number(seedMax[sched]) || 0) + 1;
+        startSlotsFallback[sched] = (Number(regSlotMax[sched]) || 0) + 1;
     }
-    console.log('[SlotDB] startSlots (nível 3 - leitura registrations):', JSON.stringify(startSlotsFallback));
+    console.log('[SlotDB] startSlots (fallback):', JSON.stringify(startSlotsFallback));
     return startSlotsFallback;
 }
 
