@@ -2761,7 +2761,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
     try {
       const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
       const regs = collection(window.firebaseDb, 'registrations');
-      const q = query(regs, where('date', '==', date), where('status', 'in', ['paid','confirmed','approved','pending']));
+      const q = query(regs, where('date', '==', date), where('status', 'in', ['paid','confirmed','approved']));
       const snap = await getDocs(q);
       const map = {};
       
