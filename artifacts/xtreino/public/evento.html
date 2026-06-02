@@ -517,7 +517,7 @@ async function loadInscritos(evId) {
         const _diasSemana = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
         const _diaHoje = _diasSemana[_brNow.getDay()]; // ex: "Domingo"
 
-        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
+        const validStatuses = new Set(['confirmed', 'paid', 'approved']);
         const valid = allDocs.filter(d => validStatuses.has(d.data().status));
 
         if (valid.length === 0) {
@@ -608,7 +608,7 @@ async function loadInscritos(evId) {
                         slotNum++;
                         const teamName = r.teamName || r.email || '—';
                         const leaderName = r.leaderName && r.leaderName !== r.teamName ? r.leaderName : null;
-                        const _logoUrl = r.teamLogoUrl || teamsLogoMap[(teamName||'').toLowerCase().trim()] || null;
+                        const _logoUrl = r.teamLogoUrl || r.teamLogoThumb || teamsLogoMap[(teamName||'').toLowerCase().trim()] || null;
                         const logoHtml = _logoUrl
                             ? `<img src="${_logoUrl}" alt="logo" class="w-9 h-9 rounded-lg object-cover flex-shrink-0 border border-slate-500">`
                             : `<span class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-slate-600 text-slate-400 flex-shrink-0 text-xs"><i class="fas fa-shield-alt"></i></span>`;
