@@ -569,6 +569,10 @@ async function loadUserNotifications() {
             return;
         }
 
+        // Guardar mapa de notificações para o modal de credenciais
+        window._notifDataMap = window._notifDataMap || {};
+        allDocs.forEach(d => { window._notifDataMap[d.id] = d.data(); });
+
         listEl.innerHTML = allDocs.map(d => {
             const n = d.data();
             const isRead = readIds.has(d.id);
@@ -596,28 +600,12 @@ async function loadUserNotifications() {
 
             let credentialsHtml = '';
             if (isCredentials) {
-                const roomId = n.roomId ? String(n.roomId).trim() : '';
-                const roomPassword = n.roomPassword ? String(n.roomPassword).trim() : '';
-                const roomBtnHtml = n.roomLink ? `
-                    <a href="${n.roomLink}" target="_blank" rel="noopener noreferrer"
-                       style="display:block;margin-top:10px;text-decoration:none;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;text-align:center;padding:12px 16px;border-radius:12px;font-weight:900;font-size:15px;letter-spacing:1px;animation:roomPulse 1.5s infinite;box-shadow:0 0 0 0 rgba(124,58,237,0.7)">
-                        🚀 ENTRAR NA SALA!!
-                    </a>` : '';
+                const hasSlots = Array.isArray(n.slotList) && n.slotList.length > 0;
                 credentialsHtml = `
-                    <div style="margin-top:10px;background:linear-gradient(135deg,#f5f3ff,#eef2ff);border:2px solid #c4b5fd;border-radius:14px;padding:12px">
-                        <div style="font-size:10px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🎮 Credenciais da Sala</div>
-                        <div style="display:flex;gap:8px;margin-bottom:4px">
-                            <div style="flex:1;background:#fff;border:2px solid #c4b5fd;border-radius:10px;padding:8px;text-align:center">
-                                <div style="font-size:9px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">🎮 ID</div>
-                                <div style="font-size:18px;font-weight:900;color:#4c1d95;font-family:monospace;letter-spacing:2px;user-select:all">${roomId || '—'}</div>
-                            </div>
-                            <div style="flex:1;background:#fff;border:2px solid #a5b4fc;border-radius:10px;padding:8px;text-align:center">
-                                <div style="font-size:9px;font-weight:700;color:#4338ca;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">🔑 Senha</div>
-                                <div style="font-size:18px;font-weight:900;color:#312e81;font-family:monospace;letter-spacing:2px;user-select:all">${roomPassword || '—'}</div>
-                            </div>
-                        </div>
-                        ${roomBtnHtml}
-                    </div>`;
+                    <button onclick="event.stopPropagation();openCredenciaisModal('${d.id}')"
+                        style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;width:100%;padding:11px 16px;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;border-radius:12px;font-weight:900;font-size:13px;letter-spacing:0.5px;cursor:pointer;animation:roomPulse 1.5s infinite;box-shadow:0 0 0 0 rgba(124,58,237,0.7)">
+                        🎮 Ver Credenciais da Sala${hasSlots ? ' + Lista' : ''}
+                    </button>`;
             }
 
             const roomBtnFallback = !isCredentials && n.roomLink ? `
@@ -663,6 +651,94 @@ function updateNotifBadge(count) {
         count > 0 ? el.classList.remove('hidden') : el.classList.add('hidden');
     });
 }
+
+// ===== MODAL DE CREDENCIAIS DA SALA =====
+
+window.openCredenciaisModal = function(notifId) {
+    const n = (window._notifDataMap || {})[notifId];
+    if (!n) return;
+
+    const modal = document.getElementById('modalCredenciais');
+    if (!modal) return;
+
+    // Preencher cabeçalho
+    const titleEl = document.getElementById('credModalTitle');
+    const subEl   = document.getElementById('credModalSub');
+    if (titleEl) titleEl.textContent = n.eventName || 'Credenciais da Sala';
+    if (subEl)   subEl.textContent   = n.schedule  ? `🕐 ${n.schedule}` : '';
+
+    // ID e Senha
+    const idEl   = document.getElementById('credModalRoomId');
+    const passEl = document.getElementById('credModalRoomPass');
+    if (idEl)   idEl.textContent   = n.roomId       || '—';
+    if (passEl) passEl.textContent = n.roomPassword || '—';
+
+    // Botão entrar na sala
+    const linkBtn = document.getElementById('credModalLink');
+    if (linkBtn) {
+        if (n.roomLink) {
+            linkBtn.href = n.roomLink;
+            linkBtn.classList.remove('hidden');
+        } else {
+            linkBtn.classList.add('hidden');
+        }
+    }
+
+    // Lista de slots
+    const listWrap = document.getElementById('credModalSlotWrap');
+    const listEl2  = document.getElementById('credModalSlotList');
+    if (listEl2) {
+        const slots = Array.isArray(n.slotList) ? n.slotList : [];
+        if (slots.length > 0) {
+            listEl2.innerHTML = slots.map(s => {
+                const num = String(s.slot).padStart(2, '0');
+                const name = s.teamName || '';
+                const filled = !!name;
+                return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:${filled ? 'linear-gradient(135deg,#f5f3ff,#eef2ff)' : '#f9fafb'};border:1.5px solid ${filled ? '#c4b5fd' : '#e5e7eb'}">
+                    <span style="min-width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:${filled ? 'linear-gradient(135deg,#7c3aed,#4f46e5)' : '#e5e7eb'};color:${filled ? '#fff' : '#9ca3af'};border-radius:8px;font-size:11px;font-weight:900;flex-shrink:0">${num}</span>
+                    <span style="font-size:13px;font-weight:${filled ? '700' : '400'};color:${filled ? '#1f2937' : '#9ca3af'};flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${filled ? name : 'Vaga livre'}</span>
+                    ${filled ? '<span style="font-size:10px">✅</span>' : ''}
+                </div>`;
+            }).join('');
+            if (listWrap) listWrap.classList.remove('hidden');
+        } else {
+            if (listWrap) listWrap.classList.add('hidden');
+        }
+    }
+
+    // Marcar notif como lida
+    try {
+        const uid = window.firebaseAuth?.currentUser?.uid;
+        if (uid) {
+            const readKey = `notifRead_${uid}`;
+            const ids = new Set(JSON.parse(localStorage.getItem(readKey) || '[]'));
+            ids.add(notifId);
+            localStorage.setItem(readKey, JSON.stringify([...ids]));
+        }
+    } catch (_) {}
+
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+};
+
+window.closeCredenciaisModal = function() {
+    const modal = document.getElementById('modalCredenciais');
+    if (modal) modal.classList.add('hidden');
+    document.body.style.overflow = '';
+};
+
+window.copiarCredencial = function(elId, btnEl) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    const val = el.textContent.trim();
+    if (!val || val === '—') return;
+    navigator.clipboard.writeText(val).then(() => {
+        const orig = btnEl.innerHTML;
+        btnEl.innerHTML = '✓';
+        btnEl.style.background = '#22c55e';
+        setTimeout(() => { btnEl.innerHTML = orig; btnEl.style.background = ''; }, 1500);
+    }).catch(() => {});
+};
 
 // ===== NOTIFICAÇÕES EM TEMPO REAL =====
 
