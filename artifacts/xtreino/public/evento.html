@@ -353,6 +353,8 @@ async function loadEvent() {
         _currentEventId = snap.id;
         window._currentEventId = snap.id;
         window._evDb = db;
+        window._currentEventPreco = ev.preco || 0;
+        window._currentEventEntrada = ev.entrada || '';
 
         // Banner
         const banner = document.getElementById('evBanner');
@@ -643,8 +645,18 @@ async function loadInscritos(evId) {
 window.goRegister = function() {
     const eid = window._currentEventId;
     if (_resolvedEventType === 'xtreino-tokens') {
-        if (typeof window.abrirModalEquipe === 'function') {
-            window.abrirModalEquipe(eid);
+        // Evento grátis → modal de equipe (4 membros); pago → modal de agendamento
+        const _isPago = Number(window._currentEventPreco) > 0 || (window._currentEventEntrada || '').toUpperCase() === 'PAGO';
+        if (_isPago) {
+            if (typeof window.openScheduleModal === 'function') {
+                window.openScheduleModal(eid || _resolvedEventType);
+            } else {
+                window.location.href = eid ? `index.html?openEvent=${encodeURIComponent(eid)}#eventos` : 'index.html#eventos';
+            }
+        } else {
+            if (typeof window.abrirModalEquipe === 'function') {
+                window.abrirModalEquipe(eid);
+            }
         }
         return;
     }
