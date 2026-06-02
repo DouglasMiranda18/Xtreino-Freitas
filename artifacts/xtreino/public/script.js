@@ -6467,7 +6467,7 @@ async function uploadTeamLogo(base64DataUrl, teamName, eventType) {
             'https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js'
         );
         const sanitizedName = (teamName || 'time').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40);
-        const path = `team-logos/${eventType}/${sanitizedName}_${Date.now()}`;
+        const path = `teams/${eventType}/logos/${sanitizedName}_${Date.now()}`;
         const storageRef = ref(window.firebaseStorage, path);
         await uploadString(storageRef, base64DataUrl, 'data_url');
         const url = await getDownloadURL(storageRef);
