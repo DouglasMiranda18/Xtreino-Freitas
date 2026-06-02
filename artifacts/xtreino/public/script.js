@@ -9257,8 +9257,8 @@ async function loadDynamicEvents() {
         const cards = snap.docs.map(d => {
             const ev = d.data();
             const _isFreeEv = !ev.preco || ev.entrada === 'GRÁTIS' || Number(ev.preco) === 0;
-            // Registrar no scheduleConfig para openScheduleModal funcionar com eventos dinâmicos
-            const _isEquipeEvent = ev.eventType === 'xtreino-tokens';
+            // Apenas eventos GRATUITOS do tipo xtreino-tokens usam o modal de time gratuito
+            const _isEquipeEvent = ev.eventType === 'xtreino-tokens' && _isFreeEv;
             scheduleConfig[d.id] = {
                 label: ev.name || 'Evento',
                 price: Number(ev.preco) || 0,
