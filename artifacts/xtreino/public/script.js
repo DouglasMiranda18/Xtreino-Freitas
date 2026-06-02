@@ -7353,6 +7353,7 @@ async function submitSchedule(e, useTokens = false) {
         // --- SALVAR NO FIRESTORE ---
         let externalRef = `schedule_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
         let regIds = [];
+        let _prefFetchPromise = null; // iniciado antes do addDoc para ganhar tempo
 
         try {
             // Firebase já foi aguardado em paralelo acima — verificação rápida
@@ -7366,27 +7367,12 @@ async function submitSchedule(e, useTokens = false) {
 
             const { collection, query, where, getDocs, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
 
-            // Alocar slots via transação atômica (slotCounters) — não requer ler registrations de outros
-            const mpSlotCount = {};
-            {
-                const _sc = {};
-                for (const _d of datesToUse) {
-                    for (const _t of (timesByDate[_d] || [])) {
-                        _sc[_t] = (_sc[_t] || 0) + teamsData.length;
-                    }
-                }
-                if (Object.keys(_sc).length > 0) {
-                    const _ss = await allocateSlotsFromDB(rawEventType, _sc);
-                    for (const [_k, _v] of Object.entries(_ss)) mpSlotCount[_k] = _v - 1;
-                }
-            }
-
+            // ── Preparar _schedPairs e _sc (sem await, só leitura de memória) ──
             const mpIsLiga = (cfg.modo || '').toUpperCase().includes('LIGA');
             const mpVagas = cfg.vagas || 0;
             const mpGrupos = Math.max(1, cfg.grupos || 1);
             const assignedSlotsData = [];
 
-            // ── Montar lista plana de todos os pares (data × horário) ──
             const _schedPairs = [];
             for (const d of datesToUse) {
                 for (const schedule of (timesByDate[d] || [])) {
@@ -7394,25 +7380,38 @@ async function submitSchedule(e, useTokens = false) {
                     _schedPairs.push({ d, schedule, hour, normalizedHour: normalizeHour(hour), price: getEventPrice(rawEventType, hour, d) });
                 }
             }
+            const _sc = {};
+            for (const _d of datesToUse) {
+                for (const _t of (timesByDate[_d] || [])) {
+                    _sc[_t] = (_sc[_t] || 0) + teamsData.length;
+                }
+            }
 
-            // ── Links WhatsApp + upload de logos em paralelo ──────────────────
-            // _teamLogoDataMap: { [teamName]: { url: storageUrl|null, thumb: base64Thumb|null } }
-            const [_wlArr, _teamLogoDataMap] = await Promise.all([
-                Promise.all(_schedPairs.map(p => getWhatsAppLink(rawEventType, p.normalizedHour, p.d).catch(() => null))),
-                (async () => {
-                    const _map = {};
-                    await Promise.all(teamsData.map(async team => {
-                        if (team.logoBase64) {
-                            const [url, thumb] = await Promise.all([
-                                uploadTeamLogo(team.logoBase64, team.name, rawEventType),
-                                _resizeLogoBase64(team.logoBase64)
-                            ]);
-                            _map[team.name] = { url, thumb };
-                        }
-                    }));
-                    return _map;
-                })()
+            // ── Alocar slots (transação) + upload logos em PARALELO ───────────
+            // São totalmente independentes: rodar juntos economiza 3-5s
+            const [_slotAlloc, [_wlArr, _teamLogoDataMap]] = await Promise.all([
+                Object.keys(_sc).length > 0
+                    ? allocateSlotsFromDB(rawEventType, _sc)
+                    : Promise.resolve({}),
+                Promise.all([
+                    Promise.all(_schedPairs.map(p => getWhatsAppLink(rawEventType, p.normalizedHour, p.d).catch(() => null))),
+                    (async () => {
+                        const _map = {};
+                        await Promise.all(teamsData.map(async team => {
+                            if (team.logoBase64) {
+                                const [url, thumb] = await Promise.all([
+                                    uploadTeamLogo(team.logoBase64, team.name, rawEventType),
+                                    _resizeLogoBase64(team.logoBase64)
+                                ]);
+                                _map[team.name] = { url, thumb };
+                            }
+                        }));
+                        return _map;
+                    })()
+                ])
             ]);
+            const mpSlotCount = {};
+            for (const [_k, _v] of Object.entries(_slotAlloc)) mpSlotCount[_k] = _v - 1;
             _schedPairs.forEach((p, i) => { p.whatsappLink = _wlArr[i]; });
 
             // ── Calcular slots (síncrono — preserva ordem) e montar payloads ──
@@ -7450,6 +7449,36 @@ async function submitSchedule(e, useTokens = false) {
                 }
             }
 
+            // ── Iniciar create-preference ANTES do addDoc ─────────────────────
+            // O payload não depende dos docIds — fetch em paralelo com os saves
+            {
+                const _earlyAff = getActiveAffiliateCode(appliedScheduleCoupon?.affiliateId || null);
+                if (_earlyAff) { try { sessionStorage.setItem('xf_pending_aff', _earlyAff); } catch (_) {} }
+                const _earlyAffParam = _earlyAff ? `?ref=${encodeURIComponent(_earlyAff)}` : '';
+                const _earlyHost = ['orgfreitas.com.br', 'www.orgfreitas.com.br'].includes(window.location.hostname)
+                    ? window.location.origin : 'https://orgfreitas.com.br';
+                const _earlyPrefPayload = {
+                    title: `${cfg.label} - ${totalReservations} reserva(s)`,
+                    unit_price: Number(finalPrice.toFixed(2)),
+                    currency_id: 'BRL',
+                    quantity: 1,
+                    back_url: `${_earlyHost}/${_earlyAffParam}`,
+                    coupon_info: couponInfo,
+                    external_reference: externalRef,
+                    multiple_reservations: {
+                        teams: teamsData.map(t => t.name),
+                        schedules: selectedTimes.map(item => item.schedule),
+                        dates: datesToUse,
+                        eventType: rawEventType
+                    }
+                };
+                _prefFetchPromise = fetch('/.netlify/functions/create-preference', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(_earlyPrefPayload)
+                });
+            }
+
             // ── Gravar todas as registrations em paralelo (era sequencial) ──
             const _docRefs = await Promise.all(
                 _regPayloads.map(payload => {
@@ -7468,14 +7497,15 @@ async function submitSchedule(e, useTokens = false) {
                 const _affRef = getActiveAffiliateCode(appliedScheduleCoupon?.affiliateId || null);
                 console.log('[Afiliado sched]', _affRef ? '✓ ' + _affRef.slice(-6) : 'null');
                 if (_affRef) {
+                    // fire-and-forget — não bloqueia o redirect ao Mercado Pago
                     for (let _ai = 0; _ai < _docRefs.length; _ai++) {
                         const _p = _regPayloads[_ai];
-                        await createPendingAffiliateSale(_docRefs[_ai].id, _affRef, {
+                        createPendingAffiliateSale(_docRefs[_ai].id, _affRef, {
                             amount: _p.price,
                             title: _p.title || `${cfg.label} - ${_p._meta.schedule}`,
                             customer: _p.email,
                             customerName: _p.teamName
-                        }, 'event');
+                        }, 'event').catch(e => console.warn('[Afiliado sched] erro:', e?.code || e?.message));
                     }
                 }
             } catch (_affErr) {
@@ -7512,42 +7542,13 @@ async function submitSchedule(e, useTokens = false) {
         };
 
         try {
-            // Persistir affiliate code no sessionStorage antes do redirect ao MP
-            const _schedAff = getActiveAffiliateCode(appliedScheduleCoupon?.affiliateId || null);
-            if (_schedAff) {
-                try { sessionStorage.setItem('xf_pending_aff', _schedAff); } catch(_) {}
-            }
-            const _affBackParamSched = _schedAff ? `?ref=${encodeURIComponent(_schedAff)}` : '';
-            // Sempre usa o domínio de produção como back_url — MP rejeita domínios não-cadastrados
-            const _prodHost = ['orgfreitas.com.br', 'www.orgfreitas.com.br'].includes(window.location.hostname)
-                ? window.location.origin
-                : 'https://orgfreitas.com.br';
-            const _prefPayload = {
-                title: `${cfg.label} - ${totalReservations} reserva(s)`,
-                unit_price: Number(finalPrice.toFixed(2)),
-                currency_id: 'BRL',
-                quantity: 1,
-                back_url: `${_prodHost}/${_affBackParamSched}`,
-                coupon_info: couponInfo,
-                external_reference: externalRef,
-                multiple_reservations: {
-                    teams: teamsData.map(t => t.name),
-                    schedules: selectedTimes.map(item => item.schedule),
-                    dates: datesToUse,
-                    eventType: rawEventType
-                }
-            };
-
             if (submitBtn) { submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-right:6px"></i>Aguarde...'; }
             if (typeof showToast === 'function') showToast('info', 'Conectando ao Mercado Pago, aguarde...', 'Pagamento', 20000);
 
+            // Fetch já foi iniciado em paralelo com o addDoc — apenas aguardar
             let resp;
             try {
-                resp = await fetch('/.netlify/functions/create-preference', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(_prefPayload)
-                });
+                resp = await _prefFetchPromise;
             } catch (fetchErr) {
                 await _cleanupPendingRegs();
                 alert('Não foi possível conectar ao servidor de pagamento. Verifique sua internet e tente novamente.');
