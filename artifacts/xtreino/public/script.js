@@ -7494,12 +7494,16 @@ async function submitSchedule(e, useTokens = false) {
                 try { sessionStorage.setItem('xf_pending_aff', _schedAff); } catch(_) {}
             }
             const _affBackParamSched = _schedAff ? `?ref=${encodeURIComponent(_schedAff)}` : '';
+            // Sempre usa o domínio de produção como back_url — MP rejeita domínios não-cadastrados
+            const _prodHost = ['orgfreitas.com.br', 'www.orgfreitas.com.br'].includes(window.location.hostname)
+                ? window.location.origin
+                : 'https://orgfreitas.com.br';
             const _prefPayload = {
                 title: `${cfg.label} - ${totalReservations} reserva(s)`,
                 unit_price: Number(finalPrice.toFixed(2)),
                 currency_id: 'BRL',
                 quantity: 1,
-                back_url: `${window.location.origin}/${_affBackParamSched}`,
+                back_url: `${_prodHost}/${_affBackParamSched}`,
                 coupon_info: couponInfo,
                 external_reference: externalRef,
                 multiple_reservations: {
