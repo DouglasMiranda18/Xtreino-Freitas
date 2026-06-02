@@ -5390,10 +5390,11 @@ function openScheduleModal(eventType) {
 
     const teamsSection = document.getElementById('teamsSection');
     if (teamsSection) {
-        // Ocultar permanentemente para eventos de time (xtreino-tokens e dinâmicos do tipo xtreino-tokens)
-        const _isTeamEvtSched = eventType === 'xtreino-tokens'
-            || (scheduleConfig[eventType]?.eventType === 'xtreino-tokens');
-        teamsSection.style.display = _isTeamEvtSched ? 'none' : 'block';
+        // Ocultar apenas se for evento GRATUITO do tipo xtreino-tokens (usa modal próprio)
+        // Eventos xtreino-tokens PAGOS usam este modal e precisam mostrar a seção de time
+        const _isFreeTeamEvt = (eventType === 'xtreino-tokens' || scheduleConfig[eventType]?.eventType === 'xtreino-tokens')
+            && (cfg.price === 0 || cfg.isFree === true);
+        teamsSection.style.display = _isFreeTeamEvt ? 'none' : 'block';
     }
 
     // Restaurar texto original do botão para eventos
