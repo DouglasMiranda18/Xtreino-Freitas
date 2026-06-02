@@ -3181,9 +3181,9 @@ async function createPendingAffiliateSale(orderId, affiliateCode, orderData, sal
         const { doc, getDoc, collection, query, where, getDocs, addDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const db = window.firebaseDb;
 
-        // Busca perfil do afiliado para obter taxa de comissão
+        // Busca perfil do afiliado — OBRIGATÓRIO ter role=Afiliado e affiliateStatus=active
         let affId = affiliateCode;
-        let commissionRate = 10; // padrão seguro
+        let commissionRate = null;
 
         try {
             const usersRef = collection(db, 'users');
@@ -3191,32 +3191,49 @@ async function createPendingAffiliateSale(orderId, affiliateCode, orderData, sal
 
             if (affDocById.exists()) {
                 const d = affDocById.data();
+                // Só prosseguir se for afiliado ativo
+                if (d.role !== 'Afiliado' || d.affiliateStatus === 'inactive') {
+                    console.warn('[Afiliado] Código não pertence a um afiliado ativo — comissão ignorada:', affiliateCode);
+                    return;
+                }
                 commissionRate = saleType === 'event'
                     ? (d.commissionRateEvents || d.commissionRate || 10)
                     : (d.commissionRateProducts || d.commissionRate || 10);
                 console.log('[Afiliado] Perfil lido, taxa:', commissionRate + '%');
             } else {
-                // Fallback por email
+                // Fallback por email — também exige afiliado ativo
                 try {
                     const q = query(usersRef, where('email', '==', affiliateCode));
                     const snap = await getDocs(q);
                     if (!snap.empty) {
                         const d = snap.docs[0].data();
+                        if (d.role !== 'Afiliado' || d.affiliateStatus === 'inactive') {
+                            console.warn('[Afiliado] Email não pertence a um afiliado ativo — comissão ignorada:', affiliateCode);
+                            return;
+                        }
                         affId = snap.docs[0].id;
                         commissionRate = saleType === 'event'
                             ? (d.commissionRateEvents || d.commissionRate || 10)
                             : (d.commissionRateProducts || d.commissionRate || 10);
                         console.log('[Afiliado] Perfil por email, taxa:', commissionRate + '%');
                     } else {
-                        console.warn('[Afiliado] Perfil não encontrado — usando taxa padrão 10%');
+                        console.warn('[Afiliado] Código não encontrado no sistema — comissão ignorada:', affiliateCode);
+                        return;
                     }
                 } catch (_) {
-                    console.warn('[Afiliado] Sem permissão para buscar por email — usando taxa padrão 10%');
+                    console.warn('[Afiliado] Sem permissão para buscar por email — abortando');
+                    return;
                 }
             }
         } catch (readErr) {
-            console.warn('[Afiliado] Sem permissão para ler perfil — usando taxa padrão 10%:', readErr?.code);
-            // NÃO abortar — prosseguir com taxa padrão
+            console.warn('[Afiliado] Sem permissão para ler perfil — abortando:', readErr?.code);
+            return;
+        }
+
+        // Segurança extra: commissionRate nunca deve ser null aqui
+        if (commissionRate === null) {
+            console.warn('[Afiliado] Taxa de comissão indefinida — abortando');
+            return;
         }
 
         const saleValue = Number(orderData.amount || 0);
