@@ -7367,7 +7367,7 @@ async function submitSchedule(e, useTokens = false) {
                         _meta: { team: team.name, slotNum, slotDisplay, schedule: p.schedule, date: p.d, whatsappLink: p.whatsappLink },
                         userId: window.firebaseAuth.currentUser.uid,
                         teamName: team.name,
-                        teamLogoUrl: team.logoBase64 || _equipeAtual?.logoUrl || null,
+                        teamLogoUrl: _equipeAtual?.logoUrl || null, // base64 não vai pro Firestore (limite de tamanho)
                         teamId: _equipeAtual?.id || null,
                         membrosUids: _equipeAtual?.membrosUids || null,
                         email: team.email,
