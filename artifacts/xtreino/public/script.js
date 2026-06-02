@@ -6459,6 +6459,24 @@ function previewTeamLogo(teamId, input) {
     };
     reader.readAsDataURL(file);
 }
+
+async function uploadTeamLogo(base64DataUrl, teamName, eventType) {
+    if (!base64DataUrl || !window.firebaseStorage) return null;
+    try {
+        const { ref, uploadString, getDownloadURL } = await import(
+            'https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js'
+        );
+        const sanitizedName = (teamName || 'time').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40);
+        const path = `team-logos/${eventType}/${sanitizedName}_${Date.now()}`;
+        const storageRef = ref(window.firebaseStorage, path);
+        await uploadString(storageRef, base64DataUrl, 'data_url');
+        const url = await getDownloadURL(storageRef);
+        return url;
+    } catch (err) {
+        console.warn('[uploadTeamLogo] falha no upload, logo não salva:', err?.message);
+        return null;
+    }
+}
 // Function to remove a team
 function removeTeam(teamId) {
     teams = teams.filter(team => team.id !== teamId);
@@ -7356,6 +7374,14 @@ async function submitSchedule(e, useTokens = false) {
             );
             _schedPairs.forEach((p, i) => { p.whatsappLink = _wlArr[i]; });
 
+            // ── Upload de logos para Firebase Storage (antes de salvar no Firestore) ──
+            const _teamLogoUrlMap = {};
+            for (const team of teamsData) {
+                if (team.logoBase64) {
+                    _teamLogoUrlMap[team.name] = await uploadTeamLogo(team.logoBase64, team.name, rawEventType);
+                }
+            }
+
             // ── Calcular slots (síncrono — preserva ordem) e montar payloads ──
             const _regPayloads = [];
             for (const p of _schedPairs) {
@@ -7367,7 +7393,7 @@ async function submitSchedule(e, useTokens = false) {
                         _meta: { team: team.name, slotNum, slotDisplay, schedule: p.schedule, date: p.d, whatsappLink: p.whatsappLink },
                         userId: window.firebaseAuth.currentUser.uid,
                         teamName: team.name,
-                        teamLogoUrl: _equipeAtual?.logoUrl || null, // base64 não vai pro Firestore (limite de tamanho)
+                        teamLogoUrl: _teamLogoUrlMap[team.name] || _equipeAtual?.logoUrl || null,
                         teamId: _equipeAtual?.id || null,
                         membrosUids: _equipeAtual?.membrosUids || null,
                         email: team.email,
