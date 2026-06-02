@@ -3236,7 +3236,7 @@ async function createPendingAffiliateSale(orderId, affiliateCode, orderData, sal
             // sem permissão de leitura — prosseguir
         }
 
-        // Criar registro de comissão
+        // Criar registro de comissão do afiliado
         const saleDoc = await addDoc(salesRef, {
             affiliateId: affId,
             orderId,
@@ -3247,10 +3247,59 @@ async function createPendingAffiliateSale(orderId, affiliateCode, orderData, sal
             commissionRate,
             commissionAmount,
             saleType,
+            type: 'affiliate',
             status: 'pending',
             createdAt: new Date()
         });
         console.log('[Afiliado] Comissão registrada! Doc:', saleDoc.id);
+
+        // ── Comissão do Gerente ──────────────────────────────────────────
+        // Buscar dados do gerente no perfil do afiliado (já lido acima)
+        try {
+            let managerData = null;
+            // Reler perfil do afiliado para pegar campos do gerente
+            const affRefDoc = await getDoc(doc(collection(db, 'users'), affId));
+            if (affRefDoc.exists()) {
+                const aff = affRefDoc.data();
+                if (aff.managerId && aff.managerCommissionRate != null) {
+                    const mgrCommissionRate = Number(aff.managerCommissionRate);
+                    const mgrCommissionAmount = (commissionAmount * mgrCommissionRate) / 100;
+                    if (mgrCommissionAmount > 0) {
+                        // Verificar duplicata para o gerente
+                        let isDup = false;
+                        try {
+                            const dupMgr = await getDocs(query(salesRef, where('orderId', '==', orderId), where('affiliateId', '==', aff.managerId), where('type', '==', 'manager_commission')));
+                            isDup = !dupMgr.empty;
+                        } catch (_) {}
+
+                        if (!isDup) {
+                            await addDoc(salesRef, {
+                                affiliateId: aff.managerId,
+                                managerEmail: aff.managerEmail || null,
+                                sourceAffiliateId: affId,
+                                sourceAffiliateEmail: orderData.customer || null,
+                                orderId,
+                                customerEmail: orderData.customer || orderData.buyerEmail || null,
+                                customerName: orderData.customerName || null,
+                                productName: orderData.title || orderData.item || '',
+                                saleValue,
+                                affiliateCommissionAmount: commissionAmount,
+                                commissionRate: mgrCommissionRate,
+                                commissionAmount: mgrCommissionAmount,
+                                saleType,
+                                type: 'manager_commission',
+                                status: 'pending',
+                                createdAt: new Date()
+                            });
+                            console.log('[Gerente] Comissão de gerente registrada! Gerente:', aff.managerId, 'Valor: R$', mgrCommissionAmount.toFixed(2));
+                        }
+                    }
+                }
+            }
+        } catch (mgrErr) {
+            console.warn('[Gerente] Aviso ao registrar comissão de gerente:', mgrErr?.code || mgrErr?.message);
+        }
+        // ────────────────────────────────────────────────────────────────
 
     } catch (error) {
         console.error('[Afiliado] ERRO ao registrar comissão:', error?.code || error?.message);
