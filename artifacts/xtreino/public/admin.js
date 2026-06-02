@@ -1061,6 +1061,35 @@ window.showWarningToast = function(message, title = 'Atenção') {
   }
   window.resolveUserIdByEmail = resolveUserIdByEmail;
 
+  // Toggle visual do tipo de vaga (Pago / Listagem Grátis)
+  window.selectAddPaidType = function(type) {
+    const isPaid = type === 'paid';
+    const paidLabel = document.getElementById('addPaidLabel');
+    const freeLabel = document.getElementById('addFreeLabel');
+    const dotPago   = document.getElementById('addDotPago');
+    const dotGratis = document.getElementById('addDotGratis');
+    const paidInput = document.getElementById('addPaidPago');
+    const freeInput = document.getElementById('addPaidGratis');
+    if (!paidLabel || !freeLabel) return;
+    if (isPaid) {
+      paidLabel.className = 'flex items-center gap-2 border-2 border-green-500 bg-green-50 rounded-xl px-4 py-3 cursor-pointer transition-all';
+      freeLabel.className = 'flex items-center gap-2 border-2 border-gray-200 bg-white rounded-xl px-4 py-3 cursor-pointer transition-all';
+      dotPago.className = 'w-4 h-4 rounded-full border-2 border-green-500 bg-green-500 flex items-center justify-center flex-shrink-0';
+      dotPago.innerHTML = '<div class="w-2 h-2 rounded-full bg-white"></div>';
+      dotGratis.className = 'w-4 h-4 rounded-full border-2 border-gray-300 flex items-center justify-center flex-shrink-0';
+      dotGratis.innerHTML = '';
+      if (paidInput) paidInput.checked = true;
+    } else {
+      freeLabel.className = 'flex items-center gap-2 border-2 border-orange-400 bg-orange-50 rounded-xl px-4 py-3 cursor-pointer transition-all';
+      paidLabel.className = 'flex items-center gap-2 border-2 border-gray-200 bg-white rounded-xl px-4 py-3 cursor-pointer transition-all';
+      dotGratis.className = 'w-4 h-4 rounded-full border-2 border-orange-400 bg-orange-400 flex items-center justify-center flex-shrink-0';
+      dotGratis.innerHTML = '<div class="w-2 h-2 rounded-full bg-white"></div>';
+      dotPago.className = 'w-4 h-4 rounded-full border-2 border-gray-300 flex items-center justify-center flex-shrink-0';
+      dotPago.innerHTML = '';
+      if (freeInput) freeInput.checked = true;
+    }
+  };
+
   // Verificação ao sair do campo de e-mail — mostra se o usuário existe
   async function onAddEmailBlur() {
     const emailEl = document.getElementById('addEmail');
@@ -1124,7 +1153,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
             clientUserId = await resolveUserIdByEmail(clientEmail);
           }
 
-          // Se horário não estiver definido, cria sem horário específico
+          const _paidTypeEl = document.querySelector('input[name="addPaidType"]:checked');
+          const isFreeSlot = (_paidTypeEl?.value || 'paid') === 'free';
+
           const payload = {
             teamName,
             contact,
@@ -1136,7 +1167,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
             eventType: eventType || null,
             status: 'confirmed',
             userId: clientUserId || null,
-            addedManually: true
+            addedManually: true,
+            freeSlot: isFreeSlot,
+            listingType: isFreeSlot ? 'free' : 'paid'
           };
           try{
             const { collection, addDoc, serverTimestamp, query: _q, where: _w, getDocs: _gd } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
@@ -3303,6 +3336,16 @@ window.showWarningToast = function(message, title = 'Atenção') {
           const modal = document.getElementById('modalAddTeam');
           const hourInput = document.getElementById('addHour');
           if (hourInput) hourInput.value = h;
+          // Resetar toggle para "Pago" a cada abertura
+          if (typeof window.selectAddPaidType === 'function') window.selectAddPaidType('paid');
+          // Limpar campos do form
+          ['addTeamName','addContact','addEmail','addPerson','addNotes'].forEach(id => {
+            const el = document.getElementById(id); if (el) el.value = '';
+          });
+          const statusEl = document.getElementById('addEmailStatus');
+          if (statusEl) statusEl.textContent = '';
+          const msgEl = document.getElementById('addTeamMsg');
+          if (msgEl) msgEl.textContent = '';
           if (modal) modal.classList.remove('hidden');
         } 
         else if (btnManage) {
@@ -3658,9 +3701,12 @@ window.showWarningToast = function(message, title = 'Atenção') {
         if (targetHH && regHH && targetHH !== regHH) return;
         any = true;
         const isPending = r.status === 'pending';
-        const statusBadge = isPending
-          ? '<span class="text-xs bg-yellow-100 text-yellow-700 border border-yellow-300 rounded px-1.5 py-0.5 ml-1">⏳ Aguardando pagto</span>'
-          : '<span class="text-xs bg-green-100 text-green-700 border border-green-300 rounded px-1.5 py-0.5 ml-1">✓ Pago</span>';
+        const isFreeManual = r.freeSlot === true || r.listingType === 'free';
+        const statusBadge = isFreeManual
+          ? '<span class="text-xs bg-orange-100 text-orange-700 border border-orange-300 rounded px-1.5 py-0.5 ml-1">🎁 Listagem Grátis</span>'
+          : isPending
+            ? '<span class="text-xs bg-yellow-100 text-yellow-700 border border-yellow-300 rounded px-1.5 py-0.5 ml-1">⏳ Aguardando pagto</span>'
+            : '<span class="text-xs bg-green-100 text-green-700 border border-green-300 rounded px-1.5 py-0.5 ml-1">✓ Pago</span>';
         const row = document.createElement('div');
         row.className = `flex items-center justify-between border-b py-2 ${isPending ? 'bg-yellow-50' : ''}`;
         const _adminLogoUrl = r.teamLogoUrl || r.teamLogoThumb || null;
@@ -12300,7 +12346,11 @@ async function openEventSlotsModal(eventId, eventName) {
                                     <a href="${_slotLogoUrl}" download="logo_${nomeArq}.png" class="text-xs text-blue-600 hover:text-blue-800 font-medium" title="Baixar logo"><i class="fas fa-download"></i></a>
                                    </div>`
                                 : `<div class="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-100 text-gray-300 mx-auto" title="Sem logo cadastrada"><i class="fas fa-image text-lg"></i></div>`;
-                            return `<tr class="border-t border-gray-100 hover:bg-orange-50 transition-colors">
+                            const isFreeEntry = r.freeSlot === true || r.listingType === 'free';
+                            const statusDisplay = isFreeEntry
+                                ? `<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">🎁 Grátis</span>`
+                                : `<span class="px-2 py-0.5 rounded-full text-xs font-semibold ${statusCls[st] || 'bg-gray-100 text-gray-500'}">${statusLabel[st] || st}</span>`;
+                            return `<tr class="border-t border-gray-100 hover:bg-orange-50 transition-colors ${isFreeEntry ? 'bg-orange-50/40' : ''}">
                                 <td class="px-3 py-2 font-bold text-orange-600 text-base">${escapeAdminHtml(slotLabel)}</td>
                                 <td class="px-3 py-2 text-center">${logoCell}</td>
                                 <td class="px-3 py-2">
@@ -12308,7 +12358,7 @@ async function openEventSlotsModal(eventId, eventName) {
                                     ${leaderName ? `<p class="text-xs text-gray-400">Líder: ${escapeAdminHtml(leaderName)}</p>` : ''}
                                 </td>
                                 <td class="px-3 py-2 text-gray-500 text-xs">${dateFmt}</td>
-                                <td class="px-3 py-2"><span class="px-2 py-0.5 rounded-full text-xs font-semibold ${statusCls[st] || 'bg-gray-100 text-gray-500'}">${statusLabel[st] || st}</span></td>
+                                <td class="px-3 py-2">${statusDisplay}</td>
                             </tr>`;
                         }).join('')}
                     </tbody>
