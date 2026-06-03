@@ -2865,6 +2865,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
         const canon = canonicalType(ev.eventType || d.id);
         opt.dataset.canonicalType = canon;
         opt.dataset.rawEventId = d.id;
+        // evFieldType = valor bruto do campo eventType no doc adminEvents (ex: 'xtreino-tokens')
+        // Este é o valor que o booking flow salva em r.eventType nas registrations
+        opt.dataset.evFieldType = ev.eventType || d.id;
         typeEl.appendChild(opt);
       });
     } catch (err) {
@@ -2875,27 +2878,32 @@ window.showWarningToast = function(message, title = 'Atenção') {
   window.loadDynamicEventsIntoBoard = loadDynamicEventsIntoBoard;
 
   // Busca registrations pelo dia
-  async function fetchRegistrationsByDate(date, eventType, rawEventId = null) {
+  // evFieldType = valor real do campo eventType no doc adminEvents (ex: 'xtreino-tokens')
+  // CRÍTICO: igual ao fetchOccupiedForDate do script.js — query por campo único sem composite index
+  // date e status são filtrados em JS depois, evitando necessidade de índice composto no Firestore
+  async function fetchRegistrationsByDate(date, evFieldType, ovEventType = null, rawEventId = null) {
     try {
       const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
       const regs = collection(window.firebaseDb, 'registrations');
-      // Query composta com índice existente — inclui 'pending' para pagamentos MP em andamento
-      const q = query(regs, where('date', '==', date), where('status', 'in', ['paid', 'confirmed', 'approved', 'pending']));
-      const snap = await getDocs(q);
-      const map = {};
+      const validStatuses = new Set(['paid', 'confirmed', 'approved', 'pending']);
+      // Coletar todos os valores distintos de eventType que podem estar salvos nas registrations
+      const typesToQuery = [...new Set([evFieldType, ovEventType, rawEventId].filter(Boolean))];
+      if (typesToQuery.length === 0) return {};
 
-      snap.forEach(d => {
+      // Query por campo único (sem composite index) — mesclar resultados deduplificando por doc ID
+      const allDocs = new Map();
+      await Promise.all(typesToQuery.map(async t => {
+        try {
+          const snap = await getDocs(query(regs, where('eventType', '==', t)));
+          snap.forEach(d => allDocs.set(d.id, d));
+        } catch (_) {}
+      }));
+
+      const map = {};
+      allDocs.forEach(d => {
         const r = d.data();
-        // Aceitar registrations que batem com o tipo canônico OU com o ID bruto do doc adminEvents
-        // (booking flow salva eventType = doc ID; submitAddTeam salva eventType = tipo canônico)
-        if (eventType || rawEventId) {
-          const rEv = String(r.eventType || '').toLowerCase();
-          const canon = String(eventType || '').toLowerCase();
-          const rawId = String(rawEventId || '').toLowerCase();
-          const matchCanon = canon && rEv.includes(canon);
-          const matchRaw   = rawId && rEv.includes(rawId);
-          if (!matchCanon && !matchRaw) return;
-        }
+        if (r.date !== date) return;           // filtrar por data em JS
+        if (!validStatuses.has(r.status)) return; // filtrar por status em JS
 
         const raw = String(r.schedule || r.hour || '').toLowerCase();
         const m = raw.match(/(\d{1,2})/);
@@ -3244,6 +3252,8 @@ window.showWarningToast = function(message, title = 'Atenção') {
       const selectedOpt = typeEl.options[typeEl.selectedIndex];
       const ovEventType = selectedOpt?.dataset?.canonicalType || canonicalType(eventType);
       const rawEventId = selectedOpt?.dataset?.rawEventId || eventType;
+      // evFieldType = valor bruto do campo eventType do adminEvents doc (é o que o booking flow salva em r.eventType)
+      const evFieldType = selectedOpt?.dataset?.evFieldType || rawEventId;
       const isCampSemifinalDate = CAMP_SEMIFINAL_DATES.includes(date);
       const isCampFinalDate = CAMP_FINAL_DATES.includes(date);
 
@@ -3308,7 +3318,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
       // ===== Carregar dados de registrations =====
       // Passar ambos: tipo canônico (ovEventType) e ID bruto do doc (rawEventId)
       // para aceitar registrations salvas de qualquer forma
-      const occupancyMap = await fetchRegistrationsByDate(date, ovEventType, rawEventId);
+      const occupancyMap = await fetchRegistrationsByDate(date, evFieldType, ovEventType, rawEventId);
 
       // ===== Carregar overrides (travas e extras) =====
       let overridesMap = await fetchScheduleOverrides(date, ovEventType, rawEventId);
@@ -3374,7 +3384,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
       });
 
       // ===== Bind dos botões de ação =====
-      bindBoardTableActions(tbody, date, eventType, ovEventType, rawEventId);
+      bindBoardTableActions(tbody, date, eventType, ovEventType, rawEventId, evFieldType);
 
     } catch (e) {
       console.error('❌ Erro em loadBoard:', e.message || e);
@@ -3384,7 +3394,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
   }
 
   // Binda ações dos botões da tabela
-  function bindBoardTableActions(tbody, date, eventType, ovEventType, rawEventId = null) {
+  function bindBoardTableActions(tbody, date, eventType, ovEventType, rawEventId = null, evFieldType = null) {
     // Remover listeners antigos para evitar duplicação
     if (!tbody || !tbody.parentNode) return;
     const newTbody = tbody.cloneNode(true);
@@ -3416,7 +3426,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
         } 
         else if (btnManage) {
           const h = btnManage.getAttribute('data-manage-hour');
-          openManageHourModal(date, ovEventType, h, rawEventId);
+          openManageHourModal(date, ovEventType, h, rawEventId, evFieldType);
         } 
         else if (btnExport) {
           const h = btnExport.getAttribute('data-export-hour');
@@ -3760,7 +3770,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
     }
   };
 
-  async function openManageHourModal(date, eventType, hour, rawEventId = null){
+  async function openManageHourModal(date, eventType, hour, rawEventId = null, evFieldType = null){
     try{
       const title         = document.getElementById('manageHourTitle');
       const listConfirmed = document.getElementById('manageHourListConfirmed');
@@ -3777,9 +3787,24 @@ window.showWarningToast = function(message, title = 'Atenção') {
 
       const { collection, query, where, getDocs, doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
       const regs = collection(window.firebaseDb,'registrations');
-      // Query composta com índice existente — todos os status relevantes incluindo 'pending'
+      // CRÍTICO: query por campo único (sem composite index) — igual ao fetchOccupiedForDate do script.js
+      // date e status filtrados em JS depois
       const _validManageStatuses = new Set(['paid','confirmed','approved','pending']);
-      const snap = await getDocs(query(regs, where('date','==', date), where('status','in',['paid','confirmed','approved','pending'])));
+      const _typesToQuery = [...new Set([evFieldType, eventType, rawEventId].filter(Boolean))];
+      const _allRegDocs = new Map();
+      await Promise.all(_typesToQuery.map(async t => {
+        try {
+          const s = await getDocs(query(regs, where('eventType', '==', t)));
+          s.forEach(d => _allRegDocs.set(d.id, d));
+        } catch (_) {}
+      }));
+      // Filtrar por data e status em JS
+      const _filteredByDate = [..._allRegDocs.values()].filter(d => {
+        const r = d.data();
+        return r.date === date && _validManageStatuses.has(r.status);
+      });
+      // Criar objeto snap compatível com código abaixo
+      const snap = { forEach: cb => _filteredByDate.forEach(cb) };
 
       listConfirmed.innerHTML = '';
       if (listPending) listPending.innerHTML = '';
