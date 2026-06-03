@@ -6125,7 +6125,7 @@ async function fetchOccupiedForDate(day, date, eventType) {
         const regsRef = collection(window.firebaseDb, 'registrations');
         // CRÍTICO: usar apenas 1 filtro no Firestore (campo único) para nunca precisar de índice composto
         // date, status e eventType são filtrados em JS depois
-        const validStatuses = new Set(['paid', 'confirmed', 'approved']);
+        const validStatuses = new Set(['paid', 'confirmed', 'approved', 'pending']);
         // Priorizar eventType (mais seletivo); se não houver, filtrar por date
         const q = eventType
             ? query(regsRef, where('eventType', '==', eventType))
@@ -6233,7 +6233,7 @@ async function checkSlotAvailability(date, schedule, eventType) {
         const regsRef = collection(window.firebaseDb, 'registrations');
         // CRÍTICO: campo único no Firestore — sem índice composto
         // date, status e eventType são filtrados em JS
-        const validStatuses2 = new Set(['paid', 'confirmed', 'approved']);
+        const validStatuses2 = new Set(['paid', 'confirmed', 'approved', 'pending']);
         const q = eventType
             ? query(regsRef, where('eventType', '==', eventType))
             : query(regsRef, where('date', '==', date));
