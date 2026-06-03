@@ -12010,18 +12010,29 @@ async function openEventSlotsModal(eventId, eventName) {
         // Buscar o doc adminEvents para obter o campo eventType real e o nome
         // CRÍTICO: booking flow salva r.eventType = canonical ('xtreino-tokens'), não o doc ID
         // Se adminEvents.eventType for null, derivar pelo nome do evento (ex: 'XTreino Freitas' → 'xtreino-tokens')
+        // Canonização inline (não depende de canonicalType do escopo interno)
+        const _canonInline = t => {
+            const s = String(t || '').toLowerCase().replace(/[\s_]+/g, '-');
+            if (s.includes('xtreino') || s === 'xtreino-tokens') return 'xtreino-tokens';
+            if (s === 'modo-liga' || s.includes('modo') && s.includes('liga')) return 'modo-liga';
+            if (s === 'camp-freitas' || s.includes('camp') && s.includes('freitas')) return 'camp-freitas';
+            if (s === 'camp-final' || s.includes('camp') && s.includes('final') || s.includes('vaga') && s.includes('final')) return 'camp-final';
+            if (s === 'semanal-freitas' || s.includes('semanal')) return 'semanal-freitas';
+            return t;
+        };
+
         let _evFieldType = null;
         try {
             const _evDocSnap = await _fbGetDoc(_fbDoc(window.firebaseDb, 'adminEvents', eventId));
             if (_evDocSnap.exists()) {
                 const _evData = _evDocSnap.data();
-                _evFieldType = canonicalType(_evData?.eventType || _evData?.name || eventId);
+                _evFieldType = _canonInline(_evData?.eventType || _evData?.name || eventId);
             }
         } catch (_) {}
 
         const _regsRef = collection(window.firebaseDb, 'registrations');
         // Coletar todos os tipos distintos a buscar
-        const _typesToQuery = new Set([_evFieldType, eventId, canonicalType(eventId), eventName].filter(Boolean));
+        const _typesToQuery = new Set([_evFieldType, eventId, _canonInline(eventId), eventName].filter(Boolean));
 
         // Executar as queries (uma por tipo distinto) e mesclar
         const _allDocs = new Map();
