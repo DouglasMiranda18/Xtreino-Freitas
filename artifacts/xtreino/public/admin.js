@@ -1137,6 +1137,14 @@ window.showWarningToast = function(message, title = 'Atenção') {
             alert('Informe ao menos Time/Org e Contato.');
             return;
           }
+          if (!eventType){
+            alert('Selecione o tipo de evento no painel de horários antes de adicionar um time.\n\nSem o tipo de evento, o time não aparecerá na lista de Inscritos.');
+            return;
+          }
+          if (!schedule || schedule === '—'){
+            alert('Selecione o horário no painel de horários antes de adicionar um time.');
+            return;
+          }
           if (!date){
             alert('Selecione uma data no painel de horários.');
             return;
@@ -12503,7 +12511,7 @@ async function openEventSlotsModal(eventId, eventName) {
             collection(window.firebaseDb, 'registrations'),
             where('eventType', '==', eventId)
         ));
-        const validStatuses = new Set(['confirmed', 'paid', 'approved']);
+        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
         // Data de hoje em horário de Brasília (UTC-3)
         const _brNow = new Date(Date.now() - 3 * 60 * 60 * 1000);
         const todayStr = _brNow.toISOString().split('T')[0];
@@ -12634,11 +12642,13 @@ async function openEventSlotsModal(eventId, eventName) {
                                    </div>`
                                 : `<div class="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-100 text-gray-300 mx-auto" title="Sem logo cadastrada"><i class="fas fa-image text-lg"></i></div>`;
                             const isFreeEntry = r.freeSlot === true || r.listingType === 'free';
+                            const isPendingEntry = st === 'pending';
                             const statusDisplay = isFreeEntry
                                 ? `<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">🎁 Grátis</span>`
                                 : `<span class="px-2 py-0.5 rounded-full text-xs font-semibold ${statusCls[st] || 'bg-gray-100 text-gray-500'}">${statusLabel[st] || st}</span>`;
-                            return `<tr class="border-t border-gray-100 hover:bg-orange-50 transition-colors ${isFreeEntry ? 'bg-orange-50/40' : ''}">
-                                <td class="px-3 py-2 font-bold text-orange-600 text-base">${escapeAdminHtml(slotLabel)}</td>
+                            const rowBg = isFreeEntry ? 'bg-orange-50/40' : isPendingEntry ? 'bg-yellow-50' : '';
+                            return `<tr class="border-t border-gray-100 hover:bg-orange-50 transition-colors ${rowBg}">
+                                <td class="px-3 py-2 font-bold ${isPendingEntry ? 'text-yellow-600' : 'text-orange-600'} text-base">${escapeAdminHtml(slotLabel)}</td>
                                 <td class="px-3 py-2 text-center">${logoCell}</td>
                                 <td class="px-3 py-2">
                                     <p class="font-medium text-gray-800">${escapeAdminHtml(r.teamName || r.email || '—')}</p>
