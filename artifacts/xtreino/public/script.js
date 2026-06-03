@@ -8785,8 +8785,13 @@ async function createRegistrationsForEvent(eventType, datesToUse, teamsData, tim
             const rdBase = (rd.teamName || '').trim()
                 .replace(/\s+[B-Z]$/i, '')
                 .toLowerCase().replace(/\s+/g, ' ');
+            // Extrai a hora do horário (ex: "Quarta - 22h" → "22", "22:00" → "22")
+            const rdSchedStr = String(rd.schedule || rd.hour || '');
+            const rdHourMatch = rdSchedStr.match(/(\d{1,2})/);
+            const rdHour = rdHourMatch ? String(parseInt(rdHourMatch[1], 10)).padStart(2, '0') : '';
             if (rdEmail && rdBase) {
-                const k = `${rdBase}|${rdEmail}`;
+                // Chave inclui hora: sufixo só se o mesmo time reservar o MESMO horário
+                const k = `${rdBase}|${rdEmail}|${rdHour}`;
                 _dupExistMap[k] = (_dupExistMap[k] || 0) + 1;
             }
         });
@@ -8838,11 +8843,12 @@ async function createRegistrationsForEvent(eventType, datesToUse, teamsData, tim
                 const slotNum = slotCount[schedule];
                 const slotDisplay = computeSlotDisplay(slotNum, vagas, grupos, isLiga);
 
-                // Sufixo automático: mesmo nome + mesmo e-mail → B, C, D...
+                // Sufixo automático: mesmo nome + mesmo e-mail + mesmo horário → B, C, D...
+                // (times em horários DIFERENTES podem usar o mesmo nome sem sufixo)
                 const _teamEmail = (team.email || '').trim().toLowerCase();
                 const _teamBase = (team.name || '').trim()
                     .replace(/\s+[B-Z]$/i, '').toLowerCase().replace(/\s+/g, ' ');
-                const _dupKey = `${_teamBase}|${_teamEmail}`;
+                const _dupKey = `${_teamBase}|${_teamEmail}|${normalizedHour || ''}`;
                 const _dupTotal = (_dupExistMap[_dupKey] || 0) + (_dupBatchCount[_dupKey] || 0);
                 const finalTeamName = _dupTotal > 0
                     ? `${team.name.trim()} ${String.fromCharCode(65 + _dupTotal)}`
