@@ -3724,7 +3724,8 @@ window.showWarningToast = function(message, title = 'Atenção') {
       let countConfirmed = 0, countPending = 0;
 
       // Função auxiliar para criar uma linha de time
-      const makeRow = (d, r, isPending, isFreeManual) => {
+      // posIdx: índice posicional (1-based) dentro do grupo ordenado — igual ao "ver detalhes > Inscritos"
+      const makeRow = (d, r, isPending, isFreeManual, posIdx) => {
         const _adminLogoUrl = r.teamLogoUrl || r.teamLogoThumb || null;
         const logoHtml = _adminLogoUrl
           ? `<img src="${_adminLogoUrl}" class="w-7 h-7 rounded object-cover flex-shrink-0">`
@@ -3736,10 +3737,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
             : '<span class="text-xs bg-green-100 text-green-700 border border-green-300 rounded px-1.5 py-0.5">✓ Pago</span>';
         const _mgEmail = r.email || r.clientEmail || '';
         const _mgPhone = r.contact || r.phone || '';
-        // Badge de número do slot — igual ao painel Ver Detalhes > Inscritos
-        const _slotNum = r.slot != null ? Number(r.slot) : (r.slotNumber != null ? Number(r.slotNumber) : null);
-        const slotBadge = _slotNum != null
-          ? `<span class="text-xs font-bold text-orange-600 bg-orange-50 border border-orange-200 rounded px-1.5 py-0.5 flex-shrink-0">#${_slotNum}</span>`
+        // Badge posicional (1, 2, 3…) — igual ao painel Ver Detalhes > Inscritos
+        const slotBadge = posIdx != null
+          ? `<span class="text-xs font-bold text-orange-600 bg-orange-50 border border-orange-200 rounded px-1.5 py-0.5 flex-shrink-0">#${posIdx}</span>`
           : '';
         // Botão de verificar pagamento — só para pendentes com external_reference
         const extRef = r.external_reference || null;
@@ -3796,11 +3796,11 @@ window.showWarningToast = function(message, title = 'Atenção') {
         return (ra.createdAt?.seconds ?? 0) - (rb.createdAt?.seconds ?? 0);
       });
 
-      _matchedDocs.forEach(d => {
+      _matchedDocs.forEach((d, idx) => {
         const r = d.data();
         const isPending    = r.status === 'pending';
         const isFreeManual = r.freeSlot === true || r.listingType === 'free';
-        const row          = makeRow(d, r, isPending, isFreeManual);
+        const row          = makeRow(d, r, isPending, isFreeManual, idx + 1);
         if (isPending) {
           countPending++;
           if (listPending) listPending.appendChild(row);
@@ -12619,9 +12619,10 @@ async function openEventSlotsModal(eventId, eventName) {
                         </tr>
                     </thead>
                     <tbody>
-                        ${regs.map(r => {
-                            const slotNum = r.slotNumber != null ? r.slotNumber : r.slot;
-                            const slotLabel = r.slotDisplay || (slotNum != null ? `#${slotNum}` : '—');
+                        ${regs.map((r, idx) => {
+                            // Exibir posição (1, 2, 3…) dentro do grupo data+horário,
+                            // igual ao que o cliente vê — independente do slotNumber armazenado
+                            const slotLabel = `Vaga #${idx + 1}`;
                             const st = r.status || 'pending';
                             const leaderName = r.leaderName && r.leaderName !== r.teamName ? r.leaderName : null;
                             const nomeArq = (r.teamName || 'time').replace(/[^a-zA-Z0-9]/g,'_');
