@@ -3736,6 +3736,11 @@ window.showWarningToast = function(message, title = 'Atenção') {
             : '<span class="text-xs bg-green-100 text-green-700 border border-green-300 rounded px-1.5 py-0.5">✓ Pago</span>';
         const _mgEmail = r.email || r.clientEmail || '';
         const _mgPhone = r.contact || r.phone || '';
+        // Badge de número do slot — igual ao painel Ver Detalhes > Inscritos
+        const _slotNum = r.slot != null ? Number(r.slot) : (r.slotNumber != null ? Number(r.slotNumber) : null);
+        const slotBadge = _slotNum != null
+          ? `<span class="text-xs font-bold text-orange-600 bg-orange-50 border border-orange-200 rounded px-1.5 py-0.5 flex-shrink-0">#${_slotNum}</span>`
+          : '';
         // Botão de verificar pagamento — só para pendentes com external_reference
         const extRef = r.external_reference || null;
         const verifyBtn = isPending
@@ -3751,6 +3756,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
             ${logoHtml}
             <div class="min-w-0">
               <div class="font-semibold text-sm flex items-center flex-wrap gap-1">
+                ${slotBadge}
                 <span class="truncate">${r.teamName||_mgEmail||'-'}</span>
                 ${statusBadge}
               </div>
@@ -3766,21 +3772,35 @@ window.showWarningToast = function(message, title = 'Atenção') {
         return row;
       };
 
+      // Coletar e filtrar registros antes de ordenar
+      const _matchedDocs = [];
       snap.forEach(d=>{
         const r = d.data();
-        // Filtro de tipo de evento
         if (evLower && r.eventType && !String(r.eventType).toLowerCase().includes(evLower)) return;
-        // Filtro de horário
         const schedStr = String(r.schedule||'');
         const hourStr  = String(r.hour||'');
         const regHH    = normalizeHour(schedStr) || normalizeHour(hourStr);
         if (targetHH && !regHH) return;
         if (targetHH && regHH && targetHH !== regHH) return;
+        _matchedDocs.push(d);
+      });
 
+      // Ordenar por slot crescente → createdAt (= ordem de compra), igual ao painel Inscritos
+      _matchedDocs.sort((a, b) => {
+        const ra = a.data(), rb = b.data();
+        const sa = ra.slot != null ? Number(ra.slot) : (ra.slotNumber != null ? Number(ra.slotNumber) : null);
+        const sb = rb.slot != null ? Number(rb.slot) : (rb.slotNumber != null ? Number(rb.slotNumber) : null);
+        if (sa !== null && sb !== null) return sa - sb;
+        if (sa !== null) return -1;
+        if (sb !== null) return 1;
+        return (ra.createdAt?.seconds ?? 0) - (rb.createdAt?.seconds ?? 0);
+      });
+
+      _matchedDocs.forEach(d => {
+        const r = d.data();
         const isPending    = r.status === 'pending';
         const isFreeManual = r.freeSlot === true || r.listingType === 'free';
         const row          = makeRow(d, r, isPending, isFreeManual);
-
         if (isPending) {
           countPending++;
           if (listPending) listPending.appendChild(row);
@@ -12707,23 +12727,36 @@ async function repairEventSlots() {
             });
         });
 
-        // Reassignar slots únicos e sequenciais por horário
+        // Preencher apenas slots SEM número atribuído — slots ocupados NUNCA são alterados
         const batch = writeBatch(window.firebaseDb);
         let updateCount = 0;
 
         for (const regs of Object.values(bySchedule)) {
-            regs.forEach((entry, idx) => {
-                const newSlot = idx + 1;
-                const newSlotDisplay = `Vaga #${newSlot}`;
-                // Só atualiza se mudou
-                if (entry.data.slot !== newSlot || entry.data.slotNumber !== newSlot || entry.data.slotDisplay !== newSlotDisplay) {
-                    batch.update(doc(window.firebaseDb, 'registrations', entry.id), {
-                        slot: newSlot,
-                        slotNumber: newSlot,
-                        slotDisplay: newSlotDisplay
-                    });
-                    updateCount++;
+            // Encontrar max slot já atribuído (imutável)
+            let maxSlot = 0;
+            const semSlot = [];
+            regs.forEach(entry => {
+                const s = entry.data.slot != null ? Number(entry.data.slot)
+                        : (entry.data.slotNumber != null ? Number(entry.data.slotNumber) : null);
+                if (s !== null && !isNaN(s) && s > 0) {
+                    if (s > maxSlot) maxSlot = s;
+                } else {
+                    semSlot.push(entry);
                 }
+            });
+            // Ordenar sem-slot por data de compra (cronológico)
+            semSlot.sort((a, b) => (a.data.createdAt?.seconds ?? 0) - (b.data.createdAt?.seconds ?? 0));
+            // Atribuir apenas as vagas sem número, continuando do último slot ocupado
+            semSlot.forEach(entry => {
+                maxSlot++;
+                const newSlot = maxSlot;
+                const newSlotDisplay = `Vaga #${newSlot}`;
+                batch.update(doc(window.firebaseDb, 'registrations', entry.id), {
+                    slot: newSlot,
+                    slotNumber: newSlot,
+                    slotDisplay: newSlotDisplay
+                });
+                updateCount++;
             });
         }
 
@@ -13097,14 +13130,27 @@ window.repairDateSlots = async function(eventType, targetDate) {
             });
         });
 
-        // Renumerar e gravar
+        // Preencher apenas slots SEM número atribuído — slots ocupados NUNCA são alterados
         const batch = writeBatch(db);
         let updateCount = 0;
         const counterData = {};
 
         for (const [sched, regs] of Object.entries(bySchedule)) {
-            regs.forEach((entry, idx) => {
-                const newSlot = idx + 1;
+            let maxSlot = 0;
+            const semSlot = [];
+            regs.forEach(entry => {
+                const s = entry.data.slot != null ? Number(entry.data.slot)
+                        : (entry.data.slotNumber != null ? Number(entry.data.slotNumber) : null);
+                if (s !== null && !isNaN(s) && s > 0) {
+                    if (s > maxSlot) maxSlot = s;
+                } else {
+                    semSlot.push(entry);
+                }
+            });
+            semSlot.sort((a, b) => (a.data.createdAt?.seconds ?? 0) - (b.data.createdAt?.seconds ?? 0));
+            semSlot.forEach(entry => {
+                maxSlot++;
+                const newSlot = maxSlot;
                 const newSlotDisplay = `Vaga #${newSlot}`;
                 batch.update(doc(db, 'registrations', entry.id), {
                     slot: newSlot,
