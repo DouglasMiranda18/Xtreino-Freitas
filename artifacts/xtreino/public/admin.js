@@ -12549,40 +12549,44 @@ async function openEventSlotsModal(eventId, eventName) {
             return str;
         };
 
-        // Agrupar por horário (normalizado)
+        // Agrupar por DATA + HORÁRIO (normalizado) — evita misturar inscritos de dias diferentes
+        // Isso garante que cada seção mostre exatamente os mesmos participantes que
+        // o modal "Gerenciar" mostra ao filtrar por data específica no board de horários.
         const bySchedule = {};
         docs.forEach(d => {
             const r = { ...d.data(), _docId: d.id };
             const sched = normSched(r.schedule);
-            if (!bySchedule[sched]) bySchedule[sched] = [];
-            bySchedule[sched].push(r);
+            const dateKey = r.date || '—';
+            const key = `${dateKey}||${sched}`;
+            if (!bySchedule[key]) bySchedule[key] = { date: dateKey, sched, regs: [] };
+            bySchedule[key].regs.push(r);
         });
 
-        // Ordenar cada horário por slot crescente (null vai pro final) e deduplicar
-        Object.keys(bySchedule).forEach(sched => {
-            let arr = bySchedule[sched];
-            // Ordenar por slot/slotNumber crescente; fallback: createdAt crescente
-            arr.sort((a, b) => {
+        // Ordenar por slot crescente → createdAt (= ordem de compra) dentro de cada data/hora
+        Object.values(bySchedule).forEach(group => {
+            group.regs.sort((a, b) => {
                 const sa = a.slot != null ? Number(a.slot) : (a.slotNumber != null ? Number(a.slotNumber) : null);
                 const sb = b.slot != null ? Number(b.slot) : (b.slotNumber != null ? Number(b.slotNumber) : null);
                 if (sa !== null && sb !== null) return sa - sb;
                 if (sa !== null) return -1;
                 if (sb !== null) return 1;
-                // Sem slot: usa createdAt
                 return (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0);
             });
-            // Admin: sem deduplicação — mostra todos os registros para gestão completa
-            // Deduplica apenas por ID de documento para evitar o mesmo registro aparecer duas vezes
+            // Deduplica apenas por ID de documento
             const seenIds = new Set();
-            bySchedule[sched] = arr.filter(r => {
+            group.regs = group.regs.filter(r => {
                 if (r._docId && seenIds.has(r._docId)) return false;
                 if (r._docId) seenIds.add(r._docId);
                 return true;
             });
         });
 
-        // Ordenar horários alfabeticamente
-        const schedKeys = Object.keys(bySchedule).sort();
+        // Ordenar seções: primeiro por data, depois por horário
+        const schedKeys = Object.keys(bySchedule).sort((a, b) => {
+            const ga = bySchedule[a], gb = bySchedule[b];
+            if (ga.date !== gb.date) return ga.date.localeCompare(gb.date);
+            return ga.sched.localeCompare(gb.sched);
+        });
 
         const statusLabel = { confirmed: 'Confirmado', paid: 'Pago', approved: 'Aprovado', pending: 'Ag. Pagamento' };
         const statusCls = {
@@ -12593,12 +12597,15 @@ async function openEventSlotsModal(eventId, eventName) {
         };
 
         let html = '';
-        for (const sched of schedKeys) {
-            const regs = bySchedule[sched];
+        for (const key of schedKeys) {
+            const { date: groupDate, sched, regs } = bySchedule[key];
+            const dateFmtHeader = groupDate && /^\d{4}-\d{2}-\d{2}$/.test(groupDate)
+                ? groupDate.split('-').reverse().slice(0,2).join('/') : groupDate;
             html += `
             <div class="mb-6">
                 <div class="flex items-center gap-2 mb-3">
                     <span class="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-clock mr-1"></i>${escapeAdminHtml(sched)}</span>
+                    <span class="text-xs font-semibold text-gray-600">${escapeAdminHtml(dateFmtHeader)}</span>
                     <span class="text-xs text-gray-400">${regs.length} inscrito(s)</span>
                 </div>
                 <div class="overflow-x-auto rounded-lg border border-gray-200">
@@ -12608,7 +12615,6 @@ async function openEventSlotsModal(eventId, eventName) {
                             <th class="px-3 py-2 text-left w-20">Slot</th>
                             <th class="px-3 py-2 text-center w-14">Logo</th>
                             <th class="px-3 py-2 text-left">Equipe / Nome</th>
-                            <th class="px-3 py-2 text-left w-24">Data</th>
                             <th class="px-3 py-2 text-left w-28">Status</th>
                         </tr>
                     </thead>
@@ -12617,8 +12623,6 @@ async function openEventSlotsModal(eventId, eventName) {
                             const slotNum = r.slotNumber != null ? r.slotNumber : r.slot;
                             const slotLabel = r.slotDisplay || (slotNum != null ? `#${slotNum}` : '—');
                             const st = r.status || 'pending';
-                            const dateFmt = r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date)
-                                ? r.date.split('-').reverse().join('/') : (r.date || '—');
                             const leaderName = r.leaderName && r.leaderName !== r.teamName ? r.leaderName : null;
                             const nomeArq = (r.teamName || 'time').replace(/[^a-zA-Z0-9]/g,'_');
                             const _slotLogoUrl = r.teamLogoUrl || r.teamLogoThumb || _slotsLogoMap[(r.teamName||'').toLowerCase().trim()] || null;
@@ -12639,7 +12643,6 @@ async function openEventSlotsModal(eventId, eventName) {
                                     <p class="font-medium text-gray-800">${escapeAdminHtml(r.teamName || r.email || '—')}</p>
                                     ${leaderName ? `<p class="text-xs text-gray-400">Líder: ${escapeAdminHtml(leaderName)}</p>` : ''}
                                 </td>
-                                <td class="px-3 py-2 text-gray-500 text-xs">${dateFmt}</td>
                                 <td class="px-3 py-2">${statusDisplay}</td>
                             </tr>`;
                         }).join('')}
