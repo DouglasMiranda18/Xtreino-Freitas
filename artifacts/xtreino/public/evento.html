@@ -587,12 +587,11 @@ async function loadInscritos(evId) {
             });
             if (byDate.length === 0) continue;
 
-            // Deduplicação por teamName dentro do filtro de hoje
-            const seenTeams = new Set();
+            // Deduplicação apenas por ID de documento — nomes iguais são times diferentes
+            const seenIds = new Set();
             const filtered = byDate.filter(r => {
-                const tk = (r.teamName || r.email || '').toLowerCase().trim();
-                if (!tk || seenTeams.has(tk)) return false;
-                seenTeams.add(tk);
+                if (r._dbId && seenIds.has(r._dbId)) return false;
+                if (r._dbId) seenIds.add(r._dbId);
                 return true;
             });
             if (filtered.length === 0) continue;
