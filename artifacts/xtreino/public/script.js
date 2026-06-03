@@ -8250,58 +8250,72 @@ async function checkPaymentStatus(preferenceId) {
     const extRef = sessionStorage.getItem('lastExternalRef') || preferenceId;
     if (!extRef) return;
 
-    try {
-        sessionStorage.setItem('checkingPayment', 'true');
+    sessionStorage.setItem('checkingPayment', 'true');
 
-        // ── 1. VERIFICAR NO FIRESTORE DIRETAMENTE ──────────────────────────
-        // Se o webhook do MP já atualizou o status para 'paid', confirmar sem
-        // depender do Netlify (mais rápido e funciona mesmo se Netlify falhar)
-        if (window.firebaseDb) {
-            try {
-                const { collection, query: _q, where: _w, getDocs: _gd } =
-                    await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-                const _snap = await _gd(_q(
-                    collection(window.firebaseDb, 'registrations'),
-                    _w('external_reference', '==', extRef)
-                ));
-                if (!_snap.empty && _snap.docs.some(d => d.data().status === 'paid')) {
-                    // Webhook já confirmou — mostrar modal imediatamente
+    // ── 1. FIRESTORE DIRETO (fonte principal) ──────────────────────────────
+    // Webhook do MP já pode ter atualizado o status antes de chegarmos aqui.
+    // Não depende do Netlify — funciona mesmo com créditos esgotados.
+    if (window.firebaseDb) {
+        try {
+            const { collection, query: _q, where: _w, getDocs: _gd } =
+                await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            const _snap = await _gd(_q(
+                collection(window.firebaseDb, 'registrations'),
+                _w('external_reference', '==', extRef)
+            ));
+            if (!_snap.empty) {
+                const statuses = _snap.docs.map(d => d.data().status);
+                if (statuses.some(s => s === 'paid')) {
                     try { localStorage.removeItem('_pendingPagamento'); } catch(_) {}
                     processSuccessfulPayment(extRef);
                     return;
                 }
-            } catch (_) {}
+                if (statuses.some(s => s === 'rejected')) {
+                    try { localStorage.removeItem('_pendingPagamento'); } catch(_) {}
+                    openPaymentConfirmModal('Pagamento Rejeitado', 'Seu pagamento foi rejeitado. Tente novamente ou use outro método de pagamento.');
+                    return;
+                }
+            }
+        } catch (_fErr) {
+            console.warn('[checkPaymentStatus] Firestore check falhou:', _fErr?.message);
         }
+    }
 
-        // ── 2. FALLBACK: perguntar ao Netlify (webhook ainda não disparou) ──
+    // ── 2. NETLIFY (otimização — confirma antes do webhook chegar) ─────────
+    // Se o Netlify estiver indisponível (créditos esgotados, timeout, etc.),
+    // apenas agenda novo polling via Firestore — nunca interrompe o fluxo.
+    try {
         const response = await fetch('/.netlify/functions/check-pix-status', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ external_reference: extRef })
+            body: JSON.stringify({ external_reference: extRef }),
+            signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined
         });
 
-        if (!response.ok) throw new Error('check-pix-status retornou ' + response.status);
-
-        const data = await response.json();
-
-        if (data.status === 'approved') {
-            try { localStorage.removeItem('_pendingPagamento'); } catch(_) {}
-            processSuccessfulPayment(extRef);
-        } else if (data.status === 'pending') {
-            setTimeout(() => checkPaymentStatus(preferenceId), 10000);
-        } else if (data.status === 'rejected') {
-            try { localStorage.removeItem('_pendingPagamento'); } catch(_) {}
-            openPaymentConfirmModal('Pagamento Rejeitado', 'Seu pagamento foi rejeitado. Tente novamente ou use outro método de pagamento.');
+        if (response.ok) {
+            const data = await response.json();
+            if (data.status === 'approved') {
+                try { localStorage.removeItem('_pendingPagamento'); } catch(_) {}
+                processSuccessfulPayment(extRef);
+                return;
+            } else if (data.status === 'rejected') {
+                try { localStorage.removeItem('_pendingPagamento'); } catch(_) {}
+                openPaymentConfirmModal('Pagamento Rejeitado', 'Seu pagamento foi rejeitado. Tente novamente ou use outro método de pagamento.');
+                return;
+            }
+            // pending ou outro status → polling abaixo
+        } else {
+            // HTTP 4xx/5xx (ex: créditos Netlify esgotados) → silencioso, retry via Firestore
+            console.warn('[checkPaymentStatus] Netlify retornou', response.status, '— continuando com polling Firestore');
         }
-        // outros status: aguardar webhook — usuário pode checar em Minha Conta
-
-    } catch (error) {
-        console.warn('[checkPaymentStatus] erro:', error?.message || error);
-        // Retry silencioso em 15s se for erro de rede
-        if (error instanceof TypeError) {
-            setTimeout(() => checkPaymentStatus(preferenceId), 15000);
-        }
+    } catch (_nErr) {
+        // Erro de rede / timeout → silencioso, retry via Firestore
+        console.warn('[checkPaymentStatus] Netlify indisponível:', _nErr?.message || _nErr);
     }
+
+    // ── 3. POLLING — tentar novamente em 12s ──────────────────────────────
+    // Continua enquanto o pagamento estiver pendente, independente do Netlify.
+    setTimeout(() => checkPaymentStatus(preferenceId), 12000);
 }
 
 async function processSuccessfulPayment(externalRef = null) {
