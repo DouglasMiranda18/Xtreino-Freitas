@@ -11982,10 +11982,18 @@ async function openEventSlotsModal(eventId, eventName) {
 
     try {
         const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const snap = await getDocs(query(
-            collection(window.firebaseDb, 'registrations'),
-            where('eventType', '==', eventId)
-        ));
+        // Buscar por ID bruto do doc E por tipo canônico (registrations podem ter salvo qualquer um dos dois)
+        const _regsRef = collection(window.firebaseDb, 'registrations');
+        const _canonId = canonicalType(eventId);
+        const _snap1 = await getDocs(query(_regsRef, where('eventType', '==', eventId)));
+        const _snap2 = (_canonId && _canonId !== eventId)
+            ? await getDocs(query(_regsRef, where('eventType', '==', _canonId)))
+            : null;
+        // Mesclar deduplificando por doc ID
+        const _allDocs = new Map();
+        _snap1.docs.forEach(d => _allDocs.set(d.id, d));
+        if (_snap2) _snap2.docs.forEach(d => _allDocs.set(d.id, d));
+        const snap = { docs: [..._allDocs.values()] };
         const validStatuses = new Set(['confirmed', 'paid', 'approved']);
         // Data de hoje em horário de Brasília (UTC-3)
         const _brNow = new Date(Date.now() - 3 * 60 * 60 * 1000);
