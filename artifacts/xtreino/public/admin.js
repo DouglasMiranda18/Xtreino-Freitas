@@ -12007,23 +12007,21 @@ async function openEventSlotsModal(eventId, eventName) {
 
     try {
         const { collection, query, where, getDocs, doc: _fbDoc, getDoc: _fbGetDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        // Buscar o doc adminEvents para obter o campo eventType real
-        // (o booking flow salva r.eventType = ev.eventType do adminEvents, não o doc ID)
+        // Buscar o doc adminEvents para obter o campo eventType real e o nome
+        // CRÍTICO: booking flow salva r.eventType = canonical ('xtreino-tokens'), não o doc ID
+        // Se adminEvents.eventType for null, derivar pelo nome do evento (ex: 'XTreino Freitas' → 'xtreino-tokens')
         let _evFieldType = null;
         try {
             const _evDocSnap = await _fbGetDoc(_fbDoc(window.firebaseDb, 'adminEvents', eventId));
-            if (_evDocSnap.exists()) _evFieldType = _evDocSnap.data()?.eventType || null;
+            if (_evDocSnap.exists()) {
+                const _evData = _evDocSnap.data();
+                _evFieldType = canonicalType(_evData?.eventType || _evData?.name || eventId);
+            }
         } catch (_) {}
 
         const _regsRef = collection(window.firebaseDb, 'registrations');
-        // Coletar todos os tipos distintos a buscar (doc ID + eventType field + canonical)
-        const _typesToQuery = new Set([eventId]);
-        if (_evFieldType) _typesToQuery.add(_evFieldType);
-        if (_evFieldType) _typesToQuery.add(canonicalType(_evFieldType));
-        _typesToQuery.add(canonicalType(eventId));
-        _typesToQuery.delete('');
-        _typesToQuery.delete(undefined);
-        _typesToQuery.delete(null);
+        // Coletar todos os tipos distintos a buscar
+        const _typesToQuery = new Set([_evFieldType, eventId, canonicalType(eventId), eventName].filter(Boolean));
 
         // Executar as queries (uma por tipo distinto) e mesclar
         const _allDocs = new Map();
