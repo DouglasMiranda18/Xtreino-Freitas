@@ -647,10 +647,12 @@ window.goRegister = function() {
         // Evento grátis → modal de equipe (4 membros); pago → modal de agendamento
         const _isPago = Number(window._currentEventPreco) > 0 || (window._currentEventEntrada || '').toUpperCase() === 'PAGO';
         if (_isPago) {
+            // SEMPRE usar _resolvedEventType (ex: 'xtreino-tokens') — nunca o doc ID do Firestore,
+            // pois scheduleConfig só reconhece o tipo canônico, não IDs aleatórios
             if (typeof window.openScheduleModal === 'function') {
-                window.openScheduleModal(eid || _resolvedEventType);
+                window.openScheduleModal(_resolvedEventType);
             } else {
-                window.location.href = eid ? `index.html?openEvent=${encodeURIComponent(eid)}#eventos` : 'index.html#eventos';
+                window.location.href = `index.html?openEvent=${encodeURIComponent(_resolvedEventType)}#eventos`;
             }
         } else {
             if (typeof window.abrirModalEquipe === 'function') {
