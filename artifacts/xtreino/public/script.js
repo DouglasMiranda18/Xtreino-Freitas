@@ -6528,6 +6528,7 @@ async function updateOccupiedAndRefreshButtons(day, date, eventType, container) 
 
     Array.from(container.children).forEach(btn => {
         const schedule = btn.dataset.schedule;
+        if (!schedule) return; // Ignorar elementos que não são slots (ex: mensagem "Nenhum horário")
         const time = (schedule || '').split(' - ')[1] || '';
         const hour = parseInt(time.replace('h', ''));
         const capacity = (scheduleConfig[eventType]?.vagas > 0 ? scheduleConfig[eventType].vagas : null) || getEventCapacity(eventType, time);
