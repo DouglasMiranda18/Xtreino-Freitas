@@ -1408,32 +1408,6 @@ window.showWarningToast = function(message, title = 'Atenção') {
     const formAddTeam = document.getElementById('formAddTeam');
     if (formAddTeam) formAddTeam.onsubmit = submitAddTeam;
 
-    // ── Limpeza única de registrations de teste adicionadas manualmente ──
-    (async function cleanupTestRegistrations() {
-      try {
-        const _fbDb = window.firebaseDb || await new Promise(res => {
-          const _t = setInterval(() => { if (window.firebaseDb) { clearInterval(_t); res(window.firebaseDb); } }, 300);
-        });
-        const { collection, query, where, getDocs, deleteDoc, doc } =
-          await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const nomesAlvo = ['B12 E-SPORTS', 'TROPA DO FERA', 'B12 E-SPORTS B'];
-        let deletados = 0;
-        for (const nome of nomesAlvo) {
-          const snap = await getDocs(query(
-            collection(_fbDb, 'registrations'),
-            where('teamName', '==', nome),
-            where('addedManually', '==', true)
-          ));
-          for (const d of snap.docs) {
-            await deleteDoc(doc(_fbDb, 'registrations', d.id));
-            deletados++;
-          }
-        }
-        if (deletados > 0) console.log(`🧹 Limpeza: ${deletados} registration(s) de teste removida(s).`);
-      } catch (e) {
-        console.warn('Limpeza de testes:', e?.message || e);
-      }
-    })();
     // Bind filtros do histórico de cupons - configurar após DOM estar pronto
     setupCouponUsageFilters();
     // Inicializa período como "hoje" (sincroniza com botão Hoje ativo por padrão)
