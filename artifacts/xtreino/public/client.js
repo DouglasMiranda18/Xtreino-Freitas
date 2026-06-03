@@ -958,9 +958,9 @@ function generateWhatsAppPaginationHTML(currentPage, totalPages) {
 }
 
 
-// Função para obter link do WhatsApp dinamicamente
 async function getWhatsAppLinkForOrder(order) {
-    try {
+    return '';
+    try { // eslint-disable-line no-unreachable
         
         
         
