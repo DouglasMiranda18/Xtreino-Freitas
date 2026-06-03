@@ -537,7 +537,7 @@ main.with-sidebar { padding-left: calc(var(--sidebar-w) + 1.5rem) !important; }
 #sectionTokens, #sectionCoupons, #sectionCouponUsage,
 #sectionPasseBooyah, #sectionProducts, #sectionSchedules,
 #sectionHighlights, #sectionNews, #sectionAdminHistory,
-#sectionWhatsAppLinks, #sectionAffiliates, #sectionAffiliateSales,
+#sectionAffiliates, #sectionAffiliateSales,
 #sectionShirtOrders, #sectionNotificationsAdmin, #sectionResetData,
 #sectionEvents, #sectionOrders {
     margin-bottom: 1rem !important;
@@ -547,7 +547,7 @@ main.with-sidebar { padding-left: calc(var(--sidebar-w) + 1.5rem) !important; }
 #sectionFilters, #sectionUsersManagement, #sectionTokens,
 #sectionCoupons, #sectionCouponUsage, #sectionPasseBooyah,
 #sectionProducts, #sectionSchedules, #sectionHighlights,
-#sectionNews, #sectionAdminHistory, #sectionWhatsAppLinks,
+#sectionNews, #sectionAdminHistory,
 #sectionAffiliates, #sectionAffiliateSales, #sectionShirtOrders,
 #sectionNotificationsAdmin, #sectionResetData, #sectionEvents, #sectionOrders {
     padding: 1.35rem !important;
