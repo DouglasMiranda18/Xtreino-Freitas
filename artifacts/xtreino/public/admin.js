@@ -3609,12 +3609,12 @@ window.showWarningToast = function(message, title = 'Atenção') {
       const toCreate = [];
 
       defaultHours.forEach(hour => {
-        const hh = String(hour).replace(/\D/g,'').padStart(2,'0');
-        const h = parseInt(hh,10);
-        const hStr = String(h);
+        const hh = extractHour(hour);
+        if (!hh) return;
+        const hStr = String(parseInt(hh, 10));
         if (existing[hStr] || existing[hh]) {
           const id = existing[hStr] || existing[hh];
-          batch.update(doc(window.firebaseDb,'schedule_overrides',id), { locked: true, eventType: canon });
+          batch.update(doc(window.firebaseDb,'schedule_overrides',id), { locked: true, eventType: canon, hour: hStr, hh: hStr });
         } else {
           toCreate.push({ date, eventType: canon, hour: hStr, hh: hStr, locked: true, extraOccupied: 0, createdAt: Date.now() });
         }
