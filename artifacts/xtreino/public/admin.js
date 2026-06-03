@@ -1408,6 +1408,32 @@ window.showWarningToast = function(message, title = 'Atenção') {
     const formAddTeam = document.getElementById('formAddTeam');
     if (formAddTeam) formAddTeam.onsubmit = submitAddTeam;
 
+    // ── Limpeza única de registrations de teste ──
+    (async function cleanupTestRegistrations() {
+      try {
+        const _fbDb = window.firebaseDb || await new Promise(res => {
+          const _t = setInterval(() => { if (window.firebaseDb) { clearInterval(_t); res(window.firebaseDb); } }, 300);
+        });
+        const { collection, query, where, getDocs, deleteDoc, doc } =
+          await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const nomesAlvo = ['B12 E-SPORTS', 'TROPA DO FERA', 'B12 E-SPORTS B'];
+        let deletados = 0;
+        for (const nome of nomesAlvo) {
+          // Query simples (campo único) — sem composite index
+          const snap = await getDocs(query(collection(_fbDb, 'registrations'), where('teamName', '==', nome)));
+          for (const d of snap.docs) {
+            const r = d.data();
+            if (r.addedManually !== true) continue; // filtro em JS
+            await deleteDoc(doc(_fbDb, 'registrations', d.id));
+            deletados++;
+          }
+        }
+        if (deletados > 0) console.log(`🧹 Limpeza: ${deletados} registration(s) de teste removida(s).`);
+      } catch (e) {
+        console.warn('Limpeza de testes:', e?.message || e);
+      }
+    })();
+
     // Bind filtros do histórico de cupons - configurar após DOM estar pronto
     setupCouponUsageFilters();
     // Inicializa período como "hoje" (sincroniza com botão Hoje ativo por padrão)
@@ -2849,7 +2875,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
   window.loadDynamicEventsIntoBoard = loadDynamicEventsIntoBoard;
 
   // Busca registrations pelo dia
-  async function fetchRegistrationsByDate(date, eventType) {
+  async function fetchRegistrationsByDate(date, eventType, rawEventId = null) {
     try {
       const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
       const regs = collection(window.firebaseDb, 'registrations');
@@ -2860,7 +2886,16 @@ window.showWarningToast = function(message, title = 'Atenção') {
 
       snap.forEach(d => {
         const r = d.data();
-        if (eventType && r.eventType && !String(r.eventType).toLowerCase().includes(String(eventType).toLowerCase())) return;
+        // Aceitar registrations que batem com o tipo canônico OU com o ID bruto do doc adminEvents
+        // (booking flow salva eventType = doc ID; submitAddTeam salva eventType = tipo canônico)
+        if (eventType || rawEventId) {
+          const rEv = String(r.eventType || '').toLowerCase();
+          const canon = String(eventType || '').toLowerCase();
+          const rawId = String(rawEventId || '').toLowerCase();
+          const matchCanon = canon && rEv.includes(canon);
+          const matchRaw   = rawId && rEv.includes(rawId);
+          if (!matchCanon && !matchRaw) return;
+        }
 
         const raw = String(r.schedule || r.hour || '').toLowerCase();
         const m = raw.match(/(\d{1,2})/);
@@ -3271,8 +3306,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
       }
 
       // ===== Carregar dados de registrations =====
-      // Usar ovEventType (tipo canônico) em vez de eventType (ID do doc Firestore)
-      const occupancyMap = await fetchRegistrationsByDate(date, ovEventType);
+      // Passar ambos: tipo canônico (ovEventType) e ID bruto do doc (rawEventId)
+      // para aceitar registrations salvas de qualquer forma
+      const occupancyMap = await fetchRegistrationsByDate(date, ovEventType, rawEventId);
 
       // ===== Carregar overrides (travas e extras) =====
       let overridesMap = await fetchScheduleOverrides(date, ovEventType, rawEventId);
@@ -3380,7 +3416,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
         } 
         else if (btnManage) {
           const h = btnManage.getAttribute('data-manage-hour');
-          openManageHourModal(date, ovEventType, h);
+          openManageHourModal(date, ovEventType, h, rawEventId);
         } 
         else if (btnExport) {
           const h = btnExport.getAttribute('data-export-hour');
@@ -3724,7 +3760,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
     }
   };
 
-  async function openManageHourModal(date, eventType, hour){
+  async function openManageHourModal(date, eventType, hour, rawEventId = null){
     try{
       const title         = document.getElementById('manageHourTitle');
       const listConfirmed = document.getElementById('manageHourListConfirmed');
@@ -3748,7 +3784,8 @@ window.showWarningToast = function(message, title = 'Atenção') {
       listConfirmed.innerHTML = '';
       if (listPending) listPending.innerHTML = '';
 
-      const evLower = String(eventType||'').toLowerCase();
+      const evLower    = String(eventType||'').toLowerCase();
+      const rawIdLower = String(rawEventId||'').toLowerCase();
       const normalizeHour = (s)=>{ const m = String(s||'').match(/(\d{1,2})/); return m? String(parseInt(m[1],10)).padStart(2,'0') : null; };
       const targetHH = normalizeHour(hour);
 
@@ -3808,7 +3845,13 @@ window.showWarningToast = function(message, title = 'Atenção') {
       snap.forEach(d=>{
         const r = d.data();
         if (!_validManageStatuses.has(r.status)) return;
-        if (evLower && r.eventType && !String(r.eventType).toLowerCase().includes(evLower)) return;
+        // Aceitar registration se bate com tipo canônico OU com ID bruto do doc adminEvents
+        if (evLower || rawIdLower) {
+          const rEvL = String(r.eventType||'').toLowerCase();
+          const matchCanon = evLower    && rEvL.includes(evLower);
+          const matchRaw   = rawIdLower && rEvL.includes(rawIdLower);
+          if (!matchCanon && !matchRaw) return;
+        }
         const schedStr = String(r.schedule||'');
         const hourStr  = String(r.hour||'');
         const regHH    = normalizeHour(schedStr) || normalizeHour(hourStr);
