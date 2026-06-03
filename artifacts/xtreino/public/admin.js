@@ -3268,7 +3268,8 @@ window.showWarningToast = function(message, title = 'Atenção') {
       }
 
       // ===== Carregar dados de registrations =====
-      const occupancyMap = await fetchRegistrationsByDate(date, eventType);
+      // Usar ovEventType (tipo canônico) em vez de eventType (ID do doc Firestore)
+      const occupancyMap = await fetchRegistrationsByDate(date, ovEventType);
 
       // ===== Carregar overrides (travas e extras) =====
       let overridesMap = await fetchScheduleOverrides(date, ovEventType, rawEventId);
@@ -3376,7 +3377,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
         } 
         else if (btnManage) {
           const h = btnManage.getAttribute('data-manage-hour');
-          openManageHourModal(date, eventType, h);
+          openManageHourModal(date, ovEventType, h);
         } 
         else if (btnExport) {
           const h = btnExport.getAttribute('data-export-hour');
@@ -11939,7 +11940,7 @@ async function openEventSlotsModal(eventId, eventName) {
             collection(window.firebaseDb, 'registrations'),
             where('eventType', '==', eventId)
         ));
-        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
+        const validStatuses = new Set(['confirmed', 'paid', 'approved']);
         // Data de hoje em horário de Brasília (UTC-3)
         const _brNow = new Date(Date.now() - 3 * 60 * 60 * 1000);
         const todayStr = _brNow.toISOString().split('T')[0];
