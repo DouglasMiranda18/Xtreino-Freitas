@@ -3794,6 +3794,16 @@ function detectEventType(text) {
     }
     return null;
 }
+// Normaliza qualquer string de eventType para o tipo canônico (retrocompat com IDs do Firestore)
+function normalizeEventType(t) {
+    const s = String(t || '').toLowerCase().replace(/[\s_]/g, '-');
+    if (s === 'modo-liga' || s === 'liga' || s.includes('modo-liga') || s.includes('modo-liga')) return 'modo-liga';
+    if (s === 'camp-freitas' || s === 'camp' || s.includes('camp-freitas') || s.includes('camp freitas')) return 'camp-freitas';
+    if (s === 'semanal-freitas' || s === 'semanal' || s.includes('semanal')) return 'semanal-freitas';
+    if (s.includes('xtreino') || s === 'xtreino-tokens') return 'xtreino-tokens';
+    if (s === 'camp-final' || s === 'final' || s.includes('camp-final') || s.includes('camp final')) return 'camp-final';
+    return s;
+}
 function parseHourFromText(text) {
     const t = String(text || '').toLowerCase();
     const m1 = t.match(/\b(\d{1,2})\s*h\b/); if (m1) { const h = parseInt(m1[1], 10); if (h >= 0 && h <= 23) return `${h}h`; }
@@ -6189,7 +6199,9 @@ async function fetchOccupiedForDate(day, date, eventType) {
 
                 const key = `${day} - ${hourNum}h`;
                 const ovEventType = ov.eventType || null;
-                const shouldApply = !ovEventType || ovEventType === eventType || !eventType;
+                const shouldApply = !ovEventType || !eventType ||
+                    ovEventType === eventType ||
+                    normalizeEventType(ovEventType) === normalizeEventType(eventType);
 
                 if (shouldApply) {
                     if (ov.extraOccupied) {
@@ -6273,7 +6285,10 @@ async function checkSlotAvailability(date, schedule, eventType) {
                     // 1. Não tem eventType (genérico) OU
                     // 2. O eventType do override corresponde ao eventType do evento OU
                     // 3. Não temos eventType na verificação
-                    const shouldApply = !ovEventType || ovEventType === eventType || !eventType;
+                    // 4. Tipos canônicos batem (normalização para retrocompat)
+                    const shouldApply = !ovEventType || !eventType ||
+                        ovEventType === eventType ||
+                        normalizeEventType(ovEventType) === normalizeEventType(eventType);
 
                     if (shouldApply) {
                         if (ov.locked) {
@@ -6420,7 +6435,9 @@ async function updateOccupiedAndRefreshButtons(day, date, eventType, container) 
             if (isNaN(ovHour)) return;
 
             const ovEventType = ov.eventType || null;
-            const shouldApply = !ovEventType || ovEventType === eventType || !eventType;
+            const shouldApply = !ovEventType || !eventType ||
+                ovEventType === eventType ||
+                normalizeEventType(ovEventType) === normalizeEventType(eventType);
 
             if (!shouldApply) return;
 
@@ -9499,6 +9516,10 @@ async function loadDynamicEvents() {
                 allowedWeekdays: [1, 2, 3, 4, 5],
                 slots: ['14h','15h','16h','17h','18h','19h','20h','21h','22h','23h'],
             };
+            // Alias pelo tipo canônico para que overrides de schedule_overrides batem corretamente
+            if (ev.eventType && ev.eventType !== d.id) {
+                scheduleConfig[ev.eventType] = scheduleConfig[d.id];
+            }
             const imgSrc = ev.imageUrl || placeholderImg;
             const preco = ev.preco ? `R$ ${Number(ev.preco).toFixed(2)}` : 'GRÁTIS';
             const catLabel = categoryLabels[ev.category] || ev.category || '';
