@@ -2854,6 +2854,8 @@ window.showWarningToast = function(message, title = 'Atenção') {
       const validStatuses = new Set(['paid', 'confirmed', 'approved', 'pending']);
       const q = query(regs, where('date', '==', date));
       const snap = await getDocs(q);
+      console.log(`[DIAG] fetchRegistrationsByDate(${date}, ${eventType}) → ${snap.size} docs`);
+      snap.forEach(d => { const r = d.data(); console.log('[DIAG] doc:', r.date, r.eventType, r.status, r.schedule, r.hour); });
       const map = {};
 
       snap.forEach(d => {
@@ -2870,6 +2872,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
         map[key] = (map[key] || 0) + 1;
       });
 
+      console.log('[DIAG] map resultante:', JSON.stringify(map));
       return map;
     } catch (e) {
       console.error('Erro ao buscar registrations:', e);
@@ -3818,6 +3821,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
           </div>`;
         return row;
       };
+
+      console.log(`[DIAG] openManageHourModal(${date}, ${eventType}, ${hour}) → ${snap.size} docs`);
+      snap.forEach(d => { const r = d.data(); console.log('[DIAG] modal doc:', r.date, r.eventType, r.status, r.schedule, r.hour); });
 
       // Coletar e filtrar registros antes de ordenar
       const _matchedDocs = [];
