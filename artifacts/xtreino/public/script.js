@@ -9838,14 +9838,17 @@ window.openEventPayment = openEventPayment;
         url.searchParams.delete('fromTeam');
         window.history.replaceState({}, '', url.toString());
     } catch (_) {}
-    // Aguarda Firebase + openScheduleModal + scheduleConfig[id] estar disponível
-    // (loadDynamicEvents pode demorar mais no mobile — fazemos retry)
+    // Aguarda Firebase + auth + scheduleConfig estar disponível antes de abrir o modal.
+    // Isso evita pedir login quando o usuário já está logado (auth demora ~1-2s para restaurar).
     const tryOpen = (attempts = 0) => {
         const ready = typeof openScheduleModal === 'function'
             && window.firebaseDb
             && typeof scheduleConfig !== 'undefined'
             && scheduleConfig[openEventId];
-        if (ready) {
+        // Aguardar auth resolver: isLoggedIn true OU mais de 10s (40 tentativas × 250ms)
+        // Depois de 10s, abre mesmo assim — openScheduleModal trata o caso de não-logado
+        const authReady = window.isLoggedIn || attempts > 40;
+        if (ready && authReady) {
             if (typeof switchMainTab === 'function') switchMainTab('eventos');
             setTimeout(() => openScheduleModal(openEventId, fromTeam ? { skipTeam: true } : undefined), 200);
         } else if (attempts < 60) {
