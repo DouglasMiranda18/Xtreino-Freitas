@@ -643,22 +643,10 @@ async function loadInscritos(evId) {
 
 window.goRegister = function() {
     const eid = window._currentEventId;
-    if (_resolvedEventType === 'xtreino-tokens') {
-        // Evento grátis → modal de equipe (4 membros); pago → modal de agendamento
-        const _isPago = Number(window._currentEventPreco) > 0 || (window._currentEventEntrada || '').toUpperCase() === 'PAGO';
-        if (_isPago) {
-            // SEMPRE usar _resolvedEventType (ex: 'xtreino-tokens') — nunca o doc ID do Firestore,
-            // pois scheduleConfig só reconhece o tipo canônico, não IDs aleatórios
-            if (typeof window.openScheduleModal === 'function') {
-                window.openScheduleModal(_resolvedEventType);
-            } else {
-                window.location.href = `index.html?openEvent=${encodeURIComponent(_resolvedEventType)}#eventos`;
-            }
-        } else {
-            if (typeof window.abrirModalEquipe === 'function') {
-                window.abrirModalEquipe(eid);
-            }
-        }
+    if (_resolvedEventType) {
+        // Sempre redireciona para index.html com o tipo canônico do evento.
+        // O modal de agendamento está em index.html (script.js) e é aberto via ?openEvent=
+        window.location.href = `index.html?openEvent=${encodeURIComponent(_resolvedEventType)}#eventos`;
         return;
     }
     window.location.href = eid ? `index.html?openEvent=${encodeURIComponent(eid)}#eventos` : 'index.html#eventos';
