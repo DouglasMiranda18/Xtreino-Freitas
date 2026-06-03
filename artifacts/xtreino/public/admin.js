@@ -2730,11 +2730,11 @@ window.showWarningToast = function(message, title = 'Atenção') {
   function getEventTypeConfig() {
     return {
       canonical: {
-        'modo-liga': (s) => s === 'liga' || s.includes('modo liga'),
-        'camp-final': (s) => s === 'camp-final' || s.includes('camp final') || s.includes('vaga direto'),
-        'camp-freitas': (s) => s === 'camp' || s.includes('camp freitas'),
-        'semanal-freitas': (s) => s === 'semanal' || s.includes('semanal freitas'),
-        'xtreino-tokens': (s) => s.includes('xtreino')
+        'modo-liga': (s) => s === 'liga' || s === 'modo-liga' || s.includes('modo liga') || s.includes('modo-liga'),
+        'camp-final': (s) => s === 'camp-final' || s.includes('camp final') || s.includes('vaga direto') || s.includes('camp-final'),
+        'camp-freitas': (s) => s === 'camp' || s === 'camp-freitas' || s.includes('camp freitas') || s.includes('camp-freitas'),
+        'semanal-freitas': (s) => s === 'semanal' || s === 'semanal-freitas' || s.includes('semanal freitas') || s.includes('semanal-freitas'),
+        'xtreino-tokens': (s) => s.includes('xtreino') || s === 'xtreino-tokens'
       },
       aliases: {
         'modo-liga': ['modo-liga','liga','modo liga'],
@@ -3442,7 +3442,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
         return;
       }      
 
-      const docsArr = await findAllOverridesForHour(date, eventType, hh);       
+      const docsArr = await findAllOverridesForHour(date, ovEventType, hh);       
       if (docsArr.length > 0) {        
         // Verificar estado atual
         const anyLocked = docsArr.some(d => d.data()?.locked === true);
