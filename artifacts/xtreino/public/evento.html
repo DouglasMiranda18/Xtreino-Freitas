@@ -491,11 +491,25 @@ async function loadInscritos(evId) {
     if (!_db) { container.innerHTML = '<div class="text-center py-6 text-slate-500 text-sm">Banco de dados não disponível.</div>'; return; }
     container.innerHTML = '<div class="text-center py-6 text-slate-500"><i class="fas fa-spinner fa-spin text-xl mb-2 block"></i>Carregando inscritos...</div>';
     try {
+        // Mesmas variantes de tipo da fonte de verdade (Gerenciamento)
+        // Inclui: ID bruto do doc, forma normalizada e tipo canônico
         const normalizedId = String(evId || '').toLowerCase().trim().replace(/\s+/g, '-');
-        const promises = [getDocs(query(collection(_db, 'registrations'), where('eventType', '==', evId)))];
-        if (normalizedId !== evId) {
-            promises.push(getDocs(query(collection(_db, 'registrations'), where('eventType', '==', normalizedId))));
-        }
+        const _knownAliases = {
+            'xtreino-tokens': ['xtreino-tokens','XTreino Freitas','xtreino freitas'],
+            'modo-liga': ['modo-liga','XTreino Modo Liga','xtreino modo liga'],
+            'semanal-freitas': ['semanal-freitas','Semanal Freitas','semanal freitas'],
+            'camp-freitas': ['camp-freitas','Campeonato Freitas','campeonato freitas'],
+        };
+        const _typesSet = new Set([evId, normalizedId]);
+        Object.entries(_knownAliases).forEach(([canon, aliases]) => {
+            if (aliases.some(a => a.toLowerCase() === normalizedId || a === evId)) {
+                aliases.forEach(a => _typesSet.add(a));
+                _typesSet.add(canon);
+            }
+        });
+        const promises = [..._typesSet].filter(Boolean).map(t =>
+            getDocs(query(collection(_db, 'registrations'), where('eventType', '==', t))).catch(() => ({ docs: [] }))
+        );
         const snaps = await Promise.all(promises);
         const seen = new Set();
         const allDocs = [];
@@ -515,9 +529,14 @@ async function loadInscritos(evId) {
         const _brNow = new Date(Date.now() - 3 * 60 * 60 * 1000);
         const todayStr = _brNow.toISOString().split('T')[0];
         const _diasSemana = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
-        const _diaHoje = _diasSemana[_brNow.getDay()]; // ex: "Domingo"
+        const fmtDate = d => d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d.split('-').reverse().join('/') : (d || '');
+        const dayNameOf = dateStr => {
+            if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return '';
+            return _diasSemana[new Date(dateStr + 'T12:00:00').getDay()];
+        };
 
-        const validStatuses = new Set(['confirmed', 'paid', 'approved']);
+        // Mesmos status da fonte de verdade (Horários → Gerenciamento)
+        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
         const valid = allDocs.filter(d => validStatuses.has(d.data().status));
 
         if (valid.length === 0) {
@@ -525,44 +544,34 @@ async function loadInscritos(evId) {
             return;
         }
 
-        // ── Mesma lógica do painel admin (repairEventSlots + openEventSlotsModal) ──
-        // Normaliza schedule para chave de agrupamento: "Terça - 21h" / "21:00" / "21h" → "21h"
+        // Normaliza schedule → "21h"
         const normSched = s => {
             if (!s || s === '—') return s || '—';
             const str = String(s).trim();
-            // Formato HH:MM (ex: "21:00") → "21h"
             const mColon = str.match(/(\d{1,2}):(\d{2})/);
             if (mColon) return `${parseInt(mColon[1], 10)}h`;
-            // Formato Nh / NNh / N h / NN h (com ou sem espaço antes do h)
             const mH = str.match(/(\d{1,2})\s*h/i);
             if (mH) return `${parseInt(mH[1], 10)}h`;
-            // Número puro no final da string (ex: "Domingo 21")
             const mNum = str.match(/(\d{1,2})\s*$/);
             if (mNum) return `${parseInt(mNum[1], 10)}h`;
             return str;
         };
-        // Monta label com o dia real de hoje: "Domingo - 21h"
-        const buildLabel = s => {
-            const horario = normSched(s);
-            if (!horario || horario === '—') return horario || '—';
-            return `${_diaHoje} - ${horario}`;
-        };
-        const fmtDate = d => d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d.split('-').reverse().join('/') : (d || '');
 
-        // Agrupa TODOS os registros por horário normalizado (sem filtro de data ainda)
-        // A deduplicação acontece DENTRO de cada renderização, após o filtro de data
-        const bySchedMap = {};
+        // ── Mesma lógica do Gerenciamento: agrupar por DATA + HORÁRIO ──
+        // Mantém registros sem data válida em grupo "sem-data"
+        const bySchedule = {};
         valid.forEach(d => {
             const r = { ...d.data(), _dbId: d.id };
-            const schedKey = normSched(r.schedule || '—');
-            if (!bySchedMap[schedKey]) bySchedMap[schedKey] = { label: buildLabel(r.schedule || '—'), regs: [] };
-            bySchedMap[schedKey].regs.push(r);
+            const sched = normSched(r.schedule || '—');
+            const dateKey = (r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date)) ? r.date : 'sem-data';
+            const key = `${dateKey}||${sched}`;
+            if (!bySchedule[key]) bySchedule[key] = { date: dateKey, sched, regs: [] };
+            bySchedule[key].regs.push(r);
         });
 
-        // Ordena cada grupo por slot/slotNumber crescente; fallback: createdAt crescente
-        const schedKeys = Object.keys(bySchedMap).sort();
-        for (const sk of schedKeys) {
-            bySchedMap[sk].regs.sort((a, b) => {
+        // Ordena dentro de cada grupo por slot → createdAt
+        Object.values(bySchedule).forEach(group => {
+            group.regs.sort((a, b) => {
                 const sa = a.slot != null ? Number(a.slot) : (a.slotNumber != null ? Number(a.slotNumber) : null);
                 const sb = b.slot != null ? Number(b.slot) : (b.slotNumber != null ? Number(b.slotNumber) : null);
                 if (sa !== null && sb !== null) return sa - sb;
@@ -570,36 +579,45 @@ async function loadInscritos(evId) {
                 if (sb !== null) return 1;
                 return (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0);
             });
-        }
-        const finalSchedKeys = schedKeys;
-
-        // Renderiza apenas as equipes do dia atual
-        let html = '';
-        let anyVisible = false;
-        for (const sk of finalSchedKeys) {
-            let slotNum = 0;
-            const { label, regs } = bySchedMap[sk];
-
-            // Filtra somente pelo dia de hoje — registros sem data válida são excluídos
-            const byDate = regs.filter(r => {
-                if (!r.date || !/^\d{4}-\d{2}-\d{2}$/.test(r.date)) return false;
-                return r.date === todayStr;
-            });
-            if (byDate.length === 0) continue;
-
-            // Deduplicação apenas por ID de documento — nomes iguais são times diferentes
+            // Deduplicação por ID de documento
             const seenIds = new Set();
-            const filtered = byDate.filter(r => {
+            group.regs = group.regs.filter(r => {
                 if (r._dbId && seenIds.has(r._dbId)) return false;
                 if (r._dbId) seenIds.add(r._dbId);
                 return true;
             });
+        });
+
+        // Filtra: hoje + futuro (e registros sem data); remove passados
+        const finalSchedKeys = Object.keys(bySchedule)
+            .filter(k => {
+                const { date } = bySchedule[k];
+                if (date === 'sem-data') return true; // sem data: sempre incluir
+                return date >= todayStr;              // hoje ou futuro
+            })
+            .sort((a, b) => {
+                const ga = bySchedule[a], gb = bySchedule[b];
+                if (ga.date !== gb.date) return ga.date.localeCompare(gb.date);
+                return ga.sched.localeCompare(gb.sched);
+            });
+
+        // Renderiza grupos visíveis
+        let html = '';
+        let anyVisible = false;
+        for (const sk of finalSchedKeys) {
+            const { date, sched, regs } = bySchedule[sk];
+            const filtered = regs;
             if (filtered.length === 0) continue;
 
             anyVisible = true;
+            const dayName = date !== 'sem-data' ? dayNameOf(date) : '';
+            const label = dayName ? `${dayName} - ${sched}` : sched;
+            const dateLabel = date !== 'sem-data' ? `<span class="text-xs text-slate-400 ml-1">${fmtDate(date)}</span>` : '';
+            let slotNum = 0;
             html += `<div class="ins-group mb-5">
                 <div class="flex items-center gap-2 mb-3 flex-wrap">
                     <span class="bg-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-clock mr-1"></i>${label}</span>
+                    ${dateLabel}
                     <span class="text-xs text-slate-400">${filtered.length} time(s)</span>
                 </div>
                 <div class="space-y-2">
@@ -628,7 +646,7 @@ async function loadInscritos(evId) {
 
         container.innerHTML = anyVisible
             ? html
-            : '<div class="text-center py-6 text-slate-500 text-sm">Nenhuma equipe inscrita para hoje.</div>';
+            : '<div class="text-center py-6 text-slate-500 text-sm">Nenhuma equipe inscrita.</div>';
 
     } catch(e) {
         console.error('[loadInscritos] erro ao carregar inscritos:', e?.message || e);
