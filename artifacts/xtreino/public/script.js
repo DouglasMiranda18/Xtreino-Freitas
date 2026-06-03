@@ -9529,7 +9529,7 @@ async function loadDynamicEvents() {
             const tipoStr = (ev.tipo || '').toUpperCase();
             const btnLabel = _isEquipeEvent ? 'INSCREVER TIME' : (ev.entrada === 'PAGO' && ev.preco ? `INSCREVER — ${preco}` : 'RESERVAR VAGA');
             const evTypeParaModal = ev.eventType || d.id;
-            const btnOnclick = _isEquipeEvent ? `abrirModalEquipe('${d.id}')` : `openScheduleModal('${evTypeParaModal}')`;
+            const btnOnclick = _isEquipeEvent ? `abrirModalEquipe('${evTypeParaModal}')` : `openScheduleModal('${evTypeParaModal}')`;
             const hasRegras = !!(ev.regras && ev.regras.trim());
             const btnHtml = `<div class="flex flex-col gap-2">
                 <button onclick="${btnOnclick}" class="w-full btn-primary py-2 rounded-lg font-semibold">${btnLabel}</button>
