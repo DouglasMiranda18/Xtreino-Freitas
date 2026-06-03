@@ -3757,7 +3757,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
 
       const { collection, query, where, getDocs, doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
       const regs = collection(window.firebaseDb,'registrations');
-      const snap = await getDocs(query(regs, where('date','==', date), where('status','in',['paid','confirmed','approved','pending'])));
+      // Usar apenas 1 filtro no Firestore (evita índice composto) — status filtrado em JS
+      const _validManageStatuses = new Set(['paid','confirmed','approved','pending']);
+      const snap = await getDocs(query(regs, where('date','==', date)));
 
       listConfirmed.innerHTML = '';
       if (listPending) listPending.innerHTML = '';
@@ -3821,6 +3823,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
       const _matchedDocs = [];
       snap.forEach(d=>{
         const r = d.data();
+        if (!_validManageStatuses.has(r.status)) return; // filtrar status em JS
         if (evLower && r.eventType && !String(r.eventType).toLowerCase().includes(evLower)) return;
         const schedStr = String(r.schedule||'');
         const hourStr  = String(r.hour||'');
