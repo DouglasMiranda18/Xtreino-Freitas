@@ -591,65 +591,92 @@ async function loadInscritos(evId) {
             });
         });
 
-        // Filtra: hoje + futuro (e registros sem data); remove passados
-        const finalSchedKeys = Object.keys(bySchedule)
-            .filter(k => {
-                const { date } = bySchedule[k];
-                if (date === 'sem-data') return true; // sem data: sempre incluir
-                return date >= todayStr;              // hoje ou futuro
-            })
-            .sort((a, b) => {
-                const ga = bySchedule[a], gb = bySchedule[b];
-                if (ga.date !== gb.date) return ga.date.localeCompare(gb.date);
-                return ga.sched.localeCompare(gb.sched);
-            });
+        // Filtra APENAS o dia de hoje (sem futuro); sem-data como fallback
+        const todayKeys = Object.keys(bySchedule)
+            .filter(k => bySchedule[k].date === todayStr)
+            .sort((a, b) => bySchedule[a].sched.localeCompare(bySchedule[b].sched));
 
-        // Renderiza grupos visíveis
-        let html = '';
-        let anyVisible = false;
-        for (const sk of finalSchedKeys) {
-            const { date, sched, regs } = bySchedule[sk];
-            const filtered = regs;
-            if (filtered.length === 0) continue;
+        // Se não há nada hoje, usa sem-data como fallback
+        const semDataKeys = Object.keys(bySchedule)
+            .filter(k => bySchedule[k].date === 'sem-data')
+            .sort((a, b) => bySchedule[a].sched.localeCompare(bySchedule[b].sched));
 
-            anyVisible = true;
-            const dayName = date !== 'sem-data' ? dayNameOf(date) : '';
-            const label = dayName ? `${dayName} - ${sched}` : sched;
-            const dateLabel = date !== 'sem-data' ? `<span class="text-xs text-slate-400 ml-1">${fmtDate(date)}</span>` : '';
+        const finalSchedKeys = todayKeys.length > 0 ? todayKeys : semDataKeys;
+
+        // ── Função para renderizar cards de um grupo ──
+        const renderCards = (regs) => {
+            if (!regs || regs.length === 0)
+                return '<div class="text-center py-6 text-slate-500 text-sm">Nenhuma equipe neste horário.</div>';
             let slotNum = 0;
-            html += `<div class="ins-group mb-5">
-                <div class="flex items-center gap-2 mb-3 flex-wrap">
-                    <span class="bg-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-clock mr-1"></i>${label}</span>
-                    ${dateLabel}
-                    <span class="text-xs text-slate-400">${filtered.length} time(s)</span>
-                </div>
-                <div class="space-y-2">
-                    ${filtered.map(r => {
-                        slotNum++;
-                        const teamName = r.teamName || r.email || '—';
-                        const leaderName = r.leaderName && r.leaderName !== r.teamName ? r.leaderName : null;
-                        const _logoUrl = r.teamLogoUrl || r.teamLogoThumb || teamsLogoMap[(teamName||'').toLowerCase().trim()] || null;
-                        const logoHtml = _logoUrl
-                            ? `<img src="${_logoUrl}" alt="logo" class="w-9 h-9 rounded-lg object-cover flex-shrink-0 border border-slate-500">`
-                            : `<span class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-slate-600 text-slate-400 flex-shrink-0 text-xs"><i class="fas fa-shield-alt"></i></span>`;
-                        return `<div class="bg-slate-700 rounded-xl px-4 py-3 border border-slate-600">
-                            <div class="flex items-center gap-3">
-                                <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-orange-600 text-white text-xs font-black flex-shrink-0">#${slotNum}</span>
-                                ${logoHtml}
-                                <div class="flex-1 min-w-0">
-                                    <p class="font-bold text-slate-100 text-sm leading-tight truncate">${teamName}</p>
-                                    ${leaderName ? `<p class="text-xs text-slate-400 mt-0.5">Líder: ${leaderName}</p>` : ''}
-                                </div>
-                            </div>
-                        </div>`;
-                    }).join('')}
-                </div>
-            </div>`;
+            return `<div class="space-y-2">${regs.map(r => {
+                slotNum++;
+                const teamName = r.teamName || r.email || '—';
+                const leaderName = r.leaderName && r.leaderName !== r.teamName ? r.leaderName : null;
+                const _logoUrl = r.teamLogoUrl || r.teamLogoThumb || teamsLogoMap[(teamName||'').toLowerCase().trim()] || null;
+                const logoHtml = _logoUrl
+                    ? `<img src="${_logoUrl}" alt="logo" class="w-9 h-9 rounded-lg object-cover flex-shrink-0 border border-slate-500">`
+                    : `<span class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-slate-600 text-slate-400 flex-shrink-0 text-xs"><i class="fas fa-shield-alt"></i></span>`;
+                return `<div class="bg-slate-700 rounded-xl px-4 py-3 border border-slate-600">
+                    <div class="flex items-center gap-3">
+                        <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-orange-600 text-white text-xs font-black flex-shrink-0">#${slotNum}</span>
+                        ${logoHtml}
+                        <div class="flex-1 min-w-0">
+                            <p class="font-bold text-slate-100 text-sm leading-tight truncate">${teamName}</p>
+                            ${leaderName ? `<p class="text-xs text-slate-400 mt-0.5">Líder: ${leaderName}</p>` : ''}
+                        </div>
+                    </div>
+                </div>`;
+            }).join('')}</div>`;
+        };
+
+        if (finalSchedKeys.length === 0) {
+            container.innerHTML = '<div class="text-center py-6 text-slate-500 text-sm">Nenhuma equipe inscrita hoje.</div>';
+            return;
         }
 
-        container.innerHTML = anyVisible
-            ? html
-            : '<div class="text-center py-6 text-slate-500 text-sm">Nenhuma equipe inscrita.</div>';
+        // ── Menu de pills de horários ──
+        const pillsHtml = finalSchedKeys.map((sk, i) => {
+            const { sched, regs } = bySchedule[sk];
+            const isActive = i === 0;
+            return `<button
+                class="ins-pill flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-bold border transition-all ${isActive ? 'bg-orange-600 border-orange-600 text-white' : 'bg-transparent border-slate-600 text-slate-400 hover:border-orange-500 hover:text-orange-400'}"
+                data-sk="${sk}"
+                onclick="window._insSelectSlot('${sk}')"
+            >${sched}<span class="ml-1 opacity-70">${regs.length}</span></button>`;
+        }).join('');
+
+        // ── Painel do slot ativo (primeiro por padrão) ──
+        const firstKey = finalSchedKeys[0];
+        const { sched: firstSched, regs: firstRegs, date: firstDate } = bySchedule[firstKey];
+        const firstDateLabel = firstDate !== 'sem-data' ? `<span class="text-xs text-slate-400">${_diasSemana[new Date(firstDate + 'T12:00:00').getDay()]} ${fmtDate(firstDate)}</span>` : '';
+
+        container.innerHTML = `
+            <div class="mb-4">
+                <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-none" id="insSlotPills">${pillsHtml}</div>
+            </div>
+            <div id="insSlotDateLabel" class="mb-2 text-xs text-slate-400">${firstDateLabel}</div>
+            <div id="insSlotPanel">${renderCards(firstRegs)}</div>
+        `;
+
+        // ── Handler de seleção de slot ──
+        window._insSelectSlot = (sk) => {
+            const _byScheduleSnapshot = window._insScheduleData;
+            if (!_byScheduleSnapshot || !_byScheduleSnapshot[sk]) return;
+            const { sched, regs, date } = _byScheduleSnapshot[sk];
+            // Atualiza pills
+            document.querySelectorAll('.ins-pill').forEach(btn => {
+                const active = btn.dataset.sk === sk;
+                btn.className = `ins-pill flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-bold border transition-all ${active ? 'bg-orange-600 border-orange-600 text-white' : 'bg-transparent border-slate-600 text-slate-400 hover:border-orange-500 hover:text-orange-400'}`;
+            });
+            // Atualiza label de data
+            const dl = document.getElementById('insSlotDateLabel');
+            if (dl) dl.innerHTML = date !== 'sem-data' ? `<span class="text-xs text-slate-400">${_diasSemana[new Date(date + 'T12:00:00').getDay()]} ${fmtDate(date)}</span>` : '';
+            // Atualiza painel
+            const panel = document.getElementById('insSlotPanel');
+            if (panel) panel.innerHTML = renderCards(regs);
+        };
+        // Guarda dados para o handler
+        window._insScheduleData = bySchedule;
 
     } catch(e) {
         console.error('[loadInscritos] erro ao carregar inscritos:', e?.message || e);
