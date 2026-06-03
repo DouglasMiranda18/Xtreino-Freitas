@@ -8768,7 +8768,31 @@ async function createRegistrationsForEvent(eventType, datesToUse, teamsData, tim
     const grupos = Math.max(1, cfg.grupos || 1);
     const regIds = [];
     const assignedSlots = [];
-    const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const { collection, addDoc, serverTimestamp, query: _fsQuery, where: _fsWhere, getDocs: _fsGetDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+    // Pré-carregar registrations existentes para detectar duplicatas nome+e-mail
+    // Chave: `${nomeBase}|${email}` → contagem de registros já gravados
+    const _dupExistMap = {};
+    try {
+        const _existSnap = await _fsGetDocs(_fsQuery(
+            collection(window.firebaseDb, 'registrations'),
+            _fsWhere('eventType', '==', eventType)
+        ));
+        _existSnap.forEach(d => {
+            const rd = d.data();
+            const rdEmail = (rd.email || '').trim().toLowerCase();
+            // Remove sufixo " B", " C"... para encontrar o nome base
+            const rdBase = (rd.teamName || '').trim()
+                .replace(/\s+[B-Z]$/i, '')
+                .toLowerCase().replace(/\s+/g, ' ');
+            if (rdEmail && rdBase) {
+                const k = `${rdBase}|${rdEmail}`;
+                _dupExistMap[k] = (_dupExistMap[k] || 0) + 1;
+            }
+        });
+    } catch(_) {}
+    // Contador em memória para esta compra (evita conflito quando múltiplas datas compradas de uma vez)
+    const _dupBatchCount = {};
 
     // Preparar contagem de slots por horário
     const _sc = {};
@@ -8814,13 +8838,24 @@ async function createRegistrationsForEvent(eventType, datesToUse, teamsData, tim
                 const slotNum = slotCount[schedule];
                 const slotDisplay = computeSlotDisplay(slotNum, vagas, grupos, isLiga);
 
+                // Sufixo automático: mesmo nome + mesmo e-mail → B, C, D...
+                const _teamEmail = (team.email || '').trim().toLowerCase();
+                const _teamBase = (team.name || '').trim()
+                    .replace(/\s+[B-Z]$/i, '').toLowerCase().replace(/\s+/g, ' ');
+                const _dupKey = `${_teamBase}|${_teamEmail}`;
+                const _dupTotal = (_dupExistMap[_dupKey] || 0) + (_dupBatchCount[_dupKey] || 0);
+                const finalTeamName = _dupTotal > 0
+                    ? `${team.name.trim()} ${String.fromCharCode(65 + _dupTotal)}`
+                    : team.name;
+                _dupBatchCount[_dupKey] = (_dupBatchCount[_dupKey] || 0) + 1;
+
                 const _logoData = _logoMap[team.name];
                 const teamLogoUrl = _logoData?.url || _equipeAtual?.logoUrl || null;
                 const teamLogoThumb = _logoData?.thumb || null;
 
                 const docRef = await addDoc(collection(window.firebaseDb, 'registrations'), {
                     userId: window.firebaseAuth.currentUser.uid,
-                    teamName: team.name,
+                    teamName: finalTeamName,
                     teamLogoUrl: teamLogoUrl,
                     teamLogoThumb: teamLogoThumb,
                     teamId: _equipeAtual?.id || null,
@@ -8849,7 +8884,7 @@ async function createRegistrationsForEvent(eventType, datesToUse, teamsData, tim
                     } : {})
                 });
                 regIds.push(docRef.id);
-                assignedSlots.push({ team: team.name, slot: slotDisplay, schedule, isLiga });
+                assignedSlots.push({ team: finalTeamName, slot: slotDisplay, schedule, isLiga });
 
                 // fire-and-forget — não bloqueia o fluxo de confirmação
                 createPendingAffiliateSale(docRef.id, getActiveAffiliateCode(couponInfo?.affiliateId || null), {
