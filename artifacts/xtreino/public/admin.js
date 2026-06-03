@@ -2850,17 +2850,13 @@ window.showWarningToast = function(message, title = 'Atenção') {
     try {
       const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
       const regs = collection(window.firebaseDb, 'registrations');
-      // Usar apenas 1 filtro no Firestore (evita índice composto) — status e eventType filtrados em JS
-      const validStatuses = new Set(['paid', 'confirmed', 'approved', 'pending']);
-      const q = query(regs, where('date', '==', date));
+      // Query composta com índice existente — inclui 'pending' para pagamentos MP em andamento
+      const q = query(regs, where('date', '==', date), where('status', 'in', ['paid', 'confirmed', 'approved', 'pending']));
       const snap = await getDocs(q);
-      console.log(`[DIAG] fetchRegistrationsByDate(${date}, ${eventType}) → ${snap.size} docs`);
-      snap.forEach(d => { const r = d.data(); console.log('[DIAG] doc:', r.date, r.eventType, r.status, r.schedule, r.hour); });
       const map = {};
 
       snap.forEach(d => {
         const r = d.data();
-        if (!validStatuses.has(r.status)) return;
         if (eventType && r.eventType && !String(r.eventType).toLowerCase().includes(String(eventType).toLowerCase())) return;
 
         const raw = String(r.schedule || r.hour || '').toLowerCase();
@@ -2872,7 +2868,6 @@ window.showWarningToast = function(message, title = 'Atenção') {
         map[key] = (map[key] || 0) + 1;
       });
 
-      console.log('[DIAG] map resultante:', JSON.stringify(map));
       return map;
     } catch (e) {
       console.error('Erro ao buscar registrations:', e);
@@ -3341,24 +3336,6 @@ window.showWarningToast = function(message, title = 'Atenção') {
       // ===== Bind dos botões de ação =====
       bindBoardTableActions(tbody, date, eventType, ovEventType, rawEventId);
 
-      // ===== Listener real-time para atualizar o board automaticamente =====
-      const _listenerKey = `${date}__${eventType}`;
-      if (window.__boardListenerKey !== _listenerKey) {
-        if (window.__boardUnsub) { try { window.__boardUnsub(); } catch(_) {} }
-        window.__boardListenerKey = _listenerKey;
-        try {
-          const { collection: _lc, query: _lq, where: _lw, onSnapshot: _ls } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-          let _boardFirstEmit = true;
-          window.__boardUnsub = _ls(
-            _lq(_lc(window.firebaseDb, 'registrations'), _lw('date', '==', date)),
-            () => {
-              if (_boardFirstEmit) { _boardFirstEmit = false; return; }
-              if (!_isLoadingBoard) loadBoard();
-            }
-          );
-        } catch(_) {}
-      }
-
     } catch (e) {
       console.error('❌ Erro em loadBoard:', e.message || e);
     } finally {
@@ -3760,9 +3737,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
 
       const { collection, query, where, getDocs, doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
       const regs = collection(window.firebaseDb,'registrations');
-      // Usar apenas 1 filtro no Firestore (evita índice composto) — status filtrado em JS
+      // Query composta com índice existente — todos os status relevantes incluindo 'pending'
       const _validManageStatuses = new Set(['paid','confirmed','approved','pending']);
-      const snap = await getDocs(query(regs, where('date','==', date)));
+      const snap = await getDocs(query(regs, where('date','==', date), where('status','in',['paid','confirmed','approved','pending'])));
 
       listConfirmed.innerHTML = '';
       if (listPending) listPending.innerHTML = '';
@@ -3822,14 +3799,11 @@ window.showWarningToast = function(message, title = 'Atenção') {
         return row;
       };
 
-      console.log(`[DIAG] openManageHourModal(${date}, ${eventType}, ${hour}) → ${snap.size} docs`);
-      snap.forEach(d => { const r = d.data(); console.log('[DIAG] modal doc:', r.date, r.eventType, r.status, r.schedule, r.hour); });
-
       // Coletar e filtrar registros antes de ordenar
       const _matchedDocs = [];
       snap.forEach(d=>{
         const r = d.data();
-        if (!_validManageStatuses.has(r.status)) return; // filtrar status em JS
+        if (!_validManageStatuses.has(r.status)) return;
         if (evLower && r.eventType && !String(r.eventType).toLowerCase().includes(evLower)) return;
         const schedStr = String(r.schedule||'');
         const hourStr  = String(r.hour||'');
