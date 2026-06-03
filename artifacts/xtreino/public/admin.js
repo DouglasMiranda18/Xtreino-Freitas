@@ -12032,7 +12032,8 @@ async function openEventSlotsModal(eventId, eventName) {
             } catch (_) {}
         }));
         const snap = { docs: [..._allDocs.values()] };
-        const validStatuses = new Set(['confirmed', 'paid', 'approved']);
+        // Mesmos status da fonte de verdade (Horários → Gerenciamento)
+        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
         // Data de hoje em horário de Brasília (UTC-3)
         const _brNow = new Date(Date.now() - 3 * 60 * 60 * 1000);
         const todayStr = _brNow.toISOString().split('T')[0];
