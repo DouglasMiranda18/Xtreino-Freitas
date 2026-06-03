@@ -1132,7 +1132,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
           const person = (personEl?.value || '').trim();
           const notes = (notesEl?.value || '').trim();
           const date = (dateEl?.value || '').trim();
-          const eventType = (typeEl?.value || '').trim();
+          // Usar tipo canônico (ex: 'xtreino-tokens') em vez do ID do doc Firestore
+          const _selectedOpt = typeEl?.options?.[typeEl?.selectedIndex];
+          const eventType = (_selectedOpt?.dataset?.canonicalType || canonicalType(typeEl?.value) || typeEl?.value || '').trim();
           if (!teamName || !contact){
             alert('Informe ao menos Time/Org e Contato.');
             return;
