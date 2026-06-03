@@ -5989,22 +5989,19 @@ function isValidScheduleDate(dateStr, eventType) {
 async function renderScheduleTimes() {
     const timesWrap = document.getElementById('schedTimes');
     if (!timesWrap) return;
-    timesWrap.innerHTML = '';
+
     const date = document.getElementById('schedDate').value;
-    // eventType do modal atual (fallback para variável global em caso de race condition)
     const modal = document.getElementById('scheduleModal');
     const eventType = modal?.dataset?.eventType || window._currentScheduleEventType || null;
 
-    // Valida data antes de renderizar
+    // Mostrar loader imediatamente — evita flash de todos os horários antes dos dados carregarem
+    timesWrap.innerHTML = '<div class="text-center py-4 text-gray-400 text-sm"><i class="fas fa-spinner fa-spin mr-1"></i> Carregando horários...</div>';
+
     if (!isValidScheduleDate(date, eventType)) {
         let msg = 'Agendamentos apenas de segunda a sexta-feira e não em datas passadas.';
-        if (eventType === 'xtreino-tokens') {
-            msg = 'Agendamentos não disponíveis em datas passadas.';
-        } else if (eventType === 'camp-freitas') {
-            msg = 'Camp Freitas (Semifinal) disponível somente em 22/11 e 23/11 às 17h.';
-        } else if (eventType === 'camp-final') {
-            msg = 'Vaga Direto na Final disponível apenas em 28/11 às 18h.';
-        }
+        if (eventType === 'xtreino-tokens') msg = 'Agendamentos não disponíveis em datas passadas.';
+        else if (eventType === 'camp-freitas') msg = 'Camp Freitas (Semifinal) disponível somente em 22/11 e 23/11 às 17h.';
+        else if (eventType === 'camp-final') msg = 'Vaga Direto na Final disponível apenas em 28/11 às 18h.';
         timesWrap.innerHTML = `<p class="text-red-500 text-center py-4">${msg}</p>`;
         return;
     }
@@ -6030,88 +6027,135 @@ async function renderScheduleTimes() {
         }
     } catch(_) {}
 
-    // Definir horários baseados no tipo de evento
-    let slots = ['14h', '15h', '16h', '17h', '18h', '19h', '20h', '21h', '22h', '23h'];
     const cfg = scheduleConfig[eventType] || {};
-       
-    // NÃO filtrar horários travados - eles devem aparecer como "Lotado"
     const now = new Date();
     const selectedDate = new Date(date + 'T00:00:00');
     const isToday = selectedDate.toDateString() === now.toDateString();
 
-    // Render imediato com estado neutro e atualiza assíncrono
-    slots.forEach(time => {
-        const schedule = `${day} - ${time}`;
-        const btn = document.createElement('button');
-        btn.className = 'slot-btn';
-        btn.dataset.schedule = schedule;
-
-        // Verificar se o horário já está disponível (12 minutos antes do horário)
-        let isTimeAvailable = true;
-        let timeMessage = '';
-        if (isToday) {
-            const hour = parseInt(time.replace('h', ''));
-            const eventTime = new Date(selectedDate);
-            eventTime.setHours(hour, 0, 0, 0);
-
-            const minutesUntilEvent = (eventTime - now) / (1000 * 60); // minutos até o evento
-
-            if (minutesUntilEvent < 0) {
-                // Horário já passou
-                isTimeAvailable = false;
-                timeMessage = 'Horário passou';
-            } else if (minutesUntilEvent < 12) {
-                // Ainda não passaram 12 minutos antes do horário
-                isTimeAvailable = false;
-                const minutesLeft = Math.ceil(minutesUntilEvent);
-                timeMessage = `Disponível em ${minutesLeft} min`;
-            }
-        }
-
-        if (!isTimeAvailable) {
-            // Horário já passou → ocultar completamente do modal
-            if (timeMessage === 'Horário passou') {
-                return; // não adiciona o botão
-            }
-            // Ainda não disponível (< 12 min) → mostrar desabilitado
-            btn.className = 'slot-btn bg-gray-300 text-gray-500 cursor-not-allowed';
-            btn.disabled = true;
-            btn.textContent = `${time} (${timeMessage})`;
-            btn.onclick = null;
-        } else if (eventType === 'semanal-freitas' && time === '19h') {
-            // Semanal Freitas: 19h sempre esgotado
-            btn.className = 'slot-btn bg-red-100 text-red-600 cursor-not-allowed';
-            btn.disabled = true;
-            btn.textContent = `${time} (Lotado)`;
-            btn.onclick = null;
-        } else {
-            const date = document.getElementById('schedDate')?.value || null;
-            btn.textContent = `${time} (Carregando...)`;
-            btn.onclick = () => {
-                toggleTimeSelection(schedule, btn);
-            };
-        }
-
-        timesWrap.appendChild(btn);
-    });
-    // Atualiza com dados reais e mantém em tempo real
-    updateOccupiedAndRefreshButtons(day, date, eventType, timesWrap);
+    // Buscar horários travados E vagas ocupadas em PARALELO antes de renderizar qualquer botão
+    let lockedHours = new Set();
+    let occupied = {};
     try {
-        const { collection, query, where, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const { collection, query, where, getDocs, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+        [lockedHours, occupied] = await Promise.all([
+            // ─── Buscar schedule_overrides + event_hour_locks ───────────────
+            (async () => {
+                const locked = new Set();
+                try {
+                    const ovSnap = await getDocs(query(
+                        collection(window.firebaseDb, 'schedule_overrides'),
+                        where('date', '==', date)
+                    ));
+                    ovSnap.forEach(doc => {
+                        const ov = doc.data();
+                        if (ov.date !== date) return;
+                        const ovHour = parseInt(String(ov.hour || ov.hh || '').replace(/\D/g, ''), 10);
+                        if (isNaN(ovHour)) return;
+                        const ovEv = ov.eventType || null;
+                        const match = !ovEv || !eventType || ovEv === eventType ||
+                            normalizeEventType(ovEv) === normalizeEventType(eventType);
+                        if (match && ov.locked === true) locked.add(ovHour);
+                    });
+                } catch(_) {}
+                try {
+                    const hlSnap = await getDocs(collection(window.firebaseDb, 'event_hour_locks'));
+                    hlSnap.forEach(doc => {
+                        const data = doc.data();
+                        if (data.locked !== true) return;
+                        const docEv = (data.eventType || '').toLowerCase().replace(/[\s_]/g, '-');
+                        const curEv = (eventType || '').toLowerCase().replace(/[\s_]/g, '-');
+                        const match = !data.eventType || docEv === curEv ||
+                            doc.id.startsWith(curEv) || doc.id.startsWith(eventType || '');
+                        if (!match) return;
+                        const h = parseInt(String(data.hour || '').replace(/\D/g, ''), 10);
+                        if (!isNaN(h)) locked.add(h);
+                    });
+                } catch(_) {}
+                return locked;
+            })(),
+            // ─── Buscar ocupação atual ────────────────────────────────────────
+            fetchOccupiedForDate(day, date, eventType).catch(() => ({}))
+        ]);
+
+        // Listener em tempo real para atualizar contagem quando registrations mudarem
         if (window.__schedUnsub) { try { window.__schedUnsub(); } catch (_) { } }
         const baseQ = [where('date', '==', date)];
         if (eventType) baseQ.push(where('eventType', '==', eventType));
         window.__schedUnsub = onSnapshot(
             query(collection(window.firebaseDb, 'registrations'), ...baseQ),
             () => {
-                // Invalidar cache quando houver mudanças
                 const cacheKey = `${date}__${eventType || 'all'}`;
                 delete scheduleCache[cacheKey];
-                // Forçar atualização com dados frescos
                 updateOccupiedAndRefreshButtons(day, date, eventType, timesWrap);
             }
         );
-    } catch (_) { }
+    } catch(_) {}
+
+    // ── Renderizar horários em uma única passagem (sem flash) ───────────────
+    const slots = ['14h', '15h', '16h', '17h', '18h', '19h', '20h', '21h', '22h', '23h'];
+    timesWrap.innerHTML = '';
+    let hasVisibleSlot = false;
+
+    for (const time of slots) {
+        const schedule = `${day} - ${time}`;
+        const hour = parseInt(time.replace('h', ''));
+        const capacity = (cfg.vagas > 0 ? cfg.vagas : null) || getEventCapacity(eventType, time, date);
+
+        // Horário já passou (hoje) — ocultar
+        if (isToday) {
+            const eventTime = new Date(selectedDate);
+            eventTime.setHours(hour, 0, 0, 0);
+            if ((eventTime - now) / (1000 * 60) < 0) continue;
+        }
+
+        // Horário travado pelo admin — ocultar
+        if (lockedHours.has(hour)) continue;
+
+        // Semanal Freitas 19h — sempre esgotado, ocultar
+        if (eventType === 'semanal-freitas' && time === '19h') continue;
+
+        const taken = Math.min(occupied[schedule] || 0, capacity);
+        const available = Math.max(0, capacity - taken);
+
+        // Lotado — ocultar
+        if (available === 0) continue;
+
+        const btn = document.createElement('button');
+        btn.className = 'slot-btn';
+        btn.dataset.schedule = schedule;
+
+        // Menos de 12 min para o horário (hoje) — mostrar desabilitado
+        if (isToday) {
+            const eventTime = new Date(selectedDate);
+            eventTime.setHours(hour, 0, 0, 0);
+            const mins = (eventTime - now) / (1000 * 60);
+            if (mins < 12) {
+                btn.className = 'slot-btn bg-gray-300 text-gray-500 cursor-not-allowed';
+                btn.disabled = true;
+                btn.innerHTML = `<span class="font-semibold">${time}</span><span class="block text-xs opacity-75 mt-0.5">Disponível em ${Math.ceil(mins)} min • ${taken}/${capacity}</span>`;
+                btn.onclick = null;
+                timesWrap.appendChild(btn);
+                hasVisibleSlot = true;
+                continue;
+            }
+        }
+
+        // Horário disponível — mostrar com vagas e barra de progresso
+        const _pct = capacity > 0 ? Math.round((taken / capacity) * 100) : 0;
+        btn.innerHTML = `<span class="font-semibold">${time}</span><span class="block text-xs opacity-75 mt-0.5">${taken}/${capacity} vagas • ${_pct}%</span><div class="mt-1 w-full bg-black/10 rounded-full h-1"><div class="bg-current h-1 rounded-full transition-all" style="width:${_pct}%"></div></div>`;
+        btn.onclick = () => { selectTime(schedule, btn); };
+        if (isTimeSelected(date, schedule)) {
+            btn.classList.add('bg-blue-600', 'text-white');
+            btn.classList.remove('bg-white', 'text-gray-700', 'border-gray-300');
+        }
+        timesWrap.appendChild(btn);
+        hasVisibleSlot = true;
+    }
+
+    if (!hasVisibleSlot) {
+        timesWrap.innerHTML = '<p class="text-center py-4 text-gray-500 text-sm">Nenhum horário disponível para esta data.</p>';
+    }
 }
 function highlightSelectedSlot(selectedBtn, container) {
     Array.from(container.children).forEach(el => el.classList.remove('selected'));
