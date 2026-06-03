@@ -2861,13 +2861,13 @@ window.showWarningToast = function(message, title = 'Atenção') {
         const opt = document.createElement('option');
         opt.value = d.id;
         opt.textContent = ev.name || d.id;
-        // Armazena o tipo canônico para que getCapacityForHour funcione com IDs auto-gerados
-        const canon = canonicalType(ev.eventType || d.id);
+        // Tipo canônico: preferir campo eventType; se vazio, derivar do nome do evento; fallback: doc ID
+        // CRÍTICO: 'XTreino Freitas' → canonicalType → 'xtreino-tokens' (mesmo valor que o booking flow salva em r.eventType)
+        const canon = canonicalType(ev.eventType || ev.name || d.id);
         opt.dataset.canonicalType = canon;
         opt.dataset.rawEventId = d.id;
-        // evFieldType = valor bruto do campo eventType no doc adminEvents (ex: 'xtreino-tokens')
-        // Este é o valor que o booking flow salva em r.eventType nas registrations
-        opt.dataset.evFieldType = ev.eventType || d.id;
+        // evFieldType = tipo canônico que o booking flow usa ao salvar em r.eventType
+        opt.dataset.evFieldType = canon;
         typeEl.appendChild(opt);
       });
     } catch (err) {
