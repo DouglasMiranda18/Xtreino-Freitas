@@ -1191,21 +1191,38 @@ window.showWarningToast = function(message, title = 'Atenção') {
                 return str;
             };
             let nextSlot = 1;
+            let finalTeamName = teamName;
             if (eventType && schedule && schedule !== '—') {
                 try {
                     const normSchedule = _normH(schedule);
                     const _snap = await _gd(_q(collection(window.firebaseDb,'registrations'), _w('eventType','==',eventType)));
                     let maxSlot = 0;
+                    let sameCount = 0;
+                    // Nome base normalizado — ignora sufixo " B", " C"... caso já exista
+                    const baseNorm = teamName.trim().toLowerCase().replace(/\s+/g, ' ');
                     _snap.forEach(d => {
                         const rd = d.data();
+                        // Contagem de slot (mesma lógica anterior)
                         if (_normH(rd.schedule||'') === normSchedule) {
                             const s = Number(rd.slot ?? rd.slotNumber) || 0;
                             if (s > maxSlot) maxSlot = s;
                         }
+                        // Contagem de duplicatas: mesmo e-mail + mesmo nome base no evento
+                        if (clientEmail && (rd.email || '').trim().toLowerCase() === clientEmail) {
+                            const rdBase = (rd.teamName || '').trim()
+                                .replace(/\s+[B-Z]$/i, '') // strip sufixo
+                                .toLowerCase().replace(/\s+/g, ' ');
+                            if (rdBase === baseNorm) sameCount++;
+                        }
                     });
                     nextSlot = maxSlot + 1;
+                    // Sufixo: 1 existente → " B", 2 → " C", 3 → " D", etc.
+                    if (sameCount > 0) {
+                        finalTeamName = teamName.trim() + ' ' + String.fromCharCode(65 + sameCount);
+                    }
                 } catch(_) {}
             }
+            payload.teamName = finalTeamName;
             payload.slot = nextSlot;
             payload.slotNumber = nextSlot;
             payload.slotDisplay = `Vaga #${nextSlot}`;
