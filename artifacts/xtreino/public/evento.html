@@ -412,7 +412,7 @@ async function loadEvent() {
         if (!_auth.currentUser) {
             try { await signInAnonymously(_auth); } catch(_e) {}
         }
-        loadInscritos(eventId);
+        loadInscritos(window._currentEventId || eventId);
 
         if (ev.status === 'Fechado') {
             const cta = document.getElementById('floatingCta');
@@ -492,17 +492,20 @@ async function loadInscritos(evId) {
     container.innerHTML = '<div class="text-center py-6 text-slate-500"><i class="fas fa-spinner fa-spin text-xl mb-2 block"></i>Carregando inscritos...</div>';
     try {
         // Mesmas variantes de tipo da fonte de verdade (Gerenciamento)
-        // Inclui: ID bruto do doc, forma normalizada e tipo canônico
-        const normalizedId = String(evId || '').toLowerCase().trim().replace(/\s+/g, '-');
+        // Inclui: tipo canônico da URL (_resolvedEventType), ID bruto do doc e variações normalizadas
+        const normalizedId = String(evId || '').toLowerCase().trim().replace(/[\s_]+/g, '-');
         const _knownAliases = {
-            'xtreino-tokens': ['xtreino-tokens','XTreino Freitas','xtreino freitas'],
-            'modo-liga': ['modo-liga','XTreino Modo Liga','xtreino modo liga'],
-            'semanal-freitas': ['semanal-freitas','Semanal Freitas','semanal freitas'],
-            'camp-freitas': ['camp-freitas','Campeonato Freitas','campeonato freitas'],
+            'xtreino-tokens': ['xtreino-tokens','xtreino-freitas','xtreino freitas','XTreino Freitas','xtreino tokens'],
+            'modo-liga': ['modo-liga','xtreino-modo-liga','xtreino modo liga','XTreino Modo Liga'],
+            'semanal-freitas': ['semanal-freitas','semanal freitas','Semanal Freitas'],
+            'camp-freitas': ['camp-freitas','campeonato-freitas','campeonato freitas','Campeonato Freitas'],
         };
-        const _typesSet = new Set([evId, normalizedId]);
+        // Sempre incluir o tipo canônico resolvido pela URL (mais confiável)
+        const _typesSet = new Set([evId, normalizedId, _resolvedEventType].filter(Boolean));
         Object.entries(_knownAliases).forEach(([canon, aliases]) => {
-            if (aliases.some(a => a.toLowerCase() === normalizedId || a === evId)) {
+            // Normaliza cada alias antes de comparar (espaço → traço)
+            const normAliases = aliases.map(a => a.toLowerCase().replace(/[\s_]+/g, '-'));
+            if (normAliases.includes(normalizedId) || aliases.includes(evId) || canon === _resolvedEventType) {
                 aliases.forEach(a => _typesSet.add(a));
                 _typesSet.add(canon);
             }
