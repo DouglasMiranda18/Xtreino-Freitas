@@ -11026,12 +11026,12 @@ async function loadAdminNotifications() {
             const n = g.data;
             const d = g.doc;
             const dateStr = n.createdAt ? new Date(n.createdAt.toDate ? n.createdAt.toDate() : n.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
-            const isLote = g.batchId && g.count > 1;
+            const isLote = !!g.batchId;
             const targetLabel = isLote
-                ? `<span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">${g.count} participantes</span>`
+                ? `<span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">${g.count} participante${g.count !== 1 ? 's' : ''}</span>`
                 : (n.type === 'all'
                     ? '<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Todos</span>'
-                    : `<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-mono">${n.targetUserId || 'Específico'}</span>`);
+                    : `<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">${'Específico'}</span>`);
             const deleteAction = isLote
                 ? `deleteAdminNotificationBatch('${escapeAdminHtml(g.batchId)}')`
                 : `deleteAdminNotification('${d.id}')`;
