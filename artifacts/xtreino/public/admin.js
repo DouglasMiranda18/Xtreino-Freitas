@@ -11981,18 +11981,33 @@ async function openEventSlotsModal(eventId, eventName) {
     modal.classList.add('flex');
 
     try {
-        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        // Buscar por ID bruto do doc E por tipo canônico (registrations podem ter salvo qualquer um dos dois)
+        const { collection, query, where, getDocs, doc: _fbDoc, getDoc: _fbGetDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        // Buscar o doc adminEvents para obter o campo eventType real
+        // (o booking flow salva r.eventType = ev.eventType do adminEvents, não o doc ID)
+        let _evFieldType = null;
+        try {
+            const _evDocSnap = await _fbGetDoc(_fbDoc(window.firebaseDb, 'adminEvents', eventId));
+            if (_evDocSnap.exists()) _evFieldType = _evDocSnap.data()?.eventType || null;
+        } catch (_) {}
+
         const _regsRef = collection(window.firebaseDb, 'registrations');
-        const _canonId = canonicalType(eventId);
-        const _snap1 = await getDocs(query(_regsRef, where('eventType', '==', eventId)));
-        const _snap2 = (_canonId && _canonId !== eventId)
-            ? await getDocs(query(_regsRef, where('eventType', '==', _canonId)))
-            : null;
-        // Mesclar deduplificando por doc ID
+        // Coletar todos os tipos distintos a buscar (doc ID + eventType field + canonical)
+        const _typesToQuery = new Set([eventId]);
+        if (_evFieldType) _typesToQuery.add(_evFieldType);
+        if (_evFieldType) _typesToQuery.add(canonicalType(_evFieldType));
+        _typesToQuery.add(canonicalType(eventId));
+        _typesToQuery.delete('');
+        _typesToQuery.delete(undefined);
+        _typesToQuery.delete(null);
+
+        // Executar as queries (uma por tipo distinto) e mesclar
         const _allDocs = new Map();
-        _snap1.docs.forEach(d => _allDocs.set(d.id, d));
-        if (_snap2) _snap2.docs.forEach(d => _allDocs.set(d.id, d));
+        await Promise.all([..._typesToQuery].map(async t => {
+            try {
+                const s = await getDocs(query(_regsRef, where('eventType', '==', t)));
+                s.docs.forEach(d => _allDocs.set(d.id, d));
+            } catch (_) {}
+        }));
         const snap = { docs: [..._allDocs.values()] };
         const validStatuses = new Set(['confirmed', 'paid', 'approved']);
         // Data de hoje em horário de Brasília (UTC-3)
