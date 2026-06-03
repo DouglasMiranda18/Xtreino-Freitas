@@ -1391,7 +1391,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 const mpPending  = mpCollectionStatus === 'pending'   || mpPaymentStatus === 'pending';
 
                 // Evidência de pagamento pendente em sessão (usuário voltou sem passar pelos params do MP)
-                const storedRef = sessionStorage.getItem('lastExternalRef');
+                // localStorage como fallback se sessionStorage foi limpo (aba fechada, outro dispositivo, etc.)
+                const _lsRaw = (() => { try { return JSON.parse(localStorage.getItem('_pendingPagamento') || 'null'); } catch(_){return null;} })();
+                const _lsRef = (_lsRaw && (Date.now() - (_lsRaw.ts||0)) < 7200000) ? _lsRaw.ref : null;
+                const storedRef = sessionStorage.getItem('lastExternalRef') || _lsRef;
 
                 if (mpApproved && mpExternalRef) {
                     // ✅ Retorno direto do MP com pagamento aprovado — processar imediatamente
@@ -7675,6 +7678,8 @@ async function submitSchedule(e, useTokens = false) {
                 try { sessionStorage.setItem('lastRegIds', JSON.stringify(regIds)); } catch (_) { }
                 try { sessionStorage.setItem('lastRegId', regIds[0]); } catch (_) { }
                 try { sessionStorage.setItem('lastExternalRef', externalRef); } catch (_) { }
+                // localStorage como backup persistente (expira em 2h) para caso sessionStorage seja perdido
+                try { localStorage.setItem('_pendingPagamento', JSON.stringify({ ref: externalRef, ts: Date.now() })); } catch (_) { }
             }
 
         } catch (dbError) {
@@ -8242,47 +8247,60 @@ function closePaymentConfirmModal() {
 
 // Verificar status do pagamento via API do Mercado Pago
 async function checkPaymentStatus(preferenceId) {
-    try {
-        
+    const extRef = sessionStorage.getItem('lastExternalRef') || preferenceId;
+    if (!extRef) return;
 
-        // Marcar que estamos verificando um pagamento real
+    try {
         sessionStorage.setItem('checkingPayment', 'true');
 
-        // Verificar status do pagamento via Netlify function
+        // ── 1. VERIFICAR NO FIRESTORE DIRETAMENTE ──────────────────────────
+        // Se o webhook do MP já atualizou o status para 'paid', confirmar sem
+        // depender do Netlify (mais rápido e funciona mesmo se Netlify falhar)
+        if (window.firebaseDb) {
+            try {
+                const { collection, query: _q, where: _w, getDocs: _gd } =
+                    await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+                const _snap = await _gd(_q(
+                    collection(window.firebaseDb, 'registrations'),
+                    _w('external_reference', '==', extRef)
+                ));
+                if (!_snap.empty && _snap.docs.some(d => d.data().status === 'paid')) {
+                    // Webhook já confirmou — mostrar modal imediatamente
+                    try { localStorage.removeItem('_pendingPagamento'); } catch(_) {}
+                    processSuccessfulPayment(extRef);
+                    return;
+                }
+            } catch (_) {}
+        }
+
+        // ── 2. FALLBACK: perguntar ao Netlify (webhook ainda não disparou) ──
         const response = await fetch('/.netlify/functions/check-pix-status', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                external_reference: sessionStorage.getItem('lastExternalRef') || preferenceId
-            })
+            body: JSON.stringify({ external_reference: extRef })
         });
 
-        if (!response.ok) {
-            throw new Error('Failed to check payment status');
-        }
+        if (!response.ok) throw new Error('check-pix-status retornou ' + response.status);
 
         const data = await response.json();
-        
 
         if (data.status === 'approved') {
-            
-            processSuccessfulPayment();
+            try { localStorage.removeItem('_pendingPagamento'); } catch(_) {}
+            processSuccessfulPayment(extRef);
         } else if (data.status === 'pending') {
-            
             setTimeout(() => checkPaymentStatus(preferenceId), 10000);
         } else if (data.status === 'rejected') {
-            
+            try { localStorage.removeItem('_pendingPagamento'); } catch(_) {}
             openPaymentConfirmModal('Pagamento Rejeitado', 'Seu pagamento foi rejeitado. Tente novamente ou use outro método de pagamento.');
-        } else {
-            
-            // Para outros status, não mostrar modal automaticamente
-            // O usuário pode verificar o status na área do cliente
         }
+        // outros status: aguardar webhook — usuário pode checar em Minha Conta
 
     } catch (error) {
-        
-        // Fallback: apenas logar o erro, não mostrar modal
-        // O usuário pode verificar o status na área do cliente
+        console.warn('[checkPaymentStatus] erro:', error?.message || error);
+        // Retry silencioso em 15s se for erro de rede
+        if (error instanceof TypeError) {
+            setTimeout(() => checkPaymentStatus(preferenceId), 15000);
+        }
     }
 }
 
