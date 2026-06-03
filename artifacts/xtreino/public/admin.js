@@ -3738,6 +3738,14 @@ window.showWarningToast = function(message, title = 'Atenção') {
             : '<span class="text-xs bg-green-100 text-green-700 border border-green-300 rounded px-1.5 py-0.5">✓ Pago</span>';
         const _mgEmail = r.email || r.clientEmail || '';
         const _mgPhone = r.contact || r.phone || '';
+        // Botão de verificar pagamento — só para pendentes com external_reference
+        const extRef = r.external_reference || null;
+        const verifyBtn = isPending
+          ? `<button class="flex-shrink-0 px-2 py-1 bg-blue-50 border border-blue-200 text-blue-600 rounded-lg text-xs hover:bg-blue-600 hover:text-white transition-colors font-medium"
+                    data-verify-reg-id="${d.id}" data-ext-ref="${extRef || ''}" title="Consultar Mercado Pago e confirmar automaticamente">
+               🔍 Verificar
+             </button>`
+          : '';
         const row = document.createElement('div');
         row.className = 'flex items-center justify-between gap-3 p-2.5 rounded-lg border ' + (isPending ? 'border-yellow-200 bg-yellow-50' : 'border-green-100 bg-green-50/40');
         row.innerHTML = `
@@ -3750,9 +3758,13 @@ window.showWarningToast = function(message, title = 'Atenção') {
               </div>
               ${_mgPhone ? `<div class="text-gray-500 text-xs">📞 ${_mgPhone}</div>` : ''}
               ${_mgEmail ? `<div class="text-gray-400 text-xs truncate">✉️ ${_mgEmail}</div>` : ''}
+              ${extRef ? `<div class="text-gray-300 text-xs font-mono truncate">${extRef}</div>` : ''}
             </div>
           </div>
-          <button class="flex-shrink-0 px-2.5 py-1 bg-red-50 border border-red-200 text-red-600 rounded-lg text-xs hover:bg-red-600 hover:text-white transition-colors" data-remove-reg-id="${d.id}">Remover</button>`;
+          <div class="flex flex-col gap-1 flex-shrink-0">
+            ${verifyBtn}
+            <button class="px-2.5 py-1 bg-red-50 border border-red-200 text-red-600 rounded-lg text-xs hover:bg-red-600 hover:text-white transition-colors" data-remove-reg-id="${d.id}">Remover</button>
+          </div>`;
         return row;
       };
 
@@ -3793,24 +3805,83 @@ window.showWarningToast = function(message, title = 'Atenção') {
       // Abre na aba com mais relevância: se só há pendentes, abre na aba pendentes
       if (countConfirmed === 0 && countPending > 0) switchManageHourTab('pending');
 
-      // Delegação de eventos para botão "Remover" em ambas as listas
-      const handleRemove = async (e) => {
-        const btn = e.target.closest('[data-remove-reg-id]');
-        if (!btn) return;
-        const id = btn.getAttribute('data-remove-reg-id');
-        try{
-          await deleteDoc(doc(collection(window.firebaseDb,'registrations'), id));
-          btn.closest('.flex')?.remove();
-          // Atualizar contador
-          const listEl = btn.closest('#manageHourListConfirmed') ? listConfirmed : listPending;
-          const remaining = listEl?.querySelectorAll('[data-remove-reg-id]').length || 0;
-          if (listEl === listConfirmed) { countConfirmed--; if (elCC) elCC.textContent = Math.max(0, countConfirmed); }
-          else                          { countPending--;   if (elCP) elCP.textContent = Math.max(0, countPending);   }
-          try{ await loadBoard(); }catch(_){ }
-        }catch(_){ alert('Falha ao remover.'); }
+      // Delegação de eventos para botões "Remover" e "🔍 Verificar" em ambas as listas
+      const handleListClick = async (e) => {
+        // ── Remover ──────────────────────────────────────────────────
+        const removeBtn = e.target.closest('[data-remove-reg-id]');
+        if (removeBtn) {
+          const id = removeBtn.getAttribute('data-remove-reg-id');
+          try{
+            await deleteDoc(doc(collection(window.firebaseDb,'registrations'), id));
+            removeBtn.closest('.flex')?.remove();
+            const inConfirmed = !!removeBtn.closest('#manageHourListConfirmed');
+            if (inConfirmed) { countConfirmed--; if (elCC) elCC.textContent = Math.max(0, countConfirmed); }
+            else             { countPending--;   if (elCP) elCP.textContent = Math.max(0, countPending);   }
+            try{ await loadBoard(); }catch(_){ }
+          }catch(_){ alert('Falha ao remover.'); }
+          return;
+        }
+
+        // ── Verificar Pagamento ───────────────────────────────────────
+        const verifyBtn = e.target.closest('[data-verify-reg-id]');
+        if (!verifyBtn) return;
+        const regId = verifyBtn.getAttribute('data-verify-reg-id');
+        const extRef = verifyBtn.getAttribute('data-ext-ref') || '';
+        if (!extRef) {
+          showToast('warning', 'Esta inscrição não tem external_reference — confirme manualmente no Mercado Pago.', 'Atenção');
+          return;
+        }
+
+        const origHtml = verifyBtn.innerHTML;
+        verifyBtn.disabled = true;
+        verifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        try {
+          const resp = await fetch('/.netlify/functions/check-pix-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ external_reference: extRef })
+          });
+
+          if (!resp.ok) throw new Error('HTTP ' + resp.status);
+          const data = await resp.json();
+
+          if (data.status === 'approved') {
+            // Atualizar status no Firestore
+            const { doc: _doc, updateDoc: _upd, serverTimestamp: _sts } =
+              await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            await _upd(_doc(window.firebaseDb, 'registrations', regId), {
+              status: 'paid',
+              paidAt: _sts(),
+              confirmedByAdmin: true,
+              confirmedAt: _sts()
+            });
+            showToast('success', '✅ Pagamento confirmado! Status atualizado para Pago.', 'Confirmado');
+            // Reabrir o modal atualizado
+            try{ await loadBoard(); }catch(_){}
+            openManageHourModal(date, eventType, hour);
+          } else if (data.status === 'pending') {
+            showToast('warning', '⏳ Pagamento ainda pendente no Mercado Pago.', 'Pendente');
+            verifyBtn.disabled = false;
+            verifyBtn.innerHTML = origHtml;
+          } else if (data.status === 'rejected') {
+            showToast('error', '❌ Pagamento rejeitado pelo Mercado Pago.', 'Rejeitado');
+            verifyBtn.disabled = false;
+            verifyBtn.innerHTML = origHtml;
+          } else {
+            showToast('warning', `Status desconhecido: "${data.status}". Verifique no painel do Mercado Pago.`, 'Atenção');
+            verifyBtn.disabled = false;
+            verifyBtn.innerHTML = origHtml;
+          }
+        } catch (err) {
+          console.error('[Verificar pagamento] Erro:', err);
+          showToast('error', 'Erro ao consultar o Mercado Pago: ' + (err.message || err), 'Erro');
+          verifyBtn.disabled = false;
+          verifyBtn.innerHTML = origHtml;
+        }
       };
-      listConfirmed.addEventListener('click', handleRemove);
-      if (listPending) listPending.addEventListener('click', handleRemove);
+      listConfirmed.addEventListener('click', handleListClick);
+      if (listPending) listPending.addEventListener('click', handleListClick);
 
       modal.classList.remove('hidden');
     }catch(e){ console.error('openManageHourModal error', e); }
