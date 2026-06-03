@@ -2811,6 +2811,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
         // Armazena o tipo canônico para que getCapacityForHour funcione com IDs auto-gerados
         const canon = canonicalType(ev.eventType || d.id);
         opt.dataset.canonicalType = canon;
+        opt.dataset.rawEventId = d.id;
         typeEl.appendChild(opt);
       });
     } catch (err) {
@@ -2857,16 +2858,20 @@ window.showWarningToast = function(message, title = 'Atenção') {
   }
 
   // Busca overrides (travas e ocupações extras)
-  async function fetchScheduleOverrides(date, eventType) {
+  async function fetchScheduleOverrides(date, eventType, rawEventId = null) {
     const overrides = {};
     try {
       const { collection: c, query: q, where: w, getDocs: g } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
       const ovRef = c(window.firebaseDb, 'schedule_overrides');
       const variants = resolveAliases(eventType);
+      // Incluir o ID bruto do Firestore como variante extra (retrocompat com docs antigos)
+      if (rawEventId && rawEventId !== eventType && !variants.includes(rawEventId)) {
+        variants.push(rawEventId);
+      }
       
       // Buscar por variações de eventType
       for (const v of variants) {
-        if (v === undefined) continue;
+        if (v === undefined || v === null || v === '') continue;
         try {
           const ovSnap = await g(q(ovRef, w('date', '==', date), w('eventType', '==', v)));
           ovSnap.forEach(d => {
@@ -2884,16 +2889,21 @@ window.showWarningToast = function(message, title = 'Atenção') {
         }
       }
       
-      // Fallback: documentos sem eventType definido
+      // Fallback: todos os docs da data, filtrar em JS
       try {
         const allSnap = await g(q(ovRef, w('date', '==', date)));
+        const canonEvent = canonicalType(eventType);
         allSnap.forEach(d => {
           const raw = d.data() || {};
           const hh = extractHour(raw.hour || raw.hh);
           if (!hh) return;
-          const docFamily = canonicalType(raw.eventType || raw.event_type || '');
-          if (docFamily && docFamily !== canonicalType(eventType)) return;
-          if (!docFamily && !variants.includes(null) && !variants.includes('')) return;
+          const rawEt = raw.eventType || raw.event_type || '';
+          const docFamily = canonicalType(rawEt);
+          // Incluir se: sem eventType, canonical bate, ou ID bruto bate (retrocompat)
+          const matchesCanon = docFamily === canonEvent;
+          const matchesRawId = rawEventId && (rawEt === rawEventId);
+          const hasNoType = !rawEt;
+          if (!matchesCanon && !matchesRawId && !hasNoType) return;
           const k = `${hh}:00`;
           const agg = overrides[k] || { lockedAny: false, extraOccupied: 0 };
           agg.lockedAny = agg.lockedAny || (raw.locked === true);
@@ -2966,7 +2976,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
   }
 
   // Busca todos os overrides para um horário (consolidado)
-  async function findAllOverridesForHour(date, eventType, hh) {
+  async function findAllOverridesForHour(date, eventType, hh, rawEventId = null) {
     
     const { collection: c, query: q, where: w, getDocs: g } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     const ovRef = c(window.firebaseDb, 'schedule_overrides');
@@ -2974,12 +2984,14 @@ window.showWarningToast = function(message, title = 'Atenção') {
     const variants = resolveAliases(eventType);
     const canon = canonicalType(eventType);
     
+    // Incluir ID bruto como variante extra (retrocompat com docs antigos)
+    if (rawEventId && rawEventId !== eventType && !variants.includes(rawEventId)) {
+      variants.push(rawEventId);
+    }
     
     // Query com eventType canônico e variações
     try {
-      
       const snap1 = await g(q(ovRef, w('date', '==', date), w('eventType', '==', canon), w('hour', '==', hh)));
-      
       snap1.forEach(d => toUpdate.set(d.id, d));
     } catch (e) {
       console.warn('❌ Erro na query eventType canônico:', e.message);
@@ -2987,59 +2999,44 @@ window.showWarningToast = function(message, title = 'Atenção') {
     
     // Query com hh (formato alternativo)
     try {
-      
       const snap2 = await g(q(ovRef, w('date', '==', date), w('eventType', '==', canon), w('hh', '==', hh)));
-      
       snap2.forEach(d => toUpdate.set(d.id, d));
     } catch (e) {
       console.warn('❌ Erro na query hh:', e.message);
     }
     
-    // Variações de aliases
+    // Variações de aliases + ID bruto
     for (const v of variants) {
       if (!v) continue;
       try {
-        
         const snapV = await g(q(ovRef, w('date', '==', date), w('eventType', '==', v), w('hour', '==', hh)));
-        
         snapV.forEach(d => toUpdate.set(d.id, d));
       } catch (e) {
         console.warn(`  ⚠️ Erro variant ${v}:`, e.message);
       }
     }
     
-    // Fallback: documentos sem eventType definido (apenas se necessário)
+    // Fallback: todos os docs da data, filtrar em JS (inclui docs com ID bruto antigo)
     try {
-      
       const snapAll = await g(q(ovRef, w('date', '==', date)));
-      
       snapAll.forEach(d => {
         const raw = d.data() || {};
         const hhDoc = extractHour(raw.hour || raw.hh);
-        
-        if (!hhDoc || hhDoc !== hh) {
-          
-          return;
-        }
-        const docFamily = canonicalType(raw.eventType || raw.event_type || '');
-        if (docFamily && docFamily !== canon) {
-          
-          return;
-        }
-        if (!docFamily && !variants.includes(null) && !variants.includes('')) {
-          
-          return;
-        }
-        
+        if (!hhDoc || hhDoc !== hh) return;
+        const rawEt = raw.eventType || raw.event_type || '';
+        const docFamily = canonicalType(rawEt);
+        // Incluir se: canonical bate, ID bruto bate (retrocompat), ou sem eventType
+        const matchesCanon = docFamily === canon;
+        const matchesRawId = rawEventId && (rawEt === rawEventId);
+        const hasNoType = !rawEt;
+        if (!matchesCanon && !matchesRawId && !hasNoType) return;
         toUpdate.set(d.id, d);
       });
     } catch (e) {
       console.warn('❌ Erro ao buscar overrides fallback:', e.message);
     }
     
-    const result = Array.from(toUpdate.values());
-    
-    return result;
+    return Array.from(toUpdate.values());
   }
 
   // Carrega quadro de horários por data/evento
@@ -3183,6 +3180,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
 
       const selectedOpt = typeEl.options[typeEl.selectedIndex];
       const ovEventType = selectedOpt?.dataset?.canonicalType || canonicalType(eventType);
+      const rawEventId = selectedOpt?.dataset?.rawEventId || eventType;
       const isCampSemifinalDate = CAMP_SEMIFINAL_DATES.includes(date);
       const isCampFinalDate = CAMP_FINAL_DATES.includes(date);
 
@@ -3248,7 +3246,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
       const occupancyMap = await fetchRegistrationsByDate(date, eventType);
 
       // ===== Carregar overrides (travas e extras) =====
-      let overridesMap = await fetchScheduleOverrides(date, ovEventType);
+      let overridesMap = await fetchScheduleOverrides(date, ovEventType, rawEventId);
       
       // Aplicar travas fixas do Modo Liga
       //overridesMap = applyFixedModoLigaLocks(overridesMap, ovEventType);
@@ -3311,7 +3309,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
       });
 
       // ===== Bind dos botões de ação =====
-      bindBoardTableActions(tbody, date, eventType, ovEventType);
+      bindBoardTableActions(tbody, date, eventType, ovEventType, rawEventId);
 
     } catch (e) {
       console.error('❌ Erro em loadBoard:', e.message || e);
@@ -3321,7 +3319,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
   }
 
   // Binda ações dos botões da tabela
-  function bindBoardTableActions(tbody, date, eventType, ovEventType) {
+  function bindBoardTableActions(tbody, date, eventType, ovEventType, rawEventId = null) {
     // Remover listeners antigos para evitar duplicação
     if (!tbody || !tbody.parentNode) return;
     const newTbody = tbody.cloneNode(true);
@@ -3368,7 +3366,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
         } 
         else if (btnToggle) {
           const h = btnToggle.getAttribute('data-toggle-lock');
-          await handleToggleLock(h, date, eventType, ovEventType);
+          await handleToggleLock(h, date, eventType, ovEventType, rawEventId);
         }
         const btnPermLock = e.target.closest('[data-toggle-perm-lock]');
         if (btnPermLock) {
@@ -3414,7 +3412,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
   }
 
   // Handler para toggle de travamento de horário
-  async function handleToggleLock(hour, date, eventType, ovEventType) {
+  async function handleToggleLock(hour, date, eventType, ovEventType, rawEventId = null) {
     
     const isFixedLock = false // (canonicalType(eventType) === 'modo-liga' && (hour === '16:00' || hour === '17:00'));
     
@@ -3442,7 +3440,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
         return;
       }      
 
-      const docsArr = await findAllOverridesForHour(date, ovEventType, hh);       
+      const docsArr = await findAllOverridesForHour(date, ovEventType, hh, rawEventId);       
       if (docsArr.length > 0) {        
         // Verificar estado atual
         const anyLocked = docsArr.some(d => d.data()?.locked === true);
