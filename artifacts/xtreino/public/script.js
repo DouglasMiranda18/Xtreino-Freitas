@@ -6069,9 +6069,10 @@ async function renderScheduleTimes() {
                         const match = !data.eventType || docEv === curEv ||
                             doc.id.startsWith(curEv) || doc.id.startsWith(eventType || '');
                         if (!match) return;
-                        const _hM = String(data.hour || '').match(/^(\d{1,2})/);
-                        const h = _hM ? parseInt(_hM[1], 10) : NaN;
-                        if (!isNaN(h)) locked.add(h);
+                        // Usar parseInt completo + validar range 0-23
+                        // Evita que valores legados como '2000' (bug antigo) capturem hora 20
+                        const h = parseInt(String(data.hour || ''), 10);
+                        if (!isNaN(h) && h >= 0 && h <= 23) locked.add(h);
                     });
                 } catch(_) {}
                 return locked;
@@ -6513,9 +6514,10 @@ async function updateOccupiedAndRefreshButtons(day, date, eventType, container) 
                 const matchesType = !data.eventType || docEventType === curEventType || doc.id.startsWith(curEventType) || doc.id.startsWith((eventType||''));
                 console.log('[HourLocks] doc:', doc.id, '| docEventType:', docEventType, '| match:', matchesType);
                 if (!matchesType) return;
-                const _hLM = String(data.hour || '').match(/^(\d{1,2})/);
-                const h = _hLM ? parseInt(_hLM[1], 10) : NaN;
-                if (!isNaN(h)) { lockedHours.add(h); console.log('[HourLocks] travando hora:', h); }
+                // Usar parseInt completo + validar range 0-23
+                // Evita que valores legados como '2000' (bug antigo) capturem hora 20
+                const h = parseInt(String(data.hour || ''), 10);
+                if (!isNaN(h) && h >= 0 && h <= 23) { lockedHours.add(h); console.log('[HourLocks] travando hora:', h); }
             });
         } else {
             console.warn('[HourLocks] firebaseDb não disponível ainda');
