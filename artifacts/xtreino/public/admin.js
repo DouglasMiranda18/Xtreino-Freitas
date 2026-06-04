@@ -11788,8 +11788,10 @@ async function openEventNotifyModal(eventId, eventName) {
         document.getElementById('notifyTodayLabel').textContent = `— ${todayDD}/${todayMM}`;
 
         const allKeys   = Object.keys(_notifyScheduleMap).sort();
-        const todayKeys = allKeys.filter(k => k.startsWith(todayStr + '||'));
-        const otherKeys = allKeys.filter(k => !k.startsWith(todayStr + '||'));
+        // Chaves sem data (k.startsWith('||')) são slots recorrentes (ex: Modo Liga semanal)
+        // — aparecem sempre no "hoje" pois acontecem toda semana
+        const todayKeys = allKeys.filter(k => k.startsWith(todayStr + '||') || k.startsWith('||'));
+        const otherKeys = allKeys.filter(k => !k.startsWith(todayStr + '||') && !k.startsWith('||'));
 
         document.getElementById('notifyLoadingSlots').classList.add('hidden');
         document.getElementById('notifyTodaySlots').classList.remove('hidden');
