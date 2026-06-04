@@ -1290,12 +1290,11 @@ window.showWarningToast = function(message, title = 'Atenção') {
                 ? `Vaga ${String.fromCharCode(64 + nextSlot)}`
                 : `Vaga #${nextSlot}`;
             await addDoc(collection(window.firebaseDb,'registrations'), { ...payload, createdAt: serverTimestamp() });
-            const _diagMsg = `[DIAG] tipo=${_diagRawEvType||payload.eventType||'?'} | horário=${schedule}→${_diagNorm||'?'} | counter=${_maxFromCounter} | regs=${_maxFromRegs} | slot=${nextSlot} | display=${payload.slotDisplay} | rawDocId=${(typeEl?.selectedOptions?.[0]?.dataset?.rawEventId||typeEl?.value||'').slice(-6)}`;
-            const notifMsg = (clientUserId
+            const notifMsg = clientUserId
               ? 'Time adicionado! O cliente receberá notificações de ID/senha.'
               : clientEmail
                 ? 'Time adicionado. ⚠️ E-mail não encontrado — cliente não receberá notificações.'
-                : 'Time adicionado com sucesso!') + ' ' + _diagMsg;
+                : 'Time adicionado com sucesso!';
             if (msgEl) msgEl.textContent = notifMsg;
             // limpar campos
             if (teamEl) teamEl.value = '';
