@@ -2922,7 +2922,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
     try {
       const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
       const regs = collection(window.firebaseDb, 'registrations');
-      const validStatuses = new Set(['paid', 'confirmed', 'approved', 'pending']);
+      const validStatuses = new Set(['paid', 'confirmed', 'approved']);
       // Coletar todos os valores distintos de eventType que podem estar salvos nas registrations
       const typesToQuery = [...new Set([evFieldType, ovEventType, rawEventId].filter(Boolean))];
       if (typesToQuery.length === 0) return {};
