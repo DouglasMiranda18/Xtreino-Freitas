@@ -604,6 +604,7 @@ async function loadInscritos(evId) {
         const finalSchedKeys = todayKeys.length > 0 ? todayKeys : semDataKeys;
 
         // ── Função para renderizar cards de um grupo ──
+        const _isModoLiga = normalizedId === 'modo-liga' || _resolvedEventType === 'modo-liga';
         const renderCards = (regs) => {
             if (!regs || regs.length === 0)
                 return '<div class="text-center py-6 text-slate-500 text-sm">Nenhuma equipe neste horário.</div>';
@@ -616,9 +617,13 @@ async function loadInscritos(evId) {
                 const logoHtml = _logoUrl
                     ? `<img src="${_logoUrl}" alt="logo" class="w-9 h-9 rounded-lg object-cover flex-shrink-0 border border-slate-500">`
                     : `<span class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-slate-600 text-slate-400 flex-shrink-0 text-xs"><i class="fas fa-shield-alt"></i></span>`;
+                // Modo Liga: exibir letra no badge (A, B, C...) em vez de #1, #2...
+                const _badge = _isModoLiga
+                    ? String.fromCharCode(64 + slotNum)
+                    : `#${slotNum}`;
                 return `<div class="bg-slate-700 rounded-xl px-4 py-3 border border-slate-600">
                     <div class="flex items-center gap-3">
-                        <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-orange-600 text-white text-xs font-black flex-shrink-0">#${slotNum}</span>
+                        <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-orange-600 text-white text-xs font-black flex-shrink-0">${_badge}</span>
                         ${logoHtml}
                         <div class="flex-1 min-w-0">
                             <p class="font-bold text-slate-100 text-sm leading-tight truncate">${teamName}</p>
