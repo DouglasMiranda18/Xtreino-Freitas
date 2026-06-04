@@ -1233,9 +1233,12 @@ window.showWarningToast = function(message, title = 'Atenção') {
                         _rs.forEach(d => _regMap.set(d.id, d));
                     } catch(_) {}
                 }
+                // Mesmos filtros do board: data exata + status visível no board
+                const _boardStatuses = new Set(['paid','confirmed','approved','pending']);
                 _regMap.forEach(d => {
                     const rd = d.data();
-                    if (date && rd.date && rd.date !== date) return; // só conta para a data do add
+                    if (rd.date !== date) return;                            // data deve bater (exato)
+                    if (!_boardStatuses.has(rd.status)) return;              // só statuses do board
                     if (_normH(rd.schedule||rd.hour||'') !== normSchedule) return;
                     let s = Number(rd.slot ?? rd.slotNumber) || 0;
                     if (!s && rd.slotDisplay) {
