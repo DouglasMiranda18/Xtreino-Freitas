@@ -1235,6 +1235,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
                 }
                 _regMap.forEach(d => {
                     const rd = d.data();
+                    if (date && rd.date && rd.date !== date) return; // só conta para a data do add
                     if (_normH(rd.schedule||rd.hour||'') !== normSchedule) return;
                     let s = Number(rd.slot ?? rd.slotNumber) || 0;
                     if (!s && rd.slotDisplay) {
