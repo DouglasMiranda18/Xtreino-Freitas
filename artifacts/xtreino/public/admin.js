@@ -3867,9 +3867,13 @@ window.showWarningToast = function(message, title = 'Atenção') {
             : '<span class="text-xs bg-green-100 text-green-700 border border-green-300 rounded px-1.5 py-0.5">✓ Pago</span>';
         const _mgEmail = r.email || r.clientEmail || '';
         const _mgPhone = r.contact || r.phone || '';
-        // Badge posicional (1, 2, 3…) — igual ao painel Ver Detalhes > Inscritos
+        // Badge posicional — igual ao painel Ver Detalhes > Inscritos
+        // Modo Liga: exibe letra (A, B, C…) em vez de número
+        const slotBadgeLabel = rawIdLower === 'modo-liga'
+          ? String.fromCharCode(64 + posIdx)
+          : `#${posIdx}`;
         const slotBadge = posIdx != null
-          ? `<span class="text-xs font-bold text-orange-600 bg-orange-50 border border-orange-200 rounded px-1.5 py-0.5 flex-shrink-0">#${posIdx}</span>`
+          ? `<span class="text-xs font-bold text-orange-600 bg-orange-50 border border-orange-200 rounded px-1.5 py-0.5 flex-shrink-0">${slotBadgeLabel}</span>`
           : '';
         // Botão de verificar pagamento — só para pendentes com external_reference
         const extRef = r.external_reference || null;
@@ -12638,7 +12642,9 @@ window.fixTeamSlot = async function(teamName, eventType, date, newSlot) {
         );
         const snap = await getDocs(q);
         if (snap.empty) { alert(`Nenhum registro encontrado para "${teamName}" em ${date}.`); return; }
-        const newSlotDisplay = `Vaga #${newSlot}`;
+        const newSlotDisplay = eventType === 'modo-liga'
+            ? `Vaga ${String.fromCharCode(64 + newSlot)}`
+            : `Vaga #${newSlot}`;
         let count = 0;
         for (const d of snap.docs) {
             await updateDoc(doc(db, 'registrations', d.id), {
@@ -12649,7 +12655,7 @@ window.fixTeamSlot = async function(teamName, eventType, date, newSlot) {
             count++;
             console.log(`[fixTeamSlot] Atualizado: ${d.id} → slot ${newSlot}`);
         }
-        alert(`✅ ${count} registro(s) do time "${teamName}" atualizados para Vaga #${newSlot}.`);
+        alert(`✅ ${count} registro(s) do time "${teamName}" atualizados para ${newSlotDisplay}.`);
     } catch (err) {
         console.error('[fixTeamSlot] Erro:', err);
         alert('Erro: ' + (err.message || err));
@@ -12739,7 +12745,9 @@ window.repairDateSlots = async function(eventType, targetDate) {
             semSlot.forEach(entry => {
                 maxSlot++;
                 const newSlot = maxSlot;
-                const newSlotDisplay = `Vaga #${newSlot}`;
+                const newSlotDisplay = eventType === 'modo-liga'
+                    ? `Vaga ${String.fromCharCode(64 + newSlot)}`
+                    : `Vaga #${newSlot}`;
                 batch.update(doc(db, 'registrations', entry.id), {
                     slot: newSlot,
                     slotNumber: newSlot,
