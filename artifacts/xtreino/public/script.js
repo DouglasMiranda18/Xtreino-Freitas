@@ -8179,14 +8179,16 @@ function showSlotConfirmationModal(slots, eventName, isLiga, eventId, groupLink)
         </div>`).join('')}`;
     } else {
         slotsHtml = schedules.map(sched => {
-            const rows = bySchedule[sched].map(s => {
+            const rows = bySchedule[sched].map((s, sIdx) => {
                 let innerHtml;
                 if (eventId === 'modo-liga') {
                     // Modo Liga: exibir letra em destaque
-                    const letra = s.slot ? s.slot.replace('Vaga ', '') : null;
-                    innerHtml = letra
-                        ? `<div class="font-bold text-orange-600 text-sm">SUA LETRA É ${letra} — EQUIPE: ${s.team}</div><div class="text-sm font-semibold text-green-700 mt-0.5">Inscrição confirmada!</div>`
-                        : `<div class="font-semibold text-gray-800 text-sm">${s.team}</div><div class="text-sm font-semibold text-green-700">Inscrição confirmada!</div>`;
+                    // Extrai letra de "Vaga A" → "A"; fallback posicional se slot nulo
+                    const letraFromSlot = s.slot ? s.slot.replace(/^Vaga\s*/i, '').trim() : null;
+                    const letra = (letraFromSlot && /^[A-Za-z]$/.test(letraFromSlot))
+                        ? letraFromSlot.toUpperCase()
+                        : String.fromCharCode(65 + sIdx); // A, B, C... pelo índice
+                    innerHtml = `<div class="font-bold text-orange-600 text-sm">SUA LETRA É ${letra} — EQUIPE: ${s.team}</div><div class="text-sm font-semibold text-green-700 mt-0.5">Inscrição confirmada!</div>`;
                 } else {
                     const slotSection = s.slot != null
                         ? `<div class="mt-0.5"><span class="text-2xl font-black text-orange-600">${s.slot}</span><span class="text-xs font-semibold text-gray-500 ml-1">← Esse é o seu SLOT na Sala.</span></div>`
