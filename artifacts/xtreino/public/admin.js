@@ -3869,7 +3869,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
         const _mgPhone = r.contact || r.phone || '';
         // Badge posicional — igual ao painel Ver Detalhes > Inscritos
         // Modo Liga: exibe letra (A, B, C…) em vez de número
-        const slotBadgeLabel = rawIdLower === 'modo-liga'
+        // Usa r.eventType (campo do registro) para garantir detecção correta
+        const _isLigaRow = (r.eventType || rawIdLower || '').toLowerCase() === 'modo-liga';
+        const slotBadgeLabel = _isLigaRow
           ? String.fromCharCode(64 + posIdx)
           : `#${posIdx}`;
         const slotBadge = posIdx != null
@@ -12204,7 +12206,8 @@ async function openEventSlotsModal(eventId, eventName) {
                         ${regs.map((r, idx) => {
                             // Exibir posição dentro do grupo data+horário,
                             // igual ao que o cliente vê — independente do slotNumber armazenado
-                            const slotLabel = eventId === 'modo-liga'
+                            const _isLigaSlot = eventId === 'modo-liga' || (r.eventType || '').toLowerCase() === 'modo-liga';
+                            const slotLabel = _isLigaSlot
                                 ? `Vaga ${String.fromCharCode(64 + idx + 1)}`
                                 : `Vaga #${idx + 1}`;
                             const st = r.status || 'pending';
