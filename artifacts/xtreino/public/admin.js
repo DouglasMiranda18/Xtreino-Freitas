@@ -1197,8 +1197,26 @@ window.showWarningToast = function(message, title = 'Atenção') {
             if (eventType && schedule && schedule !== '—') {
                 try {
                     const normSchedule = _normH(schedule);
-                    // 1. Ler registrations por TODAS as variantes do eventType (mesma lógica de openEventSlotsModal)
-                    const _typesSet = new Set([eventType, ...(resolveAliases ? resolveAliases(eventType) : [])].filter(Boolean));
+                    // Helper: extrai número do slot de qualquer formato de registro
+                    const _extractSlotNum = rd => {
+                        if (rd.slot != null || rd.slotNumber != null) return Number(rd.slot ?? rd.slotNumber) || 0;
+                        if (rd.slotDisplay) {
+                            const _sr = String(rd.slotDisplay).replace(/^Vaga\s*/i,'').trim();
+                            if (/^[A-Za-z]$/.test(_sr)) return _sr.toUpperCase().charCodeAt(0) - 64;
+                            const _sn = parseInt(_sr.replace(/^#/,''), 10); if (!isNaN(_sn)) return _sn;
+                        }
+                        return 0;
+                    };
+                    // Coleta TODOS os tipos possíveis do eventType:
+                    // - canônico ('modo-liga')
+                    // - aliases ('liga', 'modo liga')
+                    // - valor bruto do dropdown ('XTreino Modo Liga') — cobre registros salvos com nome de exibição
+                    const _rawDropdown = (typeEl?.value || '').trim();
+                    const _typesSet = new Set([
+                        eventType,
+                        _rawDropdown,
+                        ...(typeof resolveAliases === 'function' ? resolveAliases(eventType) : [])
+                    ].filter(Boolean));
                     const _allRegMap = new Map();
                     await Promise.all([..._typesSet].map(async t => {
                         try {
@@ -1209,22 +1227,16 @@ window.showWarningToast = function(message, title = 'Atenção') {
                     let maxSlot = 0;
                     let sameCount = 0;
                     const baseNorm = teamName.trim().toLowerCase().replace(/\s+/g, ' ');
-                    const _extractSlotNum = rd => {
-                        if (rd.slot != null || rd.slotNumber != null) return Number(rd.slot ?? rd.slotNumber) || 0;
-                        // modo-liga: "Vaga A"→1, "Vaga B"→2, "Vaga #3"→3
-                        if (rd.slotDisplay) {
-                            const _sr = String(rd.slotDisplay).replace(/^Vaga\s*/i,'').trim();
-                            if (/^[A-Za-z]$/.test(_sr)) return _sr.toUpperCase().charCodeAt(0) - 64;
-                            const _sn = parseInt(_sr.replace(/^#/,''), 10); if (!isNaN(_sn)) return _sn;
-                        }
-                        return 0;
-                    };
                     _allRegMap.forEach(d => {
                         const rd = d.data();
-                        if (_normH(rd.schedule||'') === normSchedule) {
+                        // Filtrar por DATA e HORÁRIO (evita contar registros de outras datas)
+                        const rdDateOk = !date || !rd.date || rd.date === date;
+                        const rdSchedOk = _normH(rd.schedule||rd.hour||'') === normSchedule;
+                        if (rdDateOk && rdSchedOk) {
                             const s = _extractSlotNum(rd);
                             if (s > maxSlot) maxSlot = s;
                         }
+                        // Contar registros do mesmo email para sufixo automático
                         if (clientEmail && (rd.email || '').trim().toLowerCase() === clientEmail) {
                             const rdBase = (rd.teamName || '').trim()
                                 .replace(/\s+[B-Z]$/i, '')
@@ -1232,38 +1244,37 @@ window.showWarningToast = function(message, title = 'Atenção') {
                             if (rdBase === baseNorm) sameCount++;
                         }
                     });
-                    // 2. Transação atômica no slotCounters (mesma lógica de allocateSlotsFromDB)
-                    //    Previne colisão quando PIX/tokens e admin operam simultaneamente
+                    // Atualizar slotCounters atomicamente (previne colisão com PIX/tokens simultâneos)
                     const counterRef = _doc(window.firebaseDb, 'slotCounters', eventType);
                     await _runTx(window.firebaseDb, async (tx) => {
                         const counterDoc = await tx.get(counterRef);
                         const counts = counterDoc.exists() ? { ...counterDoc.data() } : {};
-                        // Ler contador pelo normSchedule (novo padrão) com fallback para chaves legadas
                         let fromCounter = Number(counts[normSchedule]) || 0;
+                        // Fallback: varrer chaves normalizadas para encontrar o horário
                         if (!fromCounter) {
-                            // Fallback: varrer chaves e normalizar para encontrar o horário
                             for (const [k, v] of Object.entries(counts)) {
-                                if (_normH(k) === normSchedule) {
-                                    fromCounter = Math.max(fromCounter, Number(v) || 0);
-                                }
+                                if (_normH(k) === normSchedule) fromCounter = Math.max(fromCounter, Number(v) || 0);
                             }
                         }
-                        const fromRegs = maxSlot;
-                        // Se não há inscrições reais, reiniciar contador obsoleto
-                        const current = fromRegs === 0 ? 0 : Math.max(fromCounter, fromRegs);
+                        // Fonte de verdade: o maior entre registrations reais e o contador
+                        // (registrations nunca volta a zero — garante sequência correta)
+                        const current = Math.max(fromCounter, maxSlot);
                         nextSlot = current + 1;
                         counts[normSchedule] = current + 1;
                         tx.set(counterRef, counts, { merge: true });
                     });
-                    // Sufixo: 1 existente → " B", 2 → " C", 3 → " D", etc.
                     if (sameCount > 0) {
                         finalTeamName = teamName.trim() + ' ' + String.fromCharCode(65 + sameCount);
                     }
                 } catch(_) {
-                    // Fallback sem transação: usa apenas registrations (múltiplas variantes)
+                    // Fallback direto: conta registros na data+horário sem transação
                     try {
                         const normSchedule2 = _normH(schedule);
-                        const _typesSet2 = new Set([eventType, ...(resolveAliases ? resolveAliases(eventType) : [])].filter(Boolean));
+                        const _rawDropdown2 = (typeEl?.value || '').trim();
+                        const _typesSet2 = new Set([
+                            eventType, _rawDropdown2,
+                            ...(typeof resolveAliases === 'function' ? resolveAliases(eventType) : [])
+                        ].filter(Boolean));
                         const _allRegMap2 = new Map();
                         await Promise.all([..._typesSet2].map(async t => {
                             try {
@@ -1274,7 +1285,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
                         let maxSlot2 = 0;
                         _allRegMap2.forEach(d => {
                             const rd = d.data();
-                            if (_normH(rd.schedule||'') === normSchedule2) {
+                            const rdDateOk2 = !date || !rd.date || rd.date === date;
+                            const rdSchedOk2 = _normH(rd.schedule||rd.hour||'') === normSchedule2;
+                            if (rdDateOk2 && rdSchedOk2) {
                                 let s = Number(rd.slot ?? rd.slotNumber) || 0;
                                 if (!s && rd.slotDisplay) {
                                     const _sr = String(rd.slotDisplay).replace(/^Vaga\s*/i,'').trim();
