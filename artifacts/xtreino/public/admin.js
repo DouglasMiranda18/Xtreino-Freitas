@@ -1197,112 +1197,61 @@ window.showWarningToast = function(message, title = 'Atenção') {
             if (eventType && schedule && schedule !== '—') {
                 try {
                     const normSchedule = _normH(schedule);
-                    // Helper: extrai número do slot de qualquer formato de registro
-                    const _extractSlotNum = rd => {
-                        if (rd.slot != null || rd.slotNumber != null) return Number(rd.slot ?? rd.slotNumber) || 0;
-                        if (rd.slotDisplay) {
-                            const _sr = String(rd.slotDisplay).replace(/^Vaga\s*/i,'').trim();
-                            if (/^[A-Za-z]$/.test(_sr)) return _sr.toUpperCase().charCodeAt(0) - 64;
-                            const _sn = parseInt(_sr.replace(/^#/,''), 10); if (!isNaN(_sn)) return _sn;
-                        }
-                        return 0;
-                    };
-                    // Coleta TODOS os tipos possíveis do eventType:
-                    // - canônico ('modo-liga')
-                    // - aliases ('liga', 'modo liga')
-                    // - valor bruto do dropdown ('XTreino Modo Liga') — cobre registros salvos com nome de exibição
-                    const _rawDropdown = (typeEl?.value || '').trim();
-                    const _typesSet = new Set([
-                        eventType,
-                        _rawDropdown,
-                        ...(typeof resolveAliases === 'function' ? resolveAliases(eventType) : [])
-                    ].filter(Boolean));
-                    const _allRegMap = new Map();
-                    console.log('[AddManual] Buscando por tipos:', [..._typesSet], 'data:', date, 'horário:', normSchedule);
-                    await Promise.all([..._typesSet].map(async t => {
-                        try {
-                            const s = await _gd(_q(collection(window.firebaseDb,'registrations'), _w('eventType','==',t)));
-                            console.log('[AddManual] tipo', t, '→', s.size, 'docs');
-                            s.forEach(d => _allRegMap.set(d.id, d));
-                        } catch(e) { console.warn('[AddManual] erro tipo', t, e?.message); }
-                    }));
-                    console.log('[AddManual] Total docs encontrados:', _allRegMap.size);
-                    let maxSlot = 0;
-                    let sameCount = 0;
-                    const baseNorm = teamName.trim().toLowerCase().replace(/\s+/g, ' ');
-                    _allRegMap.forEach(d => {
-                        const rd = d.data();
-                        // Filtrar por DATA e HORÁRIO (evita contar registros de outras datas)
-                        const rdDateOk = !date || !rd.date || rd.date === date;
-                        const rdSchedOk = _normH(rd.schedule||rd.hour||'') === normSchedule;
-                        if (rdDateOk && rdSchedOk) {
-                            const s = _extractSlotNum(rd);
-                            console.log('[AddManual] reg na data+hora: slot=', s, 'team=', rd.teamName, 'eventType=', rd.eventType, 'schedule=', rd.schedule);
-                            if (s > maxSlot) maxSlot = s;
-                        }
-                        // Contar registros do mesmo email para sufixo automático
-                        if (clientEmail && (rd.email || '').trim().toLowerCase() === clientEmail) {
-                            const rdBase = (rd.teamName || '').trim()
-                                .replace(/\s+[B-Z]$/i, '')
-                                .toLowerCase().replace(/\s+/g, ' ');
-                            if (rdBase === baseNorm) sameCount++;
-                        }
-                    });
-                    // Atualizar slotCounters atomicamente (previne colisão com PIX/tokens simultâneos)
+                    // Usa fetchRegistrationsByDate — mesma função do board (já funciona corretamente)
+                    // Os parâmetros espelham o que loadBoard passa: evFieldType, ovEventType, rawEventId
+                    const _selOpt = typeEl?.selectedOptions?.[0];
+                    const _rawDocId = (_selOpt?.dataset?.rawEventId || typeEl?.value || '').trim();
+                    const _evField = (_selOpt?.dataset?.evFieldType || eventType).trim();
+                    const _occMap = await fetchRegistrationsByDate(date, _evField, eventType, _rawDocId);
+                    // Converte normSchedule ("20h") para chave do mapa ("20:00")
+                    const _hNum = parseInt(String(schedule||'').match(/(\d{1,2})/)?.[1]||'0', 10);
+                    const _hKey = String(_hNum).padStart(2,'0') + ':00';
+                    const existingCount = _occMap[_hKey] || 0;
+                    // Atualizar slotCounters atomicamente
                     const counterRef = _doc(window.firebaseDb, 'slotCounters', eventType);
                     await _runTx(window.firebaseDb, async (tx) => {
                         const counterDoc = await tx.get(counterRef);
                         const counts = counterDoc.exists() ? { ...counterDoc.data() } : {};
                         let fromCounter = Number(counts[normSchedule]) || 0;
-                        // Fallback: varrer chaves normalizadas para encontrar o horário
                         if (!fromCounter) {
                             for (const [k, v] of Object.entries(counts)) {
                                 if (_normH(k) === normSchedule) fromCounter = Math.max(fromCounter, Number(v) || 0);
                             }
                         }
-                        // Fonte de verdade: o maior entre registrations reais e o contador
-                        // (registrations nunca volta a zero — garante sequência correta)
-                        const current = Math.max(fromCounter, maxSlot);
+                        // existingCount = times confirmadas hoje neste horário (fonte confiável)
+                        const current = Math.max(fromCounter, existingCount);
                         nextSlot = current + 1;
                         counts[normSchedule] = current + 1;
-                        console.log('[AddManual] fromCounter=', fromCounter, 'maxSlot(regs)=', maxSlot, 'nextSlot=', nextSlot);
                         tx.set(counterRef, counts, { merge: true });
                     });
+                    // Sufixo automático para mesmo email/team (ex: "Time Freitas B")
+                    const baseNorm = teamName.trim().toLowerCase().replace(/\s+/g, ' ');
+                    let sameCount = 0;
+                    // Busca todos os registros do email para contar duplicatas (sem filtro de data)
+                    if (clientEmail) {
+                        try {
+                            const _emailSnap = await _gd(_q(collection(window.firebaseDb,'registrations'),
+                                _w('email','==',clientEmail)));
+                            _emailSnap.forEach(d => {
+                                const rd = d.data();
+                                const rdBase = (rd.teamName||'').trim().replace(/\s+[B-Z]$/i,'').toLowerCase().replace(/\s+/g,' ');
+                                if (rdBase === baseNorm) sameCount++;
+                            });
+                        } catch(_) {}
+                    }
                     if (sameCount > 0) {
                         finalTeamName = teamName.trim() + ' ' + String.fromCharCode(65 + sameCount);
                     }
                 } catch(_) {
-                    // Fallback direto: conta registros na data+horário sem transação
+                    // Fallback: usa contagem direta sem transação
                     try {
-                        const normSchedule2 = _normH(schedule);
-                        const _rawDropdown2 = (typeEl?.value || '').trim();
-                        const _typesSet2 = new Set([
-                            eventType, _rawDropdown2,
-                            ...(typeof resolveAliases === 'function' ? resolveAliases(eventType) : [])
-                        ].filter(Boolean));
-                        const _allRegMap2 = new Map();
-                        await Promise.all([..._typesSet2].map(async t => {
-                            try {
-                                const s = await _gd(_q(collection(window.firebaseDb,'registrations'), _w('eventType','==',t)));
-                                s.forEach(d => _allRegMap2.set(d.id, d));
-                            } catch(_) {}
-                        }));
-                        let maxSlot2 = 0;
-                        _allRegMap2.forEach(d => {
-                            const rd = d.data();
-                            const rdDateOk2 = !date || !rd.date || rd.date === date;
-                            const rdSchedOk2 = _normH(rd.schedule||rd.hour||'') === normSchedule2;
-                            if (rdDateOk2 && rdSchedOk2) {
-                                let s = Number(rd.slot ?? rd.slotNumber) || 0;
-                                if (!s && rd.slotDisplay) {
-                                    const _sr = String(rd.slotDisplay).replace(/^Vaga\s*/i,'').trim();
-                                    if (/^[A-Za-z]$/.test(_sr)) s = _sr.toUpperCase().charCodeAt(0) - 64;
-                                    else { const _sn = parseInt(_sr.replace(/^#/,''), 10); if (!isNaN(_sn)) s = _sn; }
-                                }
-                                if (s > maxSlot2) maxSlot2 = s;
-                            }
-                        });
-                        nextSlot = maxSlot2 + 1;
+                        const _selOpt2 = typeEl?.selectedOptions?.[0];
+                        const _rawDocId2 = (_selOpt2?.dataset?.rawEventId || typeEl?.value || '').trim();
+                        const _evField2 = (_selOpt2?.dataset?.evFieldType || eventType).trim();
+                        const _occMap2 = await fetchRegistrationsByDate(date, _evField2, eventType, _rawDocId2);
+                        const _hNum2 = parseInt(String(schedule||'').match(/(\d{1,2})/)?.[1]||'0', 10);
+                        const _hKey2 = String(_hNum2).padStart(2,'0') + ':00';
+                        nextSlot = (_occMap2[_hKey2] || 0) + 1;
                     } catch(_2) {}
                 }
             }
