@@ -1197,8 +1197,15 @@ window.showWarningToast = function(message, title = 'Atenção') {
             if (eventType && schedule && schedule !== '—') {
                 try {
                     const normSchedule = _normH(schedule);
-                    // 1. Ler registrations (fonte de verdade para slot máximo real e duplicatas)
-                    const _snap = await _gd(_q(collection(window.firebaseDb,'registrations'), _w('eventType','==',eventType)));
+                    // 1. Ler registrations por TODAS as variantes do eventType (mesma lógica de openEventSlotsModal)
+                    const _typesSet = new Set([eventType, ...(resolveAliases ? resolveAliases(eventType) : [])].filter(Boolean));
+                    const _allRegMap = new Map();
+                    await Promise.all([..._typesSet].map(async t => {
+                        try {
+                            const s = await _gd(_q(collection(window.firebaseDb,'registrations'), _w('eventType','==',t)));
+                            s.forEach(d => _allRegMap.set(d.id, d));
+                        } catch(_) {}
+                    }));
                     let maxSlot = 0;
                     let sameCount = 0;
                     const baseNorm = teamName.trim().toLowerCase().replace(/\s+/g, ' ');
@@ -1212,7 +1219,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
                         }
                         return 0;
                     };
-                    _snap.forEach(d => {
+                    _allRegMap.forEach(d => {
                         const rd = d.data();
                         if (_normH(rd.schedule||'') === normSchedule) {
                             const s = _extractSlotNum(rd);
@@ -1253,12 +1260,19 @@ window.showWarningToast = function(message, title = 'Atenção') {
                         finalTeamName = teamName.trim() + ' ' + String.fromCharCode(65 + sameCount);
                     }
                 } catch(_) {
-                    // Fallback sem transação: usa apenas registrations
+                    // Fallback sem transação: usa apenas registrations (múltiplas variantes)
                     try {
                         const normSchedule2 = _normH(schedule);
-                        const _snap2 = await _gd(_q(collection(window.firebaseDb,'registrations'), _w('eventType','==',eventType)));
+                        const _typesSet2 = new Set([eventType, ...(resolveAliases ? resolveAliases(eventType) : [])].filter(Boolean));
+                        const _allRegMap2 = new Map();
+                        await Promise.all([..._typesSet2].map(async t => {
+                            try {
+                                const s = await _gd(_q(collection(window.firebaseDb,'registrations'), _w('eventType','==',t)));
+                                s.forEach(d => _allRegMap2.set(d.id, d));
+                            } catch(_) {}
+                        }));
                         let maxSlot2 = 0;
-                        _snap2.forEach(d => {
+                        _allRegMap2.forEach(d => {
                             const rd = d.data();
                             if (_normH(rd.schedule||'') === normSchedule2) {
                                 let s = Number(rd.slot ?? rd.slotNumber) || 0;
