@@ -1205,47 +1205,53 @@ window.showWarningToast = function(message, title = 'Atenção') {
                     if (_es.exists() && _es.data().eventType) _rawEvType = _es.data().eventType;
                 } catch(_) {}
 
-                // Ler slotCounters com TODAS as chaves possíveis — pegar o maior valor
-                const _keysToTry = [...new Set([_rawEvType, eventType, _rawDocId].filter(Boolean))];
+                // Ler TODOS os docs de slotCounters — pegar o maior valor para normSchedule
+                // (abordagem bruta: não depende de saber a chave certa)
                 let _maxFromCounter = 0;
-                for (const _k of _keysToTry) {
-                    try {
-                        const _cs = await _gd1(_doc(window.firebaseDb, 'slotCounters', _k));
-                        if (_cs.exists()) {
-                            for (const [ck, cv] of Object.entries(_cs.data())) {
-                                if (_normH(ck) === normSchedule) _maxFromCounter = Math.max(_maxFromCounter, Number(cv)||0);
+                let _counterDocUsed = '';
+                try {
+                    const _allCounters = await _gd(collection(window.firebaseDb, 'slotCounters'));
+                    _allCounters.forEach(d => {
+                        for (const [ck, cv] of Object.entries(d.data())) {
+                            if (_normH(ck) === normSchedule && Number(cv) > _maxFromCounter) {
+                                _maxFromCounter = Number(cv);
+                                _counterDocUsed = d.id;
                             }
                         }
-                    } catch(_) {}
-                }
-
-                // Ler registrations com rawEvType para pegar max slot real
-                // (inclui todos os status — evita colisão com pending/confirmados)
-                let _maxFromRegs = 0;
-                try {
-                    const _rs = await _gd(_q(collection(window.firebaseDb,'registrations'), _w('eventType','==',_rawEvType)));
-                    _rs.forEach(d => {
-                        const rd = d.data();
-                        if (_normH(rd.schedule||rd.hour||'') !== normSchedule) return;
-                        // slot pode ser null para modo-liga — ler de slotDisplay
-                        let s = Number(rd.slot ?? rd.slotNumber) || 0;
-                        if (!s && rd.slotDisplay) {
-                            const _sr = String(rd.slotDisplay).replace(/^Vaga\s*/i,'').trim();
-                            if (/^[A-Za-z]$/.test(_sr)) s = _sr.toUpperCase().charCodeAt(0) - 64;
-                            else { const _sn = parseInt(_sr.replace(/^#/,''),10); if(!isNaN(_sn)) s=_sn; }
-                        }
-                        if (s > _maxFromRegs) _maxFromRegs = s;
                     });
                 } catch(_) {}
+
+                // Ler registrations com rawEvType + também com eventType canônico
+                let _maxFromRegs = 0;
+                const _regTypes = [...new Set([_rawEvType, eventType].filter(Boolean))];
+                const _regMap = new Map();
+                for (const _rt of _regTypes) {
+                    try {
+                        const _rs = await _gd(_q(collection(window.firebaseDb,'registrations'), _w('eventType','==',_rt)));
+                        _rs.forEach(d => _regMap.set(d.id, d));
+                    } catch(_) {}
+                }
+                _regMap.forEach(d => {
+                    const rd = d.data();
+                    if (_normH(rd.schedule||rd.hour||'') !== normSchedule) return;
+                    let s = Number(rd.slot ?? rd.slotNumber) || 0;
+                    if (!s && rd.slotDisplay) {
+                        const _sr = String(rd.slotDisplay).replace(/^Vaga\s*/i,'').trim();
+                        if (/^[A-Za-z]$/.test(_sr)) s = _sr.toUpperCase().charCodeAt(0) - 64;
+                        else { const _sn = parseInt(_sr.replace(/^#/,''),10); if(!isNaN(_sn)) s=_sn; }
+                    }
+                    if (s > _maxFromRegs) _maxFromRegs = s;
+                });
 
                 // Próximo slot = maior entre counter e registrations + 1
                 nextSlot = Math.max(_maxFromCounter, _maxFromRegs) + 1;
 
-                // Atualizar counter na chave correta (sem transação — admin add é infrequente)
+                // Atualizar counter na chave usada (ou rawEvType como fallback)
+                const _writeKey = _counterDocUsed || _rawEvType || eventType;
                 try {
-                    const _cRef = _doc(window.firebaseDb, 'slotCounters', _rawEvType);
-                    const _cSnap = await _gd1(_cRef);
                     const { setDoc: _sDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+                    const _cRef = _doc(window.firebaseDb, 'slotCounters', _writeKey);
+                    const _cSnap = await _gd1(_cRef);
                     const _cData = _cSnap.exists() ? { ..._cSnap.data() } : {};
                     _cData[normSchedule] = Math.max(Number(_cData[normSchedule])||0, nextSlot);
                     await _sDoc(_cRef, _cData, { merge: true });
@@ -1276,11 +1282,12 @@ window.showWarningToast = function(message, title = 'Atenção') {
                 ? `Vaga ${String.fromCharCode(64 + nextSlot)}`
                 : `Vaga #${nextSlot}`;
             await addDoc(collection(window.firebaseDb,'registrations'), { ...payload, createdAt: serverTimestamp() });
-            const notifMsg = clientUserId
+            const _diagMsg = `[DIAG] tipo=${payload.eventType||'?'} | horário=${schedule}→${_normH(schedule)||'?'} | counter=${typeof _maxFromCounter!=='undefined'?_maxFromCounter:'?'} | regs=${typeof _maxFromRegs!=='undefined'?_maxFromRegs:'?'} | slot=${nextSlot} | display=${payload.slotDisplay}`;
+            const notifMsg = (clientUserId
               ? 'Time adicionado! O cliente receberá notificações de ID/senha.'
               : clientEmail
                 ? 'Time adicionado. ⚠️ E-mail não encontrado — cliente não receberá notificações.'
-                : 'Time adicionado com sucesso!';
+                : 'Time adicionado com sucesso!') + ' ' + _diagMsg;
             if (msgEl) msgEl.textContent = notifMsg;
             // limpar campos
             if (teamEl) teamEl.value = '';
