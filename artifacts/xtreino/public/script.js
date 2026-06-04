@@ -7635,7 +7635,7 @@ async function submitSchedule(e, useTokens = false) {
                 for (const team of teamsData) {
                     mpSlotCount[p.schedule] = (mpSlotCount[p.schedule] || 0) + 1;
                     const slotNum = mpSlotCount[p.schedule];
-                    const slotDisplay = computeSlotDisplay(slotNum, mpVagas, mpGrupos, mpIsLiga);
+                    const slotDisplay = computeSlotDisplay(slotNum, mpVagas, mpGrupos, mpIsLiga, rawEventType);
                     _regPayloads.push({
                         _meta: { team: team.name, slotNum, slotDisplay, schedule: p.schedule, date: p.d, whatsappLink: p.whatsappLink },
                         userId: window.firebaseAuth.currentUser.uid,
@@ -7951,8 +7951,12 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts) {
 }
 
 // ===== Helper: calcula o texto do slot (Vaga #N ou Grupo X • Vaga Y) =====
-function computeSlotDisplay(slotNumber, vagas, grupos, isLiga) {
+function computeSlotDisplay(slotNumber, vagas, grupos, isLiga, eventType = '') {
     if (isLiga) return null;
+    // Modo Liga: exibir letra (A, B, C...) em vez de número
+    if (String(eventType).toLowerCase() === 'modo-liga') {
+        return `Vaga ${String.fromCharCode(64 + slotNumber)}`;
+    }
     const slotsPerGroup = grupos > 1 ? Math.ceil(vagas / grupos) : vagas;
     if (vagas > 0 && grupos > 1 && slotsPerGroup > 0) {
         const groupNum = Math.ceil(slotNumber / slotsPerGroup);
@@ -8064,7 +8068,9 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
 
                     let slotDisplay = null;
                     if (!isLiga) {
-                        if (vagas > 0 && grupos > 1 && slotsPerGroup > 0) {
+                        if (rawEventType === 'modo-liga') {
+                            slotDisplay = `Vaga ${String.fromCharCode(64 + slotNumber)}`;
+                        } else if (vagas > 0 && grupos > 1 && slotsPerGroup > 0) {
                             const groupNum = Math.ceil(slotNumber / slotsPerGroup);
                             const posInGroup = slotNumber - (groupNum - 1) * slotsPerGroup;
                             slotDisplay = `Grupo ${groupNum} • Vaga ${posInGroup}`;
@@ -8900,7 +8906,7 @@ async function createRegistrationsForEvent(eventType, datesToUse, teamsData, tim
             for (let team of teamsData) {
                 slotCount[schedule] = (slotCount[schedule] || 0) + 1;
                 const slotNum = slotCount[schedule];
-                const slotDisplay = computeSlotDisplay(slotNum, vagas, grupos, isLiga);
+                const slotDisplay = computeSlotDisplay(slotNum, vagas, grupos, isLiga, eventType);
 
                 // Sufixo automático: mesmo nome + mesmo e-mail + mesmo horário → B, C, D...
                 // (times em horários DIFERENTES podem usar o mesmo nome sem sufixo)
