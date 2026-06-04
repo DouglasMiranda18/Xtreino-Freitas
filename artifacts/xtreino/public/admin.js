@@ -1182,8 +1182,8 @@ window.showWarningToast = function(message, title = 'Atenção') {
             listingType: isFreeSlot ? 'free' : 'paid'
           };
           try{
-            const { collection, addDoc, serverTimestamp, query: _q, where: _w, getDocs: _gd } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-            // Calcular próximo slot sequencial (unificado com PIX/tokens)
+            const { collection, addDoc, serverTimestamp, query: _q, where: _w, getDocs: _gd, doc: _doc, runTransaction: _runTx } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            // Calcular próximo slot sequencial (unificado com PIX/tokens via transação atômica)
             const _normH = s => {
                 const str = String(s||'').trim();
                 const mColon = str.match(/(\d{1,2}):(\d{2})/);
@@ -1197,32 +1197,67 @@ window.showWarningToast = function(message, title = 'Atenção') {
             if (eventType && schedule && schedule !== '—') {
                 try {
                     const normSchedule = _normH(schedule);
+                    // 1. Ler registrations (fonte de verdade para slot máximo real e duplicatas)
                     const _snap = await _gd(_q(collection(window.firebaseDb,'registrations'), _w('eventType','==',eventType)));
                     let maxSlot = 0;
                     let sameCount = 0;
-                    // Nome base normalizado — ignora sufixo " B", " C"... caso já exista
                     const baseNorm = teamName.trim().toLowerCase().replace(/\s+/g, ' ');
                     _snap.forEach(d => {
                         const rd = d.data();
-                        // Contagem de slot (mesma lógica anterior)
                         if (_normH(rd.schedule||'') === normSchedule) {
                             const s = Number(rd.slot ?? rd.slotNumber) || 0;
                             if (s > maxSlot) maxSlot = s;
                         }
-                        // Contagem de duplicatas: mesmo e-mail + mesmo nome base no evento
                         if (clientEmail && (rd.email || '').trim().toLowerCase() === clientEmail) {
                             const rdBase = (rd.teamName || '').trim()
-                                .replace(/\s+[B-Z]$/i, '') // strip sufixo
+                                .replace(/\s+[B-Z]$/i, '')
                                 .toLowerCase().replace(/\s+/g, ' ');
                             if (rdBase === baseNorm) sameCount++;
                         }
                     });
-                    nextSlot = maxSlot + 1;
+                    // 2. Transação atômica no slotCounters (mesma lógica de allocateSlotsFromDB)
+                    //    Previne colisão quando PIX/tokens e admin operam simultaneamente
+                    const counterRef = _doc(window.firebaseDb, 'slotCounters', eventType);
+                    await _runTx(window.firebaseDb, async (tx) => {
+                        const counterDoc = await tx.get(counterRef);
+                        const counts = counterDoc.exists() ? { ...counterDoc.data() } : {};
+                        // Ler contador pelo normSchedule (novo padrão) com fallback para chaves legadas
+                        let fromCounter = Number(counts[normSchedule]) || 0;
+                        if (!fromCounter) {
+                            // Fallback: varrer chaves e normalizar para encontrar o horário
+                            for (const [k, v] of Object.entries(counts)) {
+                                if (_normH(k) === normSchedule) {
+                                    fromCounter = Math.max(fromCounter, Number(v) || 0);
+                                }
+                            }
+                        }
+                        const fromRegs = maxSlot;
+                        // Se não há inscrições reais, reiniciar contador obsoleto
+                        const current = fromRegs === 0 ? 0 : Math.max(fromCounter, fromRegs);
+                        nextSlot = current + 1;
+                        counts[normSchedule] = current + 1;
+                        tx.set(counterRef, counts, { merge: true });
+                    });
                     // Sufixo: 1 existente → " B", 2 → " C", 3 → " D", etc.
                     if (sameCount > 0) {
                         finalTeamName = teamName.trim() + ' ' + String.fromCharCode(65 + sameCount);
                     }
-                } catch(_) {}
+                } catch(_) {
+                    // Fallback sem transação: usa apenas registrations
+                    try {
+                        const normSchedule2 = _normH(schedule);
+                        const _snap2 = await _gd(_q(collection(window.firebaseDb,'registrations'), _w('eventType','==',eventType)));
+                        let maxSlot2 = 0;
+                        _snap2.forEach(d => {
+                            const rd = d.data();
+                            if (_normH(rd.schedule||'') === normSchedule2) {
+                                const s = Number(rd.slot ?? rd.slotNumber) || 0;
+                                if (s > maxSlot2) maxSlot2 = s;
+                            }
+                        });
+                        nextSlot = maxSlot2 + 1;
+                    } catch(_2) {}
+                }
             }
             payload.teamName = finalTeamName;
             payload.slot = nextSlot;
