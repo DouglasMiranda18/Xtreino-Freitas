@@ -1233,8 +1233,8 @@ window.showWarningToast = function(message, title = 'Atenção') {
                         _rs.forEach(d => _regMap.set(d.id, d));
                     } catch(_) {}
                 }
-                // Mesmos filtros do board: data exata + status visível no board
-                const _boardStatuses = new Set(['paid','confirmed','approved','pending']);
+                // Mesmos filtros do board: data exata + status da view "Equipes Inscritas por Horário"
+                const _boardStatuses = new Set(['paid','confirmed','approved']);
                 _regMap.forEach(d => {
                     const rd = d.data();
                     if (rd.date !== date) return;                            // data deve bater (exato)
