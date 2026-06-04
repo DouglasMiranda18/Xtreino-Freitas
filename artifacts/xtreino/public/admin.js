@@ -11713,13 +11713,37 @@ async function openEventNotifyModal(eventId, eventName) {
     modal.classList.add('flex');
 
     try {
-        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const snap = await getDocs(query(
-            collection(window.firebaseDb, 'registrations'),
-            where('eventType', '==', eventId)
-        ));
+        const { collection, query, where, getDocs, doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+        // Construir conjunto completo de variantes do eventType para encontrar todas as inscrições
+        // (MP salva com aliases diferentes do d.id — ex: 'liga', 'modo liga', 'modo-liga', UUID do doc)
+        const _notifyTypes = new Set([eventId]);
+        try {
+            const _evSnap = await getDoc(doc(window.firebaseDb, 'adminEvents', eventId));
+            if (_evSnap.exists()) {
+                const _evData = _evSnap.data();
+                if (_evData.eventType) _notifyTypes.add(_evData.eventType);
+                if (_evData.name)      _notifyTypes.add(_evData.name);
+            }
+        } catch(_) {}
+        // Adicionar canônico e aliases via resolveAliases
+        [..._notifyTypes].forEach(t => {
+            try { resolveAliases(t).forEach(a => { if (a) _notifyTypes.add(a); }); } catch(_) {}
+        });
+
+        // Buscar registrações por cada variante e mesclar (deduplicando por doc.id)
+        const _docsMap = new Map();
         const validStatuses = new Set(['confirmed', 'paid', 'approved']);
-        _notifyEventDocs = snap.docs.filter(d => validStatuses.has(d.data().status));
+        for (const _et of _notifyTypes) {
+            try {
+                const snap = await getDocs(query(
+                    collection(window.firebaseDb, 'registrations'),
+                    where('eventType', '==', _et)
+                ));
+                snap.docs.forEach(d => { if (!_docsMap.has(d.id)) _docsMap.set(d.id, d); });
+            } catch(_) {}
+        }
+        _notifyEventDocs = [..._docsMap.values()].filter(d => validStatuses.has(d.data().status));
 
         // Normaliza horário: "Terça - 22h", "22:00", "22h" → "22h"
         const _normSchedH = s => {
