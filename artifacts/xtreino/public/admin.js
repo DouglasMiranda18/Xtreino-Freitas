@@ -1262,7 +1262,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
             payload.teamName = finalTeamName;
             payload.slot = nextSlot;
             payload.slotNumber = nextSlot;
-            payload.slotDisplay = `Vaga #${nextSlot}`;
+            payload.slotDisplay = eventType === 'modo-liga'
+                ? `Vaga ${String.fromCharCode(64 + nextSlot)}`
+                : `Vaga #${nextSlot}`;
             await addDoc(collection(window.firebaseDb,'registrations'), { ...payload, createdAt: serverTimestamp() });
             const notifMsg = clientUserId
               ? 'Time adicionado! O cliente receberá notificações de ID/senha.'
@@ -12196,9 +12198,11 @@ async function openEventSlotsModal(eventId, eventName) {
                     </thead>
                     <tbody>
                         ${regs.map((r, idx) => {
-                            // Exibir posição (1, 2, 3…) dentro do grupo data+horário,
+                            // Exibir posição dentro do grupo data+horário,
                             // igual ao que o cliente vê — independente do slotNumber armazenado
-                            const slotLabel = `Vaga #${idx + 1}`;
+                            const slotLabel = eventId === 'modo-liga'
+                                ? `Vaga ${String.fromCharCode(64 + idx + 1)}`
+                                : `Vaga #${idx + 1}`;
                             const st = r.status || 'pending';
                             const leaderName = r.leaderName && r.leaderName !== r.teamName ? r.leaderName : null;
                             const nomeArq = (r.teamName || 'time').replace(/[^a-zA-Z0-9]/g,'_');
@@ -12332,7 +12336,9 @@ async function repairEventSlots() {
             semSlot.forEach(entry => {
                 maxSlot++;
                 const newSlot = maxSlot;
-                const newSlotDisplay = `Vaga #${newSlot}`;
+                const newSlotDisplay = eventId === 'modo-liga'
+                    ? `Vaga ${String.fromCharCode(64 + newSlot)}`
+                    : `Vaga #${newSlot}`;
                 batch.update(doc(window.firebaseDb, 'registrations', entry.id), {
                     slot: newSlot,
                     slotNumber: newSlot,
