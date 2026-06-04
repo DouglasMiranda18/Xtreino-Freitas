@@ -538,8 +538,8 @@ async function loadInscritos(evId) {
             return _diasSemana[new Date(dateStr + 'T12:00:00').getDay()];
         };
 
-        // Mesmos status da fonte de verdade (Horários → Gerenciamento)
-        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
+        // Apenas inscrições confirmadas/pagas (sem pendentes)
+        const validStatuses = new Set(['confirmed', 'paid', 'approved']);
         const valid = allDocs.filter(d => validStatuses.has(d.data().status));
 
         if (valid.length === 0) {
