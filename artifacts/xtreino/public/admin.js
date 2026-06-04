@@ -1202,10 +1202,20 @@ window.showWarningToast = function(message, title = 'Atenção') {
                     let maxSlot = 0;
                     let sameCount = 0;
                     const baseNorm = teamName.trim().toLowerCase().replace(/\s+/g, ' ');
+                    const _extractSlotNum = rd => {
+                        if (rd.slot != null || rd.slotNumber != null) return Number(rd.slot ?? rd.slotNumber) || 0;
+                        // modo-liga: "Vaga A"→1, "Vaga B"→2, "Vaga #3"→3
+                        if (rd.slotDisplay) {
+                            const _sr = String(rd.slotDisplay).replace(/^Vaga\s*/i,'').trim();
+                            if (/^[A-Za-z]$/.test(_sr)) return _sr.toUpperCase().charCodeAt(0) - 64;
+                            const _sn = parseInt(_sr.replace(/^#/,''), 10); if (!isNaN(_sn)) return _sn;
+                        }
+                        return 0;
+                    };
                     _snap.forEach(d => {
                         const rd = d.data();
                         if (_normH(rd.schedule||'') === normSchedule) {
-                            const s = Number(rd.slot ?? rd.slotNumber) || 0;
+                            const s = _extractSlotNum(rd);
                             if (s > maxSlot) maxSlot = s;
                         }
                         if (clientEmail && (rd.email || '').trim().toLowerCase() === clientEmail) {
@@ -1251,7 +1261,12 @@ window.showWarningToast = function(message, title = 'Atenção') {
                         _snap2.forEach(d => {
                             const rd = d.data();
                             if (_normH(rd.schedule||'') === normSchedule2) {
-                                const s = Number(rd.slot ?? rd.slotNumber) || 0;
+                                let s = Number(rd.slot ?? rd.slotNumber) || 0;
+                                if (!s && rd.slotDisplay) {
+                                    const _sr = String(rd.slotDisplay).replace(/^Vaga\s*/i,'').trim();
+                                    if (/^[A-Za-z]$/.test(_sr)) s = _sr.toUpperCase().charCodeAt(0) - 64;
+                                    else { const _sn = parseInt(_sr.replace(/^#/,''), 10); if (!isNaN(_sn)) s = _sn; }
+                                }
                                 if (s > maxSlot2) maxSlot2 = s;
                             }
                         });
