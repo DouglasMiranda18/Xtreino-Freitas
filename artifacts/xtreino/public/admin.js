@@ -1192,103 +1192,22 @@ window.showWarningToast = function(message, title = 'Atenção') {
                 if (mH) return parseInt(mH[1],10)+'h';
                 return str;
             };
-            let nextSlot = 1;
-            let finalTeamName = teamName;
-            let _maxFromCounter = 0, _maxFromRegs = 0, _diagRawEvType = '', _diagNorm = '';
-            if (eventType && schedule && schedule !== '—') {
-                const normSchedule = _normH(schedule);
-                _diagNorm = normSchedule;
-                const _rawDocId = (typeEl?.selectedOptions?.[0]?.dataset?.rawEventId || typeEl?.value || '').trim();
-
-                // Obter rawEvType — valor exato que MP usa (lê adminEvents doc diretamente)
-                let _rawEvType = _rawDocId;
-                try {
-                    const _es = await _gd1(_doc(window.firebaseDb, 'adminEvents', _rawDocId));
-                    if (_es.exists() && _es.data().eventType) _rawEvType = _es.data().eventType;
-                } catch(_) {}
-                _diagRawEvType = _rawEvType;
-
-                // Ler TODOS os docs de slotCounters — pegar o maior valor para normSchedule
-                // (abordagem bruta: não depende de saber a chave certa)
-                let _counterDocUsed = '';
-                try {
-                    const _allCounters = await _gd(collection(window.firebaseDb, 'slotCounters'));
-                    _allCounters.forEach(d => {
-                        for (const [ck, cv] of Object.entries(d.data())) {
-                            if (_normH(ck) === normSchedule && Number(cv) > _maxFromCounter) {
-                                _maxFromCounter = Number(cv);
-                                _counterDocUsed = d.id;
-                            }
-                        }
-                    });
-                } catch(_) {}
-
-                // Ler registrations com rawEvType + docId + eventType canônico
-                // MP pode ter salvado com o UUID do doc (antes de eventType existir no adminEvents)
-                const _regTypes = [...new Set([_rawEvType, _rawDocId, eventType].filter(Boolean))];
-                const _regMap = new Map();
-                for (const _rt of _regTypes) {
-                    try {
-                        const _rs = await _gd(_q(collection(window.firebaseDb,'registrations'), _w('eventType','==',_rt)));
-                        _rs.forEach(d => _regMap.set(d.id, d));
-                    } catch(_) {}
-                }
-                // Mesmos filtros do board: data exata + status da view "Equipes Inscritas por Horário"
-                const _boardStatuses = new Set(['paid','confirmed','approved']);
-                _regMap.forEach(d => {
-                    const rd = d.data();
-                    if (rd.date !== date) return;                            // data deve bater (exato)
-                    if (!_boardStatuses.has(rd.status)) return;              // só statuses do board
-                    if (_normH(rd.schedule||rd.hour||'') !== normSchedule) return;
-                    let s = Number(rd.slot ?? rd.slotNumber) || 0;
-                    if (!s && rd.slotDisplay) {
-                        const _sr = String(rd.slotDisplay).replace(/^Vaga\s*/i,'').trim();
-                        if (/^[A-Za-z]$/.test(_sr)) s = _sr.toUpperCase().charCodeAt(0) - 64;
-                        else { const _sn = parseInt(_sr.replace(/^#/,''),10); if(!isNaN(_sn)) s=_sn; }
-                    }
-                    if (s > _maxFromRegs) _maxFromRegs = s;
-                });
-
-                // Próximo slot = baseado nos times REAIS existentes no banco (ignora counter inflado)
-                // Counter pode estar inflado por inscrições canceladas/deletadas — não é fonte de verdade
-                nextSlot = _maxFromRegs + 1;
-
-                // Corrigir o counter para o valor atual real (sincroniza MP com realidade do board)
-                const _writeKey = _counterDocUsed || _rawEvType || eventType;
-                try {
-                    const { setDoc: _sDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-                    const _cRef = _doc(window.firebaseDb, 'slotCounters', _writeKey);
-                    const _cSnap = await _gd1(_cRef);
-                    const _cData = _cSnap.exists() ? { ..._cSnap.data() } : {};
-                    // Corrigir: usa nextSlot como novo valor (não max, para limpar inflation)
-                    _cData[normSchedule] = nextSlot;
-                    await _sDoc(_cRef, _cData, { merge: true });
-                } catch(_) {}
-
-                // Payload usa rawEvType para consistência com MP (allocateSlotsFromDB pode achar)
-                payload.eventType = _rawEvType;
-
-                // Sufixo automático de nome para mesmo email (ex: "Time B")
-                const baseNorm = teamName.trim().toLowerCase().replace(/\s+/g,' ');
-                let sameCount = 0;
-                try {
-                    const _emailSnap = clientEmail
-                        ? await _gd(_q(collection(window.firebaseDb,'registrations'), _w('email','==',clientEmail)))
-                        : null;
-                    _emailSnap?.forEach(d => {
-                        const rd = d.data();
-                        const rdBase = (rd.teamName||'').trim().replace(/\s+[B-Z]$/i,'').toLowerCase().replace(/\s+/g,' ');
-                        if (rdBase === baseNorm) sameCount++;
-                    });
-                } catch(_) {}
-                if (sameCount > 0) finalTeamName = teamName.trim() + ' ' + String.fromCharCode(65 + sameCount);
-            }
-            payload.teamName = finalTeamName;
+            // slot = timestamp em segundos — garante que aparece por último na ordenação do board
+            // (MP usa 1, 2, 3... então timestamp sempre é maior)
+            // O board atribui letras A, B, C... automaticamente por posição (idx+1) — não depende de slotDisplay
+            const nextSlot = Math.floor(Date.now() / 1000);
+            // rawEvType para consistência com MP
+            const _rawDocId = (typeEl?.selectedOptions?.[0]?.dataset?.rawEventId || typeEl?.value || '').trim();
+            let _rawEvType = _rawDocId;
+            try {
+                const _evSnap = await _gd1(_doc(window.firebaseDb, 'adminEvents', _rawDocId));
+                if (_evSnap.exists() && _evSnap.data().eventType) _rawEvType = _evSnap.data().eventType;
+            } catch(_) {}
+            payload.eventType = _rawEvType || eventType || null;
+            payload.teamName = teamName;
             payload.slot = nextSlot;
             payload.slotNumber = nextSlot;
-            payload.slotDisplay = eventType === 'modo-liga'
-                ? `Vaga ${String.fromCharCode(64 + nextSlot)}`
-                : `Vaga #${nextSlot}`;
+            payload.slotDisplay = null;
             await addDoc(collection(window.firebaseDb,'registrations'), { ...payload, createdAt: serverTimestamp() });
             const notifMsg = clientUserId
               ? 'Time adicionado! O cliente receberá notificações de ID/senha.'
