@@ -1197,37 +1197,54 @@ window.showWarningToast = function(message, title = 'Atenção') {
             if (eventType && schedule && schedule !== '—') {
                 try {
                     const normSchedule = _normH(schedule);
-                    // Usa fetchRegistrationsByDate — mesma função do board (já funciona corretamente)
-                    // Os parâmetros espelham o que loadBoard passa: evFieldType, ovEventType, rawEventId
                     const _selOpt = typeEl?.selectedOptions?.[0];
-                    const _rawDocId = (_selOpt?.dataset?.rawEventId || typeEl?.value || '').trim();
-                    const _evField = (_selOpt?.dataset?.evFieldType || eventType).trim();
-                    const _occMap = await fetchRegistrationsByDate(date, _evField, eventType, _rawDocId);
-                    // Converte normSchedule ("20h") para chave do mapa ("20:00")
+                    // rawEventType = valor exato que o MP/tokens usa (ev.eventType || d.id)
+                    // CRÍTICO: este é o mesmo valor usado como chave em slotCounters e em r.eventType
+                    const _rawEvType = (_selOpt?.dataset?.rawEventType || typeEl?.value || '').trim();
+                    const _rawDocId  = (_selOpt?.dataset?.rawEventId   || typeEl?.value || '').trim();
+                    const _evField   = (_selOpt?.dataset?.evFieldType  || eventType).trim();
+
+                    // fetchRegistrationsByDate com rawEventType como tipo primário
+                    // (cobre registros salvos por MP/tokens que usam ev.eventType como r.eventType)
+                    const _occMap = await fetchRegistrationsByDate(date, _rawEvType, eventType, _rawDocId);
                     const _hNum = parseInt(String(schedule||'').match(/(\d{1,2})/)?.[1]||'0', 10);
                     const _hKey = String(_hNum).padStart(2,'0') + ':00';
                     const existingCount = _occMap[_hKey] || 0;
-                    // Atualizar slotCounters atomicamente
-                    const counterRef = _doc(window.firebaseDb, 'slotCounters', eventType);
-                    await _runTx(window.firebaseDb, async (tx) => {
-                        const counterDoc = await tx.get(counterRef);
-                        const counts = counterDoc.exists() ? { ...counterDoc.data() } : {};
-                        let fromCounter = Number(counts[normSchedule]) || 0;
-                        if (!fromCounter) {
-                            for (const [k, v] of Object.entries(counts)) {
-                                if (_normH(k) === normSchedule) fromCounter = Math.max(fromCounter, Number(v) || 0);
+
+                    // Ler slotCounters usando rawEventType (mesma chave que MP usa)
+                    // Também tenta chave canônica como fallback
+                    const _readCounter = async (tx, key) => {
+                        try {
+                            const snap = await tx.get(_doc(window.firebaseDb, 'slotCounters', key));
+                            if (!snap.exists()) return 0;
+                            const counts = snap.data();
+                            let v = Number(counts[normSchedule]) || 0;
+                            if (!v) {
+                                for (const [k, val] of Object.entries(counts)) {
+                                    if (_normH(k) === normSchedule) v = Math.max(v, Number(val) || 0);
+                                }
                             }
-                        }
-                        // existingCount = times confirmadas hoje neste horário (fonte confiável)
+                            return v;
+                        } catch(_) { return 0; }
+                    };
+
+                    // Transação na doc que MP usa (rawEventType)
+                    const counterRef = _doc(window.firebaseDb, 'slotCounters', _rawEvType);
+                    await _runTx(window.firebaseDb, async (tx) => {
+                        const fromCounter = await _readCounter(tx, _rawEvType);
+                        // existingCount = confirmadas hoje neste horário (via fetchRegistrationsByDate)
                         const current = Math.max(fromCounter, existingCount);
                         nextSlot = current + 1;
+                        // Escrever de volta na mesma doc que MP usa
+                        const counterDoc = await tx.get(counterRef);
+                        const counts = counterDoc.exists() ? { ...counterDoc.data() } : {};
                         counts[normSchedule] = current + 1;
                         tx.set(counterRef, counts, { merge: true });
                     });
-                    // Sufixo automático para mesmo email/team (ex: "Time Freitas B")
+
+                    // Sufixo automático para mesmo email/team (ex: "Team Freitas B")
                     const baseNorm = teamName.trim().toLowerCase().replace(/\s+/g, ' ');
                     let sameCount = 0;
-                    // Busca todos os registros do email para contar duplicatas (sem filtro de data)
                     if (clientEmail) {
                         try {
                             const _emailSnap = await _gd(_q(collection(window.firebaseDb,'registrations'),
@@ -1243,12 +1260,12 @@ window.showWarningToast = function(message, title = 'Atenção') {
                         finalTeamName = teamName.trim() + ' ' + String.fromCharCode(65 + sameCount);
                     }
                 } catch(_) {
-                    // Fallback: usa contagem direta sem transação
+                    // Fallback sem transação
                     try {
                         const _selOpt2 = typeEl?.selectedOptions?.[0];
-                        const _rawDocId2 = (_selOpt2?.dataset?.rawEventId || typeEl?.value || '').trim();
-                        const _evField2 = (_selOpt2?.dataset?.evFieldType || eventType).trim();
-                        const _occMap2 = await fetchRegistrationsByDate(date, _evField2, eventType, _rawDocId2);
+                        const _rawEvType2 = (_selOpt2?.dataset?.rawEventType || typeEl?.value || '').trim();
+                        const _rawDocId2  = (_selOpt2?.dataset?.rawEventId   || typeEl?.value || '').trim();
+                        const _occMap2 = await fetchRegistrationsByDate(date, _rawEvType2, eventType, _rawDocId2);
                         const _hNum2 = parseInt(String(schedule||'').match(/(\d{1,2})/)?.[1]||'0', 10);
                         const _hKey2 = String(_hNum2).padStart(2,'0') + ':00';
                         nextSlot = (_occMap2[_hKey2] || 0) + 1;
@@ -2901,6 +2918,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
         opt.dataset.rawEventId = d.id;
         // evFieldType = tipo canônico que o booking flow usa ao salvar em r.eventType
         opt.dataset.evFieldType = canon;
+        // rawEventType = valor exato que o MP/tokens usa como chave no slotCounters e em r.eventType
+        // CRÍTICO: espelha `rawEventType = ev.eventType || d.id` do script.js
+        opt.dataset.rawEventType = ev.eventType || d.id;
         typeEl.appendChild(opt);
       });
     } catch (err) {
