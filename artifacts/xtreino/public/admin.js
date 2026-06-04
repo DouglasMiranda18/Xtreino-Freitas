@@ -1223,8 +1223,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
                     });
                 } catch(_) {}
 
-                // Ler registrations com rawEvType + também com eventType canônico
-                const _regTypes = [...new Set([_rawEvType, eventType].filter(Boolean))];
+                // Ler registrations com rawEvType + docId + eventType canônico
+                // MP pode ter salvado com o UUID do doc (antes de eventType existir no adminEvents)
+                const _regTypes = [...new Set([_rawEvType, _rawDocId, eventType].filter(Boolean))];
                 const _regMap = new Map();
                 for (const _rt of _regTypes) {
                     try {
@@ -1285,7 +1286,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
                 ? `Vaga ${String.fromCharCode(64 + nextSlot)}`
                 : `Vaga #${nextSlot}`;
             await addDoc(collection(window.firebaseDb,'registrations'), { ...payload, createdAt: serverTimestamp() });
-            const _diagMsg = `[DIAG] tipo=${_diagRawEvType||payload.eventType||'?'} | horário=${schedule}→${_diagNorm||'?'} | counter=${_maxFromCounter} | regs=${_maxFromRegs} | slot=${nextSlot} | display=${payload.slotDisplay}`;
+            const _diagMsg = `[DIAG] tipo=${_diagRawEvType||payload.eventType||'?'} | horário=${schedule}→${_diagNorm||'?'} | counter=${_maxFromCounter} | regs=${_maxFromRegs} | slot=${nextSlot} | display=${payload.slotDisplay} | rawDocId=${(typeEl?.selectedOptions?.[0]?.dataset?.rawEventId||typeEl?.value||'').slice(-6)}`;
             const notifMsg = (clientUserId
               ? 'Time adicionado! O cliente receberá notificações de ID/senha.'
               : clientEmail
