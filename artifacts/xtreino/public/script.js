@@ -4827,7 +4827,7 @@ window.initSmoothAnimations = initSmoothAnimations;
 // --- Agendamento nativo (Firestore + Netlify Function) ---
 const scheduleConfig =
 {
-    'modo-liga': { label: 'XTreino Modo Liga', price: 3.00 },
+    'modo-liga': { label: 'XTreino Modo Liga', price: 3.00, vagas: 15 },
     'camp-freitas': { label: 'Camp Freitas', price: 8.00, startDate: '2026-01-12', allowedWeekdays: [1, 2, 3, 4, 5], slots: ['19h', '20h', '21h', '22h', '23h'] },
     'camp-final': { label: 'Vaga Direto na Final', price: 100.00 },
     'semanal-freitas': { label: 'Semanal Freitas', price: 3.50 },
