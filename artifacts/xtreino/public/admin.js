@@ -1244,17 +1244,19 @@ window.showWarningToast = function(message, title = 'Atenção') {
                     if (s > _maxFromRegs) _maxFromRegs = s;
                 });
 
-                // Próximo slot = maior entre counter e registrations + 1
-                nextSlot = Math.max(_maxFromCounter, _maxFromRegs) + 1;
+                // Próximo slot = baseado nos times REAIS existentes no banco (ignora counter inflado)
+                // Counter pode estar inflado por inscrições canceladas/deletadas — não é fonte de verdade
+                nextSlot = _maxFromRegs + 1;
 
-                // Atualizar counter na chave usada (ou rawEvType como fallback)
+                // Corrigir o counter para o valor atual real (sincroniza MP com realidade do board)
                 const _writeKey = _counterDocUsed || _rawEvType || eventType;
                 try {
                     const { setDoc: _sDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
                     const _cRef = _doc(window.firebaseDb, 'slotCounters', _writeKey);
                     const _cSnap = await _gd1(_cRef);
                     const _cData = _cSnap.exists() ? { ..._cSnap.data() } : {};
-                    _cData[normSchedule] = Math.max(Number(_cData[normSchedule])||0, nextSlot);
+                    // Corrigir: usa nextSlot como novo valor (não max, para limpar inflation)
+                    _cData[normSchedule] = nextSlot;
                     await _sDoc(_cRef, _cData, { merge: true });
                 } catch(_) {}
 
