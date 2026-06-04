@@ -1194,8 +1194,10 @@ window.showWarningToast = function(message, title = 'Atenção') {
             };
             let nextSlot = 1;
             let finalTeamName = teamName;
+            let _maxFromCounter = 0, _maxFromRegs = 0, _diagRawEvType = '', _diagNorm = '';
             if (eventType && schedule && schedule !== '—') {
                 const normSchedule = _normH(schedule);
+                _diagNorm = normSchedule;
                 const _rawDocId = (typeEl?.selectedOptions?.[0]?.dataset?.rawEventId || typeEl?.value || '').trim();
 
                 // Obter rawEvType — valor exato que MP usa (lê adminEvents doc diretamente)
@@ -1204,10 +1206,10 @@ window.showWarningToast = function(message, title = 'Atenção') {
                     const _es = await _gd1(_doc(window.firebaseDb, 'adminEvents', _rawDocId));
                     if (_es.exists() && _es.data().eventType) _rawEvType = _es.data().eventType;
                 } catch(_) {}
+                _diagRawEvType = _rawEvType;
 
                 // Ler TODOS os docs de slotCounters — pegar o maior valor para normSchedule
                 // (abordagem bruta: não depende de saber a chave certa)
-                let _maxFromCounter = 0;
                 let _counterDocUsed = '';
                 try {
                     const _allCounters = await _gd(collection(window.firebaseDb, 'slotCounters'));
@@ -1222,7 +1224,6 @@ window.showWarningToast = function(message, title = 'Atenção') {
                 } catch(_) {}
 
                 // Ler registrations com rawEvType + também com eventType canônico
-                let _maxFromRegs = 0;
                 const _regTypes = [...new Set([_rawEvType, eventType].filter(Boolean))];
                 const _regMap = new Map();
                 for (const _rt of _regTypes) {
@@ -1282,7 +1283,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
                 ? `Vaga ${String.fromCharCode(64 + nextSlot)}`
                 : `Vaga #${nextSlot}`;
             await addDoc(collection(window.firebaseDb,'registrations'), { ...payload, createdAt: serverTimestamp() });
-            const _diagMsg = `[DIAG] tipo=${payload.eventType||'?'} | horário=${schedule}→${_normH(schedule)||'?'} | counter=${typeof _maxFromCounter!=='undefined'?_maxFromCounter:'?'} | regs=${typeof _maxFromRegs!=='undefined'?_maxFromRegs:'?'} | slot=${nextSlot} | display=${payload.slotDisplay}`;
+            const _diagMsg = `[DIAG] tipo=${_diagRawEvType||payload.eventType||'?'} | horário=${schedule}→${_diagNorm||'?'} | counter=${_maxFromCounter} | regs=${_maxFromRegs} | slot=${nextSlot} | display=${payload.slotDisplay}`;
             const notifMsg = (clientUserId
               ? 'Time adicionado! O cliente receberá notificações de ID/senha.'
               : clientEmail
