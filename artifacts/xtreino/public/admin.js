@@ -1218,12 +1218,15 @@ window.showWarningToast = function(message, title = 'Atenção') {
                         ...(typeof resolveAliases === 'function' ? resolveAliases(eventType) : [])
                     ].filter(Boolean));
                     const _allRegMap = new Map();
+                    console.log('[AddManual] Buscando por tipos:', [..._typesSet], 'data:', date, 'horário:', normSchedule);
                     await Promise.all([..._typesSet].map(async t => {
                         try {
                             const s = await _gd(_q(collection(window.firebaseDb,'registrations'), _w('eventType','==',t)));
+                            console.log('[AddManual] tipo', t, '→', s.size, 'docs');
                             s.forEach(d => _allRegMap.set(d.id, d));
-                        } catch(_) {}
+                        } catch(e) { console.warn('[AddManual] erro tipo', t, e?.message); }
                     }));
+                    console.log('[AddManual] Total docs encontrados:', _allRegMap.size);
                     let maxSlot = 0;
                     let sameCount = 0;
                     const baseNorm = teamName.trim().toLowerCase().replace(/\s+/g, ' ');
@@ -1234,6 +1237,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
                         const rdSchedOk = _normH(rd.schedule||rd.hour||'') === normSchedule;
                         if (rdDateOk && rdSchedOk) {
                             const s = _extractSlotNum(rd);
+                            console.log('[AddManual] reg na data+hora: slot=', s, 'team=', rd.teamName, 'eventType=', rd.eventType, 'schedule=', rd.schedule);
                             if (s > maxSlot) maxSlot = s;
                         }
                         // Contar registros do mesmo email para sufixo automático
@@ -1261,6 +1265,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
                         const current = Math.max(fromCounter, maxSlot);
                         nextSlot = current + 1;
                         counts[normSchedule] = current + 1;
+                        console.log('[AddManual] fromCounter=', fromCounter, 'maxSlot(regs)=', maxSlot, 'nextSlot=', nextSlot);
                         tx.set(counterRef, counts, { merge: true });
                     });
                     if (sameCount > 0) {
