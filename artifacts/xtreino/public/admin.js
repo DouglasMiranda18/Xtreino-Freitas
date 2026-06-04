@@ -1182,7 +1182,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
             listingType: isFreeSlot ? 'free' : 'paid'
           };
           try{
-            const { collection, addDoc, serverTimestamp, query: _q, where: _w, getDocs: _gd, doc: _doc, runTransaction: _runTx } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            const { collection, addDoc, serverTimestamp, query: _q, where: _w, getDocs: _gd, getDoc: _gd1, doc: _doc, runTransaction: _runTx } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
             // Calcular próximo slot sequencial (unificado com PIX/tokens via transação atômica)
             const _normH = s => {
                 const str = String(s||'').trim();
@@ -1197,53 +1197,57 @@ window.showWarningToast = function(message, title = 'Atenção') {
             if (eventType && schedule && schedule !== '—') {
                 try {
                     const normSchedule = _normH(schedule);
-                    const _selOpt = typeEl?.selectedOptions?.[0];
-                    // rawEventType = valor exato que o MP/tokens usa (ev.eventType || d.id)
-                    // CRÍTICO: este é o mesmo valor usado como chave em slotCounters e em r.eventType
-                    const _rawEvType = (_selOpt?.dataset?.rawEventType || typeEl?.value || '').trim();
-                    const _rawDocId  = (_selOpt?.dataset?.rawEventId   || typeEl?.value || '').trim();
-                    const _evField   = (_selOpt?.dataset?.evFieldType  || eventType).trim();
+                    // Passo 1: ler adminEvents doc diretamente para obter ev.eventType
+                    // CRÍTICO: rawEvType = ev.eventType || d.id — valor exato que o MP/tokens usa
+                    const _rawDocId = (typeEl?.selectedOptions?.[0]?.dataset?.rawEventId || typeEl?.value || '').trim();
+                    let _rawEvType = _rawDocId; // fallback = doc ID
+                    try {
+                        const _evSnap = await _gd1(_doc(window.firebaseDb, 'adminEvents', _rawDocId));
+                        if (_evSnap.exists()) {
+                            const _evData = _evSnap.data();
+                            _rawEvType = (_evData.eventType || _rawDocId).trim();
+                        }
+                    } catch(_) {}
 
-                    // fetchRegistrationsByDate com rawEventType como tipo primário
-                    // (cobre registros salvos por MP/tokens que usam ev.eventType como r.eventType)
-                    const _occMap = await fetchRegistrationsByDate(date, _rawEvType, eventType, _rawDocId);
-                    const _hNum = parseInt(String(schedule||'').match(/(\d{1,2})/)?.[1]||'0', 10);
-                    const _hKey = String(_hNum).padStart(2,'0') + ':00';
-                    const existingCount = _occMap[_hKey] || 0;
-
-                    // Ler slotCounters usando rawEventType (mesma chave que MP usa)
-                    // Também tenta chave canônica como fallback
-                    const _readCounter = async (tx, key) => {
-                        try {
-                            const snap = await tx.get(_doc(window.firebaseDb, 'slotCounters', key));
-                            if (!snap.exists()) return 0;
-                            const counts = snap.data();
-                            let v = Number(counts[normSchedule]) || 0;
-                            if (!v) {
-                                for (const [k, val] of Object.entries(counts)) {
-                                    if (_normH(k) === normSchedule) v = Math.max(v, Number(val) || 0);
-                                }
+                    // Passo 2: contar times já confirmados neste horário+data usando rawEvType
+                    // (mesma lógica de allocateSlotsFromDB — query por campo único sem composite index)
+                    let existingMax = 0;
+                    try {
+                        const _regSnap = await _gd(_q(collection(window.firebaseDb,'registrations'),
+                            _w('eventType','==',_rawEvType)));
+                        _regSnap.forEach(d => {
+                            const rd = d.data();
+                            if (rd.date !== date) return;
+                            if (_normH(rd.schedule||rd.hour||'') !== normSchedule) return;
+                            let s = Number(rd.slot ?? rd.slotNumber) || 0;
+                            if (!s && rd.slotDisplay) {
+                                const _sr = String(rd.slotDisplay).replace(/^Vaga\s*/i,'').trim();
+                                if (/^[A-Za-z]$/.test(_sr)) s = _sr.toUpperCase().charCodeAt(0) - 64;
+                                else { const _sn = parseInt(_sr.replace(/^#/,''),10); if(!isNaN(_sn)) s=_sn; }
                             }
-                            return v;
-                        } catch(_) { return 0; }
-                    };
+                            if (s > existingMax) existingMax = s;
+                        });
+                    } catch(_) {}
 
-                    // Transação na doc que MP usa (rawEventType)
+                    // Passo 3: transação atômica em slotCounters/{rawEvType} — mesma chave que MP usa
                     const counterRef = _doc(window.firebaseDb, 'slotCounters', _rawEvType);
                     await _runTx(window.firebaseDb, async (tx) => {
-                        const fromCounter = await _readCounter(tx, _rawEvType);
-                        // existingCount = confirmadas hoje neste horário (via fetchRegistrationsByDate)
-                        const current = Math.max(fromCounter, existingCount);
+                        const cSnap = await tx.get(counterRef);
+                        const counts = cSnap.exists() ? { ...cSnap.data() } : {};
+                        let fromCounter = Number(counts[normSchedule]) || 0;
+                        if (!fromCounter) {
+                            for (const [k, v] of Object.entries(counts)) {
+                                if (_normH(k) === normSchedule) fromCounter = Math.max(fromCounter, Number(v)||0);
+                            }
+                        }
+                        const current = Math.max(fromCounter, existingMax);
                         nextSlot = current + 1;
-                        // Escrever de volta na mesma doc que MP usa
-                        const counterDoc = await tx.get(counterRef);
-                        const counts = counterDoc.exists() ? { ...counterDoc.data() } : {};
                         counts[normSchedule] = current + 1;
                         tx.set(counterRef, counts, { merge: true });
                     });
 
-                    // Sufixo automático para mesmo email/team (ex: "Team Freitas B")
-                    const baseNorm = teamName.trim().toLowerCase().replace(/\s+/g, ' ');
+                    // Sufixo automático de nome (ex: "Team Freitas B") quando mesmo email repete
+                    const baseNorm = teamName.trim().toLowerCase().replace(/\s+/g,' ');
                     let sameCount = 0;
                     if (clientEmail) {
                         try {
@@ -1256,19 +1260,31 @@ window.showWarningToast = function(message, title = 'Atenção') {
                             });
                         } catch(_) {}
                     }
-                    if (sameCount > 0) {
-                        finalTeamName = teamName.trim() + ' ' + String.fromCharCode(65 + sameCount);
-                    }
+                    if (sameCount > 0) finalTeamName = teamName.trim() + ' ' + String.fromCharCode(65 + sameCount);
+
+                    // Salvar rawEvType no payload (consistência com MP/tokens)
+                    payload.eventType = _rawEvType;
                 } catch(_) {
-                    // Fallback sem transação
+                    // Fallback: usa posição baseada no contador sem transação
                     try {
-                        const _selOpt2 = typeEl?.selectedOptions?.[0];
-                        const _rawEvType2 = (_selOpt2?.dataset?.rawEventType || typeEl?.value || '').trim();
-                        const _rawDocId2  = (_selOpt2?.dataset?.rawEventId   || typeEl?.value || '').trim();
-                        const _occMap2 = await fetchRegistrationsByDate(date, _rawEvType2, eventType, _rawDocId2);
-                        const _hNum2 = parseInt(String(schedule||'').match(/(\d{1,2})/)?.[1]||'0', 10);
-                        const _hKey2 = String(_hNum2).padStart(2,'0') + ':00';
-                        nextSlot = (_occMap2[_hKey2] || 0) + 1;
+                        const _rawDocId2 = (typeEl?.selectedOptions?.[0]?.dataset?.rawEventId || typeEl?.value || '').trim();
+                        let _rawEvType2 = _rawDocId2;
+                        try {
+                            const _es2 = await _gd1(_doc(window.firebaseDb,'adminEvents',_rawDocId2));
+                            if (_es2.exists()) _rawEvType2 = (_es2.data().eventType || _rawDocId2).trim();
+                        } catch(_) {}
+                        const cSnap2 = await _gd1(_doc(window.firebaseDb,'slotCounters',_rawEvType2));
+                        if (cSnap2.exists()) {
+                            const counts2 = cSnap2.data();
+                            let v2 = Number(counts2[normSchedule]) || 0;
+                            if (!v2) {
+                                for (const [k,val] of Object.entries(counts2)) {
+                                    if (_normH(k)===normSchedule) v2=Math.max(v2,Number(val)||0);
+                                }
+                            }
+                            nextSlot = v2 + 1;
+                        }
+                        payload.eventType = _rawEvType2;
                     } catch(_2) {}
                 }
             }
