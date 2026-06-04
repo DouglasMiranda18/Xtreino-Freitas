@@ -8214,7 +8214,7 @@ function showSlotConfirmationModal(slots, eventName, isLiga, eventId, groupLink)
                 Fique atento ao sininho de notificações <strong>10 minutos antes do seu horário!</strong>
             </div>
             ${!isLiga ? `<div class="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-700 mb-4 text-center">
-                💡 Guarde o número da sua vaga — ela é a sua posição no evento!
+                💡 Guarde ${eventId === 'modo-liga' ? 'a letra da sua vaga' : 'o número da sua vaga'} — ela é a sua posição no evento!
             </div>` : ''}
             <div class="flex flex-col gap-2">
                 ${groupLink ? `<a href="${groupLink}" target="_blank" rel="noopener noreferrer"
