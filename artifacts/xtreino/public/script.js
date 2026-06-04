@@ -8183,11 +8183,15 @@ function showSlotConfirmationModal(slots, eventName, isLiga, eventId, groupLink)
                 let innerHtml;
                 if (eventId === 'modo-liga') {
                     // Modo Liga: exibir letra em destaque
-                    // Extrai letra de "Vaga A" → "A"; fallback posicional se slot nulo
-                    const letraFromSlot = s.slot ? s.slot.replace(/^Vaga\s*/i, '').trim() : null;
-                    const letra = (letraFromSlot && /^[A-Za-z]$/.test(letraFromSlot))
-                        ? letraFromSlot.toUpperCase()
-                        : String.fromCharCode(65 + sIdx); // A, B, C... pelo índice
+                    // "Vaga A" → "A" | "Vaga #2" → "B" | "Vaga 3" → "C"
+                    const _raw = s.slot ? s.slot.replace(/^Vaga\s*/i, '').trim() : '';
+                    let letra;
+                    if (/^[A-Za-z]$/.test(_raw)) {
+                        letra = _raw.toUpperCase();
+                    } else {
+                        const n = parseInt(_raw.replace(/^#/, ''), 10);
+                        letra = (!isNaN(n) && n > 0) ? String.fromCharCode(64 + n) : '?';
+                    }
                     innerHtml = `<div class="font-bold text-orange-600 text-sm">SUA LETRA É ${letra} — EQUIPE: ${s.team}</div><div class="text-sm font-semibold text-green-700 mt-0.5">Inscrição confirmada!</div>`;
                 } else {
                     const slotSection = s.slot != null
@@ -9961,8 +9965,22 @@ window.openPixModal = function(pixData, regIds, externalRef, assignedSlotsData, 
         const slotInfoEl = document.getElementById('pixSlotInfo');
         if (slotInfoEl && assignedSlotsData && assignedSlotsData.length) {
             slotInfoEl.innerHTML = assignedSlotsData.map(function(s) {
+                // Para modo-liga: exibir letra no círculo em vez do número
+                var _isModoLiga = rawEventType === 'modo-liga';
+                var _slotRaw = s.slotDisplay ? s.slotDisplay.replace(/^Vaga\s*/i, '').trim() : '';
+                var _slotBadge;
+                if (_isModoLiga) {
+                    if (/^[A-Za-z]$/.test(_slotRaw)) {
+                        _slotBadge = _slotRaw.toUpperCase();
+                    } else {
+                        var _n = parseInt(_slotRaw.replace(/^#/, ''), 10);
+                        _slotBadge = (!isNaN(_n) && _n > 0) ? String.fromCharCode(64 + _n) : '✓';
+                    }
+                } else {
+                    _slotBadge = s.slotNum || '✓';
+                }
                 return '<div class="flex items-start gap-3 py-1 border-b border-green-100 last:border-0">' +
-                    '<div class="w-8 h-8 rounded-full bg-green-600 text-white text-xs font-black flex items-center justify-center flex-shrink-0">' + (s.slotNum || '✓') + '</div>' +
+                    '<div class="w-8 h-8 rounded-full bg-green-600 text-white text-xs font-black flex items-center justify-center flex-shrink-0">' + _slotBadge + '</div>' +
                     '<div class="min-w-0">' +
                     '<p class="font-bold text-gray-800 text-sm truncate">' + (s.team || '—') + '</p>' +
                     '<p class="text-xs text-gray-500">' + (s.schedule || '') + (s.slotDisplay ? ' · ' + s.slotDisplay : '') + '</p>' +
