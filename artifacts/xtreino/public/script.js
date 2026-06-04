@@ -7952,9 +7952,8 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts) {
 
 // ===== Helper: calcula o texto do slot (Vaga #N ou Grupo X • Vaga Y) =====
 function computeSlotDisplay(slotNumber, vagas, grupos, isLiga, eventType = '') {
-    if (isLiga) return null;
     // Modo Liga: exibir letra (A, B, C...) em vez de número
-    if (String(eventType).toLowerCase() === 'modo-liga') {
+    if (isLiga || String(eventType).toLowerCase() === 'modo-liga') {
         return `Vaga ${String.fromCharCode(64 + slotNumber)}`;
     }
     const slotsPerGroup = grupos > 1 ? Math.ceil(vagas / grupos) : vagas;
