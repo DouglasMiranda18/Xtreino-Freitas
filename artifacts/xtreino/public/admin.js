@@ -11729,7 +11729,6 @@ async function openEventNotifyModal(eventId, eventName) {
 
         for (const d of _notifyEventDocs) {
             const r = d.data();
-            if (!r.userId) continue;
             const schedRaw = r.schedule || r.slotDisplay || '—';
             const sched    = _normSchedH(schedRaw);   // canonical: "22h"
             const date     = r.date || '';
@@ -11747,7 +11746,9 @@ async function openEventNotifyModal(eventId, eventName) {
                     users: new Set(), date, sched
                 };
             }
-            _notifyScheduleMap[key].users.add(r.userId);
+            // só adiciona ao conjunto de destinatários se tiver userId
+            // (o slot aparece de qualquer forma, mesmo sem userId, para admin saber que existe)
+            if (r.userId) _notifyScheduleMap[key].users.add(r.userId);
         }
 
         // Expandir para todos os membros do time (via teamId ou teamName como fallback)
