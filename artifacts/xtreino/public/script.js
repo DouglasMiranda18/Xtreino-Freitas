@@ -7906,8 +7906,17 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts) {
         ));
         _snap.forEach(d => {
             const data = d.data();
-            if (data.schedule && (data.slot != null || data.slotNumber != null)) {
-                const num = Number(data.slot ?? data.slotNumber) || 0;
+            if (!data.schedule) return;
+            let num = 0;
+            if (data.slot != null || data.slotNumber != null) {
+                num = Number(data.slot ?? data.slotNumber) || 0;
+            } else if (data.slotDisplay) {
+                // modo-liga: "Vaga A"→1, "Vaga B"→2, "Vaga #3"→3
+                const _sr = String(data.slotDisplay).replace(/^Vaga\s*/i, '').trim();
+                if (/^[A-Za-z]$/.test(_sr)) num = _sr.toUpperCase().charCodeAt(0) - 64;
+                else { const _sn = parseInt(_sr.replace(/^#/, ''), 10); if (!isNaN(_sn)) num = _sn; }
+            }
+            if (num > 0) {
                 const normKey = _normH(data.schedule);
                 if (num > (regSlotMax[normKey] || 0)) regSlotMax[normKey] = num;
             }
@@ -8945,8 +8954,8 @@ async function createRegistrationsForEvent(eventType, datesToUse, teamsData, tim
                     eventType: eventType,
                     title: isLiga ? `${cfg.label} - ${schedule}` : `${cfg.label} - ${slotDisplay || schedule}`,
                     price: price,
-                    slot: isLiga ? null : slotNum,
-                    slotNumber: isLiga ? null : slotNum,
+                    slot: slotNum,
+                    slotNumber: slotNum,
                     slotDisplay: slotDisplay,
                     status: status,
                     createdAt: serverTimestamp(),
