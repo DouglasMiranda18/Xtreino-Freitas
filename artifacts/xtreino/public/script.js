@@ -8178,24 +8178,25 @@ function showSlotConfirmationModal(slots, eventName, isLiga, eventId, groupLink)
             ${bySchedule[sched].map(s => `<div class="text-xs text-gray-600 mt-0.5">✅ ${s.team}</div>`).join('')}
         </div>`).join('')}`;
     } else {
-        slotsHtml = schedules.map(sched => `
-        <div class="p-3 bg-gray-50 border border-gray-200 rounded-xl">
-            <div class="text-xs font-bold text-blue-600 uppercase mb-2 flex items-center gap-1">⏰ Horário: <span class="text-blue-800">${sched}</span></div>
-            ${bySchedule[sched].map(s => `
-            <div class="flex items-center gap-3 p-2 bg-green-50 border border-green-200 rounded-lg mb-1">
-                <span class="text-xl">✅</span>
-                <div class="flex-1">
-                    <div class="font-semibold text-gray-800 text-sm">${s.team}</div>
-                    ${s.slot != null
-                        ? `<div class="mt-0.5">
-                            <span class="text-2xl font-black text-orange-600">${s.slot}</span>
-                            <span class="text-xs font-semibold text-gray-500 ml-1">← Esse é o seu SLOT na Sala.</span>
-                           </div>`
-                        : `<div class="text-sm font-semibold text-green-700">Inscrição confirmada!</div>`
-                    }
-                </div>
-            </div>`).join('')}
-        </div>`).join('');
+        slotsHtml = schedules.map(sched => {
+            const rows = bySchedule[sched].map(s => {
+                let innerHtml;
+                if (eventId === 'modo-liga') {
+                    // Modo Liga: exibir letra em destaque
+                    const letra = s.slot ? s.slot.replace('Vaga ', '') : null;
+                    innerHtml = letra
+                        ? `<div class="font-bold text-orange-600 text-sm">SUA LETRA É ${letra} — EQUIPE: ${s.team}</div><div class="text-sm font-semibold text-green-700 mt-0.5">Inscrição confirmada!</div>`
+                        : `<div class="font-semibold text-gray-800 text-sm">${s.team}</div><div class="text-sm font-semibold text-green-700">Inscrição confirmada!</div>`;
+                } else {
+                    const slotSection = s.slot != null
+                        ? `<div class="mt-0.5"><span class="text-2xl font-black text-orange-600">${s.slot}</span><span class="text-xs font-semibold text-gray-500 ml-1">← Esse é o seu SLOT na Sala.</span></div>`
+                        : `<div class="text-sm font-semibold text-green-700">Inscrição confirmada!</div>`;
+                    innerHtml = `<div class="font-semibold text-gray-800 text-sm">${s.team}</div>${slotSection}`;
+                }
+                return `<div class="flex items-center gap-3 p-2 bg-green-50 border border-green-200 rounded-lg mb-1"><span class="text-xl">✅</span><div class="flex-1">${innerHtml}</div></div>`;
+            }).join('');
+            return `<div class="p-3 bg-gray-50 border border-gray-200 rounded-xl"><div class="text-xs font-bold text-blue-600 uppercase mb-2 flex items-center gap-1">⏰ Horário: <span class="text-blue-800">${sched}</span></div>${rows}</div>`;
+        }).join('');
     }
 
     const div = document.createElement('div');
