@@ -7915,17 +7915,23 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts) {
     } catch (_) {}
 
     // Transação atômica: usa max(slotCounters, registrations) — auto-corrige dessincronia
+    // Chave normalizada (ex: "Quarta - 19h" → "19h") para consistência entre fluxos
     try {
         const startSlots = {};
         await runTransaction(window.firebaseDb, async (tx) => {
             const counterDoc = await tx.get(counterRef);
             const counts = counterDoc.exists() ? { ...counterDoc.data() } : {};
             for (const [sched, n] of Object.entries(scheduleCounts)) {
-                const fromCounter = Number(counts[sched]) || 0;
-                const fromRegs    = Number(regSlotMax[_normH(sched)]) || 0;
-                const current     = Math.max(fromCounter, fromRegs);
+                const normKey     = _normH(sched);
+                // Ler de chave normalizada (novo padrão) com fallback para chave legada crua
+                const fromCounter = Number(counts[normKey]) || Number(counts[sched]) || 0;
+                const fromRegs    = Number(regSlotMax[normKey]) || 0;
+                // Se não há inscrições reais para o horário, reiniciar contador
+                // (evita slot inflado quando inscrições de teste foram deletadas)
+                const current     = fromRegs === 0 ? 0 : Math.max(fromCounter, fromRegs);
                 startSlots[sched] = current + 1;
-                counts[sched]     = current + n;
+                // Sempre gravar com chave normalizada (unifica admin e PIX/tokens)
+                counts[normKey]   = current + n;
             }
             tx.set(counterRef, counts, { merge: true });
         });
