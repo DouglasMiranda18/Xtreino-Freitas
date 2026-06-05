@@ -110,7 +110,8 @@ async function _carregarBonusLink(code) {
 
 function _renderizarInfoBonus() {
     const vagasRestantes = (_bonusLink.quantity || 0) - (_bonusLink.usedCount || 0);
-    const nomeEvento = _LABELS_EVENTO[_bonusLink.eventType] || _bonusLink.eventName || _bonusLink.eventType;
+    // Prioridade: nome salvo no documento (vem do adminEvents) > mapa local > ID bruto
+    const nomeEvento = _bonusLink.eventName || _LABELS_EVENTO[_bonusLink.eventType] || _bonusLink.eventType;
 
     document.getElementById('bonusEventName').textContent = nomeEvento;
     document.getElementById('bonusSchedule').textContent = _bonusLink.schedule || '--';
@@ -279,7 +280,7 @@ window.confirmarParticipacao = async function() {
         });
 
         const slotDisplay = `Vaga #${slotNum}`;
-        const nomeEvento = _LABELS_EVENTO[_bonusLink.eventType] || _bonusLink.eventName || _bonusLink.eventType;
+        const nomeEvento = _bonusLink.eventName || _LABELS_EVENTO[_bonusLink.eventType] || _bonusLink.eventType;
 
         // Criar inscrição
         await addDoc(regsRef, {
