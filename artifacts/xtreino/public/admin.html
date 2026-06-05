@@ -1307,7 +1307,7 @@
                         <button onclick="loadBonusSlots()" class="px-3 py-1 border rounded text-xs hover:bg-gray-50">
                             <i class="fas fa-sync mr-1"></i>Atualizar
                         </button>
-                        <button onclick="document.getElementById('bonusCreateForm').classList.toggle('hidden')"
+                        <button onclick="document.getElementById('bonusCreateForm').classList.toggle('hidden'); _popularSelectEventoBonus();"
                             class="px-3 py-1 bg-orange-600 text-white rounded text-xs hover:bg-orange-700">
                             <i class="fas fa-plus mr-1"></i>Novo Link Bônus
                         </button>
@@ -1323,10 +1323,7 @@
                         <div>
                             <label class="block text-xs text-gray-600 mb-1">Evento *</label>
                             <select id="bonusFormEventType" class="w-full border rounded px-2 py-1.5 text-sm">
-                                <option value="xtreino-tokens">XTreino Freitas</option>
-                                <option value="modo-liga">XTreino Modo Liga</option>
-                                <option value="semanal-freitas">Semanal Freitas</option>
-                                <option value="camp-freitas">Campeonato Freitas</option>
+                                <option value="">Carregando eventos...</option>
                             </select>
                         </div>
                         <div>
