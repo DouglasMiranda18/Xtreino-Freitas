@@ -12768,6 +12768,34 @@ function _gerarCodigoBonus() {
     return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 }
 
+// Popula o select de eventos do form bônus a partir do adminEvents no Firestore
+async function _popularSelectEventoBonus() {
+    const sel = document.getElementById('bonusFormEventType');
+    if (!sel || !window.firebaseDb) return;
+    try {
+        const { collection, getDocs, orderBy, query } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const snap = await getDocs(query(collection(window.firebaseDb, 'adminEvents'), orderBy('name')));
+        sel.innerHTML = '';
+        if (snap.empty) {
+            // Fallback para eventos fixos caso adminEvents esteja vazio
+            [['xtreino-tokens','XTreino Freitas'],['modo-liga','XTreino Modo Liga'],['semanal-freitas','Semanal Freitas'],['camp-freitas','Campeonato Freitas']]
+                .forEach(([v,t]) => { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); });
+            return;
+        }
+        snap.forEach(d => {
+            const ev = d.data();
+            const value = ev.eventType || d.id;
+            const label = ev.name || ev.eventType || d.id;
+            const opt = document.createElement('option');
+            opt.value = value;
+            opt.textContent = label;
+            sel.appendChild(opt);
+        });
+    } catch (err) {
+        console.warn('[BonusSlots] Erro ao carregar eventos:', err);
+    }
+}
+
 window.loadBonusSlots = async function() {
     if (!window.firebaseDb) return;
     const tbody = document.getElementById('bonusSlotsBody');
@@ -12855,7 +12883,9 @@ window.createBonusLink = async function() {
     }
 
     const code = _gerarCodigoBonus();
-    const eventName = _BONUS_EVENT_LABELS[eventType] || eventType;
+    // Pega o nome do evento do texto visível da opção selecionada (vem do adminEvents)
+    const selEl = document.getElementById('bonusFormEventType');
+    const eventName = selEl?.selectedOptions?.[0]?.textContent?.trim() || _BONUS_EVENT_LABELS[eventType] || eventType;
 
     try {
         const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
