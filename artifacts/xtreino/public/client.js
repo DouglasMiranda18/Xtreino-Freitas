@@ -2676,13 +2676,26 @@ async function loadAffiliateSales() {
     }
 }
 
+// Retorna limiar de data para o filtro de período
+function _getAffiliatePeriodFrom(filter) {
+    const now = new Date();
+    if (filter === 'today') {
+        return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    }
+    if (filter === '7d')  { const d = new Date(now); d.setDate(d.getDate() - 7);  return d; }
+    if (filter === '15d') { const d = new Date(now); d.setDate(d.getDate() - 15); return d; }
+    if (filter === '30d') { const d = new Date(now); d.setDate(d.getDate() - 30); return d; }
+    return null; // 'all' = sem filtro
+}
+
 // Renderizar vendas do afiliado
 function renderAffiliateSales(sales) {
     const tbody = document.getElementById('affiliateSalesTableBody');
     if (!tbody) return;
 
     const filter = document.getElementById('affiliateSalesFilter')?.value || 'all';
-    const filteredSales = filter === 'all' ? sales : sales.filter(s => s.status === filter);
+    const from = _getAffiliatePeriodFrom(filter);
+    const filteredSales = from ? sales.filter(s => s.createdAt >= from) : sales;
 
     if (filteredSales.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">Nenhuma venda encontrada</td></tr>';
@@ -2790,32 +2803,32 @@ function renderAffiliateCommissions(commissions) {
     }).join('');
 }
 
-// Atualizar estatísticas do afiliado
+// Atualizar estatísticas do afiliado (respeita filtro de período ativo)
 function updateAffiliateStats() {
-    const sales = window.affiliateSales || [];
+    const allSales = window.affiliateSales || [];
     const commissions = window.affiliateCommissions || [];
 
-    // Calcular métricas a partir das vendas (affiliate_sales)
+    // Aplicar mesmo filtro de período da tabela de vendas
+    const filter = document.getElementById('affiliateSalesFilter')?.value || 'all';
+    const from = _getAffiliatePeriodFrom(filter);
+    const sales = from ? allSales.filter(s => s.createdAt >= from) : allSales;
+
     const totalSales = sales.length;
-    
-    // Total de comissão de todas as vendas
     const totalCommission = sales.reduce((sum, s) => sum + (s.commissionAmount || 0), 0);
-    
-    // Comissão pendente (vendas com status 'pending')
+
     const pendingCommission = sales
         .filter(s => s.status === 'pending')
         .reduce((sum, s) => sum + (s.commissionAmount || 0), 0);
-    
-    // Comissão paga (vendas com status 'paid')
+
     const paidCommission = sales
         .filter(s => s.status === 'paid')
         .reduce((sum, s) => sum + (s.commissionAmount || 0), 0);
-    
-    // Também incluir comissões pagas do histórico de comissões
+
+    // Comissões pagas do histórico (affiliate_commissions) — não filtradas por período
     const paidFromCommissions = commissions
         .filter(c => c.status === 'paid')
         .reduce((sum, c) => sum + (c.amount || 0), 0);
-    
+
     const totalPaidCommission = paidCommission + paidFromCommissions;
 
     const totalSalesEl = document.getElementById('affiliateTotalSales');
@@ -2891,13 +2904,14 @@ async function getUserRole(uid) {
     }
 }
 
-// Adicionar listener para filtro de vendas
+// Adicionar listener para filtro de período das vendas
 document.addEventListener('DOMContentLoaded', () => {
     const salesFilter = document.getElementById('affiliateSalesFilter');
     if (salesFilter) {
         salesFilter.addEventListener('change', () => {
             if (window.affiliateSales) {
                 renderAffiliateSales(window.affiliateSales);
+                updateAffiliateStats();
             }
         });
     }
