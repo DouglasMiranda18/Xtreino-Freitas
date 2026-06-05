@@ -164,35 +164,30 @@ function _renderizarParticipacao() {
         return;
     }
 
-    const teamName = _perfilUsuario?.teamName || _perfilUsuario?.name || _usuarioAtual.displayName || '';
-    const phone = _perfilUsuario?.phone || '';
-
+    // Campos sempre em branco para o usuário preencher
     container.innerHTML = `
-        ${teamName ? `
-            <div class="bg-gray-700/50 rounded-xl p-3 mb-4 flex items-center gap-3">
-                <div class="w-8 h-8 bg-orange-600 rounded-full flex items-center justify-center flex-shrink-0">
-                    <i class="fas fa-users text-white text-xs"></i>
-                </div>
-                <div class="text-sm">
-                    <div class="text-gray-400 text-xs">Sua equipe</div>
-                    <div class="font-bold text-white">${_esc(teamName)}</div>
-                </div>
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-300 mb-1">
+                <i class="fas fa-users text-orange-400 mr-1"></i>Nome do time *
+            </label>
+            <input type="text" id="bonusTeamName" placeholder="Ex: Alpha Squad"
+                class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent">
+        </div>
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-300 mb-1">
+                <i class="fas fa-image text-orange-400 mr-1"></i>Logo do time (opcional)
+            </label>
+            <input type="file" id="bonusLogoFile" accept="image/*"
+                class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2.5 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-orange-600 file:text-white file:text-sm cursor-pointer">
+            <div id="bonusLogoPreview" class="mt-2 hidden">
+                <img id="bonusLogoImg" src="" alt="Logo" class="w-14 h-14 rounded-lg object-cover border border-gray-600">
             </div>
-        ` : `
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-300 mb-1">
-                    <i class="fas fa-users text-orange-400 mr-1"></i>Nome da equipe *
-                </label>
-                <input type="text" id="bonusTeamName" placeholder="Ex: Alpha Squad"
-                    class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent">
-            </div>
-        `}
+        </div>
         <div class="mb-5">
             <label class="block text-sm font-medium text-gray-300 mb-1">
-                <i class="fas fa-whatsapp text-green-400 mr-1"></i>WhatsApp
+                <i class="fab fa-whatsapp text-green-400 mr-1"></i>WhatsApp *
             </label>
             <input type="tel" id="bonusPhone" placeholder="(99) 99999-9999"
-                value="${_esc(phone)}"
                 class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent">
         </div>
         <button onclick="window.confirmarParticipacao()" id="btnParticipar"
@@ -201,6 +196,18 @@ function _renderizarParticipacao() {
         </button>
         <p class="text-center text-xs text-gray-500 mt-3">Sua inscrição é gratuita e será confirmada imediatamente.</p>
     `;
+
+    // Preview do logo ao selecionar arquivo
+    document.getElementById('bonusLogoFile').addEventListener('change', function() {
+        const file = this.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = e => {
+            document.getElementById('bonusLogoImg').src = e.target.result;
+            document.getElementById('bonusLogoPreview').classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+    });
 }
 
 // ── Confirmar participação ────────────────────────────────────────────────────
@@ -213,19 +220,30 @@ window.confirmarParticipacao = async function() {
     }
 
     try {
-        // Validações básicas
         if (!_usuarioAtual) throw new Error('Faça login para participar.');
         if (!_bonusLink) throw new Error('Dados da vaga bônus não carregados. Recarregue a página.');
 
-        const teamName = _perfilUsuario?.teamName || _perfilUsuario?.name || _usuarioAtual.displayName
-            || document.getElementById('bonusTeamName')?.value?.trim();
-        const phone = document.getElementById('bonusPhone')?.value?.trim() || _perfilUsuario?.phone || '';
+        const teamName = document.getElementById('bonusTeamName')?.value?.trim();
+        const phone    = document.getElementById('bonusPhone')?.value?.trim();
 
-        if (!teamName) throw new Error('Informe o nome da sua equipe.');
+        if (!teamName) throw new Error('Informe o nome do time.');
+        if (!phone)    throw new Error('Informe o número de WhatsApp.');
 
         // Verificar expiração
         if (_bonusLink.expiresAt && new Date(_bonusLink.expiresAt) < new Date()) {
             throw new Error('O prazo desta vaga bônus já expirou.');
+        }
+
+        // Logo em base64 (sem precisar do Firebase Storage)
+        let teamLogoUrl = null;
+        const logoFile = document.getElementById('bonusLogoFile')?.files?.[0];
+        if (logoFile) {
+            teamLogoUrl = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.onerror = () => reject(new Error('Erro ao ler o arquivo de logo.'));
+                reader.readAsDataURL(logoFile);
+            });
         }
 
         const {
@@ -235,48 +253,37 @@ window.confirmarParticipacao = async function() {
 
         const regsRef = collection(window.firebaseDb, 'registrations');
 
-        // Verificar se já está inscrito neste bonus (pelo código)
-        const jaBonusSnap = await getDocs(query(regsRef,
-            where('bonusCode', '==', _bonusLink.code),
+        // Uma única query simples (campo único → sem índice composto)
+        // Busca todas as inscrições do usuário e filtra em memória
+        const minhasRegsSnap = await getDocs(query(regsRef,
             where('userId', '==', _usuarioAtual.uid)
         ));
-        if (!jaBonusSnap.empty) throw new Error('Você já está inscrito nesta vaga bônus.');
 
-        // Verificar inscrição ativa no mesmo evento/data
-        const jaInscritoSnap = await getDocs(query(regsRef,
-            where('eventType', '==', _bonusLink.eventType),
-            where('date', '==', _bonusLink.date),
-            where('userId', '==', _usuarioAtual.uid)
-        ));
-        const statusValidos = new Set(['paid', 'confirmed', 'approved']);
-        const jaInscrito = jaInscritoSnap.docs.some(d => {
-            const r = d.data();
-            if (!statusValidos.has(r.status)) return false;
-            // Verificar mesmo horário
-            const rHour = String(r.schedule || '').match(/(\d{1,2})/)?.[1];
-            const bHour = String(_bonusLink.schedule || '').match(/(\d{1,2})/)?.[1];
-            return !bHour || rHour === bHour;
-        });
-        if (jaInscrito) throw new Error('Você já tem uma inscrição ativa neste evento/horário.');
-
-        // Contar vagas ocupadas para determinar número do slot
-        const ocupadosSnap = await getDocs(query(regsRef,
-            where('eventType', '==', _bonusLink.eventType),
-            where('date', '==', _bonusLink.date)
-        ));
+        const statusValidos = new Set(['paid', 'confirmed', 'approved', 'pending']);
         const bHourRef = String(_bonusLink.schedule || '').match(/(\d{1,2})/)?.[1];
-        let ocupados = 0;
-        ocupadosSnap.forEach(d => {
+
+        let jaNesteBônus = false;
+        let jaNesteHorario = false;
+
+        minhasRegsSnap.forEach(d => {
             const r = d.data();
-            if (!statusValidos.has(r.status)) return;
-            const rHour = String(r.schedule || '').match(/(\d{1,2})/)?.[1];
-            if (!bHourRef || rHour === bHourRef) ocupados++;
+            // Já inscrito neste código de bônus?
+            if (r.bonusCode === _bonusLink.code) jaNesteBônus = true;
+            // Já inscrito neste evento/data/horário?
+            if (r.eventType === _bonusLink.eventType && r.date === _bonusLink.date && statusValidos.has(r.status)) {
+                const rHour = String(r.schedule || '').match(/(\d{1,2})/)?.[1];
+                if (!bHourRef || rHour === bHourRef) jaNesteHorario = true;
+            }
         });
-        const slotNum = ocupados + 1;
-        const slotDisplay = `Vaga #${slotNum}`;
+
+        if (jaNesteBônus)   throw new Error('Você já está inscrito nesta vaga bônus.');
+        if (jaNesteHorario) throw new Error('Você já tem uma inscrição ativa neste evento/horário.');
 
         // Transação atômica: verificar vagas + incrementar usedCount
+        // O slotNum vem do usedCount atual + 1 (sem query extra)
         const bonusRef = doc(window.firebaseDb, 'bonus_links', _bonusLinkId);
+        let slotNum = 1;
+
         await runTransaction(window.firebaseDb, async (tx) => {
             const bonusSnap = await tx.get(bonusRef);
             if (!bonusSnap.exists()) throw new Error('Link bônus não encontrado.');
@@ -285,34 +292,36 @@ window.confirmarParticipacao = async function() {
             if (bd.status !== 'ativo') throw new Error('Este link bônus não está mais ativo.');
             if ((bd.usedCount || 0) >= bd.quantity) throw new Error('Todas as vagas bônus já foram preenchidas.');
 
-            const novoUsed = (bd.usedCount || 0) + 1;
-            const novoStatus = novoUsed >= bd.quantity ? 'expirado' : 'ativo';
-            tx.update(bonusRef, { usedCount: novoUsed, status: novoStatus });
+            slotNum = (bd.usedCount || 0) + 1;
+            const novoStatus = slotNum >= bd.quantity ? 'expirado' : 'ativo';
+            tx.update(bonusRef, { usedCount: slotNum, status: novoStatus });
         });
 
-        // Criar inscrição (igual às inscrições normais)
+        const slotDisplay = `Vaga #${slotNum}`;
         const nomeEvento = _LABELS_EVENTO[_bonusLink.eventType] || _bonusLink.eventName || _bonusLink.eventType;
+
+        // Criar inscrição
         await addDoc(regsRef, {
-            userId: _usuarioAtual.uid,
+            userId:       _usuarioAtual.uid,
             teamName,
-            teamLogoUrl: _perfilUsuario?.teamLogoUrl || null,
-            teamId: _perfilUsuario?.teamId || null,
-            leaderName: _perfilUsuario?.name || _usuarioAtual.displayName || teamName,
-            email: _usuarioAtual.email,
+            teamLogoUrl,
+            teamId:       _perfilUsuario?.teamId || null,
+            leaderName:   _perfilUsuario?.name || _usuarioAtual.displayName || teamName,
+            email:        _usuarioAtual.email,
             phone,
-            schedule: _bonusLink.schedule,
-            date: _bonusLink.date,
-            eventType: _bonusLink.eventType,
-            title: `${nomeEvento} - ${_bonusLink.schedule}`,
-            price: 0,
-            slot: slotNum,
-            slotNumber: slotNum,
+            schedule:     _bonusLink.schedule,
+            date:         _bonusLink.date,
+            eventType:    _bonusLink.eventType,
+            title:        `${nomeEvento} - ${_bonusLink.schedule}`,
+            price:        0,
+            slot:         slotNum,
+            slotNumber:   slotNum,
             slotDisplay,
-            status: 'confirmed',
-            origem: 'bonus',
-            bonusCode: _bonusLink.code,
-            bonusLinkId: _bonusLinkId,
-            createdAt: serverTimestamp()
+            status:       'confirmed',
+            origem:       'bonus',
+            bonusCode:    _bonusLink.code,
+            bonusLinkId:  _bonusLinkId,
+            createdAt:    serverTimestamp()
         });
 
         _mostrarSucesso(teamName, nomeEvento);
