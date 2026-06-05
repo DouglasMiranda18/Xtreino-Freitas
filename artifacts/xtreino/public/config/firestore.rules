@@ -395,10 +395,10 @@ service cloud.firestore {
       allow create: if isAdmin() || isGerente();
       allow delete: if isAdmin() || isGerente();
       // Atualização: admin/gerente podem tudo;
-      // usuário autenticado pode apenas incrementar usedCount e alterar status (ao resgatar vaga)
+      // usuário autenticado pode apenas tocar usedCount, status e claimedBy (ao resgatar vaga)
       allow update: if isAdmin() || isGerente() ||
         (isSignedIn() &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usedCount', 'status']));
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usedCount', 'status', 'claimedBy']));
     }
 
     // teams — sistema de times para treino gratuito
