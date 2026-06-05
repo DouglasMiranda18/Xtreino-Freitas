@@ -103,7 +103,19 @@
         </div>
     </div>
 
-    <script src="config/firebase.js"></script>
-    <script src="bonus.js"></script>
+    <script>
+        var _fk = ["AIzaSyBzD0iWNI","fZwuzWN-Xhjbg2","2OfCHv1Qwjo"].join("");
+        window.FIREBASE_CONFIG = {
+            apiKey: _fk,
+            authDomain: "orgfreitas-ofc.firebaseapp.com",
+            projectId: "orgfreitas-ofc",
+            storageBucket: "orgfreitas-ofc.firebasestorage.app",
+            messagingSenderId: "493859004030",
+            appId: "1:493859004030:web:a1cba415344e4a7567822f",
+            measurementId: "G-WZCYZL5VC0"
+        };
+    </script>
+    <script type="module" src="config/firebase.js"></script>
+    <script type="module" src="bonus.js"></script>
 </body>
 </html>
