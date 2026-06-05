@@ -387,6 +387,20 @@ service cloud.firestore {
       allow create, update, delete: if isAuthorizedAdmin() || isGerente() || isStaff();
     }
 
+    // bonus_links — links de vagas bônus gerados pelo admin
+    match /bonus_links/{linkId} {
+      // Leitura pública: qualquer pessoa com o link pode ver os dados do evento
+      allow read: if true;
+      // Criação e exclusão: apenas admin/gerente
+      allow create: if isAdmin() || isGerente();
+      allow delete: if isAdmin() || isGerente();
+      // Atualização: admin/gerente podem tudo;
+      // usuário autenticado pode apenas incrementar usedCount e alterar status (ao resgatar vaga)
+      allow update: if isAdmin() || isGerente() ||
+        (isSignedIn() &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usedCount', 'status']));
+    }
+
     // teams — sistema de times para treino gratuito
     match /teams/{teamId} {
       allow read: if isSignedIn();
