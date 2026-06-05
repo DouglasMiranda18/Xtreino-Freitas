@@ -12423,6 +12423,7 @@ window.loadPageData = async function(page) {
         try { loadProducts(); } catch(e) {}
         try { loadEventsPreview(); } catch(e) {}
         try { loadShirtOrders(); } catch(e) {}
+        try { loadBonusSlots(); } catch(e) { console.warn('[page:conteudo] BonusSlots', e); }
 
     } else if (page === 'operacoes') {
         try { loadWhatsAppLinks(); } catch(e) {}
@@ -12749,5 +12750,180 @@ window.repairDateSlots = async function(eventType, targetDate) {
     } catch(err) {
         console.error('[repairDateSlots] Erro:', err);
         alert('Erro: ' + (err.message || err));
+    }
+};
+
+// ===== VAGAS BÔNUS =====
+
+const _BONUS_EVENT_LABELS = {
+    'xtreino-tokens': 'XTreino Freitas',
+    'modo-liga': 'Modo Liga',
+    'semanal-freitas': 'Semanal Freitas',
+    'semanal': 'Semanal Freitas',
+    'camp-freitas': 'Campeonato Freitas'
+};
+
+function _gerarCodigoBonus() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
+
+window.loadBonusSlots = async function() {
+    if (!window.firebaseDb) return;
+    const tbody = document.getElementById('bonusSlotsBody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="8" class="py-4 text-center text-gray-400">Carregando...</td></tr>';
+
+    try {
+        const { collection, query, orderBy, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const snap = await getDocs(query(
+            collection(window.firebaseDb, 'bonus_links'),
+            orderBy('createdAt', 'desc')
+        ));
+
+        if (snap.empty) {
+            tbody.innerHTML = '<tr><td colspan="8" class="py-6 text-center text-gray-500">Nenhum link bônus criado ainda.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = snap.docs.map(docSnap => {
+            const d = { id: docSnap.id, ...docSnap.data() };
+            const statusClass = d.status === 'ativo'
+                ? 'bg-green-100 text-green-700'
+                : d.status === 'pausado' ? 'bg-yellow-100 text-yellow-700'
+                : 'bg-red-100 text-red-700';
+            const vagasStr = `${d.usedCount || 0}/${d.quantity || 0}`;
+            const expiry = d.expiresAt
+                ? new Date(d.expiresAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+                : '—';
+            const [ano, mes, dia] = (d.date || '').split('-');
+            const dataFmt = d.date ? `${dia}/${mes}/${ano}` : '—';
+            const eventLabel = _BONUS_EVENT_LABELS[d.eventType] || d.eventType;
+            const toggleTitle = d.status === 'ativo' ? 'Pausar' : 'Reativar';
+            const toggleIcon = d.status === 'ativo' ? 'pause' : 'play';
+            const toggleClass = d.status === 'ativo' ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-green-600 hover:bg-green-700';
+
+            return `
+            <tr class="border-b hover:bg-gray-50">
+                <td class="px-3 py-2 font-mono font-bold text-orange-600 text-sm">${d.code}</td>
+                <td class="px-3 py-2 text-xs">${eventLabel}</td>
+                <td class="px-3 py-2 text-xs">${dataFmt}</td>
+                <td class="px-3 py-2 text-xs font-medium">${d.schedule || '—'}</td>
+                <td class="px-3 py-2 text-xs font-medium">${vagasStr}</td>
+                <td class="px-3 py-2 text-xs">${expiry}</td>
+                <td class="px-3 py-2">
+                    <span class="px-2 py-0.5 rounded-full text-xs font-semibold ${statusClass}">${d.status}</span>
+                </td>
+                <td class="px-3 py-2">
+                    <div class="flex gap-1 flex-wrap">
+                        <button onclick="copyBonusLink('${d.code}')"
+                            class="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700" title="Copiar link">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        <button onclick="toggleBonusStatus('${d.id}','${d.status}')"
+                            class="px-2 py-1 text-xs ${toggleClass} text-white rounded" title="${toggleTitle}">
+                            <i class="fas fa-${toggleIcon}"></i>
+                        </button>
+                        <button onclick="deleteBonusLink('${d.id}')"
+                            class="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700" title="Excluir">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+
+    } catch (err) {
+        console.error('[BonusSlots] Erro:', err);
+        tbody.innerHTML = `<tr><td colspan="8" class="py-4 text-center text-red-500 text-xs">Erro: ${err.message}</td></tr>`;
+    }
+};
+
+window.createBonusLink = async function() {
+    if (!window.firebaseDb) { alert('Firebase não conectado.'); return; }
+
+    const eventType = document.getElementById('bonusFormEventType')?.value;
+    const schedule = document.getElementById('bonusFormSchedule')?.value;
+    const date = document.getElementById('bonusFormDate')?.value;
+    const quantity = parseInt(document.getElementById('bonusFormQuantity')?.value || '0', 10);
+    const limitPerTeam = parseInt(document.getElementById('bonusFormLimitPerTeam')?.value || '1', 10);
+    const expiresAtRaw = document.getElementById('bonusFormExpiresAt')?.value;
+
+    if (!eventType || !schedule || !date || !quantity || quantity < 1) {
+        alert('Preencha todos os campos obrigatórios: evento, horário, data e vagas disponíveis (mínimo 1).');
+        return;
+    }
+
+    const code = _gerarCodigoBonus();
+    const eventName = _BONUS_EVENT_LABELS[eventType] || eventType;
+
+    try {
+        const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+        await addDoc(collection(window.firebaseDb, 'bonus_links'), {
+            code,
+            eventType,
+            eventName,
+            schedule,
+            date,
+            quantity,
+            usedCount: 0,
+            limitPerTeam: Math.max(1, limitPerTeam || 1),
+            expiresAt: expiresAtRaw ? new Date(expiresAtRaw).toISOString() : null,
+            status: 'ativo',
+            createdAt: serverTimestamp()
+        });
+
+        document.getElementById('bonusCreateForm').classList.add('hidden');
+
+        const linkUrl = `${window.location.origin}/bonus.html?code=${code}`;
+        const msg = `✅ Link bônus criado!\n\nCódigo: ${code}\nEvento: ${eventName}\nData: ${date} | ${schedule}\nVagas: ${quantity}\n\nLink:\n${linkUrl}`;
+        if (navigator.clipboard) {
+            await navigator.clipboard.writeText(linkUrl).catch(() => {});
+        }
+        alert(msg + '\n\n(Link copiado para a área de transferência)');
+        await loadBonusSlots();
+
+    } catch (err) {
+        console.error('[BonusSlots] Erro ao criar:', err);
+        alert('Erro ao criar link bônus: ' + err.message);
+    }
+};
+
+window.copyBonusLink = async function(code) {
+    const link = `${window.location.origin}/bonus.html?code=${code}`;
+    try {
+        await navigator.clipboard.writeText(link);
+        alert(`✅ Link copiado!\n\n${link}`);
+    } catch {
+        prompt('Copie o link abaixo:', link);
+    }
+};
+
+window.toggleBonusStatus = async function(id, currentStatus) {
+    if (!window.firebaseDb) return;
+    const novoStatus = currentStatus === 'ativo' ? 'pausado' : 'ativo';
+    const confirmar = confirm(`${novoStatus === 'pausado' ? 'Pausar' : 'Reativar'} este link bônus?`);
+    if (!confirmar) return;
+
+    try {
+        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        await updateDoc(doc(window.firebaseDb, 'bonus_links', id), { status: novoStatus });
+        await loadBonusSlots();
+    } catch (err) {
+        alert('Erro ao alterar status: ' + err.message);
+    }
+};
+
+window.deleteBonusLink = async function(id) {
+    if (!confirm('Excluir este link bônus permanentemente? Inscrições já realizadas NÃO serão afetadas.')) return;
+    if (!window.firebaseDb) return;
+
+    try {
+        const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        await deleteDoc(doc(window.firebaseDb, 'bonus_links', id));
+        await loadBonusSlots();
+    } catch (err) {
+        alert('Erro ao excluir: ' + err.message);
     }
 };
