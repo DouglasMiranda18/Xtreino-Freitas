@@ -317,20 +317,20 @@ window.showWarningToast = function(message, title = 'Atenção') {
           'sectionTokenStats','sectionUsersManagement','sectionTokens','sectionCoupons',
           'sectionCouponUsage','sectionAffiliates','sectionAffiliateSales','sectionAffiliatePayouts',
           'sectionAffiliatePanel','sectionPasseBooyah','sectionHighlights','sectionNews',
-          'sectionProducts','sectionEvents','sectionShirtOrders',
+          'sectionProducts','sectionEvents','sectionBonusSlots','sectionShirtOrders',
           'sectionSchedules','sectionNotificationsAdmin','sectionAdminHistory','sectionResetData'],
     // SOCIO: tudo, somente visualização (sem reset)
     socio: ['sectionKPIs','sectionFilters','sectionCharts','sectionUsers','sectionOrders',
             'sectionTokenStats','sectionUsersManagement','sectionTokens','sectionCoupons',
             'sectionCouponUsage','sectionAffiliates','sectionAffiliateSales','sectionAffiliatePayouts',
             'sectionAffiliatePanel','sectionPasseBooyah','sectionHighlights','sectionNews',
-            'sectionProducts','sectionEvents','sectionShirtOrders',
+            'sectionProducts','sectionEvents','sectionBonusSlots','sectionShirtOrders',
             'sectionSchedules','sectionNotificationsAdmin','sectionAdminHistory'],
     // GERENTE: tudo, EXCETO aba principal completa (KPIs, filtros, gráficos, pedidos, tokenStats)
     gerente: ['sectionUsers','sectionUsersManagement',
               'sectionTokens','sectionCoupons','sectionCouponUsage','sectionAffiliates',
               'sectionAffiliateSales','sectionAffiliatePayouts','sectionAffiliatePanel','sectionPasseBooyah',
-              'sectionHighlights','sectionNews','sectionProducts','sectionEvents',
+              'sectionHighlights','sectionNews','sectionProducts','sectionEvents','sectionBonusSlots',
               'sectionShirtOrders','sectionSchedules',
               'sectionNotificationsAdmin','sectionAdminHistory'],
     // DESIGNER: apenas conteúdo (destaques, notícias, produtos, eventos) — sem camisas, sem horários
@@ -340,8 +340,8 @@ window.showWarningToast = function(message, title = 'Atenção') {
                'sectionTokens','sectionCoupons','sectionCouponUsage','sectionAffiliates',
                'sectionAffiliateSales','sectionAffiliatePayouts','sectionPasseBooyah','sectionShirtOrders',
                'sectionProducts','sectionNotificationsAdmin'],
-    // ADMIN: gerenciador de eventos + notificações
-    admin: ['sectionEvents','sectionNotificationsAdmin'],
+    // ADMIN: gerenciador de eventos + notificações + vagas bônus
+    admin: ['sectionEvents','sectionBonusSlots','sectionNotificationsAdmin'],
     // STAFF: notificações e eventos
     staff: ['sectionEvents','sectionNotificationsAdmin'],
     // MODERADOR: igual ao staff
@@ -363,7 +363,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
   const ALL_SECTIONS = ['sectionKPIs','sectionFilters','sectionCharts','sectionUsers','sectionOrders',
     'sectionTokenStats','sectionUsersManagement','sectionTokens','sectionCoupons','sectionCouponUsage',
     'sectionAffiliates','sectionAffiliateSales','sectionAffiliatePayouts','sectionAffiliatePanel','sectionPasseBooyah',
-    'sectionHighlights','sectionNews','sectionProducts','sectionEvents','sectionShirtOrders',
+    'sectionHighlights','sectionNews','sectionProducts','sectionEvents','sectionBonusSlots','sectionShirtOrders',
     'sectionSchedules','sectionNotificationsAdmin','sectionAdminHistory','sectionResetData'];
 
   // Control section visibility based on role
