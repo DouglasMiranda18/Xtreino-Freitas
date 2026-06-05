@@ -248,39 +248,13 @@ window.confirmarParticipacao = async function() {
 
         const {
             collection, addDoc, runTransaction, doc,
-            serverTimestamp, query, where, getDocs
+            serverTimestamp, arrayUnion
         } = await import(_FS_URL);
 
         const regsRef = collection(window.firebaseDb, 'registrations');
 
-        // Uma única query simples (campo único → sem índice composto)
-        // Busca todas as inscrições do usuário e filtra em memória
-        const minhasRegsSnap = await getDocs(query(regsRef,
-            where('userId', '==', _usuarioAtual.uid)
-        ));
-
-        const statusValidos = new Set(['paid', 'confirmed', 'approved', 'pending']);
-        const bHourRef = String(_bonusLink.schedule || '').match(/(\d{1,2})/)?.[1];
-
-        let jaNesteBônus = false;
-        let jaNesteHorario = false;
-
-        minhasRegsSnap.forEach(d => {
-            const r = d.data();
-            // Já inscrito neste código de bônus?
-            if (r.bonusCode === _bonusLink.code) jaNesteBônus = true;
-            // Já inscrito neste evento/data/horário?
-            if (r.eventType === _bonusLink.eventType && r.date === _bonusLink.date && statusValidos.has(r.status)) {
-                const rHour = String(r.schedule || '').match(/(\d{1,2})/)?.[1];
-                if (!bHourRef || rHour === bHourRef) jaNesteHorario = true;
-            }
-        });
-
-        if (jaNesteBônus)   throw new Error('Você já está inscrito nesta vaga bônus.');
-        if (jaNesteHorario) throw new Error('Você já tem uma inscrição ativa neste evento/horário.');
-
-        // Transação atômica: verificar vagas + incrementar usedCount
-        // O slotNum vem do usedCount atual + 1 (sem query extra)
+        // Transação atômica: 1 leitura + 1 escrita — sem nenhuma query extra em registrations
+        // O campo claimedBy guarda os UIDs que já resgataram; evita duplicidade sem custo extra
         const bonusRef = doc(window.firebaseDb, 'bonus_links', _bonusLinkId);
         let slotNum = 1;
 
@@ -292,9 +266,16 @@ window.confirmarParticipacao = async function() {
             if (bd.status !== 'ativo') throw new Error('Este link bônus não está mais ativo.');
             if ((bd.usedCount || 0) >= bd.quantity) throw new Error('Todas as vagas bônus já foram preenchidas.');
 
+            const jaResgatou = Array.isArray(bd.claimedBy) && bd.claimedBy.includes(_usuarioAtual.uid);
+            if (jaResgatou) throw new Error('Você já resgatou esta vaga bônus.');
+
             slotNum = (bd.usedCount || 0) + 1;
             const novoStatus = slotNum >= bd.quantity ? 'expirado' : 'ativo';
-            tx.update(bonusRef, { usedCount: slotNum, status: novoStatus });
+            tx.update(bonusRef, {
+                usedCount: slotNum,
+                status: novoStatus,
+                claimedBy: arrayUnion(_usuarioAtual.uid)
+            });
         });
 
         const slotDisplay = `Vaga #${slotNum}`;
