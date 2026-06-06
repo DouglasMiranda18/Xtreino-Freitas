@@ -318,21 +318,24 @@ window.showWarningToast = function(message, title = 'Atenção') {
           'sectionCouponUsage','sectionAffiliates','sectionAffiliateSales','sectionAffiliatePayouts',
           'sectionAffiliatePanel','sectionPasseBooyah','sectionHighlights','sectionNews',
           'sectionProducts','sectionEvents','sectionBonusSlots','sectionShirtOrders',
-          'sectionSchedules','sectionNotificationsAdmin','sectionAdminHistory','sectionResetData'],
+          'sectionSchedules','sectionNotificationsAdmin','sectionAdminHistory','sectionResetData',
+          'sectionChampResults','sectionChampConfig'],
     // SOCIO: tudo, somente visualização (sem reset)
     socio: ['sectionKPIs','sectionFilters','sectionCharts','sectionUsers','sectionOrders',
             'sectionTokenStats','sectionUsersManagement','sectionTokens','sectionCoupons',
             'sectionCouponUsage','sectionAffiliates','sectionAffiliateSales','sectionAffiliatePayouts',
             'sectionAffiliatePanel','sectionPasseBooyah','sectionHighlights','sectionNews',
             'sectionProducts','sectionEvents','sectionBonusSlots','sectionShirtOrders',
-            'sectionSchedules','sectionNotificationsAdmin','sectionAdminHistory'],
+            'sectionSchedules','sectionNotificationsAdmin','sectionAdminHistory',
+            'sectionChampResults','sectionChampConfig'],
     // GERENTE: tudo, EXCETO aba principal completa (KPIs, filtros, gráficos, pedidos, tokenStats)
     gerente: ['sectionUsers','sectionUsersManagement',
               'sectionTokens','sectionCoupons','sectionCouponUsage','sectionAffiliates',
               'sectionAffiliateSales','sectionAffiliatePayouts','sectionAffiliatePanel','sectionPasseBooyah',
               'sectionHighlights','sectionNews','sectionProducts','sectionEvents','sectionBonusSlots',
               'sectionShirtOrders','sectionSchedules',
-              'sectionNotificationsAdmin','sectionAdminHistory'],
+              'sectionNotificationsAdmin','sectionAdminHistory',
+              'sectionChampResults','sectionChampConfig'],
     // DESIGNER: apenas conteúdo (destaques, notícias, produtos, eventos) — sem camisas, sem horários
     designer: ['sectionHighlights','sectionNews','sectionProducts','sectionEvents'],
     // VENDEDOR: usuários + financeiro (sem aba principal) + camisas + produtos + notificações
@@ -340,12 +343,13 @@ window.showWarningToast = function(message, title = 'Atenção') {
                'sectionTokens','sectionCoupons','sectionCouponUsage','sectionAffiliates',
                'sectionAffiliateSales','sectionAffiliatePayouts','sectionPasseBooyah','sectionShirtOrders',
                'sectionProducts','sectionNotificationsAdmin'],
-    // ADMIN: gerenciador de eventos + notificações + vagas bônus
-    admin: ['sectionEvents','sectionBonusSlots','sectionNotificationsAdmin'],
-    // STAFF: notificações e eventos
-    staff: ['sectionEvents','sectionNotificationsAdmin'],
+    // ADMIN: gerenciador de eventos + notificações + vagas bônus + campeonato
+    admin: ['sectionEvents','sectionBonusSlots','sectionNotificationsAdmin',
+            'sectionChampResults','sectionChampConfig'],
+    // STAFF: notificações, eventos e campeonato
+    staff: ['sectionEvents','sectionNotificationsAdmin','sectionChampResults'],
     // MODERADOR: igual ao staff
-    moderador: ['sectionEvents','sectionNotificationsAdmin'],
+    moderador: ['sectionEvents','sectionNotificationsAdmin','sectionChampResults'],
     // OPERADOR: mesmo acesso do vendedor (sem aba principal)
     operador: ['sectionUsers','sectionUsersManagement',
                'sectionTokens','sectionCoupons','sectionCouponUsage','sectionAffiliates',
@@ -364,7 +368,8 @@ window.showWarningToast = function(message, title = 'Atenção') {
     'sectionTokenStats','sectionUsersManagement','sectionTokens','sectionCoupons','sectionCouponUsage',
     'sectionAffiliates','sectionAffiliateSales','sectionAffiliatePayouts','sectionAffiliatePanel','sectionPasseBooyah',
     'sectionHighlights','sectionNews','sectionProducts','sectionEvents','sectionBonusSlots','sectionShirtOrders',
-    'sectionSchedules','sectionNotificationsAdmin','sectionAdminHistory','sectionResetData'];
+    'sectionSchedules','sectionNotificationsAdmin','sectionAdminHistory','sectionResetData',
+    'sectionChampResults','sectionChampConfig'];
 
   // Control section visibility based on role
   function controlSectionVisibility(userRole) {
