@@ -6579,9 +6579,6 @@ async function updateOccupiedAndRefreshButtons(day, date, eventType, container) 
         if (isLocked) {
             // Horário travado pelo admin - OCULTAR
             btn.style.display = 'none';
-        } else if (eventType === 'semanal-freitas' && time === '19h') {
-            // Semanal Freitas: 19h sempre esgotado - OCULTAR
-            btn.style.display = 'none';
         } else if (available === 0) {
             // Horário lotado - OCULTAR
             btn.style.display = 'none';
