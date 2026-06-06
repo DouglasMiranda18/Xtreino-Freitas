@@ -256,9 +256,6 @@
         <button onclick="window.champExportar('png')" class="px-3 py-2 bg-gray-600 text-white rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-gray-700 transition-colors">
           <i class="fas fa-image"></i> PNG
         </button>
-        <button onclick="window.champExportar('pdf')" class="px-3 py-2 bg-red-600 text-white rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-red-700 transition-colors">
-          <i class="fas fa-file-pdf"></i> PDF
-        </button>
       </div>
     `;
 
@@ -533,30 +530,37 @@
         <div style="text-align:center;color:#475569;font-size:11px;margin-top:16px;">XTreino Freitas • ${new Date().toLocaleDateString('pt-BR')}</div>
       </div>
     `;
-    exportEl.style.cssText = 'position:fixed;left:-9999px;top:0;z-index:-1;display:block;';
+    // Posicionar fora da tela mas visível para o html2canvas capturar corretamente
+    exportEl.style.cssText = 'position:absolute;top:-9999px;left:0;display:block;';
 
     try {
       showToast('info', 'Gerando exportação...', null, 3000);
-      const { default: html2canvas } = await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js');
       const inner = document.getElementById('champExportInner');
-      const canvas = await html2canvas(inner, { backgroundColor: '#1a1a2e', scale: 2, useCORS: true });
 
-      if (formato === 'pdf') {
-        const { jsPDF } = await import('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js');
-        const imgData = canvas.toDataURL('image/jpeg', 0.92);
-        const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-        const ratio = canvas.width / canvas.height;
-        const pdfW = 297;
-        const pdfH = pdfW / ratio;
-        pdf.addImage(imgData, 'JPEG', 0, Math.max(0, (210 - pdfH) / 2), pdfW, Math.min(pdfH, 210));
-        pdf.save(`resultado_${data}_${hora}.pdf`);
-      } else {
-        const link = document.createElement('a');
-        link.download = `resultado_${data}_${hora}.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-      }
-      showToast('success', 'Exportado com sucesso!');
+      // Aguardar carregamento de todas as imagens (inclui o banner base64)
+      const imgs = inner.querySelectorAll('img');
+      await Promise.all(Array.from(imgs).map(img =>
+        new Promise(resolve => {
+          if (img.complete && img.naturalWidth > 0) { resolve(); return; }
+          img.onload = resolve;
+          img.onerror = resolve;
+        })
+      ));
+
+      const { default: html2canvas } = await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js');
+      const canvas = await html2canvas(inner, {
+        backgroundColor: '#1a1a2e',
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false
+      });
+
+      const link = document.createElement('a');
+      link.download = `resultado_${data}_${hora}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      showToast('success', 'PNG exportado com sucesso!');
     } catch (e) {
       showToast('error', 'Erro na exportação: ' + e.message);
     } finally {
