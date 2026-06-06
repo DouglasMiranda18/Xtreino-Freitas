@@ -317,22 +317,25 @@ window.showWarningToast = function(message, title = 'Atenção') {
           'sectionTokenStats','sectionUsersManagement','sectionTokens','sectionCoupons',
           'sectionCouponUsage','sectionAffiliates','sectionAffiliateSales','sectionAffiliatePayouts',
           'sectionAffiliatePanel','sectionPasseBooyah','sectionHighlights','sectionNews',
-          'sectionProducts','sectionEvents','sectionShirtOrders','sectionWhatsAppLinks',
-          'sectionSchedules','sectionNotificationsAdmin','sectionAdminHistory','sectionResetData'],
+          'sectionProducts','sectionEvents','sectionBonusSlots','sectionShirtOrders',
+          'sectionSchedules','sectionNotificationsAdmin','sectionAdminHistory','sectionResetData',
+          'sectionChampResults','sectionChampConfig'],
     // SOCIO: tudo, somente visualização (sem reset)
     socio: ['sectionKPIs','sectionFilters','sectionCharts','sectionUsers','sectionOrders',
             'sectionTokenStats','sectionUsersManagement','sectionTokens','sectionCoupons',
             'sectionCouponUsage','sectionAffiliates','sectionAffiliateSales','sectionAffiliatePayouts',
             'sectionAffiliatePanel','sectionPasseBooyah','sectionHighlights','sectionNews',
-            'sectionProducts','sectionEvents','sectionShirtOrders','sectionWhatsAppLinks',
-            'sectionSchedules','sectionNotificationsAdmin','sectionAdminHistory'],
+            'sectionProducts','sectionEvents','sectionBonusSlots','sectionShirtOrders',
+            'sectionSchedules','sectionNotificationsAdmin','sectionAdminHistory',
+            'sectionChampResults','sectionChampConfig'],
     // GERENTE: tudo, EXCETO aba principal completa (KPIs, filtros, gráficos, pedidos, tokenStats)
     gerente: ['sectionUsers','sectionUsersManagement',
               'sectionTokens','sectionCoupons','sectionCouponUsage','sectionAffiliates',
               'sectionAffiliateSales','sectionAffiliatePayouts','sectionAffiliatePanel','sectionPasseBooyah',
-              'sectionHighlights','sectionNews','sectionProducts','sectionEvents',
-              'sectionShirtOrders','sectionWhatsAppLinks','sectionSchedules',
-              'sectionNotificationsAdmin','sectionAdminHistory'],
+              'sectionHighlights','sectionNews','sectionProducts','sectionEvents','sectionBonusSlots',
+              'sectionShirtOrders','sectionSchedules',
+              'sectionNotificationsAdmin','sectionAdminHistory',
+              'sectionChampResults','sectionChampConfig'],
     // DESIGNER: apenas conteúdo (destaques, notícias, produtos, eventos) — sem camisas, sem horários
     designer: ['sectionHighlights','sectionNews','sectionProducts','sectionEvents'],
     // VENDEDOR: usuários + financeiro (sem aba principal) + camisas + produtos + notificações
@@ -340,12 +343,13 @@ window.showWarningToast = function(message, title = 'Atenção') {
                'sectionTokens','sectionCoupons','sectionCouponUsage','sectionAffiliates',
                'sectionAffiliateSales','sectionAffiliatePayouts','sectionPasseBooyah','sectionShirtOrders',
                'sectionProducts','sectionNotificationsAdmin'],
-    // ADMIN: gerenciador de eventos + notificações
-    admin: ['sectionEvents','sectionNotificationsAdmin'],
-    // STAFF: notificações e eventos
-    staff: ['sectionEvents','sectionNotificationsAdmin'],
+    // ADMIN: gerenciador de eventos + notificações + vagas bônus + campeonato
+    admin: ['sectionEvents','sectionBonusSlots','sectionNotificationsAdmin',
+            'sectionChampResults','sectionChampConfig'],
+    // STAFF: notificações, eventos e campeonato
+    staff: ['sectionEvents','sectionNotificationsAdmin','sectionChampResults'],
     // MODERADOR: igual ao staff
-    moderador: ['sectionEvents','sectionNotificationsAdmin'],
+    moderador: ['sectionEvents','sectionNotificationsAdmin','sectionChampResults'],
     // OPERADOR: mesmo acesso do vendedor (sem aba principal)
     operador: ['sectionUsers','sectionUsersManagement',
                'sectionTokens','sectionCoupons','sectionCouponUsage','sectionAffiliates',
@@ -363,8 +367,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
   const ALL_SECTIONS = ['sectionKPIs','sectionFilters','sectionCharts','sectionUsers','sectionOrders',
     'sectionTokenStats','sectionUsersManagement','sectionTokens','sectionCoupons','sectionCouponUsage',
     'sectionAffiliates','sectionAffiliateSales','sectionAffiliatePayouts','sectionAffiliatePanel','sectionPasseBooyah',
-    'sectionHighlights','sectionNews','sectionProducts','sectionEvents','sectionShirtOrders',
-    'sectionWhatsAppLinks','sectionSchedules','sectionNotificationsAdmin','sectionAdminHistory','sectionResetData'];
+    'sectionHighlights','sectionNews','sectionProducts','sectionEvents','sectionBonusSlots','sectionShirtOrders',
+    'sectionSchedules','sectionNotificationsAdmin','sectionAdminHistory','sectionResetData',
+    'sectionChampResults','sectionChampConfig'];
 
   // Control section visibility based on role
   function controlSectionVisibility(userRole) {
@@ -1061,6 +1066,35 @@ window.showWarningToast = function(message, title = 'Atenção') {
   }
   window.resolveUserIdByEmail = resolveUserIdByEmail;
 
+  // Toggle visual do tipo de vaga (Pago / Listagem Grátis)
+  window.selectAddPaidType = function(type) {
+    const isPaid = type === 'paid';
+    const paidLabel = document.getElementById('addPaidLabel');
+    const freeLabel = document.getElementById('addFreeLabel');
+    const dotPago   = document.getElementById('addDotPago');
+    const dotGratis = document.getElementById('addDotGratis');
+    const paidInput = document.getElementById('addPaidPago');
+    const freeInput = document.getElementById('addPaidGratis');
+    if (!paidLabel || !freeLabel) return;
+    if (isPaid) {
+      paidLabel.className = 'flex items-center gap-2 border-2 border-green-500 bg-green-50 rounded-xl px-4 py-3 cursor-pointer transition-all';
+      freeLabel.className = 'flex items-center gap-2 border-2 border-gray-200 bg-white rounded-xl px-4 py-3 cursor-pointer transition-all';
+      dotPago.className = 'w-4 h-4 rounded-full border-2 border-green-500 bg-green-500 flex items-center justify-center flex-shrink-0';
+      dotPago.innerHTML = '<div class="w-2 h-2 rounded-full bg-white"></div>';
+      dotGratis.className = 'w-4 h-4 rounded-full border-2 border-gray-300 flex items-center justify-center flex-shrink-0';
+      dotGratis.innerHTML = '';
+      if (paidInput) paidInput.checked = true;
+    } else {
+      freeLabel.className = 'flex items-center gap-2 border-2 border-orange-400 bg-orange-50 rounded-xl px-4 py-3 cursor-pointer transition-all';
+      paidLabel.className = 'flex items-center gap-2 border-2 border-gray-200 bg-white rounded-xl px-4 py-3 cursor-pointer transition-all';
+      dotGratis.className = 'w-4 h-4 rounded-full border-2 border-orange-400 bg-orange-400 flex items-center justify-center flex-shrink-0';
+      dotGratis.innerHTML = '<div class="w-2 h-2 rounded-full bg-white"></div>';
+      dotPago.className = 'w-4 h-4 rounded-full border-2 border-gray-300 flex items-center justify-center flex-shrink-0';
+      dotPago.innerHTML = '';
+      if (freeInput) freeInput.checked = true;
+    }
+  };
+
   // Verificação ao sair do campo de e-mail — mostra se o usuário existe
   async function onAddEmailBlur() {
     const emailEl = document.getElementById('addEmail');
@@ -1103,9 +1137,19 @@ window.showWarningToast = function(message, title = 'Atenção') {
           const person = (personEl?.value || '').trim();
           const notes = (notesEl?.value || '').trim();
           const date = (dateEl?.value || '').trim();
-          const eventType = (typeEl?.value || '').trim();
+          // Usar tipo canônico (ex: 'xtreino-tokens') em vez do ID do doc Firestore
+          const _selectedOpt = typeEl?.options?.[typeEl?.selectedIndex];
+          const eventType = (_selectedOpt?.dataset?.canonicalType || canonicalType(typeEl?.value) || typeEl?.value || '').trim();
           if (!teamName || !contact){
             alert('Informe ao menos Time/Org e Contato.');
+            return;
+          }
+          if (!eventType){
+            alert('Selecione o tipo de evento no painel de horários antes de adicionar um time.\n\nSem o tipo de evento, o time não aparecerá na lista de Inscritos.');
+            return;
+          }
+          if (!schedule || schedule === '—'){
+            alert('Selecione o horário no painel de horários antes de adicionar um time.');
             return;
           }
           if (!date){
@@ -1124,7 +1168,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
             clientUserId = await resolveUserIdByEmail(clientEmail);
           }
 
-          // Se horário não estiver definido, cria sem horário específico
+          const _paidTypeEl = document.querySelector('input[name="addPaidType"]:checked');
+          const isFreeSlot = (_paidTypeEl?.value || 'paid') === 'free';
+
           const payload = {
             teamName,
             contact,
@@ -1136,10 +1182,37 @@ window.showWarningToast = function(message, title = 'Atenção') {
             eventType: eventType || null,
             status: 'confirmed',
             userId: clientUserId || null,
-            addedManually: true
+            addedManually: true,
+            freeSlot: isFreeSlot,
+            listingType: isFreeSlot ? 'free' : 'paid'
           };
           try{
-            const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            const { collection, addDoc, serverTimestamp, query: _q, where: _w, getDocs: _gd, getDoc: _gd1, doc: _doc, runTransaction: _runTx } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            // Calcular próximo slot sequencial (unificado com PIX/tokens via transação atômica)
+            const _normH = s => {
+                const str = String(s||'').trim();
+                const mColon = str.match(/(\d{1,2}):(\d{2})/);
+                if (mColon) return parseInt(mColon[1],10)+'h';
+                const mH = str.match(/(\d{1,2})\s*h/i);
+                if (mH) return parseInt(mH[1],10)+'h';
+                return str;
+            };
+            // slot = timestamp em segundos — garante que aparece por último na ordenação do board
+            // (MP usa 1, 2, 3... então timestamp sempre é maior)
+            // O board atribui letras A, B, C... automaticamente por posição (idx+1) — não depende de slotDisplay
+            const nextSlot = Math.floor(Date.now() / 1000);
+            // rawEvType para consistência com MP
+            const _rawDocId = (typeEl?.selectedOptions?.[0]?.dataset?.rawEventId || typeEl?.value || '').trim();
+            let _rawEvType = _rawDocId;
+            try {
+                const _evSnap = await _gd1(_doc(window.firebaseDb, 'adminEvents', _rawDocId));
+                if (_evSnap.exists() && _evSnap.data().eventType) _rawEvType = _evSnap.data().eventType;
+            } catch(_) {}
+            payload.eventType = _rawEvType || eventType || null;
+            payload.teamName = teamName;
+            payload.slot = nextSlot;
+            payload.slotNumber = nextSlot;
+            payload.slotDisplay = null;
             await addDoc(collection(window.firebaseDb,'registrations'), { ...payload, createdAt: serverTimestamp() });
             const notifMsg = clientUserId
               ? 'Time adicionado! O cliente receberá notificações de ID/senha.'
@@ -1319,6 +1392,33 @@ window.showWarningToast = function(message, title = 'Atenção') {
     }
     const formAddTeam = document.getElementById('formAddTeam');
     if (formAddTeam) formAddTeam.onsubmit = submitAddTeam;
+
+    // ── Limpeza única de registrations de teste ──
+    (async function cleanupTestRegistrations() {
+      try {
+        const _fbDb = window.firebaseDb || await new Promise(res => {
+          const _t = setInterval(() => { if (window.firebaseDb) { clearInterval(_t); res(window.firebaseDb); } }, 300);
+        });
+        const { collection, query, where, getDocs, deleteDoc, doc } =
+          await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const nomesAlvo = ['B12 E-SPORTS', 'TROPA DO FERA', 'B12 E-SPORTS B'];
+        let deletados = 0;
+        for (const nome of nomesAlvo) {
+          // Query simples (campo único) — sem composite index
+          const snap = await getDocs(query(collection(_fbDb, 'registrations'), where('teamName', '==', nome)));
+          for (const d of snap.docs) {
+            const r = d.data();
+            if (r.addedManually !== true) continue; // filtro em JS
+            await deleteDoc(doc(_fbDb, 'registrations', d.id));
+            deletados++;
+          }
+        }
+        if (deletados > 0) console.log(`🧹 Limpeza: ${deletados} registration(s) de teste removida(s).`);
+      } catch (e) {
+        console.warn('Limpeza de testes:', e?.message || e);
+      }
+    })();
+
     // Bind filtros do histórico de cupons - configurar após DOM estar pronto
     setupCouponUsageFilters();
     // Inicializa período como "hoje" (sincroniza com botão Hoje ativo por padrão)
@@ -1501,7 +1601,6 @@ window.showWarningToast = function(message, title = 'Atenção') {
     'sectionNews',
     'sectionProducts',
     'sectionShirtOrders',
-    'sectionWhatsAppLinks',
     'sectionSchedules',
     'sectionResetData'
   ];
@@ -2669,11 +2768,11 @@ window.showWarningToast = function(message, title = 'Atenção') {
   function getEventTypeConfig() {
     return {
       canonical: {
-        'modo-liga': (s) => s === 'liga' || s.includes('modo liga'),
-        'camp-final': (s) => s === 'camp-final' || s.includes('camp final') || s.includes('vaga direto'),
-        'camp-freitas': (s) => s === 'camp' || s.includes('camp freitas'),
-        'semanal-freitas': (s) => s === 'semanal' || s.includes('semanal freitas'),
-        'xtreino-tokens': (s) => s.includes('xtreino')
+        'modo-liga': (s) => s === 'liga' || s === 'modo-liga' || s.includes('modo liga') || s.includes('modo-liga'),
+        'camp-final': (s) => s === 'camp-final' || s.includes('camp final') || s.includes('vaga direto') || s.includes('camp-final'),
+        'camp-freitas': (s) => s === 'camp' || s === 'camp-freitas' || s.includes('camp freitas') || s.includes('camp-freitas'),
+        'semanal-freitas': (s) => s === 'semanal' || s === 'semanal-freitas' || s.includes('semanal freitas') || s.includes('semanal-freitas'),
+        'xtreino-tokens': (s) => s.includes('xtreino') || s === 'xtreino-tokens'
       },
       aliases: {
         'modo-liga': ['modo-liga','liga','modo liga'],
@@ -2747,6 +2846,16 @@ window.showWarningToast = function(message, title = 'Atenção') {
         const opt = document.createElement('option');
         opt.value = d.id;
         opt.textContent = ev.name || d.id;
+        // Tipo canônico: preferir campo eventType; se vazio, derivar do nome do evento; fallback: doc ID
+        // CRÍTICO: 'XTreino Freitas' → canonicalType → 'xtreino-tokens' (mesmo valor que o booking flow salva em r.eventType)
+        const canon = canonicalType(ev.eventType || ev.name || d.id);
+        opt.dataset.canonicalType = canon;
+        opt.dataset.rawEventId = d.id;
+        // evFieldType = tipo canônico que o booking flow usa ao salvar em r.eventType
+        opt.dataset.evFieldType = canon;
+        // rawEventType = valor exato que o MP/tokens usa como chave no slotCounters e em r.eventType
+        // CRÍTICO: espelha `rawEventType = ev.eventType || d.id` do script.js
+        opt.dataset.rawEventType = ev.eventType || d.id;
         typeEl.appendChild(opt);
       });
     } catch (err) {
@@ -2757,27 +2866,42 @@ window.showWarningToast = function(message, title = 'Atenção') {
   window.loadDynamicEventsIntoBoard = loadDynamicEventsIntoBoard;
 
   // Busca registrations pelo dia
-  async function fetchRegistrationsByDate(date, eventType) {
+  // evFieldType = valor real do campo eventType no doc adminEvents (ex: 'xtreino-tokens')
+  // CRÍTICO: igual ao fetchOccupiedForDate do script.js — query por campo único sem composite index
+  // date e status são filtrados em JS depois, evitando necessidade de índice composto no Firestore
+  async function fetchRegistrationsByDate(date, evFieldType, ovEventType = null, rawEventId = null) {
     try {
       const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
       const regs = collection(window.firebaseDb, 'registrations');
-      const q = query(regs, where('date', '==', date), where('status', 'in', ['paid','confirmed','approved','pending']));
-      const snap = await getDocs(q);
+      const validStatuses = new Set(['paid', 'confirmed', 'approved']);
+      // Coletar todos os valores distintos de eventType que podem estar salvos nas registrations
+      const typesToQuery = [...new Set([evFieldType, ovEventType, rawEventId].filter(Boolean))];
+      if (typesToQuery.length === 0) return {};
+
+      // Query por campo único (sem composite index) — mesclar resultados deduplificando por doc ID
+      const allDocs = new Map();
+      await Promise.all(typesToQuery.map(async t => {
+        try {
+          const snap = await getDocs(query(regs, where('eventType', '==', t)));
+          snap.forEach(d => allDocs.set(d.id, d));
+        } catch (_) {}
+      }));
+
       const map = {};
-      
-      snap.forEach(d => {
+      allDocs.forEach(d => {
         const r = d.data();
-        if (eventType && r.eventType && !String(r.eventType).toLowerCase().includes(String(eventType).toLowerCase())) return;
-        
+        if (r.date !== date) return;           // filtrar por data em JS
+        if (!validStatuses.has(r.status)) return; // filtrar por status em JS
+
         const raw = String(r.schedule || r.hour || '').toLowerCase();
         const m = raw.match(/(\d{1,2})/);
         if (!m) return;
-        
+
         const hh = String(parseInt(m[1], 10)).padStart(2, '0');
         const key = `${hh}:00`;
         map[key] = (map[key] || 0) + 1;
       });
-      
+
       return map;
     } catch (e) {
       console.error('Erro ao buscar registrations:', e);
@@ -2793,16 +2917,20 @@ window.showWarningToast = function(message, title = 'Atenção') {
   }
 
   // Busca overrides (travas e ocupações extras)
-  async function fetchScheduleOverrides(date, eventType) {
+  async function fetchScheduleOverrides(date, eventType, rawEventId = null) {
     const overrides = {};
     try {
       const { collection: c, query: q, where: w, getDocs: g } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
       const ovRef = c(window.firebaseDb, 'schedule_overrides');
       const variants = resolveAliases(eventType);
+      // Incluir o ID bruto do Firestore como variante extra (retrocompat com docs antigos)
+      if (rawEventId && rawEventId !== eventType && !variants.includes(rawEventId)) {
+        variants.push(rawEventId);
+      }
       
       // Buscar por variações de eventType
       for (const v of variants) {
-        if (v === undefined) continue;
+        if (v === undefined || v === null || v === '') continue;
         try {
           const ovSnap = await g(q(ovRef, w('date', '==', date), w('eventType', '==', v)));
           ovSnap.forEach(d => {
@@ -2820,16 +2948,21 @@ window.showWarningToast = function(message, title = 'Atenção') {
         }
       }
       
-      // Fallback: documentos sem eventType definido
+      // Fallback: todos os docs da data, filtrar em JS
       try {
         const allSnap = await g(q(ovRef, w('date', '==', date)));
+        const canonEvent = canonicalType(eventType);
         allSnap.forEach(d => {
           const raw = d.data() || {};
           const hh = extractHour(raw.hour || raw.hh);
           if (!hh) return;
-          const docFamily = canonicalType(raw.eventType || raw.event_type || '');
-          if (docFamily && docFamily !== canonicalType(eventType)) return;
-          if (!docFamily && !variants.includes(null) && !variants.includes('')) return;
+          const rawEt = raw.eventType || raw.event_type || '';
+          const docFamily = canonicalType(rawEt);
+          // Incluir se: sem eventType, canonical bate, ou ID bruto bate (retrocompat)
+          const matchesCanon = docFamily === canonEvent;
+          const matchesRawId = rawEventId && (rawEt === rawEventId);
+          const hasNoType = !rawEt;
+          if (!matchesCanon && !matchesRawId && !hasNoType) return;
           const k = `${hh}:00`;
           const agg = overrides[k] || { lockedAny: false, extraOccupied: 0 };
           agg.lockedAny = agg.lockedAny || (raw.locked === true);
@@ -2902,7 +3035,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
   }
 
   // Busca todos os overrides para um horário (consolidado)
-  async function findAllOverridesForHour(date, eventType, hh) {
+  async function findAllOverridesForHour(date, eventType, hh, rawEventId = null) {
     
     const { collection: c, query: q, where: w, getDocs: g } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     const ovRef = c(window.firebaseDb, 'schedule_overrides');
@@ -2910,12 +3043,14 @@ window.showWarningToast = function(message, title = 'Atenção') {
     const variants = resolveAliases(eventType);
     const canon = canonicalType(eventType);
     
+    // Incluir ID bruto como variante extra (retrocompat com docs antigos)
+    if (rawEventId && rawEventId !== eventType && !variants.includes(rawEventId)) {
+      variants.push(rawEventId);
+    }
     
     // Query com eventType canônico e variações
     try {
-      
       const snap1 = await g(q(ovRef, w('date', '==', date), w('eventType', '==', canon), w('hour', '==', hh)));
-      
       snap1.forEach(d => toUpdate.set(d.id, d));
     } catch (e) {
       console.warn('❌ Erro na query eventType canônico:', e.message);
@@ -2923,59 +3058,44 @@ window.showWarningToast = function(message, title = 'Atenção') {
     
     // Query com hh (formato alternativo)
     try {
-      
       const snap2 = await g(q(ovRef, w('date', '==', date), w('eventType', '==', canon), w('hh', '==', hh)));
-      
       snap2.forEach(d => toUpdate.set(d.id, d));
     } catch (e) {
       console.warn('❌ Erro na query hh:', e.message);
     }
     
-    // Variações de aliases
+    // Variações de aliases + ID bruto
     for (const v of variants) {
       if (!v) continue;
       try {
-        
         const snapV = await g(q(ovRef, w('date', '==', date), w('eventType', '==', v), w('hour', '==', hh)));
-        
         snapV.forEach(d => toUpdate.set(d.id, d));
       } catch (e) {
         console.warn(`  ⚠️ Erro variant ${v}:`, e.message);
       }
     }
     
-    // Fallback: documentos sem eventType definido (apenas se necessário)
+    // Fallback: todos os docs da data, filtrar em JS (inclui docs com ID bruto antigo)
     try {
-      
       const snapAll = await g(q(ovRef, w('date', '==', date)));
-      
       snapAll.forEach(d => {
         const raw = d.data() || {};
         const hhDoc = extractHour(raw.hour || raw.hh);
-        
-        if (!hhDoc || hhDoc !== hh) {
-          
-          return;
-        }
-        const docFamily = canonicalType(raw.eventType || raw.event_type || '');
-        if (docFamily && docFamily !== canon) {
-          
-          return;
-        }
-        if (!docFamily && !variants.includes(null) && !variants.includes('')) {
-          
-          return;
-        }
-        
+        if (!hhDoc || hhDoc !== hh) return;
+        const rawEt = raw.eventType || raw.event_type || '';
+        const docFamily = canonicalType(rawEt);
+        // Incluir se: canonical bate, ID bruto bate (retrocompat), ou sem eventType
+        const matchesCanon = docFamily === canon;
+        const matchesRawId = rawEventId && (rawEt === rawEventId);
+        const hasNoType = !rawEt;
+        if (!matchesCanon && !matchesRawId && !hasNoType) return;
         toUpdate.set(d.id, d);
       });
     } catch (e) {
       console.warn('❌ Erro ao buscar overrides fallback:', e.message);
     }
     
-    const result = Array.from(toUpdate.values());
-    
-    return result;
+    return Array.from(toUpdate.values());
   }
 
   // Carrega quadro de horários por data/evento
@@ -3119,6 +3239,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
 
       const selectedOpt = typeEl.options[typeEl.selectedIndex];
       const ovEventType = selectedOpt?.dataset?.canonicalType || canonicalType(eventType);
+      const rawEventId = selectedOpt?.dataset?.rawEventId || eventType;
+      // evFieldType = valor bruto do campo eventType do adminEvents doc (é o que o booking flow salva em r.eventType)
+      const evFieldType = selectedOpt?.dataset?.evFieldType || rawEventId;
       const isCampSemifinalDate = CAMP_SEMIFINAL_DATES.includes(date);
       const isCampFinalDate = CAMP_FINAL_DATES.includes(date);
 
@@ -3181,10 +3304,12 @@ window.showWarningToast = function(message, title = 'Atenção') {
       }
 
       // ===== Carregar dados de registrations =====
-      const occupancyMap = await fetchRegistrationsByDate(date, eventType);
+      // Passar ambos: tipo canônico (ovEventType) e ID bruto do doc (rawEventId)
+      // para aceitar registrations salvas de qualquer forma
+      const occupancyMap = await fetchRegistrationsByDate(date, evFieldType, ovEventType, rawEventId);
 
       // ===== Carregar overrides (travas e extras) =====
-      let overridesMap = await fetchScheduleOverrides(date, ovEventType);
+      let overridesMap = await fetchScheduleOverrides(date, ovEventType, rawEventId);
       
       // Aplicar travas fixas do Modo Liga
       //overridesMap = applyFixedModoLigaLocks(overridesMap, ovEventType);
@@ -3193,7 +3318,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
       const mergedMap = {};
       defaultHours.forEach(hour => {
         const occupied = occupancyMap[hour] || 0;
-        const cap = getCapacityForHour(eventType, hour, isCampFinalDate, isCampSemifinalDate);
+        const cap = getCapacityForHour(ovEventType, hour, isCampFinalDate, isCampSemifinalDate);
         let final = occupied;
         
         const ovData = overridesMap[hour];
@@ -3240,14 +3365,14 @@ window.showWarningToast = function(message, title = 'Atenção') {
       } catch(_) {}
 
       entries.forEach(hour => {
-        const cap = getCapacityForHour(eventType, hour, isCampFinalDate, isCampSemifinalDate);
+        const cap = getCapacityForHour(ovEventType, hour, isCampFinalDate, isCampSemifinalDate);
         const occupied = mergedMap[hour] || 0;
         const tr = createBoardTableRow(hour, cap, occupied, overridesMap, ovEventType, permLockedHours);
         tbody.appendChild(tr);
       });
 
       // ===== Bind dos botões de ação =====
-      bindBoardTableActions(tbody, date, eventType, ovEventType);
+      bindBoardTableActions(tbody, date, eventType, ovEventType, rawEventId, evFieldType);
 
     } catch (e) {
       console.error('❌ Erro em loadBoard:', e.message || e);
@@ -3257,7 +3382,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
   }
 
   // Binda ações dos botões da tabela
-  function bindBoardTableActions(tbody, date, eventType, ovEventType) {
+  function bindBoardTableActions(tbody, date, eventType, ovEventType, rawEventId = null, evFieldType = null) {
     // Remover listeners antigos para evitar duplicação
     if (!tbody || !tbody.parentNode) return;
     const newTbody = tbody.cloneNode(true);
@@ -3275,11 +3400,21 @@ window.showWarningToast = function(message, title = 'Atenção') {
           const modal = document.getElementById('modalAddTeam');
           const hourInput = document.getElementById('addHour');
           if (hourInput) hourInput.value = h;
+          // Resetar toggle para "Pago" a cada abertura
+          if (typeof window.selectAddPaidType === 'function') window.selectAddPaidType('paid');
+          // Limpar campos do form
+          ['addTeamName','addContact','addEmail','addPerson','addNotes'].forEach(id => {
+            const el = document.getElementById(id); if (el) el.value = '';
+          });
+          const statusEl = document.getElementById('addEmailStatus');
+          if (statusEl) statusEl.textContent = '';
+          const msgEl = document.getElementById('addTeamMsg');
+          if (msgEl) msgEl.textContent = '';
           if (modal) modal.classList.remove('hidden');
         } 
         else if (btnManage) {
           const h = btnManage.getAttribute('data-manage-hour');
-          openManageHourModal(date, eventType, h);
+          openManageHourModal(date, ovEventType, h, rawEventId, evFieldType);
         } 
         else if (btnExport) {
           const h = btnExport.getAttribute('data-export-hour');
@@ -3294,7 +3429,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
         } 
         else if (btnToggle) {
           const h = btnToggle.getAttribute('data-toggle-lock');
-          await handleToggleLock(h, date, eventType, ovEventType);
+          await handleToggleLock(h, date, eventType, ovEventType, rawEventId);
         }
         const btnPermLock = e.target.closest('[data-toggle-perm-lock]');
         if (btnPermLock) {
@@ -3340,7 +3475,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
   }
 
   // Handler para toggle de travamento de horário
-  async function handleToggleLock(hour, date, eventType, ovEventType) {
+  async function handleToggleLock(hour, date, eventType, ovEventType, rawEventId = null) {
     
     const isFixedLock = false // (canonicalType(eventType) === 'modo-liga' && (hour === '16:00' || hour === '17:00'));
     
@@ -3368,7 +3503,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
         return;
       }      
 
-      const docsArr = await findAllOverridesForHour(date, eventType, hh);       
+      const docsArr = await findAllOverridesForHour(date, ovEventType, hh, rawEventId);       
       if (docsArr.length > 0) {        
         // Verificar estado atual
         const anyLocked = docsArr.some(d => d.data()?.locked === true);
@@ -3537,12 +3672,12 @@ window.showWarningToast = function(message, title = 'Atenção') {
       const toCreate = [];
 
       defaultHours.forEach(hour => {
-        const hh = String(hour).replace(/\D/g,'').padStart(2,'0');
-        const h = parseInt(hh,10);
-        const hStr = String(h);
+        const hh = extractHour(hour);
+        if (!hh) return;
+        const hStr = String(parseInt(hh, 10));
         if (existing[hStr] || existing[hh]) {
           const id = existing[hStr] || existing[hh];
-          batch.update(doc(window.firebaseDb,'schedule_overrides',id), { locked: true, eventType: canon });
+          batch.update(doc(window.firebaseDb,'schedule_overrides',id), { locked: true, eventType: canon, hour: hStr, hh: hStr });
         } else {
           toCreate.push({ date, eventType: canon, hour: hStr, hh: hStr, locked: true, extraOccupied: 0, createdAt: Date.now() });
         }
@@ -3602,57 +3737,264 @@ window.showWarningToast = function(message, title = 'Atenção') {
     }
   }
 
-  async function openManageHourModal(date, eventType, hour){
+  // Troca a aba ativa no modal de gerenciar horário
+  window.switchManageHourTab = function(tab) {
+    const confirmedList = document.getElementById('manageHourListConfirmed');
+    const pendingList   = document.getElementById('manageHourListPending');
+    const tabConfirmed  = document.getElementById('mhTabConfirmed');
+    const tabPending    = document.getElementById('mhTabPending');
+    if (!confirmedList || !pendingList) return;
+
+    if (tab === 'confirmed') {
+      confirmedList.classList.remove('hidden');
+      pendingList.classList.add('hidden');
+      tabConfirmed.className = 'flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold border-2 transition-all border-green-500 bg-green-50 text-green-700';
+      tabPending.className   = 'flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold border-2 transition-all border-gray-200 bg-white text-gray-500';
+    } else {
+      confirmedList.classList.add('hidden');
+      pendingList.classList.remove('hidden');
+      tabPending.className   = 'flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold border-2 transition-all border-yellow-400 bg-yellow-50 text-yellow-700';
+      tabConfirmed.className = 'flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold border-2 transition-all border-gray-200 bg-white text-gray-500';
+    }
+  };
+
+  async function openManageHourModal(date, eventType, hour, rawEventId = null, evFieldType = null){
     try{
-      const title = document.getElementById('manageHourTitle');
-      const list = document.getElementById('manageHourList');
-      const modal = document.getElementById('modalManageHour');
-      if (!list || !modal) return;
+      const title         = document.getElementById('manageHourTitle');
+      const listConfirmed = document.getElementById('manageHourListConfirmed');
+      const listPending   = document.getElementById('manageHourListPending');
+      const modal         = document.getElementById('modalManageHour');
+      if (!listConfirmed || !modal) return;
+
       if (title) title.textContent = `Gerenciar ${hour} — ${date}`;
-      list.innerHTML = '<div class="text-sm text-gray-500">Carregando...</div>';
+
+      // Reset: mostrar aba "Confirmados" por padrão
+      listConfirmed.innerHTML = '<div class="text-sm text-gray-500 py-4 text-center">Carregando...</div>';
+      if (listPending) listPending.innerHTML = '';
+      switchManageHourTab('confirmed');
+
       const { collection, query, where, getDocs, doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
       const regs = collection(window.firebaseDb,'registrations');
-      // Busca reservas do dia incluindo pendentes — admin precisa ver todos
-      const snap = await getDocs(query(regs, where('date','==', date), where('status','in',['paid','confirmed','approved','pending'])));
-      list.innerHTML = '';
-      let any = false;
-      const evLower = String(eventType||'').toLowerCase();
+      // CRÍTICO: query por campo único (sem composite index) — igual ao fetchOccupiedForDate do script.js
+      // date e status filtrados em JS depois
+      const _validManageStatuses = new Set(['paid','confirmed','approved','pending']);
+      const _typesToQuery = [...new Set([evFieldType, eventType, rawEventId].filter(Boolean))];
+      const _allRegDocs = new Map();
+      await Promise.all(_typesToQuery.map(async t => {
+        try {
+          const s = await getDocs(query(regs, where('eventType', '==', t)));
+          s.forEach(d => _allRegDocs.set(d.id, d));
+        } catch (_) {}
+      }));
+      // Filtrar por data e status em JS
+      const _filteredByDate = [..._allRegDocs.values()].filter(d => {
+        const r = d.data();
+        return r.date === date && _validManageStatuses.has(r.status);
+      });
+      // Criar objeto snap compatível com código abaixo
+      const snap = { forEach: cb => _filteredByDate.forEach(cb) };
+
+      listConfirmed.innerHTML = '';
+      if (listPending) listPending.innerHTML = '';
+
+      const evLower    = String(eventType||'').toLowerCase();
+      const rawIdLower = String(rawEventId||'').toLowerCase();
       const normalizeHour = (s)=>{ const m = String(s||'').match(/(\d{1,2})/); return m? String(parseInt(m[1],10)).padStart(2,'0') : null; };
       const targetHH = normalizeHour(hour);
+
+      let countConfirmed = 0, countPending = 0;
+
+      // Função auxiliar para criar uma linha de time
+      // posIdx: índice posicional (1-based) dentro do grupo ordenado — igual ao "ver detalhes > Inscritos"
+      const makeRow = (d, r, isPending, isFreeManual, posIdx) => {
+        const _adminLogoUrl = r.teamLogoUrl || r.teamLogoThumb || null;
+        const logoHtml = _adminLogoUrl
+          ? `<img src="${_adminLogoUrl}" class="w-7 h-7 rounded object-cover flex-shrink-0">`
+          : `<div class="w-7 h-7 rounded bg-gray-100 flex items-center justify-center text-gray-400 flex-shrink-0 text-xs">${(r.teamName||'?').charAt(0).toUpperCase()}</div>`;
+        const statusBadge = isFreeManual
+          ? '<span class="text-xs bg-orange-100 text-orange-700 border border-orange-300 rounded px-1.5 py-0.5">🎁 Grátis</span>'
+          : isPending
+            ? '<span class="text-xs bg-yellow-100 text-yellow-700 border border-yellow-300 rounded px-1.5 py-0.5">⏳ Pendente</span>'
+            : '<span class="text-xs bg-green-100 text-green-700 border border-green-300 rounded px-1.5 py-0.5">✓ Pago</span>';
+        const _mgEmail = r.email || r.clientEmail || '';
+        const _mgPhone = r.contact || r.phone || '';
+        // Badge posicional — igual ao painel Ver Detalhes > Inscritos
+        // Modo Liga: exibe letra (A, B, C…) em vez de número
+        // Usa r.eventType (campo do registro) para garantir detecção correta
+        const _isLigaRow = (r.eventType || rawIdLower || '').toLowerCase() === 'modo-liga';
+        const slotBadgeLabel = _isLigaRow
+          ? String.fromCharCode(64 + posIdx)
+          : `#${posIdx}`;
+        const slotBadge = posIdx != null
+          ? `<span class="text-xs font-bold text-orange-600 bg-orange-50 border border-orange-200 rounded px-1.5 py-0.5 flex-shrink-0">${slotBadgeLabel}</span>`
+          : '';
+        // Botão de verificar pagamento — só para pendentes com external_reference
+        const extRef = r.external_reference || null;
+        const verifyBtn = isPending
+          ? `<button class="flex-shrink-0 px-2 py-1 bg-blue-50 border border-blue-200 text-blue-600 rounded-lg text-xs hover:bg-blue-600 hover:text-white transition-colors font-medium"
+                    data-verify-reg-id="${d.id}" data-ext-ref="${extRef || ''}" title="Consultar Mercado Pago e confirmar automaticamente">
+               🔍 Verificar
+             </button>`
+          : '';
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between gap-3 p-2.5 rounded-lg border ' + (isPending ? 'border-yellow-200 bg-yellow-50' : 'border-green-100 bg-green-50/40');
+        row.innerHTML = `
+          <div class="flex items-center gap-2 min-w-0">
+            ${logoHtml}
+            <div class="min-w-0">
+              <div class="font-semibold text-sm flex items-center flex-wrap gap-1">
+                ${slotBadge}
+                <span class="truncate">${r.teamName||_mgEmail||'-'}</span>
+                ${statusBadge}
+              </div>
+              ${_mgPhone ? `<div class="text-gray-500 text-xs">📞 ${_mgPhone}</div>` : ''}
+              ${_mgEmail ? `<div class="text-gray-400 text-xs truncate">✉️ ${_mgEmail}</div>` : ''}
+              ${extRef ? `<div class="text-gray-300 text-xs font-mono truncate">${extRef}</div>` : ''}
+            </div>
+          </div>
+          <div class="flex flex-col gap-1 flex-shrink-0">
+            ${verifyBtn}
+            <button class="px-2.5 py-1 bg-red-50 border border-red-200 text-red-600 rounded-lg text-xs hover:bg-red-600 hover:text-white transition-colors" data-remove-reg-id="${d.id}">Remover</button>
+          </div>`;
+        return row;
+      };
+
+      // Coletar e filtrar registros antes de ordenar
+      const _matchedDocs = [];
       snap.forEach(d=>{
         const r = d.data();
-        if (evLower && r.eventType && !String(r.eventType).toLowerCase().includes(evLower)) return;
+        if (!_validManageStatuses.has(r.status)) return;
+        // Aceitar registration se bate com tipo canônico OU com ID bruto do doc adminEvents
+        if (evLower || rawIdLower) {
+          const rEvL = String(r.eventType||'').toLowerCase();
+          const matchCanon = evLower    && rEvL.includes(evLower);
+          const matchRaw   = rawIdLower && rEvL.includes(rawIdLower);
+          if (!matchCanon && !matchRaw) return;
+        }
         const schedStr = String(r.schedule||'');
-        const hourStr = String(r.hour||'');
-        const regHH = normalizeHour(schedStr) || normalizeHour(hourStr);
-        // Se não tem horário válido, não aparece em modais de horários específicos
+        const hourStr  = String(r.hour||'');
+        const regHH    = normalizeHour(schedStr) || normalizeHour(hourStr);
         if (targetHH && !regHH) return;
         if (targetHH && regHH && targetHH !== regHH) return;
-        any = true;
-        const isPending = r.status === 'pending';
-        const statusBadge = isPending
-          ? '<span class="text-xs bg-yellow-100 text-yellow-700 border border-yellow-300 rounded px-1.5 py-0.5 ml-1">⏳ Aguardando pagto</span>'
-          : '<span class="text-xs bg-green-100 text-green-700 border border-green-300 rounded px-1.5 py-0.5 ml-1">✓ Pago</span>';
-        const row = document.createElement('div');
-        row.className = `flex items-center justify-between border-b py-2 ${isPending ? 'bg-yellow-50' : ''}`;
-        const logoHtml = r.teamLogoUrl
-          ? `<img src="${r.teamLogoUrl}" class="w-6 h-6 rounded object-cover flex-shrink-0">`
-          : '';
-        row.innerHTML = `<div class="text-sm"><div class="font-semibold flex items-center flex-wrap gap-1">${logoHtml}${r.teamName||r.email||'-'}${statusBadge}</div><div class="text-gray-500">${r.contact||r.phone||''}</div></div>
-          <button class="px-2 py-1 bg-red-600 text-white rounded text-xs" data-remove-reg-id="${d.id}">Remover</button>`;
-        list.appendChild(row);
+        _matchedDocs.push(d);
       });
-      if (!any){ list.innerHTML = '<div class="text-sm text-gray-500">Nenhum time neste horário.</div>'; }
-      list.addEventListener('click', async (e)=>{
-        const btn = e.target.closest('[data-remove-reg-id]');
-        if (!btn) return;
-        const id = btn.getAttribute('data-remove-reg-id');
-        try{
-          await deleteDoc(doc(collection(window.firebaseDb,'registrations'), id));
-          btn.closest('.flex')?.remove();
-          try{ await loadBoard(); }catch(_){ }
-        }catch(_){ alert('Falha ao remover.'); }
+
+      // Ordenar por slot crescente → createdAt (= ordem de compra), igual ao painel Inscritos
+      _matchedDocs.sort((a, b) => {
+        const ra = a.data(), rb = b.data();
+        const sa = ra.slot != null ? Number(ra.slot) : (ra.slotNumber != null ? Number(ra.slotNumber) : null);
+        const sb = rb.slot != null ? Number(rb.slot) : (rb.slotNumber != null ? Number(rb.slotNumber) : null);
+        if (sa !== null && sb !== null) return sa - sb;
+        if (sa !== null) return -1;
+        if (sb !== null) return 1;
+        return (ra.createdAt?.seconds ?? 0) - (rb.createdAt?.seconds ?? 0);
       });
+
+      _matchedDocs.forEach((d, idx) => {
+        const r = d.data();
+        const isPending    = r.status === 'pending';
+        const isFreeManual = r.freeSlot === true || r.listingType === 'free';
+        const row          = makeRow(d, r, isPending, isFreeManual, idx + 1);
+        if (isPending) {
+          countPending++;
+          if (listPending) listPending.appendChild(row);
+        } else {
+          countConfirmed++;
+          listConfirmed.appendChild(row);
+        }
+      });
+
+      // Atualizar contadores nas abas
+      const elCC = document.getElementById('mhCountConfirmed');
+      const elCP = document.getElementById('mhCountPending');
+      if (elCC) elCC.textContent = countConfirmed;
+      if (elCP) elCP.textContent = countPending;
+
+      // Mensagens de vazio
+      if (countConfirmed === 0) listConfirmed.innerHTML = '<div class="text-sm text-gray-400 py-6 text-center">Nenhum time confirmado neste horário.</div>';
+      if (listPending && countPending === 0) listPending.innerHTML = '<div class="text-sm text-gray-400 py-6 text-center">Nenhum time aguardando pagamento.</div>';
+
+      // Abre na aba com mais relevância: se só há pendentes, abre na aba pendentes
+      if (countConfirmed === 0 && countPending > 0) switchManageHourTab('pending');
+
+      // Delegação de eventos para botões "Remover" e "🔍 Verificar" em ambas as listas
+      const handleListClick = async (e) => {
+        // ── Remover ──────────────────────────────────────────────────
+        const removeBtn = e.target.closest('[data-remove-reg-id]');
+        if (removeBtn) {
+          const id = removeBtn.getAttribute('data-remove-reg-id');
+          try{
+            await deleteDoc(doc(collection(window.firebaseDb,'registrations'), id));
+            removeBtn.closest('.flex')?.remove();
+            const inConfirmed = !!removeBtn.closest('#manageHourListConfirmed');
+            if (inConfirmed) { countConfirmed--; if (elCC) elCC.textContent = Math.max(0, countConfirmed); }
+            else             { countPending--;   if (elCP) elCP.textContent = Math.max(0, countPending);   }
+            try{ await loadBoard(); }catch(_){ }
+          }catch(_){ alert('Falha ao remover.'); }
+          return;
+        }
+
+        // ── Verificar Pagamento ───────────────────────────────────────
+        const verifyBtn = e.target.closest('[data-verify-reg-id]');
+        if (!verifyBtn) return;
+        const regId = verifyBtn.getAttribute('data-verify-reg-id');
+        const extRef = verifyBtn.getAttribute('data-ext-ref') || '';
+        if (!extRef) {
+          showToast('warning', 'Esta inscrição não tem external_reference — confirme manualmente no Mercado Pago.', 'Atenção');
+          return;
+        }
+
+        const origHtml = verifyBtn.innerHTML;
+        verifyBtn.disabled = true;
+        verifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        try {
+          const resp = await fetch('/.netlify/functions/check-pix-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ external_reference: extRef })
+          });
+
+          if (!resp.ok) throw new Error('HTTP ' + resp.status);
+          const data = await resp.json();
+
+          if (data.status === 'approved') {
+            // Atualizar status no Firestore
+            const { doc: _doc, updateDoc: _upd, serverTimestamp: _sts } =
+              await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            await _upd(_doc(window.firebaseDb, 'registrations', regId), {
+              status: 'paid',
+              paidAt: _sts(),
+              confirmedByAdmin: true,
+              confirmedAt: _sts()
+            });
+            showToast('success', '✅ Pagamento confirmado! Status atualizado para Pago.', 'Confirmado');
+            // Reabrir o modal atualizado
+            try{ await loadBoard(); }catch(_){}
+            openManageHourModal(date, eventType, hour);
+          } else if (data.status === 'pending') {
+            showToast('warning', '⏳ Pagamento ainda pendente no Mercado Pago.', 'Pendente');
+            verifyBtn.disabled = false;
+            verifyBtn.innerHTML = origHtml;
+          } else if (data.status === 'rejected') {
+            showToast('error', '❌ Pagamento rejeitado pelo Mercado Pago.', 'Rejeitado');
+            verifyBtn.disabled = false;
+            verifyBtn.innerHTML = origHtml;
+          } else {
+            showToast('warning', `Status desconhecido: "${data.status}". Verifique no painel do Mercado Pago.`, 'Atenção');
+            verifyBtn.disabled = false;
+            verifyBtn.innerHTML = origHtml;
+          }
+        } catch (err) {
+          console.error('[Verificar pagamento] Erro:', err);
+          showToast('error', 'Erro ao consultar o Mercado Pago: ' + (err.message || err), 'Erro');
+          verifyBtn.disabled = false;
+          verifyBtn.innerHTML = origHtml;
+        }
+      };
+      listConfirmed.addEventListener('click', handleListClick);
+      if (listPending) listPending.addEventListener('click', handleListClick);
+
       modal.classList.remove('hidden');
     }catch(e){ console.error('openManageHourModal error', e); }
   }
@@ -3671,6 +4013,51 @@ window.showWarningToast = function(message, title = 'Atenção') {
 
   // [removido duplicado]
 })();
+
+// ===== Dados estruturados da lista de slots (para notificações) =====
+async function buildSlotData(date, eventType, hour) {
+  try {
+    const hh = String(hour).match(/(\d{1,2})/)?.[1] || '';
+    const { collection, getDocs, query, where } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const normalize = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const normalizeHour = s => { const m = String(s || '').match(/(\d{1,2})/); return m ? String(parseInt(m[1], 10)).padStart(2, '0') : null; };
+    const evLower = normalize(eventType);
+    const snap = await getDocs(query(collection(window.firebaseDb, 'registrations'), where('date', '==', date)));
+    const teams = [];
+    snap.forEach(doc => {
+      const r = doc.data();
+      const rType = normalize(r.eventType);
+      if (evLower) {
+        if (evLower.includes('liga')) { if (!rType.includes('liga')) return; }
+        else if (evLower.includes('semanal')) { if (!rType.includes('semanal')) return; }
+        else if (evLower.includes('camp')) { if (!rType.includes('camp')) return; }
+        else if (evLower.includes('xtreino') || evLower.includes('tokens')) {
+          if (!(rType.includes('xtreino') || rType.includes('tokens'))) return;
+        }
+      }
+      const regHH = normalizeHour(r.schedule) || normalizeHour(r.hour);
+      if (regHH !== hh) return;
+      const st = String(r.status || '').toLowerCase();
+      if (!['paid', 'confirmed'].includes(st)) return;
+      const slotNum = r.slot != null ? Number(r.slot) : (r.slotNumber != null ? Number(r.slotNumber) : null);
+      teams.push({ teamName: r.teamName || r.name || r.email || 'Time', slot: slotNum, createdAt: r.createdAt?.toDate?.() || new Date(0) });
+    });
+    teams.sort((a, b) => {
+      if (a.slot !== null && b.slot !== null) return a.slot - b.slot;
+      if (a.slot !== null) return -1;
+      if (b.slot !== null) return 1;
+      return (a.createdAt?.getTime?.() || 0) - (b.createdAt?.getTime?.() || 0);
+    });
+    const capacity = normalize(eventType).includes('liga') ? 15 : 12;
+    const slots = [];
+    for (let i = 1; i <= capacity; i++) {
+      slots.push({ slot: i, teamName: teams[i - 1]?.teamName || '' });
+    }
+    return { slots, capacity };
+  } catch (_) {
+    return { slots: [], capacity: 12 };
+  }
+}
 
 // ===== Exportação de lista por horário =====
 async function buildExportList(date, eventType, hour){
@@ -3700,9 +4087,16 @@ async function buildExportList(date, eventType, hour){
     const st = String(r.status||'').toLowerCase();
     if (!['paid','confirmed'].includes(st)) return;
     const name = r.teamName || r.name || r.email || 'Time';
-    teams.push({ name, createdAt: r.createdAt?.toDate?.() || new Date(0) });
+    const slotNum = r.slot != null ? Number(r.slot) : (r.slotNumber != null ? Number(r.slotNumber) : null);
+    teams.push({ name, slot: slotNum, createdAt: r.createdAt?.toDate?.() || new Date(0) });
   });
-  teams.sort((a,b)=> (a.createdAt?.getTime?.()||0) - (b.createdAt?.getTime?.()||0));
+  // Ordenar por slot crescente (mesma ordem do painel Inscritos); sem slot → por data de criação
+  teams.sort((a, b) => {
+    if (a.slot !== null && b.slot !== null) return a.slot - b.slot;
+    if (a.slot !== null) return -1;
+    if (b.slot !== null) return 1;
+    return (a.createdAt?.getTime?.() || 0) - (b.createdAt?.getTime?.() || 0);
+  });
   // Definir capacidade por tipo (modo liga = 15; demais = 12)
   const type = String(eventType||'').toLowerCase();
   const capacity = type.includes('liga') ? 15 : 12;
@@ -8024,11 +8418,14 @@ async function loadAffiliates() {
                 id: doc.id,
                 email: data.email || '',
                 name: data.name || data.displayName || data.email?.split('@')[0] || 'N/A',
-                commissionRate: data.commissionRate || 10, // Mantido para compatibilidade
+                commissionRate: data.commissionRate || 10,
                 commissionRateEvents: data.commissionRateEvents || data.commissionRate || 10,
                 commissionRateProducts: data.commissionRateProducts || data.commissionRate || 10,
                 status: data.affiliateStatus || 'active',
-                affiliateStatus: data.affiliateStatus || 'active', // Manter ambos para compatibilidade
+                affiliateStatus: data.affiliateStatus || 'active',
+                managerId: data.managerId || null,
+                managerEmail: data.managerEmail || null,
+                managerCommissionRate: data.managerCommissionRate != null ? data.managerCommissionRate : 10,
                 createdAt: createdAt
             });
         });
@@ -8170,10 +8567,17 @@ function renderAffiliatesRows(affiliatesList, tbody) {
             ? '<span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Ativo</span>'
             : '<span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs">Inativo</span>';
         
+        const managerBadge = affiliate.managerEmail
+            ? `<div class="mt-1"><span class="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">👔 ${affiliate.managerEmail.split('@')[0]} (${affiliate.managerCommissionRate ?? 10}%)</span></div>`
+            : '';
+
         return `
             <tr class="border-b border-gray-100 hover:bg-gray-50">
                 <td class="py-2 px-2 text-xs font-medium">${affiliate.name}</td>
-                <td class="py-2 px-2 text-xs">${affiliate.email}</td>
+                <td class="py-2 px-2 text-xs">
+                    <div>${affiliate.email}</div>
+                    ${managerBadge}
+                </td>
                 <td class="py-2 px-2 text-xs">
                     <div>Eventos: ${affiliate.commissionRateEvents || affiliate.commissionRate || 10}%</div>
                     <div class="text-gray-500">Produtos: ${affiliate.commissionRateProducts || affiliate.commissionRate || 10}%</div>
@@ -8302,6 +8706,13 @@ function closeCreateAffiliateModal() {
     }
 }
 
+// Mostrar/ocultar campo de comissão do gerente conforme e-mail preenchido
+window.toggleManagerCommissionField = function() {
+    const emailVal = (document.getElementById('affiliateManagerEmail')?.value || '').trim();
+    const wrap = document.getElementById('affiliateManagerCommissionWrap');
+    if (wrap) wrap.classList.toggle('hidden', !emailVal);
+};
+
 // Criar/editar afiliado
 async function createOrUpdateAffiliate(event) {
     if (event) event.preventDefault();
@@ -8311,56 +8722,70 @@ async function createOrUpdateAffiliate(event) {
     const commissionRateProducts = parseFloat(document.getElementById('affiliateCommissionRateProducts')?.value || 0);
     const status = document.getElementById('affiliateStatus')?.value || 'active';
     const editId = document.getElementById('affiliateEditId')?.value;
-    
+    const managerEmail = (document.getElementById('affiliateManagerEmail')?.value || '').trim().toLowerCase() || null;
+    const managerCommissionRate = managerEmail ? parseFloat(document.getElementById('affiliateManagerCommissionRate')?.value || 10) : null;
+
     if (!email) {
         showToast('error', 'Email é obrigatório', 'Erro');
         return;
     }
-    
     if (commissionRateEvents < 0 || commissionRateEvents > 100) {
         showToast('error', 'Percentual de comissão de eventos deve estar entre 0 e 100', 'Erro');
         return;
     }
-    
     if (commissionRateProducts < 0 || commissionRateProducts > 100) {
         showToast('error', 'Percentual de comissão de produtos deve estar entre 0 e 100', 'Erro');
         return;
     }
-    
+    if (managerEmail && (managerCommissionRate < 0 || managerCommissionRate > 100)) {
+        showToast('error', 'Comissão do gerente deve estar entre 0 e 100', 'Erro');
+        return;
+    }
+
     try {
         const { collection, query, where, getDocs, doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        
-        // Buscar usuário pelo email
         const usersRef = collection(window.firebaseDb, 'users');
+
+        // Buscar usuário do afiliado pelo email
         const q = query(usersRef, where('email', '==', email));
         const snapshot = await getDocs(q);
-        
         if (snapshot.empty) {
             showToast('error', 'Usuário não encontrado. O usuário deve estar cadastrado no sistema primeiro.', 'Erro');
             return;
         }
-        
         const userDoc = snapshot.docs[0];
         const userId = userDoc.id;
-        
+
+        // Resolver UID do gerente pelo e-mail (se informado)
+        let managerId = null;
+        if (managerEmail) {
+            try {
+                const mqSnap = await getDocs(query(usersRef, where('email', '==', managerEmail)));
+                if (!mqSnap.empty) managerId = mqSnap.docs[0].id;
+                else showToast('warning', `Gerente "${managerEmail}" não encontrado no sistema — vínculo salvo apenas com o e-mail.`, 'Aviso');
+            } catch (_) {}
+        }
+
         // Atualizar role e dados do afiliado
         await updateDoc(doc(window.firebaseDb, 'users', userId), {
             role: 'Afiliado',
-            commissionRate: commissionRateEvents, // Mantido para compatibilidade (usa eventos como padrão)
+            commissionRate: commissionRateEvents,
             commissionRateEvents: commissionRateEvents,
             commissionRateProducts: commissionRateProducts,
             affiliateStatus: status,
+            managerId: managerId || null,
+            managerEmail: managerEmail || null,
+            managerCommissionRate: managerEmail ? managerCommissionRate : null,
             updatedAt: new Date()
         });
-        
-        await logAdminAction('manage_affiliate', editId ? `Editou afiliado ${email}` : `Criou afiliado ${email} com ${commissionRateEvents}% eventos e ${commissionRateProducts}% produtos`);
-        
-        // Recarregar dados
+
+        const gerenteMsg = managerEmail ? ` | gerente: ${managerEmail} (${managerCommissionRate}%)` : '';
+        await logAdminAction('manage_affiliate', editId
+            ? `Editou afiliado ${email}${gerenteMsg}`
+            : `Criou afiliado ${email} — eventos:${commissionRateEvents}% produtos:${commissionRateProducts}%${gerenteMsg}`);
+
         await loadAffiliates();
-        
-        // Fechar modal
         closeCreateAffiliateModal();
-        
         showToast('success', editId ? 'Afiliado atualizado com sucesso!' : 'Afiliado criado com sucesso!', 'Sucesso');
     } catch (error) {
         console.error('❌ Erro ao criar/editar afiliado:', error);
@@ -8389,6 +8814,14 @@ function editAffiliate(affiliateId) {
         if (commissionProductsInput) commissionProductsInput.value = affiliate.commissionRateProducts || affiliate.commissionRate || 10;
         if (statusSelect) statusSelect.value = affiliate.status;
         if (editId) editId.value = affiliateId;
+
+        // Preencher campos do gerente
+        const mgrEmailEl = document.getElementById('affiliateManagerEmail');
+        const mgrRateEl  = document.getElementById('affiliateManagerCommissionRate');
+        const mgrWrap    = document.getElementById('affiliateManagerCommissionWrap');
+        if (mgrEmailEl) mgrEmailEl.value = affiliate.managerEmail || '';
+        if (mgrRateEl)  mgrRateEl.value  = affiliate.managerCommissionRate != null ? affiliate.managerCommissionRate : 10;
+        if (mgrWrap)    mgrWrap.classList.toggle('hidden', !affiliate.managerEmail);
     }
 }
 
@@ -8472,6 +8905,15 @@ async function viewAffiliateDetails(affiliateId) {
                     <div style="font-size:11px;color:#6b7280;margin-bottom:2px">Comissão</div>
                     <div style="font-size:14px;font-weight:600;color:#374151">Eventos ${affiliate.commissionRateEvents || affiliate.commissionRate || 10}% / Prod. ${affiliate.commissionRateProducts || affiliate.commissionRate || 10}%</div>
                 </div>
+            </div>
+
+            <!-- Ações do Admin -->
+            <div style="padding:12px 24px;background:#fafafa;border-bottom:1px solid #e5e7eb;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <span style="font-size:12px;color:#6b7280;font-weight:600;margin-right:4px">AÇÕES:</span>
+                <button onclick="descontarComissaoAfiliado('${affiliateId}', '${affiliate.name.replace(/'/g, "\\'")}')"
+                        style="background:#dc2626;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px">
+                    💸 Descontar Comissão
+                </button>
             </div>
 
             <!-- Abas -->
@@ -8629,6 +9071,73 @@ async function deleteAffiliate(affiliateId, affiliateName) {
     }
 }
 window.deleteAffiliate = deleteAffiliate;
+
+// ── Descontar / Quitar comissão manualmente ───────────────────────────────────
+window.descontarComissaoAfiliado = async function (affiliateId, affiliateName) {
+    // Calcular saldo pendente atual
+    const pendente = affiliateSalesData
+        .filter(s => s.affiliateId === affiliateId && s.status === 'pending')
+        .reduce((sum, s) => sum + (s.commissionAmount || 0), 0);
+
+    const msg = `Descontar comissão de ${affiliateName}\n\nSaldo pendente: R$ ${pendente.toFixed(2)}\n\nValor a descontar (ex: 15.00):`;
+    const valorStr = prompt(msg, pendente > 0 ? pendente.toFixed(2) : '');
+    if (!valorStr) return;
+
+    const valor = parseFloat(valorStr.replace(',', '.'));
+    if (isNaN(valor) || valor <= 0) {
+        alert('Valor inválido. Informe um número positivo.');
+        return;
+    }
+
+    const motivo = prompt(`Motivo / descrição (opcional):\n(ex: Pix enviado em ${new Date().toLocaleDateString('pt-BR')})`) || 'Desconto manual de comissão';
+
+    if (!confirm(`Confirmar desconto de R$ ${valor.toFixed(2)} para ${affiliateName}?\n\nMotivo: ${motivo}`)) return;
+
+    try {
+        const { collection, doc, addDoc, updateDoc, serverTimestamp } =
+            await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+        // 1. Registrar em affiliate_payouts como pagamento aprovado
+        await addDoc(collection(window.firebaseDb, 'affiliate_payouts'), {
+            affiliateId,
+            affiliateName,
+            amount: valor,
+            status: 'approved',
+            type: 'manual_deduction',
+            notes: motivo,
+            processedBy: window.firebaseAuth?.currentUser?.email || 'admin',
+            processedAt: serverTimestamp(),
+            createdAt: serverTimestamp()
+        });
+
+        // 2. Marcar vendas pendentes como 'paid' do mais antigo pro mais novo até cobrir o valor
+        const vendasPendentes = affiliateSalesData
+            .filter(s => s.affiliateId === affiliateId && s.status === 'pending')
+            .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+        let restante = valor;
+        for (const venda of vendasPendentes) {
+            if (restante <= 0) break;
+            await updateDoc(doc(window.firebaseDb, 'affiliate_sales', venda.id), {
+                status: 'paid',
+                paidAt: serverTimestamp()
+            });
+            // Atualizar cache local
+            const idx = affiliateSalesData.findIndex(s => s.id === venda.id);
+            if (idx >= 0) affiliateSalesData[idx].status = 'paid';
+            restante -= (venda.commissionAmount || 0);
+        }
+
+        showToast('success', `R$ ${valor.toFixed(2)} descontado de ${affiliateName} com sucesso.`, 'Concluído', 5000);
+
+        // Reabrir o modal para refletir os novos valores
+        await viewAffiliateDetails(affiliateId);
+
+    } catch (err) {
+        console.error('[Afiliados] Erro ao descontar comissão:', err);
+        showToast('error', 'Erro ao registrar desconto: ' + (err.message || err), 'Erro');
+    }
+};
 
 // Aprovar comissão de afiliado
 async function approveAffiliateCommission(saleId) {
@@ -9003,7 +9512,6 @@ document.addEventListener('DOMContentLoaded', function() {
         onAuthStateChanged(window.firebaseAuth, (user) => {
           if (user) {
             loadUsersForTables();
-            loadAdminWhatsAppLinks();
           }
         });
       }).catch(() => {});
@@ -9248,597 +9756,6 @@ function showNotification(message, type = 'info') {
   }, 3000);
 }
 
-let currentEditingWhatsAppLink = null;
-
-// Abrir modal de links do WhatsApp
-function openWhatsAppLinksModal() {
-  const modal = document.getElementById('modalWhatsAppLinks');
-  if (modal) {
-    modal.classList.remove('hidden');
-    // Não recarregar aqui, já foi carregado automaticamente
-  }
-}
-
-// Fechar modal de links do WhatsApp
-function closeWhatsAppLinksModal() {
-  const modal = document.getElementById('modalWhatsAppLinks');
-  if (modal) {
-    modal.classList.add('hidden');
-    clearWhatsAppLinkForm();
-  }
-}
-
-// Limpar formulário de link do WhatsApp
-function clearWhatsAppLinkForm() {
-  currentEditingWhatsAppLink = null;
-  document.getElementById('whatsappLinkFormTitle').textContent = 'Adicionar Novo Link';
-  document.getElementById('whatsappLinkForm').reset();
-}
-
-// Carregar links do WhatsApp do Firestore
-async function loadAdminWhatsAppLinks() {
-  try {
-    if (!window.firebaseDb) {
-      console.warn('Firebase não inicializado ainda');
-      return;
-    }
-    
-    const { collection, getDocs, orderBy, query } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-    
-    const whatsappLinksRef = collection(window.firebaseDb, 'whatsapp_links');
-    const q = query(whatsappLinksRef, orderBy('eventType', 'asc'));
-    const snapshot = await getDocs(q);
-    
-    const links = [];
-    snapshot.forEach(doc => {
-      links.push({ id: doc.id, ...doc.data() });
-    });
-    
-    // Ordenar manualmente por eventType e depois por schedule
-    links.sort((a, b) => {
-      if (a.eventType !== b.eventType) {
-        return a.eventType.localeCompare(b.eventType);
-      }
-      // Se eventType for igual, ordenar por schedule (null primeiro)
-      if (!a.schedule && !b.schedule) return 0;
-      if (!a.schedule) return -1;
-      if (!b.schedule) return 1;
-      return a.schedule.localeCompare(b.schedule);
-    });
-    
-    // Armazenar todos os links para filtro
-    allWhatsAppLinks = links;
-    
-    // Configurar filtros se ainda não foram configurados
-    if (!window.whatsappFiltersSetup) {
-      setupWhatsAppFilters();
-      window.whatsappFiltersSetup = true;
-    }
-    
-    renderWhatsAppLinksTable(links);
-    renderWhatsAppLinksList(links);
-    
-  } catch (error) {
-    console.error('❌ Erro ao carregar links do WhatsApp:', error);
-    showNotification('Erro ao carregar links do WhatsApp', 'error');
-  }
-}
-
-// Renderizar tabela de links do WhatsApp
-function renderWhatsAppLinksTable(links) {
-  const tbody = document.getElementById('whatsappLinksTableBody');
-  if (!tbody) return;
-  
-  if (links.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-gray-500 py-4">Nenhum link cadastrado</td></tr>';
-    return;
-  }
-  
-  tbody.innerHTML = links.map(link => `
-    <tr class="border-b border-gray-100 hover:bg-gray-50">
-      <td class="py-2 px-3">
-        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-          ${getEventTypeLabel(link.eventType)}
-        </span>
-      </td>
-      <td class="py-2 px-3">${link.schedule || 'Todos'}</td>
-      <td class="py-2 px-3">
-        <a href="${link.link}" target="_blank" class="text-green-600 hover:text-green-800 text-xs break-all" title="${link.link}">
-          ${link.link}
-        </a>
-      </td>
-      <td class="py-2 px-3">
-        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${link.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
-          ${link.status === 'active' ? 'Ativo' : 'Inativo'}
-        </span>
-      </td>
-      <td class="py-2 px-3">
-        <div class="flex gap-2">
-          <button onclick="editWhatsAppLink('${link.id}')" class="text-blue-600 hover:text-blue-800 text-xs">
-            <i class="fas fa-edit"></i>
-          </button>
-          <button onclick="deleteWhatsAppLink('${link.id}')" class="text-red-600 hover:text-red-800 text-xs">
-            <i class="fas fa-trash"></i>
-          </button>
-        </div>
-      </td>
-    </tr>
-  `).join('');
-}
-// Renderizar lista de links do WhatsApp no modal
-function renderWhatsAppLinksList(links) {
-  const container = document.getElementById('whatsappLinksList');
-  if (!container) return;
-  
-  if (links.length === 0) {
-    container.innerHTML = '<div class="text-center text-gray-500 py-4">Nenhum link cadastrado</div>';
-    return;
-  }
-  
-  container.innerHTML = links.map(link => `
-    <div class="bg-white border border-gray-200 rounded-lg p-4">
-      <div class="flex items-center justify-between">
-        <div class="flex-1">
-          <div class="flex items-center gap-3 mb-2">
-            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-              ${getEventTypeLabel(link.eventType)}
-            </span>
-            <span class="text-sm text-gray-600">${link.schedule || 'Todos os horários'}</span>
-            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${link.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
-              ${link.status === 'active' ? 'Ativo' : 'Inativo'}
-            </span>
-          </div>
-          <p class="text-sm text-gray-800 mb-1">${link.description || 'Sem descrição'}</p>
-          <a href="${link.link}" target="_blank" class="text-green-600 hover:text-green-800 text-sm break-all" title="${link.link}">
-            ${link.link}
-          </a>
-        </div>
-        <div class="flex gap-2 ml-4">
-          <button onclick="editWhatsAppLink('${link.id}')" class="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
-            <i class="fas fa-edit mr-1"></i>Editar
-          </button>
-          <button onclick="deleteWhatsAppLink('${link.id}')" class="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700">
-            <i class="fas fa-trash mr-1"></i>Excluir
-          </button>
-        </div>
-      </div>
-    </div>
-  `).join('');
-}
-
-// Obter label do tipo de evento
-function getEventTypeLabel(eventType) {
-  const labels = {
-    'xtreino-tokens': 'XTreino Tokens',
-    'xtreino-gratuito': 'XTreino Gratuito',
-    'modo-liga': 'Modo Liga',
-    'camp-freitas': 'Camp Freitas',
-    'semanal-freitas': 'Semanal Freitas',
-    'treino': 'Treino Normal'
-  };
-  return labels[eventType] || eventType;
-}
-
-// Salvar link do WhatsApp
-async function saveWhatsAppLink() {
-  try {
-    if (!window.firebaseDb) {
-      showNotification('Firebase não inicializado ainda', 'error');
-      return;
-    }
-    
-    const eventType = document.getElementById('whatsappEventType').value;
-    const schedule = document.getElementById('whatsappSchedule').value.trim();
-    const link = document.getElementById('whatsappLink').value.trim();
-    const status = document.getElementById('whatsappStatus').value;
-    const description = document.getElementById('whatsappDescription').value.trim();
-    
-    if (!eventType || !link) {
-      showNotification('Preencha todos os campos obrigatórios', 'error');
-      return;
-    }
-    
-    const { collection, addDoc, updateDoc, doc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-    
-    const linkData = {
-      eventType,
-      schedule: schedule || null,
-      link,
-      status,
-      description: description || null,
-      updatedAt: serverTimestamp()
-    };
-    
-    if (currentEditingWhatsAppLink) {
-      // Atualizar link existente
-      const linkRef = doc(window.firebaseDb, 'whatsapp_links', currentEditingWhatsAppLink);
-      await updateDoc(linkRef, linkData);
-      showNotification('Link atualizado com sucesso!', 'success');
-    } else {
-      // Criar novo link
-      linkData.createdAt = serverTimestamp();
-      await addDoc(collection(window.firebaseDb, 'whatsapp_links'), linkData);
-      showNotification('Link criado com sucesso!', 'success');
-    }
-    
-    // Limpar cache para forçar atualização
-    whatsappLinksCache.clear();
-    
-    
-    clearWhatsAppLinkForm();
-    loadAdminWhatsAppLinks();
-    
-  } catch (error) {
-    console.error('❌ Erro ao salvar link do WhatsApp:', error);
-    showNotification('Erro ao salvar link do WhatsApp', 'error');
-  }
-}
-
-// Editar link do WhatsApp
-async function editWhatsAppLink(linkId) {
-  try {
-    
-    
-    if (!window.firebaseDb) {
-      showNotification('Firebase não inicializado ainda', 'error');
-      return;
-    }
-    
-    const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-    
-    const linkRef = doc(window.firebaseDb, 'whatsapp_links', linkId);
-    const linkSnap = await getDoc(linkRef);
-    
-    if (linkSnap.exists()) {
-      const linkData = linkSnap.data();
-      
-      
-      currentEditingWhatsAppLink = linkId;
-      
-      // Preencher o formulário
-      document.getElementById('whatsappLinkFormTitle').textContent = 'Editar Link';
-      document.getElementById('whatsappEventType').value = linkData.eventType || '';
-      document.getElementById('whatsappSchedule').value = linkData.schedule || '';
-      document.getElementById('whatsappLink').value = linkData.link || '';
-      document.getElementById('whatsappStatus').value = linkData.status || 'active';
-      document.getElementById('whatsappDescription').value = linkData.description || '';
-      
-      // Abrir o modal
-      openWhatsAppLinksModal();
-      
-      
-    } else {      
-      showNotification('Link não encontrado', 'error');
-    }
-    
-  } catch (error) {
-    console.error('❌ Erro ao carregar link para edição:', error);
-    showNotification('Erro ao carregar link para edição', 'error');
-  }
-}
-
-// Excluir link do WhatsApp
-async function deleteWhatsAppLink(linkId) {
-  if (!confirm('Tem certeza que deseja excluir este link?')) {
-    return;
-  }
-  
-  try {
-    if (!window.firebaseDb) {
-      showNotification('Firebase não inicializado ainda', 'error');
-      return;
-    }
-    
-    const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-    
-    const linkRef = doc(window.firebaseDb, 'whatsapp_links', linkId);
-    await deleteDoc(linkRef);
-    
-    showNotification('Link excluído com sucesso!', 'success');
-    loadAdminWhatsAppLinks();
-    
-  } catch (error) {
-    console.error('❌ Erro ao excluir link do WhatsApp:', error);
-    showNotification('Erro ao excluir link do WhatsApp', 'error');
-  }
-}
-
-// Cache para links do WhatsApp (com TTL)
-let whatsappLinksCache = new Map();
-const CACHE_TTL = 30000; // 30 segundos
-
-// Função para obter link do WhatsApp dinamicamente
-async function getWhatsAppLink(eventType, schedule = null) {
-  try {
-    
-
-    if (!window.firebaseDb) {
-      console.warn('⚠️ Firebase não inicializado ainda');
-      return 'https://chat.whatsapp.com/SEU_GRUPO_PADRAO';
-    }
-
-    // Normalizações para evitar desencontro de formatos
-    const normalizeType = (t) => String(t || '')
-      .toLowerCase()
-      .trim()
-      .replace(/\s+/g, '-')
-      .replace('xtreino-gratuito', 'xtreino-gratuito')
-      .replace('xtreino-tokens', 'xtreino-tokens')
-      .replace('modo liga', 'modo-liga')
-      .replace('camp', 'camp-freitas');
-
-    const normalizeHour = (h) => {
-      if (!h) return null;
-      const s = String(h).toLowerCase().trim();
-      // extrai apenas a hora (aceita "Sexta - 18h", "18", "18h", "18:00")
-      const m = s.match(/(\d{1,2})/);
-      return m ? `${parseInt(m[1], 10)}h` : null;
-    };
-
-    const type = normalizeType(eventType);
-    const hour = normalizeHour(schedule);
-
-    // Verificar cache primeiro (com chaves normalizadas)
-    const cacheKey = `${type}_${hour || 'general'}`;
-    const cached = whatsappLinksCache.get(cacheKey);
-    if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
-      
-      return cached.link;
-    }
-
-    const { collection, getDocs, query, where } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-
-    const whatsappLinksRef = collection(window.firebaseDb, 'whatsapp_links');
-
-    // 1) Tenta link específico para o horário (schedule = '18h')
-    if (hour) {
-      
-      const specificQuery = query(
-        whatsappLinksRef,
-        where('eventType', '==', type),
-        where('schedule', '==', hour),
-        where('status', '==', 'active')
-      );
-      const specificSnapshot = await getDocs(specificQuery);
-
-      
-
-      if (!specificSnapshot.empty) {
-        const link = specificSnapshot.docs[0].data().link;
-        
-
-        whatsappLinksCache.set(cacheKey, { link, timestamp: Date.now() });
-        return link;
-      }
-    }
-
-    // 2) Tenta link geral eventType + schedule = null
-    
-    const generalQuery = query(
-      whatsappLinksRef,
-      where('eventType', '==', type),
-      where('schedule', '==', null),
-      where('status', '==', 'active')
-    );
-    const generalSnapshot = await getDocs(generalQuery);
-
-    if (!generalSnapshot.empty) {
-      const link = generalSnapshot.docs[0].data().link;
-      
-      whatsappLinksCache.set(cacheKey, { link, timestamp: Date.now() });
-      return link;
-    }
-
-    // 3) Alguns cadastros podem usar string vazia em vez de null para "sem horário"
-    
-    const generalEmptyQuery = query(
-      whatsappLinksRef,
-      where('eventType', '==', type),
-      where('schedule', '==', ''),
-      where('status', '==', 'active')
-    );
-    const generalEmptySnapshot = await getDocs(generalEmptyQuery);
-
-    if (!generalEmptySnapshot.empty) {
-      const link = generalEmptySnapshot.docs[0].data().link;
-      
-      whatsappLinksCache.set(cacheKey, { link, timestamp: Date.now() });
-      return link;
-    }
-
-    // 4) Fallback para links padrão se não encontrar no Firestore
-    const defaultLinks = {
-      'xtreino-tokens': 'https://chat.whatsapp.com/SEU_GRUPO_TOKENS',
-      'xtreino-gratuito': 'https://chat.whatsapp.com/SEU_GRUPO_GRATUITO',
-      'modo-liga': 'https://chat.whatsapp.com/SEU_GRUPO_MODO_LIGA',
-      'camp-freitas': 'https://chat.whatsapp.com/SEU_GRUPO_CAMP_FREITAS',
-      'semanal-freitas': 'https://chat.whatsapp.com/SEU_GRUPO_SEMANAL',
-      'treino': 'https://chat.whatsapp.com/SEU_GRUPO_TREINO'
-    };
-
-    const fallbackLink = defaultLinks[type] || 'https://chat.whatsapp.com/SEU_GRUPO_PADRAO';
-    
-
-    whatsappLinksCache.set(cacheKey, { link: fallbackLink, timestamp: Date.now() });
-    return fallbackLink;
-
-  } catch (error) {
-    console.error('❌ Erro ao obter link do WhatsApp:', error);
-    return 'https://chat.whatsapp.com/SEU_GRUPO_PADRAO';
-  }
-}
-// Função para criar automaticamente todos os links do WhatsApp
-async function createAllWhatsAppLinks() {
-  try {
-    if (!window.firebaseDb) {
-      showNotification('Firebase não inicializado', 'error');
-      return;
-    }
-
-    const { collection, addDoc, getDocs, query, where } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-    
-    // Definir todos os eventos e seus horários
-    const eventConfigs = {
-      'xtreino-tokens': {
-        name: 'XTreino Freitas',
-        schedules: ['14h', '15h', '16h', '17h', '18h', '19h', '20h', '21h', '22h', '23h'],
-        defaultLink: 'https://chat.whatsapp.com/SEU_GRUPO_XTREINO_FREITAS'
-      },
-      'modo-liga': {
-        name: 'XTreino Modo Liga',
-        schedules: ['14h', '15h', '17h', '18h'],
-        defaultLink: 'https://chat.whatsapp.com/SEU_GRUPO_MODO_LIGA'
-      },
-      'camp-freitas': {
-        name: 'Campeonato Freitas Season⁴',
-        schedules: ['20h', '21h', '22h', '23h'],
-        defaultLink: 'https://chat.whatsapp.com/SEU_GRUPO_CAMP_FREITAS'
-      },
-      'semanal-freitas': {
-        name: 'Semanal Freitas',
-        schedules: ['19h', '20h', '21h', '22h'],
-        defaultLink: 'https://chat.whatsapp.com/SEU_GRUPO_SEMANAL_FREITAS'
-      }
-    };
-
-    const whatsappLinksRef = collection(window.firebaseDb, 'whatsapp_links');
-    let createdCount = 0;
-    let skippedCount = 0;
-
-    for (const [eventType, config] of Object.entries(eventConfigs)) {
-      // Criar link geral para o evento (sem horário específico)
-      const generalQuery = query(
-        whatsappLinksRef,
-        where('eventType', '==', eventType),
-        where('schedule', '==', null)
-      );
-      const generalSnapshot = await getDocs(generalQuery);
-      
-      if (generalSnapshot.empty) {
-        await addDoc(whatsappLinksRef, {
-          eventType: eventType,
-          schedule: null,
-          link: config.defaultLink,
-          status: 'active',
-          description: `Link geral para ${config.name}`,
-          createdAt: new Date(),
-          createdBy: 'system'
-        });
-        createdCount++;
-        
-      } else {
-        skippedCount++;
-        
-      }
-
-      // Criar links específicos para cada horário
-      for (const schedule of config.schedules) {
-        const specificQuery = query(
-          whatsappLinksRef,
-          where('eventType', '==', eventType),
-          where('schedule', '==', schedule)
-        );
-        const specificSnapshot = await getDocs(specificQuery);
-        
-        if (specificSnapshot.empty) {
-          await addDoc(whatsappLinksRef, {
-            eventType: eventType,
-            schedule: schedule,
-            link: config.defaultLink,
-            status: 'active',
-            description: `${config.name} - ${schedule}`,
-            createdAt: new Date(),
-            createdBy: 'system'
-          });
-          createdCount++;
-          
-        } else {
-          skippedCount++;
-          
-        }
-      }
-    }
-
-    showNotification(`Links criados: ${createdCount} | Já existiam: ${skippedCount}`, 'success');
-    
-    // Recarregar a lista de links
-    await loadAdminWhatsAppLinks();
-    
-  } catch (error) {
-    console.error('Erro ao criar links automaticamente:', error);
-    showNotification('Erro ao criar links automaticamente', 'error');
-  }
-}
-
-// Variável para armazenar todos os links (para filtro)
-let allWhatsAppLinks = [];
-
-// Função para filtrar links do WhatsApp
-function filterWhatsAppLinks() {
-  const eventFilter = document.getElementById('whatsappEventFilter')?.value || '';
-  const statusFilter = document.getElementById('whatsappStatusFilter')?.value || '';
-  const searchFilter = document.getElementById('whatsappSearchFilter')?.value.toLowerCase() || '';
-  
-  
-  
-  let filteredLinks = allWhatsAppLinks.filter(link => {
-    // Filtro por evento
-    if (eventFilter && link.eventType !== eventFilter) {
-      return false;
-    }
-    
-    // Filtro por status
-    if (statusFilter && link.status !== statusFilter) {
-      return false;
-    }
-    
-    // Filtro por busca (busca em eventType, schedule, link, description)
-    if (searchFilter) {
-      const searchText = `${link.eventType} ${link.schedule || ''} ${link.link} ${link.description || ''}`.toLowerCase();
-      if (!searchText.includes(searchFilter)) {
-        return false;
-      }
-    }
-    
-    return true;
-  });
-  
-  
-  
-  // Renderizar apenas os links filtrados
-  renderWhatsAppLinksTable(filteredLinks);
-  renderWhatsAppLinksList(filteredLinks);
-}
-
-// Função para configurar os filtros
-function setupWhatsAppFilters() {
-  const eventFilter = document.getElementById('whatsappEventFilter');
-  const statusFilter = document.getElementById('whatsappStatusFilter');
-  const searchFilter = document.getElementById('whatsappSearchFilter');
-  
-  if (eventFilter) {
-    eventFilter.addEventListener('change', filterWhatsAppLinks);
-  }
-  
-  if (statusFilter) {
-    statusFilter.addEventListener('change', filterWhatsAppLinks);
-  }
-  
-  if (searchFilter) {
-    searchFilter.addEventListener('input', filterWhatsAppLinks);
-  }
-}
-
-// Expor funções globalmente
-window.openWhatsAppLinksModal = openWhatsAppLinksModal;
-window.closeWhatsAppLinksModal = closeWhatsAppLinksModal;
-window.clearWhatsAppLinkForm = clearWhatsAppLinkForm;
-window.saveWhatsAppLink = saveWhatsAppLink;
-window.editWhatsAppLink = editWhatsAppLink;
-window.deleteWhatsAppLink = deleteWhatsAppLink;
-window.getWhatsAppLink = getWhatsAppLink;
-window.createAllWhatsAppLinks = createAllWhatsAppLinks;
-window.filterWhatsAppLinks = filterWhatsAppLinks;
 
 // ==================== PAINEL DO AFILIADO ====================
 
@@ -10672,7 +10589,7 @@ async function loadAdminNotifications() {
 
     try {
         const { collection, getDocs, query, orderBy, limit, deleteDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const q = query(collection(window.firebaseDb, 'notifications'), orderBy('createdAt', 'desc'), limit(30));
+        const q = query(collection(window.firebaseDb, 'notifications'), orderBy('createdAt', 'desc'), limit(300));
         const snap = await getDocs(q);
 
         if (snap.empty) {
@@ -10707,12 +10624,12 @@ async function loadAdminNotifications() {
             const n = g.data;
             const d = g.doc;
             const dateStr = n.createdAt ? new Date(n.createdAt.toDate ? n.createdAt.toDate() : n.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
-            const isLote = g.batchId && g.count > 1;
+            const isLote = !!g.batchId;
             const targetLabel = isLote
-                ? `<span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">${g.count} participantes</span>`
+                ? `<span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">${g.count} participante${g.count !== 1 ? 's' : ''}</span>`
                 : (n.type === 'all'
                     ? '<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Todos</span>'
-                    : `<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-mono">${n.targetUserId || 'Específico'}</span>`);
+                    : `<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">${'Específico'}</span>`);
             const deleteAction = isLote
                 ? `deleteAdminNotificationBatch('${escapeAdminHtml(g.batchId)}')`
                 : `deleteAdminNotification('${d.id}')`;
@@ -11877,20 +11794,50 @@ async function openEventNotifyModal(eventId, eventName) {
     modal.classList.add('flex');
 
     try {
-        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const snap = await getDocs(query(
-            collection(window.firebaseDb, 'registrations'),
-            where('eventType', '==', eventId)
-        ));
-        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
-        _notifyEventDocs = snap.docs.filter(d => validStatuses.has(d.data().status));
+        const { collection, query, where, getDocs, doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+        // Construir conjunto completo de variantes do eventType para encontrar todas as inscrições
+        // (MP salva com aliases diferentes do d.id — ex: 'liga', 'modo liga', 'modo-liga', UUID do doc)
+        const _notifyTypes = new Set([eventId]);
+        try {
+            const _evSnap = await getDoc(doc(window.firebaseDb, 'adminEvents', eventId));
+            if (_evSnap.exists()) {
+                const _evData = _evSnap.data();
+                if (_evData.eventType) _notifyTypes.add(_evData.eventType);
+                if (_evData.name)      _notifyTypes.add(_evData.name);
+            }
+        } catch(_) {}
+        // Adicionar canônico e aliases via resolveAliases
+        [..._notifyTypes].forEach(t => {
+            try { resolveAliases(t).forEach(a => { if (a) _notifyTypes.add(a); }); } catch(_) {}
+        });
+
+        // Buscar registrações por cada variante e mesclar (deduplicando por doc.id)
+        const _docsMap = new Map();
+        const validStatuses = new Set(['confirmed', 'paid', 'approved']);
+        for (const _et of _notifyTypes) {
+            try {
+                const snap = await getDocs(query(
+                    collection(window.firebaseDb, 'registrations'),
+                    where('eventType', '==', _et)
+                ));
+                snap.docs.forEach(d => { if (!_docsMap.has(d.id)) _docsMap.set(d.id, d); });
+            } catch(_) {}
+        }
+        _notifyEventDocs = [..._docsMap.values()].filter(d => validStatuses.has(d.data().status));
+
+        // Normaliza horário: "Terça - 22h", "22:00", "22h" → "22h"
+        const _normSchedH = s => {
+            const m = String(s || '').match(/(\d{1,2})(?:h|:00)?\s*$/i);
+            return m ? String(parseInt(m[1], 10)) + 'h' : String(s || '—').trim();
+        };
 
         for (const d of _notifyEventDocs) {
             const r = d.data();
-            if (!r.userId) continue;
-            const sched = r.schedule || r.slotDisplay || '—';
-            const date  = r.date || '';
-            const key   = date ? `${date}||${sched}` : `||${sched}`;
+            const schedRaw = r.schedule || r.slotDisplay || '—';
+            const sched    = _normSchedH(schedRaw);   // canonical: "22h"
+            const date     = r.date || '';
+            const key      = date ? `${date}||${sched}` : `||${sched}`;
             if (!_notifyScheduleMap[key]) {
                 let dateLabel = '';
                 if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -11904,7 +11851,9 @@ async function openEventNotifyModal(eventId, eventName) {
                     users: new Set(), date, sched
                 };
             }
-            _notifyScheduleMap[key].users.add(r.userId);
+            // só adiciona ao conjunto de destinatários se tiver userId
+            // (o slot aparece de qualquer forma, mesmo sem userId, para admin saber que existe)
+            if (r.userId) _notifyScheduleMap[key].users.add(r.userId);
         }
 
         // Expandir para todos os membros do time (via teamId ou teamName como fallback)
@@ -11925,7 +11874,7 @@ async function openEventNotifyModal(eventId, eventName) {
                     for (const d of _notifyEventDocs) {
                         const r = d.data();
                         if ((td.id && r.teamId === td.id) || (t.nome && r.teamName === t.nome)) {
-                            const sched = r.schedule || r.slotDisplay || '—';
+                            const sched = _normSchedH(r.schedule || r.slotDisplay || '—');
                             const date  = r.date || '';
                             const key   = date ? `${date}||${sched}` : `||${sched}`;
                             if (_notifyScheduleMap[key]) {
@@ -11944,8 +11893,10 @@ async function openEventNotifyModal(eventId, eventName) {
         document.getElementById('notifyTodayLabel').textContent = `— ${todayDD}/${todayMM}`;
 
         const allKeys   = Object.keys(_notifyScheduleMap).sort();
-        const todayKeys = allKeys.filter(k => k.startsWith(todayStr + '||'));
-        const otherKeys = allKeys.filter(k => !k.startsWith(todayStr + '||'));
+        // Chaves sem data (k.startsWith('||')) são slots recorrentes (ex: Modo Liga semanal)
+        // — aparecem sempre no "hoje" pois acontecem toda semana
+        const todayKeys = allKeys.filter(k => k.startsWith(todayStr + '||') || k.startsWith('||'));
+        const otherKeys = allKeys.filter(k => !k.startsWith(todayStr + '||') && !k.startsWith('||'));
 
         document.getElementById('notifyLoadingSlots').classList.add('hidden');
         document.getElementById('notifyTodaySlots').classList.remove('hidden');
@@ -12044,7 +11995,10 @@ async function sendEventNotification() {
             const selSched = schedParts.join('||');
             docsToNotify = _notifyEventDocs.filter(d => {
                 const r = d.data();
-                return (r.date || '') === selDate && (r.schedule || r.slotDisplay || '—') === selSched;
+                const rawSched = r.schedule || r.slotDisplay || '—';
+                const mNorm = String(rawSched).match(/(\d{1,2})(?:h|:00)?\s*$/i);
+                const normSched = mNorm ? String(parseInt(mNorm[1], 10)) + 'h' : String(rawSched).trim();
+                return (r.date || '') === selDate && normSched === selSched;
             });
             if (selDate && /^\d{4}-\d{2}-\d{2}$/.test(selDate)) {
                 const [, m, dd] = selDate.split('-');
@@ -12085,6 +12039,21 @@ async function sendEventNotification() {
         // batchId agrupa todas as notificações deste envio — evita duplicatas na listagem do admin
         const batchId = `batch_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
+        // Ao enviar credenciais para um horário específico, incluir lista de slots na notificação
+        let slotList = null;
+        let slotCapacity = null;
+        if (notifyType === 'credentials' && selectedSchedule !== 'all') {
+            try {
+                const [selDate2, ...schedParts2] = selectedSchedule.split('||');
+                const selSched2 = schedParts2.join('||');
+                const slotData = await buildSlotData(selDate2, eventId, selSched2);
+                if (slotData.slots.length > 0) {
+                    slotList = slotData.slots;
+                    slotCapacity = slotData.capacity;
+                }
+            } catch (_) {}
+        }
+
         await Promise.all(uniqueUsers.map(uid =>
             addDoc(collection(window.firebaseDb, 'notifications'), {
                 title: `[${eventName}]${scheduleLabel} ${title}`,
@@ -12099,6 +12068,8 @@ async function sendEventNotification() {
                 roomPassword: roomPassword || null,
                 roomLink: roomLink || null,
                 tabelaLink: tabelaLink || null,
+                slotList: slotList || null,
+                slotCapacity: slotCapacity || null,
                 createdAt: serverTimestamp(),
                 createdBy,
                 createdByUid: user?.uid || null,
@@ -12110,6 +12081,8 @@ async function sendEventNotification() {
         const horarioMsg = filterLabel ? ` (${filterLabel})` : '';
         showToast('success', `Notificação enviada para ${uniqueUsers.length} participante(s)${horarioMsg}!`, 'Sucesso');
         closeEventNotifyModal();
+        // Atualizar lista de notificações enviadas no painel
+        if (document.getElementById('adminNotifList')) loadAdminNotifications();
     } catch (err) {
         console.error('Erro ao enviar notificação de evento:', err);
         showToast('error', 'Erro ao enviar: ' + (err.message || err), 'Erro');
@@ -12130,12 +12103,45 @@ async function openEventSlotsModal(eventId, eventName) {
     modal.classList.add('flex');
 
     try {
-        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const snap = await getDocs(query(
-            collection(window.firebaseDb, 'registrations'),
-            where('eventType', '==', eventId)
-        ));
-        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
+        const { collection, query, where, getDocs, doc: _fbDoc, getDoc: _fbGetDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        // Buscar o doc adminEvents para obter o campo eventType real e o nome
+        // CRÍTICO: booking flow salva r.eventType = canonical ('xtreino-tokens'), não o doc ID
+        // Se adminEvents.eventType for null, derivar pelo nome do evento (ex: 'XTreino Freitas' → 'xtreino-tokens')
+        // Canonização inline (não depende de canonicalType do escopo interno)
+        const _canonInline = t => {
+            const s = String(t || '').toLowerCase().replace(/[\s_]+/g, '-');
+            if (s.includes('xtreino') || s === 'xtreino-tokens') return 'xtreino-tokens';
+            if (s === 'modo-liga' || s.includes('modo') && s.includes('liga')) return 'modo-liga';
+            if (s === 'camp-freitas' || s.includes('camp') && s.includes('freitas')) return 'camp-freitas';
+            if (s === 'camp-final' || s.includes('camp') && s.includes('final') || s.includes('vaga') && s.includes('final')) return 'camp-final';
+            if (s === 'semanal-freitas' || s.includes('semanal')) return 'semanal-freitas';
+            return t;
+        };
+
+        let _evFieldType = null;
+        try {
+            const _evDocSnap = await _fbGetDoc(_fbDoc(window.firebaseDb, 'adminEvents', eventId));
+            if (_evDocSnap.exists()) {
+                const _evData = _evDocSnap.data();
+                _evFieldType = _canonInline(_evData?.eventType || _evData?.name || eventId);
+            }
+        } catch (_) {}
+
+        const _regsRef = collection(window.firebaseDb, 'registrations');
+        // Coletar todos os tipos distintos a buscar
+        const _typesToQuery = new Set([_evFieldType, eventId, _canonInline(eventId), eventName].filter(Boolean));
+
+        // Executar as queries (uma por tipo distinto) e mesclar
+        const _allDocs = new Map();
+        await Promise.all([..._typesToQuery].map(async t => {
+            try {
+                const s = await getDocs(query(_regsRef, where('eventType', '==', t)));
+                s.docs.forEach(d => _allDocs.set(d.id, d));
+            } catch (_) {}
+        }));
+        const snap = { docs: [..._allDocs.values()] };
+        // Apenas inscrições confirmadas/pagas (sem pendentes)
+        const validStatuses = new Set(['confirmed', 'paid', 'approved']);
         // Data de hoje em horário de Brasília (UTC-3)
         const _brNow = new Date(Date.now() - 3 * 60 * 60 * 1000);
         const todayStr = _brNow.toISOString().split('T')[0];
@@ -12181,40 +12187,44 @@ async function openEventSlotsModal(eventId, eventName) {
             return str;
         };
 
-        // Agrupar por horário (normalizado)
+        // Agrupar por DATA + HORÁRIO (normalizado) — evita misturar inscritos de dias diferentes
+        // Isso garante que cada seção mostre exatamente os mesmos participantes que
+        // o modal "Gerenciar" mostra ao filtrar por data específica no board de horários.
         const bySchedule = {};
         docs.forEach(d => {
             const r = { ...d.data(), _docId: d.id };
             const sched = normSched(r.schedule);
-            if (!bySchedule[sched]) bySchedule[sched] = [];
-            bySchedule[sched].push(r);
+            const dateKey = r.date || '—';
+            const key = `${dateKey}||${sched}`;
+            if (!bySchedule[key]) bySchedule[key] = { date: dateKey, sched, regs: [] };
+            bySchedule[key].regs.push(r);
         });
 
-        // Ordenar cada horário por slot crescente (null vai pro final) e deduplicar
-        Object.keys(bySchedule).forEach(sched => {
-            let arr = bySchedule[sched];
-            // Ordenar por slot/slotNumber crescente; fallback: createdAt crescente
-            arr.sort((a, b) => {
+        // Ordenar por slot crescente → createdAt (= ordem de compra) dentro de cada data/hora
+        Object.values(bySchedule).forEach(group => {
+            group.regs.sort((a, b) => {
                 const sa = a.slot != null ? Number(a.slot) : (a.slotNumber != null ? Number(a.slotNumber) : null);
                 const sb = b.slot != null ? Number(b.slot) : (b.slotNumber != null ? Number(b.slotNumber) : null);
                 if (sa !== null && sb !== null) return sa - sb;
                 if (sa !== null) return -1;
                 if (sb !== null) return 1;
-                // Sem slot: usa createdAt
                 return (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0);
             });
-            // Admin: sem deduplicação — mostra todos os registros para gestão completa
-            // Deduplica apenas por ID de documento para evitar o mesmo registro aparecer duas vezes
+            // Deduplica apenas por ID de documento
             const seenIds = new Set();
-            bySchedule[sched] = arr.filter(r => {
+            group.regs = group.regs.filter(r => {
                 if (r._docId && seenIds.has(r._docId)) return false;
                 if (r._docId) seenIds.add(r._docId);
                 return true;
             });
         });
 
-        // Ordenar horários alfabeticamente
-        const schedKeys = Object.keys(bySchedule).sort();
+        // Ordenar seções: primeiro por data, depois por horário
+        const schedKeys = Object.keys(bySchedule).sort((a, b) => {
+            const ga = bySchedule[a], gb = bySchedule[b];
+            if (ga.date !== gb.date) return ga.date.localeCompare(gb.date);
+            return ga.sched.localeCompare(gb.sched);
+        });
 
         const statusLabel = { confirmed: 'Confirmado', paid: 'Pago', approved: 'Aprovado', pending: 'Ag. Pagamento' };
         const statusCls = {
@@ -12225,12 +12235,15 @@ async function openEventSlotsModal(eventId, eventName) {
         };
 
         let html = '';
-        for (const sched of schedKeys) {
-            const regs = bySchedule[sched];
+        for (const key of schedKeys) {
+            const { date: groupDate, sched, regs } = bySchedule[key];
+            const dateFmtHeader = groupDate && /^\d{4}-\d{2}-\d{2}$/.test(groupDate)
+                ? groupDate.split('-').reverse().slice(0,2).join('/') : groupDate;
             html += `
             <div class="mb-6">
                 <div class="flex items-center gap-2 mb-3">
                     <span class="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-clock mr-1"></i>${escapeAdminHtml(sched)}</span>
+                    <span class="text-xs font-semibold text-gray-600">${escapeAdminHtml(dateFmtHeader)}</span>
                     <span class="text-xs text-gray-400">${regs.length} inscrito(s)</span>
                 </div>
                 <div class="overflow-x-auto rounded-lg border border-gray-200">
@@ -12240,35 +12253,41 @@ async function openEventSlotsModal(eventId, eventName) {
                             <th class="px-3 py-2 text-left w-20">Slot</th>
                             <th class="px-3 py-2 text-center w-14">Logo</th>
                             <th class="px-3 py-2 text-left">Equipe / Nome</th>
-                            <th class="px-3 py-2 text-left w-24">Data</th>
                             <th class="px-3 py-2 text-left w-28">Status</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${regs.map(r => {
-                            const slotNum = r.slotNumber != null ? r.slotNumber : r.slot;
-                            const slotLabel = r.slotDisplay || (slotNum != null ? `#${slotNum}` : '—');
+                        ${regs.map((r, idx) => {
+                            // Exibir posição dentro do grupo data+horário,
+                            // igual ao que o cliente vê — independente do slotNumber armazenado
+                            const _isLigaSlot = eventId === 'modo-liga' || (r.eventType || '').toLowerCase() === 'modo-liga';
+                            const slotLabel = _isLigaSlot
+                                ? `Vaga ${String.fromCharCode(64 + idx + 1)}`
+                                : `Vaga #${idx + 1}`;
                             const st = r.status || 'pending';
-                            const dateFmt = r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date)
-                                ? r.date.split('-').reverse().join('/') : (r.date || '—');
                             const leaderName = r.leaderName && r.leaderName !== r.teamName ? r.leaderName : null;
                             const nomeArq = (r.teamName || 'time').replace(/[^a-zA-Z0-9]/g,'_');
-                            const _slotLogoUrl = r.teamLogoUrl || _slotsLogoMap[(r.teamName||'').toLowerCase().trim()] || null;
+                            const _slotLogoUrl = r.teamLogoUrl || r.teamLogoThumb || _slotsLogoMap[(r.teamName||'').toLowerCase().trim()] || null;
                             const logoCell = _slotLogoUrl
                                 ? `<div class="flex flex-col items-center gap-1">
                                     <img src="${_slotLogoUrl}" class="w-9 h-9 rounded-lg object-contain" style="background:transparent" title="${escapeAdminHtml(r.teamName||'')}">
                                     <a href="${_slotLogoUrl}" download="logo_${nomeArq}.png" class="text-xs text-blue-600 hover:text-blue-800 font-medium" title="Baixar logo"><i class="fas fa-download"></i></a>
                                    </div>`
                                 : `<div class="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-100 text-gray-300 mx-auto" title="Sem logo cadastrada"><i class="fas fa-image text-lg"></i></div>`;
-                            return `<tr class="border-t border-gray-100 hover:bg-orange-50 transition-colors">
-                                <td class="px-3 py-2 font-bold text-orange-600 text-base">${escapeAdminHtml(slotLabel)}</td>
+                            const isFreeEntry = r.freeSlot === true || r.listingType === 'free';
+                            const isPendingEntry = st === 'pending';
+                            const statusDisplay = isFreeEntry
+                                ? `<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">🎁 Grátis</span>`
+                                : `<span class="px-2 py-0.5 rounded-full text-xs font-semibold ${statusCls[st] || 'bg-gray-100 text-gray-500'}">${statusLabel[st] || st}</span>`;
+                            const rowBg = isFreeEntry ? 'bg-orange-50/40' : isPendingEntry ? 'bg-yellow-50' : '';
+                            return `<tr class="border-t border-gray-100 hover:bg-orange-50 transition-colors ${rowBg}">
+                                <td class="px-3 py-2 font-bold ${isPendingEntry ? 'text-yellow-600' : 'text-orange-600'} text-base">${escapeAdminHtml(slotLabel)}</td>
                                 <td class="px-3 py-2 text-center">${logoCell}</td>
                                 <td class="px-3 py-2">
                                     <p class="font-medium text-gray-800">${escapeAdminHtml(r.teamName || r.email || '—')}</p>
                                     ${leaderName ? `<p class="text-xs text-gray-400">Líder: ${escapeAdminHtml(leaderName)}</p>` : ''}
                                 </td>
-                                <td class="px-3 py-2 text-gray-500 text-xs">${dateFmt}</td>
-                                <td class="px-3 py-2"><span class="px-2 py-0.5 rounded-full text-xs font-semibold ${statusCls[st] || 'bg-gray-100 text-gray-500'}">${statusLabel[st] || st}</span></td>
+                                <td class="px-3 py-2">${statusDisplay}</td>
                             </tr>`;
                         }).join('')}
                     </tbody>
@@ -12303,7 +12322,7 @@ async function repairEventSlots() {
             collection(window.firebaseDb, 'registrations'),
             where('eventType', '==', eventId)
         ));
-        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
+        const validStatuses = new Set(['confirmed', 'paid', 'approved']);
         // Data de hoje em horário de Brasília (UTC-3)
         const _brNow = new Date(Date.now() - 3 * 60 * 60 * 1000);
         const todayStr = _brNow.toISOString().split('T')[0];
@@ -12355,23 +12374,38 @@ async function repairEventSlots() {
             });
         });
 
-        // Reassignar slots únicos e sequenciais por horário
+        // Preencher apenas slots SEM número atribuído — slots ocupados NUNCA são alterados
         const batch = writeBatch(window.firebaseDb);
         let updateCount = 0;
 
         for (const regs of Object.values(bySchedule)) {
-            regs.forEach((entry, idx) => {
-                const newSlot = idx + 1;
-                const newSlotDisplay = `Vaga #${newSlot}`;
-                // Só atualiza se mudou
-                if (entry.data.slot !== newSlot || entry.data.slotNumber !== newSlot || entry.data.slotDisplay !== newSlotDisplay) {
-                    batch.update(doc(window.firebaseDb, 'registrations', entry.id), {
-                        slot: newSlot,
-                        slotNumber: newSlot,
-                        slotDisplay: newSlotDisplay
-                    });
-                    updateCount++;
+            // Encontrar max slot já atribuído (imutável)
+            let maxSlot = 0;
+            const semSlot = [];
+            regs.forEach(entry => {
+                const s = entry.data.slot != null ? Number(entry.data.slot)
+                        : (entry.data.slotNumber != null ? Number(entry.data.slotNumber) : null);
+                if (s !== null && !isNaN(s) && s > 0) {
+                    if (s > maxSlot) maxSlot = s;
+                } else {
+                    semSlot.push(entry);
                 }
+            });
+            // Ordenar sem-slot por data de compra (cronológico)
+            semSlot.sort((a, b) => (a.data.createdAt?.seconds ?? 0) - (b.data.createdAt?.seconds ?? 0));
+            // Atribuir apenas as vagas sem número, continuando do último slot ocupado
+            semSlot.forEach(entry => {
+                maxSlot++;
+                const newSlot = maxSlot;
+                const newSlotDisplay = eventId === 'modo-liga'
+                    ? `Vaga ${String.fromCharCode(64 + newSlot)}`
+                    : `Vaga #${newSlot}`;
+                batch.update(doc(window.firebaseDb, 'registrations', entry.id), {
+                    slot: newSlot,
+                    slotNumber: newSlot,
+                    slotDisplay: newSlotDisplay
+                });
+                updateCount++;
             });
         }
 
@@ -12470,6 +12504,7 @@ window.loadPageData = async function(page) {
         try { loadProducts(); } catch(e) {}
         try { loadEventsPreview(); } catch(e) {}
         try { loadShirtOrders(); } catch(e) {}
+        try { loadBonusSlots(); } catch(e) { console.warn('[page:conteudo] BonusSlots', e); }
 
     } else if (page === 'operacoes') {
         try { loadWhatsAppLinks(); } catch(e) {}
@@ -12665,7 +12700,9 @@ window.fixTeamSlot = async function(teamName, eventType, date, newSlot) {
         );
         const snap = await getDocs(q);
         if (snap.empty) { alert(`Nenhum registro encontrado para "${teamName}" em ${date}.`); return; }
-        const newSlotDisplay = `Vaga #${newSlot}`;
+        const newSlotDisplay = eventType === 'modo-liga'
+            ? `Vaga ${String.fromCharCode(64 + newSlot)}`
+            : `Vaga #${newSlot}`;
         let count = 0;
         for (const d of snap.docs) {
             await updateDoc(doc(db, 'registrations', d.id), {
@@ -12676,7 +12713,7 @@ window.fixTeamSlot = async function(teamName, eventType, date, newSlot) {
             count++;
             console.log(`[fixTeamSlot] Atualizado: ${d.id} → slot ${newSlot}`);
         }
-        alert(`✅ ${count} registro(s) do time "${teamName}" atualizados para Vaga #${newSlot}.`);
+        alert(`✅ ${count} registro(s) do time "${teamName}" atualizados para ${newSlotDisplay}.`);
     } catch (err) {
         console.error('[fixTeamSlot] Erro:', err);
         alert('Erro: ' + (err.message || err));
@@ -12705,7 +12742,7 @@ window.repairDateSlots = async function(eventType, targetDate) {
             where('date', '==', targetDate)
         ));
 
-        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'pending']);
+        const validStatuses = new Set(['confirmed', 'paid', 'approved']);
         const docs = snap.docs.filter(d => validStatuses.has(d.data().status));
 
         if (docs.length === 0) {
@@ -12722,9 +12759,16 @@ window.repairDateSlots = async function(eventType, targetDate) {
             bySchedule[sched].push({ id: d.id, data: r });
         });
 
-        // Ordenar por createdAt dentro de cada horário
+        // Ordenar por slot crescente → createdAt como fallback (mesma lógica do repairEventSlots)
         Object.values(bySchedule).forEach(arr => {
-            arr.sort((a, b) => (a.data.createdAt?.seconds ?? 0) - (b.data.createdAt?.seconds ?? 0));
+            arr.sort((a, b) => {
+                const sa = a.data.slot != null ? Number(a.data.slot) : (a.data.slotNumber != null ? Number(a.data.slotNumber) : null);
+                const sb = b.data.slot != null ? Number(b.data.slot) : (b.data.slotNumber != null ? Number(b.data.slotNumber) : null);
+                if (sa !== null && sb !== null) return sa - sb;
+                if (sa !== null) return -1;
+                if (sb !== null) return 1;
+                return (a.data.createdAt?.seconds ?? 0) - (b.data.createdAt?.seconds ?? 0);
+            });
         });
 
         // Deduplicar por nome de time dentro de cada horário (manter o mais antigo)
@@ -12738,15 +12782,30 @@ window.repairDateSlots = async function(eventType, targetDate) {
             });
         });
 
-        // Renumerar e gravar
+        // Preencher apenas slots SEM número atribuído — slots ocupados NUNCA são alterados
         const batch = writeBatch(db);
         let updateCount = 0;
         const counterData = {};
 
         for (const [sched, regs] of Object.entries(bySchedule)) {
-            regs.forEach((entry, idx) => {
-                const newSlot = idx + 1;
-                const newSlotDisplay = `Vaga #${newSlot}`;
+            let maxSlot = 0;
+            const semSlot = [];
+            regs.forEach(entry => {
+                const s = entry.data.slot != null ? Number(entry.data.slot)
+                        : (entry.data.slotNumber != null ? Number(entry.data.slotNumber) : null);
+                if (s !== null && !isNaN(s) && s > 0) {
+                    if (s > maxSlot) maxSlot = s;
+                } else {
+                    semSlot.push(entry);
+                }
+            });
+            semSlot.sort((a, b) => (a.data.createdAt?.seconds ?? 0) - (b.data.createdAt?.seconds ?? 0));
+            semSlot.forEach(entry => {
+                maxSlot++;
+                const newSlot = maxSlot;
+                const newSlotDisplay = eventType === 'modo-liga'
+                    ? `Vaga ${String.fromCharCode(64 + newSlot)}`
+                    : `Vaga #${newSlot}`;
                 batch.update(doc(db, 'registrations', entry.id), {
                     slot: newSlot,
                     slotNumber: newSlot,
@@ -12772,5 +12831,210 @@ window.repairDateSlots = async function(eventType, targetDate) {
     } catch(err) {
         console.error('[repairDateSlots] Erro:', err);
         alert('Erro: ' + (err.message || err));
+    }
+};
+
+// ===== VAGAS BÔNUS =====
+
+const _BONUS_EVENT_LABELS = {
+    'xtreino-tokens': 'XTreino Freitas',
+    'modo-liga': 'Modo Liga',
+    'semanal-freitas': 'Semanal Freitas',
+    'semanal': 'Semanal Freitas',
+    'camp-freitas': 'Campeonato Freitas'
+};
+
+function _gerarCodigoBonus() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
+
+// Popula o select de eventos do form bônus a partir do adminEvents no Firestore
+async function _popularSelectEventoBonus() {
+    const sel = document.getElementById('bonusFormEventType');
+    if (!sel || !window.firebaseDb) return;
+    try {
+        const { collection, getDocs, orderBy, query } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const snap = await getDocs(query(collection(window.firebaseDb, 'adminEvents'), orderBy('name')));
+        sel.innerHTML = '';
+        if (snap.empty) {
+            // Fallback para eventos fixos caso adminEvents esteja vazio
+            [['xtreino-tokens','XTreino Freitas'],['modo-liga','XTreino Modo Liga'],['semanal-freitas','Semanal Freitas'],['camp-freitas','Campeonato Freitas']]
+                .forEach(([v,t]) => { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); });
+            return;
+        }
+        snap.forEach(d => {
+            const ev = d.data();
+            const value = ev.eventType || d.id;
+            const label = ev.name || ev.eventType || d.id;
+            const opt = document.createElement('option');
+            opt.value = value;
+            opt.textContent = label;
+            sel.appendChild(opt);
+        });
+    } catch (err) {
+        console.warn('[BonusSlots] Erro ao carregar eventos:', err);
+    }
+}
+
+window.loadBonusSlots = async function() {
+    if (!window.firebaseDb) return;
+    const tbody = document.getElementById('bonusSlotsBody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="8" class="py-4 text-center text-gray-400">Carregando...</td></tr>';
+
+    try {
+        const { collection, query, orderBy, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const snap = await getDocs(query(
+            collection(window.firebaseDb, 'bonus_links'),
+            orderBy('createdAt', 'desc')
+        ));
+
+        if (snap.empty) {
+            tbody.innerHTML = '<tr><td colspan="8" class="py-6 text-center text-gray-500">Nenhum link bônus criado ainda.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = snap.docs.map(docSnap => {
+            const d = { id: docSnap.id, ...docSnap.data() };
+            const statusClass = d.status === 'ativo'
+                ? 'bg-green-100 text-green-700'
+                : d.status === 'pausado' ? 'bg-yellow-100 text-yellow-700'
+                : 'bg-red-100 text-red-700';
+            const vagasStr = `${d.usedCount || 0}/${d.quantity || 0}`;
+            const expiry = d.expiresAt
+                ? new Date(d.expiresAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+                : '—';
+            const [ano, mes, dia] = (d.date || '').split('-');
+            const dataFmt = d.date ? `${dia}/${mes}/${ano}` : '—';
+            const eventLabel = _BONUS_EVENT_LABELS[d.eventType] || d.eventType;
+            const toggleTitle = d.status === 'ativo' ? 'Pausar' : 'Reativar';
+            const toggleIcon = d.status === 'ativo' ? 'pause' : 'play';
+            const toggleClass = d.status === 'ativo' ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-green-600 hover:bg-green-700';
+
+            return `
+            <tr class="border-b hover:bg-gray-50">
+                <td class="px-3 py-2 font-mono font-bold text-orange-600 text-sm">${d.code}</td>
+                <td class="px-3 py-2 text-xs">${eventLabel}</td>
+                <td class="px-3 py-2 text-xs">${dataFmt}</td>
+                <td class="px-3 py-2 text-xs font-medium">${d.schedule || '—'}</td>
+                <td class="px-3 py-2 text-xs font-medium">${vagasStr}</td>
+                <td class="px-3 py-2 text-xs">${expiry}</td>
+                <td class="px-3 py-2">
+                    <span class="px-2 py-0.5 rounded-full text-xs font-semibold ${statusClass}">${d.status}</span>
+                </td>
+                <td class="px-3 py-2">
+                    <div class="flex gap-1 flex-wrap">
+                        <button onclick="copyBonusLink('${d.code}')"
+                            class="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700" title="Copiar link">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        <button onclick="toggleBonusStatus('${d.id}','${d.status}')"
+                            class="px-2 py-1 text-xs ${toggleClass} text-white rounded" title="${toggleTitle}">
+                            <i class="fas fa-${toggleIcon}"></i>
+                        </button>
+                        <button onclick="deleteBonusLink('${d.id}')"
+                            class="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700" title="Excluir">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+
+    } catch (err) {
+        console.error('[BonusSlots] Erro:', err);
+        tbody.innerHTML = `<tr><td colspan="8" class="py-4 text-center text-red-500 text-xs">Erro: ${err.message}</td></tr>`;
+    }
+};
+
+window.createBonusLink = async function() {
+    if (!window.firebaseDb) { alert('Firebase não conectado.'); return; }
+
+    const eventType = document.getElementById('bonusFormEventType')?.value;
+    const schedule = document.getElementById('bonusFormSchedule')?.value;
+    const date = document.getElementById('bonusFormDate')?.value;
+    const quantity = parseInt(document.getElementById('bonusFormQuantity')?.value || '0', 10);
+    const limitPerTeam = parseInt(document.getElementById('bonusFormLimitPerTeam')?.value || '1', 10);
+    const expiresAtRaw = document.getElementById('bonusFormExpiresAt')?.value;
+
+    if (!eventType || !schedule || !date || !quantity || quantity < 1) {
+        alert('Preencha todos os campos obrigatórios: evento, horário, data e vagas disponíveis (mínimo 1).');
+        return;
+    }
+
+    const code = _gerarCodigoBonus();
+    // Pega o nome do evento do texto visível da opção selecionada (vem do adminEvents)
+    const selEl = document.getElementById('bonusFormEventType');
+    const eventName = selEl?.selectedOptions?.[0]?.textContent?.trim() || _BONUS_EVENT_LABELS[eventType] || eventType;
+
+    try {
+        const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+        await addDoc(collection(window.firebaseDb, 'bonus_links'), {
+            code,
+            eventType,
+            eventName,
+            schedule,
+            date,
+            quantity,
+            usedCount: 0,
+            limitPerTeam: Math.max(1, limitPerTeam || 1),
+            expiresAt: expiresAtRaw ? new Date(expiresAtRaw).toISOString() : null,
+            status: 'ativo',
+            createdAt: serverTimestamp()
+        });
+
+        document.getElementById('bonusCreateForm').classList.add('hidden');
+
+        const linkUrl = `${window.location.origin}/bonus.html?code=${code}`;
+        const msg = `✅ Link bônus criado!\n\nCódigo: ${code}\nEvento: ${eventName}\nData: ${date} | ${schedule}\nVagas: ${quantity}\n\nLink:\n${linkUrl}`;
+        if (navigator.clipboard) {
+            await navigator.clipboard.writeText(linkUrl).catch(() => {});
+        }
+        alert(msg + '\n\n(Link copiado para a área de transferência)');
+        await loadBonusSlots();
+
+    } catch (err) {
+        console.error('[BonusSlots] Erro ao criar:', err);
+        alert('Erro ao criar link bônus: ' + err.message);
+    }
+};
+
+window.copyBonusLink = async function(code) {
+    const link = `${window.location.origin}/bonus.html?code=${code}`;
+    try {
+        await navigator.clipboard.writeText(link);
+        alert(`✅ Link copiado!\n\n${link}`);
+    } catch {
+        prompt('Copie o link abaixo:', link);
+    }
+};
+
+window.toggleBonusStatus = async function(id, currentStatus) {
+    if (!window.firebaseDb) return;
+    const novoStatus = currentStatus === 'ativo' ? 'pausado' : 'ativo';
+    const confirmar = confirm(`${novoStatus === 'pausado' ? 'Pausar' : 'Reativar'} este link bônus?`);
+    if (!confirmar) return;
+
+    try {
+        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        await updateDoc(doc(window.firebaseDb, 'bonus_links', id), { status: novoStatus });
+        await loadBonusSlots();
+    } catch (err) {
+        alert('Erro ao alterar status: ' + err.message);
+    }
+};
+
+window.deleteBonusLink = async function(id) {
+    if (!confirm('Excluir este link bônus permanentemente? Inscrições já realizadas NÃO serão afetadas.')) return;
+    if (!window.firebaseDb) return;
+
+    try {
+        const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        await deleteDoc(doc(window.firebaseDb, 'bonus_links', id));
+        await loadBonusSlots();
+    } catch (err) {
+        alert('Erro ao excluir: ' + err.message);
     }
 };
