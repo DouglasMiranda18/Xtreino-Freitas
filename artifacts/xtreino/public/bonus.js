@@ -310,7 +310,17 @@ window.confirmarParticipacao = async function() {
 
     } catch (err) {
         console.error('[Bonus] Erro ao confirmar:', err);
-        alert('❌ ' + (err.message || 'Erro ao confirmar participação. Tente novamente.'));
+        let msg = err.message || 'Erro ao confirmar participação. Tente novamente.';
+        // Erros de cota/quota do Firebase free tier
+        if (
+            msg.toLowerCase().includes('quota') ||
+            msg.toLowerCase().includes('resource exhausted') ||
+            msg.toLowerCase().includes('resource_exhausted') ||
+            err.code === 'resource-exhausted'
+        ) {
+            msg = 'O sistema atingiu o limite de acessos simultâneos. Aguarde alguns minutos e tente novamente.';
+        }
+        alert('❌ ' + msg);
         if (btn) {
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-gamepad mr-2"></i>QUERO PARTICIPAR';
