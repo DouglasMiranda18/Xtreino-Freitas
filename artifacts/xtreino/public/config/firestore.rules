@@ -408,5 +408,17 @@ service cloud.firestore {
       allow update: if isSignedIn();
       allow delete: if isSignedIn() && request.auth.uid == resource.data.capitaoId;
     }
+
+    // championship_results — resultados de semifinais e final do campeonato semanal
+    match /championship_results/{resultId} {
+      allow read: if true;
+      allow create, update, delete: if isAuthorizedAdmin() || isGerente() || isStaff();
+    }
+
+    // championship_config — tabela LBFF e banner do campeonato semanal
+    match /championship_config/{configId} {
+      allow read: if true;
+      allow create, update, delete: if isAuthorizedAdmin() || isGerente();
+    }
   }
 }
