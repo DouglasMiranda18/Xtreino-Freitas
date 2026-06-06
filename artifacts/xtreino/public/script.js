@@ -6122,9 +6122,6 @@ async function renderScheduleTimes() {
         // Horário travado pelo admin — ocultar
         if (lockedHours.has(hour)) continue;
 
-        // Semanal Freitas 19h — sempre esgotado, ocultar
-        if (eventType === 'semanal-freitas' && time === '19h') continue;
-
         const taken = Math.min(occupied[schedule] || 0, capacity);
         const available = Math.max(0, capacity - taken);
 
