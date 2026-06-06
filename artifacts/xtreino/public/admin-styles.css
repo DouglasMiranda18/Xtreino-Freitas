@@ -771,6 +771,68 @@ main.with-sidebar { padding-left: calc(var(--sidebar-w) + 1.5rem) !important; }
     .admin-login-right { padding: 1.5rem; }
 }
 
+/* ===== MOBILE FIXES ===== */
+
+/* Previne scroll horizontal no body */
+html, body { overflow-x: hidden !important; max-width: 100vw; }
+
+/* Backdrop para o sidebar no mobile */
+#adminSidebarBackdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.5);
+    z-index: 39;
+    backdrop-filter: blur(1px);
+}
+#adminSidebarBackdrop.active { display: block; }
+
+/* Header mobile: ocultar textos, mostrar só ícones */
+@media (max-width: 767px) {
+    header nav { padding: 0 0.75rem !important; gap: 0.4rem; }
+
+    /* Esconde texto dos botões do header, mantém ícone */
+    header a span,
+    #btnRefreshRole span,
+    #btnLogout span { display: none !important; }
+
+    /* "Voltar ao Site" — só ícone */
+    header a { padding: 0.35rem 0.5rem !important; }
+
+    /* "Atualizar Permissões" — só ícone */
+    #btnRefreshRole { padding: 0.35rem 0.5rem !important; }
+
+    /* "Sair" — só ícone */
+    #btnLogout { padding: 0.35rem 0.5rem !important; }
+
+    /* Esconde nome do usuário no header */
+    #adminUserName { display: none !important; }
+
+    /* Esconde subtítulo do header */
+    header p { display: none !important; }
+
+    /* Titutlo + logo mais compacto */
+    header .flex.items-center.space-x-3 { gap: 0.4rem !important; }
+}
+
+/* Tabelas: scroll horizontal dentro do container */
+@media (max-width: 1023px) {
+    .overflow-x-auto,
+    table { max-width: 100%; }
+
+    /* Força containers de tabela a scrollar horizontalmente */
+    section > div > .overflow-x-auto,
+    section .overflow-x-auto { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+
+    /* Cards e grids: permitir wrap */
+    .grid.grid-cols-2,
+    .grid.grid-cols-3,
+    .grid.grid-cols-4 { grid-template-columns: repeat(2, 1fr) !important; }
+
+    /* Formulários de filtro em coluna única */
+    #sectionFilters .flex.flex-wrap { flex-wrap: wrap !important; }
+}
+
 /* sectionKPIs: oculto por padrão — só CEO e sócio veem */
 #sectionKPIs { display: none !important; }
 html.kpis-enabled #sectionKPIs { display: grid !important; }
