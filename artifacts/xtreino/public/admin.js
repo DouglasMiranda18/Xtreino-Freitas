@@ -8907,6 +8907,15 @@ async function viewAffiliateDetails(affiliateId) {
                 </div>
             </div>
 
+            <!-- Ações do Admin -->
+            <div style="padding:12px 24px;background:#fafafa;border-bottom:1px solid #e5e7eb;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <span style="font-size:12px;color:#6b7280;font-weight:600;margin-right:4px">AÇÕES:</span>
+                <button onclick="descontarComissaoAfiliado('${affiliateId}', '${affiliate.name.replace(/'/g, "\\'")}')"
+                        style="background:#dc2626;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px">
+                    💸 Descontar Comissão
+                </button>
+            </div>
+
             <!-- Abas -->
             <div style="padding:20px 24px">
                 <div style="display:flex;gap:8px;margin-bottom:16px;border-bottom:2px solid #e5e7eb">
@@ -9062,6 +9071,73 @@ async function deleteAffiliate(affiliateId, affiliateName) {
     }
 }
 window.deleteAffiliate = deleteAffiliate;
+
+// ── Descontar / Quitar comissão manualmente ───────────────────────────────────
+window.descontarComissaoAfiliado = async function (affiliateId, affiliateName) {
+    // Calcular saldo pendente atual
+    const pendente = affiliateSalesData
+        .filter(s => s.affiliateId === affiliateId && s.status === 'pending')
+        .reduce((sum, s) => sum + (s.commissionAmount || 0), 0);
+
+    const msg = `Descontar comissão de ${affiliateName}\n\nSaldo pendente: R$ ${pendente.toFixed(2)}\n\nValor a descontar (ex: 15.00):`;
+    const valorStr = prompt(msg, pendente > 0 ? pendente.toFixed(2) : '');
+    if (!valorStr) return;
+
+    const valor = parseFloat(valorStr.replace(',', '.'));
+    if (isNaN(valor) || valor <= 0) {
+        alert('Valor inválido. Informe um número positivo.');
+        return;
+    }
+
+    const motivo = prompt(`Motivo / descrição (opcional):\n(ex: Pix enviado em ${new Date().toLocaleDateString('pt-BR')})`) || 'Desconto manual de comissão';
+
+    if (!confirm(`Confirmar desconto de R$ ${valor.toFixed(2)} para ${affiliateName}?\n\nMotivo: ${motivo}`)) return;
+
+    try {
+        const { collection, doc, addDoc, updateDoc, serverTimestamp } =
+            await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+        // 1. Registrar em affiliate_payouts como pagamento aprovado
+        await addDoc(collection(window.firebaseDb, 'affiliate_payouts'), {
+            affiliateId,
+            affiliateName,
+            amount: valor,
+            status: 'approved',
+            type: 'manual_deduction',
+            notes: motivo,
+            processedBy: window.firebaseAuth?.currentUser?.email || 'admin',
+            processedAt: serverTimestamp(),
+            createdAt: serverTimestamp()
+        });
+
+        // 2. Marcar vendas pendentes como 'paid' do mais antigo pro mais novo até cobrir o valor
+        const vendasPendentes = affiliateSalesData
+            .filter(s => s.affiliateId === affiliateId && s.status === 'pending')
+            .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+        let restante = valor;
+        for (const venda of vendasPendentes) {
+            if (restante <= 0) break;
+            await updateDoc(doc(window.firebaseDb, 'affiliate_sales', venda.id), {
+                status: 'paid',
+                paidAt: serverTimestamp()
+            });
+            // Atualizar cache local
+            const idx = affiliateSalesData.findIndex(s => s.id === venda.id);
+            if (idx >= 0) affiliateSalesData[idx].status = 'paid';
+            restante -= (venda.commissionAmount || 0);
+        }
+
+        showToast('success', `R$ ${valor.toFixed(2)} descontado de ${affiliateName} com sucesso.`, 'Concluído', 5000);
+
+        // Reabrir o modal para refletir os novos valores
+        await viewAffiliateDetails(affiliateId);
+
+    } catch (err) {
+        console.error('[Afiliados] Erro ao descontar comissão:', err);
+        showToast('error', 'Erro ao registrar desconto: ' + (err.message || err), 'Erro');
+    }
+};
 
 // Aprovar comissão de afiliado
 async function approveAffiliateCommission(saleId) {
