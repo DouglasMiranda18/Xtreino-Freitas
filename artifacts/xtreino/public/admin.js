@@ -11810,7 +11810,8 @@ window.carregarFinalistas = async function () {
         const { doc, getDoc, collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
 
         // Carregar resultado da final (22h) do championship_results
-        const docId = `${data}_22h`;
+        // Formato do docId: semanal-freitas_{data}_{hora} (igual ao usado em championship.js)
+        const docId = `semanal-freitas_${data}_22h`;
         const snap = await getDoc(doc(window.firebaseDb, 'championship_results', docId));
         if (!snap.exists() || !snap.data().teams?.length) {
             loadingEl?.classList.add('hidden');
