@@ -226,10 +226,8 @@
               <th class="text-left py-2 px-2 font-semibold">Equipe</th>
               <th class="text-center py-2 px-2">Pos Q1</th>
               <th class="text-center py-2 px-2">Kills Q1</th>
-              <th class="text-center py-2 px-1 text-yellow-600" title="Booyah na Queda 1">🏆 Q1</th>
               <th class="text-center py-2 px-2">Pos Q2</th>
               <th class="text-center py-2 px-2">Kills Q2</th>
-              <th class="text-center py-2 px-1 text-yellow-600" title="Booyah na Queda 2">🏆 Q2</th>
               <th class="text-center py-2 px-2 text-orange-600 font-bold">Pts</th>
               <th class="text-center py-2 px-2 text-gray-500">Abates</th>
               ${!isFinal ? '<th class="text-center py-2 px-2 rounded-tr-lg">Class.</th>' : '<th class="text-center py-2 px-2 rounded-tr-lg">Pos.</th>'}
@@ -251,16 +249,10 @@
                   <input type="number" min="0" max="99" class="w-14 text-center border border-gray-200 rounded-lg px-1 py-1 text-xs champ-input focus:border-orange-400 focus:outline-none" data-field="q1kills" value="${eq.q1kills || 0}">
                 </td>
                 <td class="py-1 px-1 text-center">
-                  <input type="checkbox" class="champ-booyah w-4 h-4 accent-orange-500 cursor-pointer" data-field="q1booyah" ${eq.q1booyah ? 'checked' : ''} title="Booyah Q1">
-                </td>
-                <td class="py-1 px-1 text-center">
                   <input type="number" min="1" max="12" class="w-14 text-center border border-gray-200 rounded-lg px-1 py-1 text-xs champ-input focus:border-orange-400 focus:outline-none" data-field="q2pos" value="${eq.q2pos || ''}">
                 </td>
                 <td class="py-1 px-1 text-center">
                   <input type="number" min="0" max="99" class="w-14 text-center border border-gray-200 rounded-lg px-1 py-1 text-xs champ-input focus:border-orange-400 focus:outline-none" data-field="q2kills" value="${eq.q2kills || 0}">
-                </td>
-                <td class="py-1 px-1 text-center">
-                  <input type="checkbox" class="champ-booyah w-4 h-4 accent-orange-500 cursor-pointer" data-field="q2booyah" ${eq.q2booyah ? 'checked' : ''} title="Booyah Q2">
                 </td>
                 <td class="py-1 px-1 text-center font-bold text-orange-600 champ-pts" data-idx="${i}">${eq.pontos || 0}</td>
                 <td class="py-1 px-1 text-center text-gray-500 champ-abates" data-idx="${i}">${eq.abates || 0}</td>
@@ -293,7 +285,7 @@
     `;
 
     // Re-calcular pontos ao digitar
-    container.querySelectorAll('.champ-input, .champ-booyah').forEach(el => {
+    container.querySelectorAll('.champ-input').forEach(el => {
       el.addEventListener('input', () => window.champRecalcular(false));
       el.addEventListener('change', () => window.champRecalcular(false));
     });
@@ -315,10 +307,10 @@
       const get = (f) => row.querySelector(`[data-field="${f}"]`);
       const q1pos   = parseInt(get('q1pos')?.value)  || 0;
       const q1kills = parseInt(get('q1kills')?.value) || 0;
-      const q1booyah = get('q1booyah')?.checked || false;
+      const q1booyah = q1pos === 1;           // posição 1 = booyah automático
       const q2pos   = parseInt(get('q2pos')?.value)  || 0;
       const q2kills = parseInt(get('q2kills')?.value) || 0;
-      const q2booyah = get('q2booyah')?.checked || false;
+      const q2booyah = q2pos === 1;
       const pts1 = q1pos > 0 ? calcPontos(q1pos, q1kills, tabela, pontoPorAbate) : 0;
       const pts2 = q2pos > 0 ? calcPontos(q2pos, q2kills, tabela, pontoPorAbate) : 0;
       const pontos = pts1 + pts2;
@@ -527,16 +519,14 @@
       <td class="py-2 px-2 font-medium text-gray-800 text-xs">${nome}</td>
       <td class="py-1 px-1 text-center"><input type="number" min="1" max="12" class="w-14 text-center border border-gray-200 rounded-lg px-1 py-1 text-xs champ-input" data-field="q1pos" value=""></td>
       <td class="py-1 px-1 text-center"><input type="number" min="0" class="w-14 text-center border border-gray-200 rounded-lg px-1 py-1 text-xs champ-input" data-field="q1kills" value="0"></td>
-      <td class="py-1 px-1 text-center"><input type="checkbox" class="champ-booyah w-4 h-4 accent-orange-500" data-field="q1booyah"></td>
       <td class="py-1 px-1 text-center"><input type="number" min="1" max="12" class="w-14 text-center border border-gray-200 rounded-lg px-1 py-1 text-xs champ-input" data-field="q2pos" value=""></td>
       <td class="py-1 px-1 text-center"><input type="number" min="0" class="w-14 text-center border border-gray-200 rounded-lg px-1 py-1 text-xs champ-input" data-field="q2kills" value="0"></td>
-      <td class="py-1 px-1 text-center"><input type="checkbox" class="champ-booyah w-4 h-4 accent-orange-500" data-field="q2booyah"></td>
       <td class="py-1 px-1 text-center font-bold text-orange-600 champ-pts" data-idx="${idx}">0</td>
       <td class="py-1 px-1 text-center text-gray-500 champ-abates" data-idx="${idx}">0</td>
       <td class="py-1 px-1 text-center champ-classified" data-idx="${idx}">—</td>
     `;
     tbody.appendChild(tr);
-    tr.querySelectorAll('.champ-input, .champ-booyah').forEach(el => {
+    tr.querySelectorAll('.champ-input').forEach(el => {
       el.addEventListener('input',  () => window.champRecalcular(false));
       el.addEventListener('change', () => window.champRecalcular(false));
     });
@@ -608,8 +598,8 @@
       ordenadas.slice(0, MAX_LINHAS).forEach((e, i) => {
         // Y exato desta linha (pixel medido do template)
         const rowCY = ROW_Y[i];
-        // B! = quantas vezes foi Top 1
-        const booyahs = (e.q1booyah ? 1 : 0) + (e.q2booyah ? 1 : 0);
+        // B! = posição 1 em qualquer queda = booyah automático
+        const booyahs = (e.q1pos === 1 ? 1 : 0) + (e.q2pos === 1 ? 1 : 0);
         const nome = (e.nome || '').toUpperCase();
 
         // Sombra de texto para legibilidade
