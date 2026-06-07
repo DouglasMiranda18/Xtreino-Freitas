@@ -112,10 +112,33 @@
 
     <!-- Main Content -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <!-- Welcome Section -->
-        <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
-            <h1 id="welcomeMessage" class="text-2xl font-bold text-gray-900 mb-2">Bem-vindo à sua conta!</h1>
-            <p class="text-gray-600">Gerencie seus pedidos, perfil e tokens aqui.</p>
+        <!-- Welcome Hero -->
+        <div style="background:linear-gradient(135deg,#4c1d95 0%,#5b21b6 50%,#3730a3 100%);border-radius:1.25rem;padding:1.4rem 1.5rem;margin-bottom:1.5rem;position:relative;overflow:hidden">
+            <div style="position:absolute;top:-24px;right:-24px;width:130px;height:130px;background:rgba(255,255,255,0.07);border-radius:50%"></div>
+            <div style="position:absolute;bottom:-30px;right:70px;width:80px;height:80px;background:rgba(255,255,255,0.05);border-radius:50%"></div>
+            <div style="position:relative;z-index:1">
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.1rem">
+                    <div style="width:46px;height:46px;background:rgba(255,255,255,0.18);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">🎮</div>
+                    <div>
+                        <div id="welcomeMessage" style="color:#fff;font-size:1rem;font-weight:900;line-height:1.2">Bem-vindo!</div>
+                        <div style="color:rgba(255,255,255,0.65);font-size:0.7rem;font-weight:600;margin-top:2px;letter-spacing:0.3px">XTreino Freitas — Plataforma eSports</div>
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px">
+                    <div style="background:rgba(255,255,255,0.12);border-radius:12px;padding:10px 8px;text-align:center">
+                        <div id="totalOrders" style="font-size:1.45rem;font-weight:900;color:#fff;line-height:1">0</div>
+                        <div style="font-size:9px;color:rgba(255,255,255,0.7);font-weight:700;margin-top:3px;text-transform:uppercase;letter-spacing:0.6px">Pedidos</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.12);border-radius:12px;padding:10px 8px;text-align:center">
+                        <div id="totalSpent" style="font-size:1rem;font-weight:900;color:#fde68a;line-height:1.3">R$ 0</div>
+                        <div style="font-size:9px;color:rgba(255,255,255,0.7);font-weight:700;margin-top:3px;text-transform:uppercase;letter-spacing:0.6px">Gasto</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.12);border-radius:12px;padding:10px 8px;text-align:center">
+                        <div id="availableTokens" style="font-size:1.45rem;font-weight:900;color:#6ee7b7;line-height:1">0</div>
+                        <div style="font-size:9px;color:rgba(255,255,255,0.7);font-weight:700;margin-top:3px;text-transform:uppercase;letter-spacing:0.6px">Tokens</div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Navigation Tabs -->
@@ -157,72 +180,56 @@
 
         <!-- Dashboard Tab -->
         <div id="dashboardContent" class="tab-content">
-            <!-- Aviso de notificações -->
-            <div class="flex items-start gap-3 p-4 mb-6 bg-amber-50 border-2 border-amber-400 rounded-xl text-amber-900 text-sm leading-relaxed">
-                <span class="text-2xl">🔔</span>
+
+            <!-- Aviso gaming -->
+            <div style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;margin-bottom:1.1rem;background:linear-gradient(135deg,#fffbeb,#fef3c7);border:2px solid #fbbf24;border-radius:14px;box-shadow:0 2px 8px rgba(251,191,36,0.15)">
+                <div style="width:36px;height:36px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🔔</div>
                 <div>
-                    <strong>ATENÇÃO:</strong> O ID e senha da sala saem aqui no site mesmo.<br>
-                    Fique atento ao sininho de notificações <strong>10 minutos antes do seu horário!</strong>
-                </div>
-            </div>
-            <!-- Stats Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div class="bg-white rounded-lg shadow-sm p-6">
-                    <div class="flex items-center">
-                        <div class="p-2 bg-blue-100 rounded-lg">
-                            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                                </path>
-                            </svg>
-                        </div>
-                        <div class="ml-4">
-                            <p class="text-sm font-medium text-gray-600">Total de Pedidos</p>
-                            <p id="totalOrders" class="text-2xl font-semibold text-gray-900">0</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-lg shadow-sm p-6">
-                    <div class="flex items-center">
-                        <div class="p-2 bg-green-100 rounded-lg">
-                            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1">
-                                </path>
-                            </svg>
-                        </div>
-                        <div class="ml-4">
-                            <p class="text-sm font-medium text-gray-600">Total Gasto</p>
-                            <p id="totalSpent" class="text-2xl font-semibold text-gray-900">R$ 0,00</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-lg shadow-sm p-6">
-                    <div class="flex items-center">
-                        <div class="p-2 bg-yellow-100 rounded-lg">
-                            <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z">
-                                </path>
-                            </svg>
-                        </div>
-                        <div class="ml-4">
-                            <p class="text-sm font-medium text-gray-600">Tokens Disponíveis</p>
-                            <p id="availableTokens" class="text-2xl font-semibold text-gray-900">0</p>
-                        </div>
-                    </div>
+                    <div style="font-size:13px;font-weight:900;color:#92400e;margin-bottom:2px">ATENÇÃO — Credenciais da Sala</div>
+                    <div style="font-size:12px;color:#78350f;line-height:1.5">O ID e senha da sala saem aqui no site. Fique atento ao sininho <strong>10 min antes do seu horário!</strong></div>
                 </div>
             </div>
 
-            <!-- Recent Orders -->
-            <div class="bg-white rounded-lg shadow-sm">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h3 class="text-lg font-medium text-gray-900">Pedidos Recentes</h3>
+            <!-- Ações rápidas -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.1rem">
+                <button onclick="switchTab('orders')" style="display:flex;align-items:center;gap:10px;padding:14px;background:#fff;border:1.5px solid #e5e7eb;border-radius:14px;cursor:pointer;text-align:left;box-shadow:0 1px 4px rgba(0,0,0,0.06);transition:box-shadow 0.15s" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,0.06)'">
+                    <div style="width:38px;height:38px;background:linear-gradient(135deg,#dbeafe,#ede9fe);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0">📋</div>
+                    <div>
+                        <div style="font-size:13px;font-weight:800;color:#1f2937">Meus Pedidos</div>
+                        <div style="font-size:11px;color:#6b7280;margin-top:1px">Ver inscrições</div>
+                    </div>
+                </button>
+                <button onclick="switchTab('tokens')" style="display:flex;align-items:center;gap:10px;padding:14px;background:#fff;border:1.5px solid #e5e7eb;border-radius:14px;cursor:pointer;text-align:left;box-shadow:0 1px 4px rgba(0,0,0,0.06);transition:box-shadow 0.15s" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,0.06)'">
+                    <div style="width:38px;height:38px;background:linear-gradient(135deg,#d1fae5,#a7f3d0);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0">🪙</div>
+                    <div>
+                        <div style="font-size:13px;font-weight:800;color:#1f2937">Meus Tokens</div>
+                        <div style="font-size:11px;color:#6b7280;margin-top:1px">Saldo e histórico</div>
+                    </div>
+                </button>
+                <button onclick="switchTab('notifications')" style="display:flex;align-items:center;gap:10px;padding:14px;background:#fff;border:1.5px solid #e5e7eb;border-radius:14px;cursor:pointer;text-align:left;box-shadow:0 1px 4px rgba(0,0,0,0.06);transition:box-shadow 0.15s" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,0.06)'">
+                    <div style="width:38px;height:38px;background:linear-gradient(135deg,#fce7f3,#fbcfe8);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0">🔔</div>
+                    <div>
+                        <div style="font-size:13px;font-weight:800;color:#1f2937">Notificações</div>
+                        <div style="font-size:11px;color:#6b7280;margin-top:1px">ID e senha da sala</div>
+                    </div>
+                </button>
+                <button onclick="switchTab('profile')" style="display:flex;align-items:center;gap:10px;padding:14px;background:#fff;border:1.5px solid #e5e7eb;border-radius:14px;cursor:pointer;text-align:left;box-shadow:0 1px 4px rgba(0,0,0,0.06);transition:box-shadow 0.15s" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,0.06)'">
+                    <div style="width:38px;height:38px;background:linear-gradient(135deg,#fef9c3,#fde68a);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0">👤</div>
+                    <div>
+                        <div style="font-size:13px;font-weight:800;color:#1f2937">Meu Perfil</div>
+                        <div style="font-size:11px;color:#6b7280;margin-top:1px">Dados e avatar</div>
+                    </div>
+                </button>
+            </div>
+
+            <!-- Pedidos recentes -->
+            <div style="background:#fff;border-radius:16px;border:1.5px solid #f3f4f6;box-shadow:0 1px 4px rgba(0,0,0,0.06);overflow:hidden">
+                <div style="padding:14px 16px;border-bottom:1.5px solid #f3f4f6;display:flex;align-items:center;gap:8px">
+                    <span style="font-size:16px">🏆</span>
+                    <span style="font-size:14px;font-weight:800;color:#1f2937">Pedidos Recentes</span>
                 </div>
-                <div id="recentOrders" class="p-6">
-                    <p class="text-gray-500 text-center">Carregando pedidos...</p>
+                <div id="recentOrders" style="padding:16px">
+                    <p style="color:#9ca3af;text-align:center;font-size:13px">Carregando pedidos...</p>
                 </div>
             </div>
         </div>
