@@ -2712,7 +2712,7 @@
             <!-- ETAPA 1: Tipo -->
             <div>
                 <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">1 · Tipo de mensagem</p>
-                <div class="grid grid-cols-3 gap-2">
+                <div class="grid grid-cols-2 gap-2">
                     <button onclick="selectNotifyType('credentials')" data-type="credentials"
                         class="notify-type-card flex flex-col items-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 hover:border-purple-400 transition-all cursor-pointer bg-white">
                         <span class="text-xl">🎮</span>
@@ -2730,6 +2730,12 @@
                         <span class="text-xl">✉️</span>
                         <span class="text-xs font-bold text-gray-700">Aviso</span>
                         <span class="text-xs text-gray-400">livre</span>
+                    </button>
+                    <button onclick="selectNotifyType('finalists')" data-type="finalists"
+                        class="notify-type-card flex flex-col items-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 hover:border-yellow-400 transition-all cursor-pointer bg-white">
+                        <span class="text-xl">🏆</span>
+                        <span class="text-xs font-bold text-gray-700">Finalistas</span>
+                        <span class="text-xs text-gray-400">campeonato</span>
                     </button>
                 </div>
             </div>
@@ -2782,6 +2788,28 @@
                     <p class="text-xs font-bold text-green-700 flex items-center gap-1"><i class="fas fa-table"></i> Link da tabela de pontuação</p>
                     <input type="url" id="eventNotifyTabelaLink" placeholder="https://instagram.com/p/... ou link da planilha"
                         class="w-full border border-green-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-green-500">
+                </div>
+
+                <!-- Finalistas -->
+                <div id="eventNotifyFinalistsSection" class="hidden bg-yellow-50 border border-yellow-200 rounded-xl p-4 space-y-3">
+                    <p class="text-xs font-bold text-yellow-700 flex items-center gap-1"><i class="fas fa-trophy"></i> Finalistas do Campeonato Semanal</p>
+                    <div class="flex gap-2 items-end">
+                        <div class="flex-1">
+                            <label class="text-xs font-medium text-gray-600 mb-1 block">Data da final</label>
+                            <input type="date" id="notifyFinalistsDate"
+                                class="w-full border border-yellow-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-yellow-500">
+                        </div>
+                        <button onclick="carregarFinalistas()"
+                            class="px-3 py-2 bg-yellow-500 text-white rounded-lg text-xs font-bold hover:bg-yellow-600 transition-colors whitespace-nowrap">
+                            Carregar
+                        </button>
+                    </div>
+                    <div id="notifyFinalistsList" class="hidden">
+                        <p class="text-xs font-semibold text-gray-600 mb-2">Times classificados para a final:</p>
+                        <div id="notifyFinalistsNames" class="space-y-1"></div>
+                    </div>
+                    <div id="notifyFinalistsEmpty" class="hidden text-xs text-gray-400">Nenhum finalista encontrado para esta data.</div>
+                    <div id="notifyFinalistsLoading" class="hidden text-xs text-gray-400"><i class="fas fa-spinner fa-spin mr-1"></i>Carregando finalistas...</div>
                 </div>
 
                 <div>
