@@ -4036,11 +4036,15 @@ async function buildSlotData(date, eventType, hour) {
       const r = doc.data();
       const rType = normalize(r.eventType);
       if (evLower) {
-        if (evLower.includes('liga')) { if (!rType.includes('liga')) return; }
-        else if (evLower.includes('semanal')) { if (!rType.includes('semanal')) return; }
+        if (evLower.includes('liga') || evLower.includes('acesso')) {
+          if (!(rType.includes('liga') || rType.includes('acesso'))) return;
+        } else if (evLower.includes('semanal')) { if (!rType.includes('semanal')) return; }
         else if (evLower.includes('camp')) { if (!rType.includes('camp')) return; }
         else if (evLower.includes('xtreino') || evLower.includes('tokens')) {
           if (!(rType.includes('xtreino') || rType.includes('tokens'))) return;
+        } else {
+          // evLower é um docId — filtrar por correspondência exata para não misturar eventos
+          if (rType !== evLower) return;
         }
       }
       const regHH = normalizeHour(r.schedule) || normalizeHour(r.hour);
@@ -4056,7 +4060,8 @@ async function buildSlotData(date, eventType, hour) {
       if (b.slot !== null) return 1;
       return (a.createdAt?.getTime?.() || 0) - (b.createdAt?.getTime?.() || 0);
     });
-    const capacity = normalize(eventType).includes('liga') ? 15 : 12;
+    const _evN = normalize(eventType);
+    const capacity = (_evN.includes('liga') || _evN.includes('acesso')) ? 15 : 12;
     const slots = [];
     for (let i = 1; i <= capacity; i++) {
       slots.push({ slot: i, teamName: teams[i - 1]?.teamName || '' });
@@ -4083,11 +4088,15 @@ async function buildExportList(date, eventType, hour){
     // Aplicar filtro por tipo de evento com sinônimos
     const rType = normalize(r.eventType);
     if (evLower){
-      if (evLower.includes('liga')) { if (!rType.includes('liga')) return; }
-      else if (evLower.includes('semanal')) { if (!rType.includes('semanal')) return; }
+      if (evLower.includes('liga') || evLower.includes('acesso')) {
+        if (!(rType.includes('liga') || rType.includes('acesso'))) return;
+      } else if (evLower.includes('semanal')) { if (!rType.includes('semanal')) return; }
       else if (evLower.includes('camp')) { if (!rType.includes('camp')) return; }
       else if (evLower.includes('xtreino') || evLower.includes('tokens')) {
         if (!(rType.includes('xtreino') || rType.includes('tokens'))) return;
+      } else {
+        // docId ou tipo desconhecido — correspondência exata para não misturar eventos
+        if (rType !== evLower) return;
       }
     }
     const regHH = normalizeHour(r.schedule) || normalizeHour(r.hour);
