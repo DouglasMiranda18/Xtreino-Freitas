@@ -11707,6 +11707,7 @@ let _notifySelectedSlotKey = 'all';
 let _notifySelectedType = 'credentials';
 let _notifyOtherDaysVisible = false;
 let _finalistUserIds = [];
+let _finalistTeams = [];
 
 function selectNotifyType(type) {
     _notifySelectedType = type;
@@ -11820,6 +11821,7 @@ window.carregarFinalistas = async function () {
         }
 
         const teams = snap.data().teams || [];
+        _finalistTeams = teams; // salvar para uso no slotList da notificação
         // Obter registrationIds de cada time
         const regIds = [...new Set(teams.map(t => t.registrationId).filter(Boolean))];
         const nomes  = teams.map(t => t.nome || '').filter(Boolean);
@@ -11905,6 +11907,7 @@ async function openEventNotifyModal(eventId, eventName) {
     _notifySelectedSlotKey = 'all';
     _notifyOtherDaysVisible = false;
     _finalistUserIds = [];
+    _finalistTeams = [];
 
     document.getElementById('eventNotifyEventId').value = eventId;
     document.getElementById('eventNotifyEventName').textContent = eventName;
@@ -12202,11 +12205,20 @@ async function sendEventNotification() {
         // batchId agrupa todas as notificações deste envio — evita duplicatas na listagem do admin
         const batchId = `batch_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
+        // Para finalistas: montar slotList com os times classificados
+        let slotList = null;
+        let slotCapacity = null;
+        if (notifyType === 'finalists' && _finalistTeams.length > 0) {
+            slotList = _finalistTeams.map((t, i) => ({
+                slot: i + 1,
+                teamName: t.nome || ''
+            }));
+            slotCapacity = slotList.length;
+        }
+
         // Ao enviar credenciais para um horário específico, incluir lista de slots na notificação.
         // CRÍTICO: usar docsToNotify (já filtrado ao slot/evento correto) — evita re-query com docId
         // que retornaria vazio porque registrations são salvas com eventType='acesso', não com o docId.
-        let slotList = null;
-        let slotCapacity = null;
         if (notifyType === 'credentials' && selectedSchedule !== 'all') {
             try {
                 const { doc: _sd, getDoc: _sgd } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
@@ -12238,9 +12250,14 @@ async function sendEventNotification() {
             } catch (_) {}
         }
 
+        // Para finalistas, usar título simplificado (sem o nome longo do evento)
+        const notifTitle = notifyType === 'finalists'
+            ? `Final Semanal - ${title}`
+            : `[${eventName}]${scheduleLabel} ${title}`;
+
         await Promise.all(uniqueUsers.map(uid =>
             addDoc(collection(window.firebaseDb, 'notifications'), {
-                title: `[${eventName}]${scheduleLabel} ${title}`,
+                title: notifTitle,
                 message: message || null,
                 type: 'user',
                 targetUserId: uid,
