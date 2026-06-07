@@ -3239,6 +3239,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
 
       const selectedOpt = typeEl.options[typeEl.selectedIndex];
       const ovEventType = selectedOpt?.dataset?.canonicalType || canonicalType(eventType);
+      // rawEvType espelha exatamente ev.eventType || d.id — o mesmo que script.js usa para verificar
+      // disponibilidade (rawEventType). Usar isso nas travas garante que o match sempre funciona.
+      const rawEvType = selectedOpt?.dataset?.rawEventType || ovEventType;
       const rawEventId = selectedOpt?.dataset?.rawEventId || eventType;
       // evFieldType = valor bruto do campo eventType do adminEvents doc (é o que o booking flow salva em r.eventType)
       const evFieldType = selectedOpt?.dataset?.evFieldType || rawEventId;
@@ -3267,7 +3270,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
       }
 
       // ===== Bind do botão de destravar tudo do dia =====
-      bindClearLocksButton(btnClearLocks, date, ovEventType);
+      bindClearLocksButton(btnClearLocks, date, rawEvType);
 
       // ===== Bind do botão Travar dia inteiro =====
       const btnLockAllDay = document.getElementById('btnLockAllDay');
@@ -3275,7 +3278,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
         btnLockAllDay.style.display = '';
         const newBtnLock = btnLockAllDay.cloneNode(true);
         btnLockAllDay.parentNode.replaceChild(newBtnLock, btnLockAllDay);
-        newBtnLock.addEventListener('click', () => handleLockAllDay(date, ovEventType));
+        newBtnLock.addEventListener('click', () => handleLockAllDay(date, rawEvType));
       } else if (btnLockAllDay) {
         btnLockAllDay.style.display = 'none';
       }
@@ -3283,14 +3286,14 @@ window.showWarningToast = function(message, title = 'Atenção') {
       // ===== Bind e status do botão Trava Geral =====
       const btnGlobalLock = document.getElementById('btnGlobalLock');
       if (btnGlobalLock && window.adminRoleLower !== 'staff') {
-        await loadGlobalLockStatus(ovEventType);
+        await loadGlobalLockStatus(rawEvType);
         const newBtnGlobal = btnGlobalLock.cloneNode(true);
         // copiar dataset
         newBtnGlobal.dataset.globalLocked = btnGlobalLock.dataset.globalLocked;
         newBtnGlobal.textContent = btnGlobalLock.textContent;
         newBtnGlobal.className = btnGlobalLock.className;
         btnGlobalLock.parentNode.replaceChild(newBtnGlobal, btnGlobalLock);
-        newBtnGlobal.addEventListener('click', () => handleGlobalLock(ovEventType));
+        newBtnGlobal.addEventListener('click', () => handleGlobalLock(rawEvType));
       } else if (btnGlobalLock) {
         btnGlobalLock.style.display = 'none';
       }
@@ -3657,13 +3660,18 @@ window.showWarningToast = function(message, title = 'Atenção') {
       const { collection, query, where, getDocs, doc, addDoc, writeBatch } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
       const defaultHours = getDefaultHoursForEvent(ovEventType, false);
       const ovRef = collection(window.firebaseDb, 'schedule_overrides');
-      const canon = canonicalType(ovEventType);
+      // Usar ovEventType diretamente (já é ev.eventType || d.id — mesmo valor que script.js usa)
+      const evType = ovEventType;
 
-      // Buscar docs existentes para o dia
+      // Buscar docs existentes para o dia DESTE evento (filtrar em JS por eventType para
+      // não sobrescrever travas de outros eventos no mesmo dia)
       const existing = {};
       const snap = await getDocs(query(ovRef, where('date','==',date)));
       snap.forEach(d => {
         const r = d.data();
+        const docEv = r.eventType || '';
+        // Só reutilizar doc que já pertence ao mesmo evento
+        if (docEv && docEv !== evType && canonicalType(docEv) !== canonicalType(evType)) return;
         const h = String(r.hour || r.hh || '').replace(/\D/g,'');
         if (h) existing[h] = d.id;
       });
@@ -3677,9 +3685,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
         const hStr = String(parseInt(hh, 10));
         if (existing[hStr] || existing[hh]) {
           const id = existing[hStr] || existing[hh];
-          batch.update(doc(window.firebaseDb,'schedule_overrides',id), { locked: true, eventType: canon, hour: hStr, hh: hStr });
+          batch.update(doc(window.firebaseDb,'schedule_overrides',id), { locked: true, eventType: evType, hour: hStr, hh: hStr });
         } else {
-          toCreate.push({ date, eventType: canon, hour: hStr, hh: hStr, locked: true, extraOccupied: 0, createdAt: Date.now() });
+          toCreate.push({ date, eventType: evType, hour: hStr, hh: hStr, locked: true, extraOccupied: 0, createdAt: Date.now() });
         }
       });
 
