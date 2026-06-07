@@ -3641,7 +3641,7 @@ function renderNotifications(notifs, readIds) {
     listEl.innerHTML = notifs.map(n => {
         const isRead = n.isRead || readIds.has(n.id);
         const dateStr = n.createdAt ? new Date(n.createdAt.toDate ? n.createdAt.toDate() : n.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
-        const isCredentials = n.notifyType === 'credentials';
+        const isCredentials = n.notifyType === 'credentials' || n.notifyType === 'finalists';
         const isTabela = n.notifyType === 'tabela';
 
         // Card de tabela pronta (verde) — aparece sempre que houver tabelaLink OU notifyType === 'tabela'
