@@ -11804,21 +11804,23 @@ async function openEventNotifyModal(eventId, eventName) {
     try {
         const { collection, query, where, getDocs, doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
 
-        // Construir conjunto completo de variantes do eventType para encontrar todas as inscrições
-        // (MP salva com aliases diferentes do d.id — ex: 'liga', 'modo liga', 'modo-liga', UUID do doc)
+        // Construir conjunto de variantes do eventType para encontrar todas as inscrições
+        // CRÍTICO: usar APENAS eventType e docId — nunca ev.name, pois nomes podem
+        // corresponder a aliases de outros eventos e puxar registros incorretos.
         const _notifyTypes = new Set([eventId]);
+        let _evEventType = null;
         try {
             const _evSnap = await getDoc(doc(window.firebaseDb, 'adminEvents', eventId));
             if (_evSnap.exists()) {
                 const _evData = _evSnap.data();
-                if (_evData.eventType) _notifyTypes.add(_evData.eventType);
-                if (_evData.name)      _notifyTypes.add(_evData.name);
+                _evEventType = _evData.eventType || null;
+                if (_evEventType) _notifyTypes.add(_evEventType);
             }
         } catch(_) {}
-        // Adicionar canônico e aliases via resolveAliases
-        [..._notifyTypes].forEach(t => {
-            try { resolveAliases(t).forEach(a => { if (a) _notifyTypes.add(a); }); } catch(_) {}
-        });
+        // Aliases via resolveAliases apenas para o eventType canônico (não para o nome)
+        if (_evEventType) {
+            try { resolveAliases(_evEventType).forEach(a => { if (a) _notifyTypes.add(a); }); } catch(_) {}
+        }
 
         // Buscar registrações por cada variante e mesclar (deduplicando por doc.id)
         const _docsMap = new Map();
@@ -12136,8 +12138,9 @@ async function openEventSlotsModal(eventId, eventName) {
         } catch (_) {}
 
         const _regsRef = collection(window.firebaseDb, 'registrations');
-        // Coletar todos os tipos distintos a buscar
-        const _typesToQuery = new Set([_evFieldType, eventId, _canonInline(eventId), eventName].filter(Boolean));
+        // CRÍTICO: nunca usar eventName como tipo de query — pode casar com aliases de outros eventos.
+        // Usar apenas: eventType canônico derivado do doc, e o docId bruto.
+        const _typesToQuery = new Set([_evFieldType, eventId].filter(Boolean));
 
         // Executar as queries (uma por tipo distinto) e mesclar
         const _allDocs = new Map();
@@ -12268,7 +12271,8 @@ async function openEventSlotsModal(eventId, eventName) {
                         ${regs.map((r, idx) => {
                             // Exibir posição dentro do grupo data+horário,
                             // igual ao que o cliente vê — independente do slotNumber armazenado
-                            const _isLigaSlot = eventId === 'modo-liga' || (r.eventType || '').toLowerCase() === 'modo-liga';
+                            const _rEvType = (r.eventType || '').toLowerCase();
+                            const _isLigaSlot = eventId === 'modo-liga' || _rEvType === 'modo-liga' || _rEvType === 'acesso' || _rEvType.includes('acesso');
                             const slotLabel = _isLigaSlot
                                 ? `Vaga ${String.fromCharCode(64 + idx + 1)}`
                                 : `Vaga #${idx + 1}`;
