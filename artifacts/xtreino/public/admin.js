@@ -3862,6 +3862,8 @@ window.showWarningToast = function(message, title = 'Atenção') {
           </div>
           <div class="flex flex-col gap-1 flex-shrink-0">
             ${verifyBtn}
+            <button class="px-2.5 py-1 bg-orange-50 border border-orange-200 text-orange-600 rounded-lg text-xs hover:bg-orange-500 hover:text-white transition-colors font-medium"
+                    data-edit-slot-reg-id="${d.id}" data-edit-slot-current="${posIdx}" title="Editar número da vaga">✏️ Vaga</button>
             <button class="px-2.5 py-1 bg-red-50 border border-red-200 text-red-600 rounded-lg text-xs hover:bg-red-600 hover:text-white transition-colors" data-remove-reg-id="${d.id}">Remover</button>
           </div>`;
         return row;
@@ -3925,8 +3927,34 @@ window.showWarningToast = function(message, title = 'Atenção') {
       // Abre na aba com mais relevância: se só há pendentes, abre na aba pendentes
       if (countConfirmed === 0 && countPending > 0) switchManageHourTab('pending');
 
-      // Delegação de eventos para botões "Remover" e "🔍 Verificar" em ambas as listas
+      // Delegação de eventos para botões "Remover", "✏️ Vaga" e "🔍 Verificar" em ambas as listas
       const handleListClick = async (e) => {
+        // ── Editar número da vaga ─────────────────────────────────────
+        const editBtn = e.target.closest('[data-edit-slot-reg-id]');
+        if (editBtn) {
+          const regId    = editBtn.getAttribute('data-edit-slot-reg-id');
+          const current  = editBtn.getAttribute('data-edit-slot-current') || '';
+          const novoStr  = window.prompt(`Novo número para a vaga (atual: #${current}):`, current);
+          if (!novoStr || novoStr.trim() === '') return;
+          const novoNum  = parseInt(novoStr.trim(), 10);
+          if (isNaN(novoNum) || novoNum < 1) { alert('Número inválido.'); return; }
+          try {
+            const { doc: _doc, updateDoc: _upd } =
+              await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            const newDisplay = `Vaga #${novoNum}`;
+            await _upd(_doc(window.firebaseDb, 'registrations', regId), {
+              slot:        novoNum,
+              slotNumber:  novoNum,
+              slotDisplay: newDisplay,
+            });
+            showToast('success', `✅ Vaga atualizada para #${novoNum}`, 'Vaga editada');
+            openManageHourModal(date, eventType, hour, rawEventId, evFieldType);
+          } catch (err) {
+            showToast('error', 'Erro ao editar vaga: ' + (err.message || err), 'Erro');
+          }
+          return;
+        }
+
         // ── Remover ──────────────────────────────────────────────────
         const removeBtn = e.target.closest('[data-remove-reg-id]');
         if (removeBtn) {
