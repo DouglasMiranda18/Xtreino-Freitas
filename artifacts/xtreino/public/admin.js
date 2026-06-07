@@ -11834,7 +11834,15 @@ async function openEventNotifyModal(eventId, eventName) {
                 snap.docs.forEach(d => { if (!_docsMap.has(d.id)) _docsMap.set(d.id, d); });
             } catch(_) {}
         }
-        _notifyEventDocs = [..._docsMap.values()].filter(d => validStatuses.has(d.data().status));
+        // Mesma lógica do painel Gerenciar: filtra status inválidos E datas passadas
+        const _brNow = new Date(Date.now() - 3 * 60 * 60 * 1000);
+        const _todayStr = _brNow.toISOString().split('T')[0];
+        _notifyEventDocs = [..._docsMap.values()].filter(d => {
+            const r = d.data();
+            if (!validStatuses.has(r.status)) return false;
+            if (r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date) && r.date < _todayStr) return false;
+            return true;
+        });
 
         // Normaliza horário: "Terça - 22h", "22:00", "22h" → "22h"
         const _normSchedH = s => {
