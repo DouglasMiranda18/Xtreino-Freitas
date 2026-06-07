@@ -625,26 +625,42 @@
             Banner da Tabela
           </h4>
           ${_config.bannerBase64 ? `
-            <img src="${_config.bannerBase64}" class="w-full max-h-52 object-cover rounded-xl mb-4 border border-gray-200">
-            <div class="flex gap-2 flex-wrap">
+            <img src="${_config.bannerBase64}" class="w-full max-h-52 object-cover rounded-xl mb-4 border border-gray-200" onerror="this.src='';this.alt='Imagem não carregou'">
+            <div class="flex gap-2 flex-wrap mb-3">
               <label class="cursor-pointer px-4 py-2 bg-blue-50 text-blue-700 rounded-xl text-sm font-semibold hover:bg-blue-100 transition-colors border border-blue-200 flex items-center gap-2">
-                <i class="fas fa-sync-alt"></i> Trocar Banner
+                <i class="fas fa-sync-alt"></i> Trocar Arquivo
                 <input type="file" id="champBannerInput" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="window.champPreviewBanner(this)">
               </label>
               <button onclick="window.champRemoverBanner()" class="px-4 py-2 bg-red-50 text-red-700 rounded-xl text-sm font-semibold hover:bg-red-100 transition-colors border border-red-200 flex items-center gap-2">
                 <i class="fas fa-trash"></i> Remover
               </button>
             </div>
+            <p class="text-xs text-gray-400 mb-1">Ou substitua por link direto:</p>
+            <div class="flex gap-2">
+              <input type="url" id="champBannerUrl" placeholder="https://..." class="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:border-orange-400 focus:outline-none">
+              <button onclick="window.champPreviewBannerUrl()" class="px-4 py-2 bg-orange-100 text-orange-700 rounded-xl text-sm font-semibold hover:bg-orange-200 transition-colors border border-orange-200 flex items-center gap-1 whitespace-nowrap">
+                <i class="fas fa-eye"></i> Pré-visualizar
+              </button>
+            </div>
+            <div id="champBannerUrlPreview" class="hidden mt-3"></div>
           ` : `
-            <div id="champBannerPreviewWrap" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-orange-400 transition-colors">
+            <div id="champBannerPreviewWrap" class="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-orange-400 transition-colors mb-3">
               <i class="fas fa-cloud-upload-alt text-3xl text-gray-300 mb-3 block"></i>
-              <p class="text-sm text-gray-500 mb-4">PNG, JPG ou WEBP — máx. 800KB recomendado</p>
+              <p class="text-sm text-gray-500 mb-3">PNG, JPG ou WEBP — máx. 800KB recomendado</p>
               <label class="cursor-pointer px-5 py-2 bg-orange-600 text-white rounded-xl text-sm font-semibold hover:bg-orange-700 transition-colors flex items-center gap-2 justify-center w-fit mx-auto">
-                <i class="fas fa-upload"></i> Selecionar Banner
+                <i class="fas fa-upload"></i> Selecionar Arquivo
                 <input type="file" id="champBannerInput" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="window.champPreviewBanner(this)">
               </label>
             </div>
-            <div id="champBannerPreview" class="hidden mt-3"></div>
+            <div id="champBannerPreview" class="hidden mt-3 mb-3"></div>
+            <p class="text-xs text-gray-500 font-semibold mb-1">Ou cole um link direto da imagem:</p>
+            <div class="flex gap-2">
+              <input type="url" id="champBannerUrl" placeholder="https://i.imgur.com/... ou drive.google.com/uc?id=..." class="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:border-orange-400 focus:outline-none">
+              <button onclick="window.champPreviewBannerUrl()" class="px-4 py-2 bg-orange-100 text-orange-700 rounded-xl text-sm font-semibold hover:bg-orange-200 transition-colors border border-orange-200 flex items-center gap-1 whitespace-nowrap">
+                <i class="fas fa-eye"></i> Pré-visualizar
+              </button>
+            </div>
+            <div id="champBannerUrlPreview" class="hidden mt-3"></div>
           `}
         </div>
 
@@ -709,6 +725,20 @@
     reader.readAsDataURL(input.files[0]);
   };
 
+  window.champPreviewBannerUrl = function () {
+    const urlInput = document.getElementById('champBannerUrl');
+    const previewDiv = document.getElementById('champBannerUrlPreview');
+    if (!urlInput || !previewDiv) return;
+    const url = urlInput.value.trim();
+    if (!url) { showToast('warning', 'Cole o link da imagem no campo acima.'); return; }
+    previewDiv.innerHTML = `
+      <div class="text-xs text-gray-500 mb-1">Pré-visualização (o link será salvo ao clicar em Salvar):</div>
+      <img src="${url}" crossorigin="anonymous"
+        class="w-full max-h-44 object-cover rounded-xl border border-gray-200"
+        onerror="this.parentElement.innerHTML='<p class=\\'text-xs text-red-500 py-2\\'>Imagem não carregou. Verifique se o link é público e direto para a imagem.</p>'">`;
+    previewDiv.classList.remove('hidden');
+  };
+
   window.champRestaurarLBFF = function () {
     for (let i = 1; i <= 12; i++) {
       const el = document.getElementById(`champPos${i}`);
@@ -720,13 +750,19 @@
   };
 
   window.champSalvarConfig = async function () {
+    const saveBtn = document.querySelector('[onclick="window.champSalvarConfig()"]');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Salvando...'; }
+
     const pontoPorAbate = parseFloat(document.getElementById('champKillPts')?.value) || 1;
     const tabela = {};
     for (let i = 1; i <= 12; i++) {
       tabela[i] = parseInt(document.getElementById(`champPos${i}`)?.value) ?? 0;
     }
-    const bannerInput = document.getElementById('champBannerInput');
+
     let bannerBase64 = _config?.bannerBase64 || null;
+
+    // 1. Arquivo selecionado via input[type=file] (tem prioridade)
+    const bannerInput = document.getElementById('champBannerInput');
     if (bannerInput?.files?.length > 0) {
       try {
         bannerBase64 = await new Promise((res, rej) => {
@@ -737,6 +773,15 @@
         });
       } catch (_) { showToast('warning', 'Erro ao ler imagem, banner não alterado.'); }
     }
+
+    // 2. URL informada no campo de texto (se nenhum arquivo selecionado)
+    const bannerUrlInput = document.getElementById('champBannerUrl');
+    const bannerUrl = bannerUrlInput?.value?.trim();
+    if (!bannerInput?.files?.length && bannerUrl) {
+      // Armazenar a URL diretamente — compatível com champExportar (aceita base64 ou URL)
+      bannerBase64 = bannerUrl;
+    }
+
     const cfg = { tabela, pontoPorAbate, bannerBase64 };
     try {
       await salvarConfig(cfg);
@@ -744,6 +789,7 @@
       window.champRenderizarConfig();
     } catch (e) {
       showToast('error', 'Erro ao salvar: ' + e.message);
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fas fa-save mr-1"></i>Salvar Configurações'; }
     }
   };
 
