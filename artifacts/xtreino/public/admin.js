@@ -11968,6 +11968,14 @@ async function openEventNotifyModal(eventId, eventName) {
 
     selectNotifyType('credentials');
 
+    // Mostrar card "Finalistas" apenas para o Campeonato Semanal — check rápido antes do async
+    const _finalistsBtn = document.getElementById('notifyTypeFinalistsBtn');
+    if (_finalistsBtn) {
+        const _quickSemanal = eventId.toLowerCase().includes('semanal') ||
+                              (eventName || '').toLowerCase().includes('semanal');
+        _finalistsBtn.style.display = _quickSemanal ? '' : 'none';
+    }
+
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 
@@ -11987,6 +11995,15 @@ async function openEventNotifyModal(eventId, eventName) {
                 if (_evEventType) _notifyTypes.add(_evEventType);
             }
         } catch(_) {}
+
+        // Confirmar visibilidade do card "Finalistas" com eventType real resolvido
+        if (_finalistsBtn) {
+            const _isSemanal = (_evEventType || '').toLowerCase().includes('semanal') ||
+                               eventId.toLowerCase().includes('semanal');
+            _finalistsBtn.style.display = _isSemanal ? '' : 'none';
+            // Se o tipo selecionado é 'finalists' mas o evento não é semanal, voltar p/ credentials
+            if (!_isSemanal && _notifySelectedType === 'finalists') selectNotifyType('credentials');
+        }
         // Aliases via resolveAliases apenas para o eventType canônico (não para o nome)
         if (_evEventType) {
             try { resolveAliases(_evEventType).forEach(a => { if (a) _notifyTypes.add(a); }); } catch(_) {}
