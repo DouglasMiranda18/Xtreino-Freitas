@@ -11706,32 +11706,38 @@ let _notifyScheduleMap = {};
 let _notifySelectedSlotKey = 'all';
 let _notifySelectedType = 'credentials';
 let _notifyOtherDaysVisible = false;
+let _finalistUserIds = [];
 
 function selectNotifyType(type) {
     _notifySelectedType = type;
-    const colorMap = { credentials: 'purple', tabela: 'green', custom: 'blue' };
+    const colorMap = { credentials: 'purple', tabela: 'green', custom: 'blue', finalists: 'yellow' };
+    const hexMap   = { purple: '#a855f7', green: '#22c55e', blue: '#3b82f6', yellow: '#eab308' };
+    const bgMap    = { purple: '#faf5ff', green: '#f0fdf4', blue: '#eff6ff', yellow: '#fefce8' };
     document.querySelectorAll('.notify-type-card').forEach(card => {
         const t = card.dataset.type;
         const c = colorMap[t] || 'purple';
         const isSelected = t === type;
-        card.style.borderColor = isSelected ? (c === 'purple' ? '#a855f7' : c === 'green' ? '#22c55e' : '#3b82f6') : '';
-        card.style.backgroundColor = isSelected ? (c === 'purple' ? '#faf5ff' : c === 'green' ? '#f0fdf4' : '#eff6ff') : '';
+        card.style.borderColor     = isSelected ? (hexMap[c] || '#a855f7') : '';
+        card.style.backgroundColor = isSelected ? (bgMap[c]  || '#faf5ff') : '';
     });
-    const roomSec  = document.getElementById('eventNotifyRoomLinkSection');
-    const tabSec   = document.getElementById('eventNotifyTabelaSection');
-    const titleEl  = document.getElementById('eventNotifyTitle');
-    const msgEl    = document.getElementById('eventNotifyMessage');
-    const optLabel = document.getElementById('notifyMsgOptLabel');
-    if (roomSec)  roomSec.classList.toggle('hidden', type !== 'credentials');
-    if (tabSec)   tabSec.classList.toggle('hidden',  type !== 'tabela');
+    const roomSec      = document.getElementById('eventNotifyRoomLinkSection');
+    const tabSec       = document.getElementById('eventNotifyTabelaSection');
+    const finalistsSec = document.getElementById('eventNotifyFinalistsSection');
+    const msgEl        = document.getElementById('eventNotifyMessage');
+    const optLabel     = document.getElementById('notifyMsgOptLabel');
+    // Finalistas = credenciais enviadas apenas para os times da final
+    if (roomSec)      roomSec.classList.toggle('hidden', type !== 'credentials' && type !== 'finalists');
+    if (tabSec)       tabSec.classList.toggle('hidden',  type !== 'tabela');
+    if (finalistsSec) finalistsSec.classList.toggle('hidden', type !== 'finalists');
     if (optLabel) optLabel.textContent = (type === 'custom') ? '(obrigatória)' : '(opcional)';
-    if (type === 'credentials') {
+    if (type === 'credentials' || type === 'finalists') {
         if (msgEl) msgEl.placeholder = 'Ex: Use as credenciais abaixo para entrar na sala. Boa sorte!';
     } else if (type === 'tabela') {
         if (msgEl) msgEl.placeholder = 'Ex: A tabela do evento já está disponível!';
     } else {
         if (msgEl) msgEl.placeholder = 'Digite sua mensagem para os participantes...';
     }
+    if (type === 'finalists') _updateNotifyCount();
 }
 
 function selectNotifySlot(key) {
@@ -11749,6 +11755,12 @@ function selectNotifySlot(key) {
 function _updateNotifyCount() {
     const countEl = document.getElementById('eventNotifyCount');
     if (!countEl) return;
+    if (_notifySelectedType === 'finalists') {
+        countEl.textContent = _finalistUserIds.length > 0
+            ? `Vai enviar para ${_finalistUserIds.length} finalista(s)`
+            : 'Carregue os finalistas acima';
+        return;
+    }
     if (_notifySelectedSlotKey === 'all') {
         const total = new Set(_notifyEventDocs.map(d => d.data().userId).filter(Boolean)).size;
         countEl.textContent = `Vai enviar para ${total} participante(s)`;
@@ -11780,6 +11792,109 @@ function _buildSlotButton(key, entry) {
     </button>`;
 }
 
+window.carregarFinalistas = async function () {
+    const data = document.getElementById('notifyFinalistsDate')?.value;
+    if (!data) { showToast('warning', 'Informe a data da final.', 'Atenção'); return; }
+
+    const loadingEl = document.getElementById('notifyFinalistsLoading');
+    const listEl    = document.getElementById('notifyFinalistsList');
+    const namesEl   = document.getElementById('notifyFinalistsNames');
+    const emptyEl   = document.getElementById('notifyFinalistsEmpty');
+
+    [listEl, emptyEl].forEach(el => el?.classList.add('hidden'));
+    loadingEl?.classList.remove('hidden');
+    _finalistUserIds = [];
+    _updateNotifyCount();
+
+    try {
+        const { doc, getDoc, collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+        // Carregar resultado da final (22h) do championship_results
+        const docId = `${data}_22h`;
+        const snap = await getDoc(doc(window.firebaseDb, 'championship_results', docId));
+        if (!snap.exists() || !snap.data().teams?.length) {
+            loadingEl?.classList.add('hidden');
+            emptyEl?.classList.remove('hidden');
+            return;
+        }
+
+        const teams = snap.data().teams || [];
+        // Obter registrationIds de cada time
+        const regIds = [...new Set(teams.map(t => t.registrationId).filter(Boolean))];
+        const nomes  = teams.map(t => t.nome || '').filter(Boolean);
+
+        const userIdsSet = new Set();
+
+        // Buscar userId por registrationId (inscrição na semifinal)
+        for (const rid of regIds) {
+            try {
+                const rSnap = await getDoc(doc(window.firebaseDb, 'registrations', rid));
+                if (rSnap.exists()) {
+                    const uid = rSnap.data().userId;
+                    if (uid) userIdsSet.add(uid);
+                }
+            } catch (_) {}
+        }
+
+        // Fallback: buscar inscrições pelo nome do time no evento semanal-freitas
+        if (nomes.length > 0 && userIdsSet.size < teams.length) {
+            try {
+                const regsSnap = await getDocs(query(
+                    collection(window.firebaseDb, 'registrations'),
+                    where('eventType', '==', 'semanal-freitas')
+                ));
+                regsSnap.docs.forEach(d => {
+                    const r = d.data();
+                    const tName = r.teamName || r.name || '';
+                    if (nomes.some(n => n && tName && n.toLowerCase() === tName.toLowerCase())) {
+                        if (r.userId) userIdsSet.add(r.userId);
+                    }
+                });
+            } catch (_) {}
+        }
+
+        // Expandir para membros do time se tiver teamId/teamName
+        try {
+            const teamNames = [...new Set(teams.map(t => t.nome).filter(Boolean))];
+            if (teamNames.length > 0) {
+                const teamsSnap = await getDocs(collection(window.firebaseDb, 'teams'));
+                teamsSnap.docs.forEach(td => {
+                    const t = td.data();
+                    if (t.nome && teamNames.some(n => n.toLowerCase() === (t.nome || '').toLowerCase())) {
+                        (t.membrosUids || []).forEach(uid => userIdsSet.add(uid));
+                    }
+                });
+            }
+        } catch (_) {}
+
+        _finalistUserIds = [...userIdsSet];
+
+        // Montar lista visual
+        loadingEl?.classList.add('hidden');
+        if (teams.length === 0) {
+            emptyEl?.classList.remove('hidden');
+        } else {
+            if (namesEl) {
+                namesEl.innerHTML = teams.map((t, i) => {
+                    const semi = t.deSemifinal ? ` <span class="text-gray-400">[${t.deSemifinal}]</span>` : '';
+                    return `<div class="flex items-center gap-2 text-xs py-1 border-b border-yellow-100">
+                        <span class="font-bold text-yellow-700 w-5 text-center">${i + 1}º</span>
+                        <span class="font-semibold text-gray-800">${t.nome || '?'}</span>${semi}
+                    </div>`;
+                }).join('');
+            }
+            listEl?.classList.remove('hidden');
+            if (_finalistUserIds.length === 0) {
+                showToast('warning', 'Times encontrados mas sem e-mails vinculados. Verifique as inscrições.', 'Atenção');
+            }
+        }
+        _updateNotifyCount();
+    } catch (err) {
+        loadingEl?.classList.add('hidden');
+        showToast('error', 'Erro ao carregar finalistas: ' + (err.message || err));
+    }
+};
+
 async function openEventNotifyModal(eventId, eventName) {
     const modal = document.getElementById('eventNotifyModal');
     if (!modal) return;
@@ -11788,6 +11903,7 @@ async function openEventNotifyModal(eventId, eventName) {
     _notifyScheduleMap = {};
     _notifySelectedSlotKey = 'all';
     _notifyOtherDaysVisible = false;
+    _finalistUserIds = [];
 
     document.getElementById('eventNotifyEventId').value = eventId;
     document.getElementById('eventNotifyEventName').textContent = eventName;
@@ -11795,6 +11911,14 @@ async function openEventNotifyModal(eventId, eventName) {
     document.getElementById('eventNotifyMessage').value = '';
     ['eventNotifyRoomId','eventNotifyRoomPassword','eventNotifyRoomLink','eventNotifyTabelaLink']
         .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+
+    // Pré-preencher data dos finalistas com hoje (fuso BR)
+    const _brHoje = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const _finDateEl = document.getElementById('notifyFinalistsDate');
+    if (_finDateEl) _finDateEl.value = _brHoje;
+    ['notifyFinalistsList','notifyFinalistsEmpty','notifyFinalistsLoading'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.classList.add('hidden');
+    });
 
     document.getElementById('eventNotifyCount').textContent = '—';
     document.getElementById('notifyLoadingSlots').classList.remove('hidden');
@@ -11990,11 +12114,16 @@ async function sendEventNotification() {
     const notifyType = _notifySelectedType || 'custom';
 
     if (!title) { showToast('warning', 'Informe o título da notificação.', 'Atenção'); return; }
-    if (notifyType !== 'credentials' && notifyType !== 'tabela' && !message) { showToast('warning', 'Informe a mensagem.', 'Atenção'); return; }
+    if (notifyType !== 'credentials' && notifyType !== 'tabela' && notifyType !== 'finalists' && !message) { showToast('warning', 'Informe a mensagem.', 'Atenção'); return; }
+
+    // Validação de finalistas
+    if (notifyType === 'finalists' && _finalistUserIds.length === 0) {
+        showToast('warning', 'Carregue os finalistas antes de enviar.', 'Atenção'); return;
+    }
 
     // Validação de credenciais
     let roomId = null, roomPassword = null, roomLink = null;
-    if (notifyType === 'credentials') {
+    if (notifyType === 'credentials' || notifyType === 'finalists') {
         roomId = (document.getElementById('eventNotifyRoomId')?.value || '').trim();
         roomPassword = (document.getElementById('eventNotifyRoomPassword')?.value || '').trim();
         roomLink = (document.getElementById('eventNotifyRoomLink')?.value || '').trim() || null;
@@ -12035,25 +12164,31 @@ async function sendEventNotification() {
             }
         }
 
-        // Coletar usuários das inscrições e expandir para todos os membros do time
-        // Usa teamId (inscrições novas) OU teamName como fallback (inscrições antigas)
-        const regUsers = [...new Set(docsToNotify.map(d => d.data().userId).filter(Boolean))];
-        const allUsersSet = new Set(regUsers);
-        const teamIds   = [...new Set(docsToNotify.map(d => d.data().teamId).filter(Boolean))];
-        const teamNames = [...new Set(docsToNotify.map(d => d.data().teamName).filter(Boolean))];
-        if (teamIds.length > 0 || teamNames.length > 0) {
-            try {
-                const { collection: _col2, getDocs: _gd2, query: _q2 } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-                const teamsSnap = await _gd2(_q2(_col2(window.firebaseDb, 'teams')));
-                teamsSnap.docs.forEach(td => {
-                    const t = td.data();
-                    if (teamIds.includes(td.id) || (t.nome && teamNames.includes(t.nome))) {
-                        (t.membrosUids || []).forEach(u => allUsersSet.add(u));
-                    }
-                });
-            } catch(_) {}
+        // Finalistas: usar lista já resolvida por carregarFinalistas()
+        let uniqueUsers;
+        if (notifyType === 'finalists') {
+            uniqueUsers = [..._finalistUserIds];
+        } else {
+            // Coletar usuários das inscrições e expandir para todos os membros do time
+            // Usa teamId (inscrições novas) OU teamName como fallback (inscrições antigas)
+            const regUsers = [...new Set(docsToNotify.map(d => d.data().userId).filter(Boolean))];
+            const allUsersSet = new Set(regUsers);
+            const teamIds   = [...new Set(docsToNotify.map(d => d.data().teamId).filter(Boolean))];
+            const teamNames = [...new Set(docsToNotify.map(d => d.data().teamName).filter(Boolean))];
+            if (teamIds.length > 0 || teamNames.length > 0) {
+                try {
+                    const { collection: _col2, getDocs: _gd2, query: _q2 } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+                    const teamsSnap = await _gd2(_q2(_col2(window.firebaseDb, 'teams')));
+                    teamsSnap.docs.forEach(td => {
+                        const t = td.data();
+                        if (teamIds.includes(td.id) || (t.nome && teamNames.includes(t.nome))) {
+                            (t.membrosUids || []).forEach(u => allUsersSet.add(u));
+                        }
+                    });
+                } catch(_) {}
+            }
+            uniqueUsers = [...allUsersSet];
         }
-        const uniqueUsers = [...allUsersSet];
         if (uniqueUsers.length === 0) {
             showToast('warning', 'Nenhum participante encontrado para o dia/horário selecionado.', 'Atenção');
             if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Enviar'; }
