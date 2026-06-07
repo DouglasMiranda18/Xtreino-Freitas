@@ -7643,8 +7643,8 @@ async function submitSchedule(e, useTokens = false) {
                         _meta: { team: team.name, slotNum, slotDisplay, schedule: p.schedule, date: p.d, whatsappLink: p.whatsappLink },
                         userId: window.firebaseAuth.currentUser.uid,
                         teamName: team.name,
-                        teamLogoUrl: _teamLogoDataMap[team.name]?.url || _equipeAtual?.logoUrl || null,
-                        teamLogoThumb: _teamLogoDataMap[team.name]?.thumb || null,
+                        teamLogoUrl: _teamLogoDataMap[team.name]?.url || null,
+                        teamLogoThumb: _teamLogoDataMap[team.name]?.thumb || _equipeAtual?.logoUrl || null,
                         teamId: _equipeAtual?.id || null,
                         membrosUids: _equipeAtual?.membrosUids || null,
                         email: team.email,
@@ -8939,8 +8939,8 @@ async function createRegistrationsForEvent(eventType, datesToUse, teamsData, tim
                 _dupBatchCount[_dupKey] = (_dupBatchCount[_dupKey] || 0) + 1;
 
                 const _logoData = _logoMap[team.name];
-                const teamLogoUrl = _logoData?.url || _equipeAtual?.logoUrl || null;
-                const teamLogoThumb = _logoData?.thumb || null;
+                const teamLogoUrl = _logoData?.url || null;
+                const teamLogoThumb = _logoData?.thumb || _equipeAtual?.logoUrl || null;
 
                 const docRef = await addDoc(collection(window.firebaseDb, 'registrations'), {
                     userId: window.firebaseAuth.currentUser.uid,
