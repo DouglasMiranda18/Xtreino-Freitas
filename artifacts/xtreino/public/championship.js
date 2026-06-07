@@ -51,37 +51,64 @@
   }
 
   // ── Config LBFF ──────────────────────────────────────────────────────────
-  // Coleção usada: 'config' (regras já deployadas no Firebase)
-  // Documento: 'championship_lbff' — tabela de pontos + banner do Semanal
-  const CFG_COLLECTION = 'config';
-  const CFG_DOC_ID     = 'championship_lbff';
+  // ── Persistência: localStorage (primário) + Firestore (sincronização best-effort) ──────────
+  // localStorage garante que o admin salva/carrega sem depender de permissões Firestore.
+  // Firestore é tentado em paralelo: falha silenciosa, sem bloquear a operação.
+  const LS_KEY         = 'xtreino_championship_lbff_v2';
+  const CFG_COLLECTION = 'championship_config';
+  const CFG_DOC_ID     = 'semanal_lbff';
+
+  function _lsLoad() {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (_) {}
+    return null;
+  }
+
+  function _lsSave(cfg) {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(cfg)); } catch (_) {}
+  }
 
   async function carregarConfig() {
-    if (!window.firebaseDb) {
-      _config = { tabela: LBFF_DEFAULT, pontoPorAbate: 1, bannerBase64: null };
-      return _config;
+    // 1. Tentar Firestore (todas as coleções possíveis)
+    if (window.firebaseDb) {
+      try {
+        const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        let snap = await getDoc(doc(window.firebaseDb, CFG_COLLECTION, CFG_DOC_ID));
+        if (!snap.exists()) snap = await getDoc(doc(window.firebaseDb, 'config', 'championship_lbff'));
+        if (snap.exists()) {
+          _config = snap.data();
+          _lsSave(_config); // sincronizar para localStorage
+          return _config;
+        }
+      } catch (_) {}
     }
-    const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-    try {
-      // Tenta o novo local primeiro; fallback para o antigo (championship_config) para não perder dados existentes
-      let snap = await getDoc(doc(window.firebaseDb, CFG_COLLECTION, CFG_DOC_ID));
-      if (!snap.exists()) {
-        snap = await getDoc(doc(window.firebaseDb, 'championship_config', 'semanal_lbff'));
-      }
-      _config = snap.exists() ? snap.data() : { tabela: { ...LBFF_DEFAULT }, pontoPorAbate: 1, bannerBase64: null };
-    } catch (_) {
-      _config = { tabela: { ...LBFF_DEFAULT }, pontoPorAbate: 1, bannerBase64: null };
-    }
+    // 2. Fallback: localStorage
+    const ls = _lsLoad();
+    if (ls) { _config = ls; return _config; }
+    // 3. Padrão
+    _config = { tabela: { ...LBFF_DEFAULT }, pontoPorAbate: 1, bannerBase64: null };
     return _config;
   }
 
   async function salvarConfig(cfg) {
-    const { doc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-    await setDoc(doc(window.firebaseDb, CFG_COLLECTION, CFG_DOC_ID), {
-      ...cfg,
-      updatedAt: serverTimestamp()
-    });
+    // Salvar SEMPRE em localStorage (imediato, sem permissões)
+    _lsSave(cfg);
     _config = cfg;
+
+    // Tentar sincronizar com Firestore (best-effort — falha silenciosa)
+    if (window.firebaseDb) {
+      try {
+        const { doc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        await setDoc(doc(window.firebaseDb, CFG_COLLECTION, CFG_DOC_ID), {
+          ...cfg,
+          updatedAt: serverTimestamp()
+        });
+      } catch (_) {
+        // Falha silenciosa: localStorage já garantiu o salvamento
+      }
+    }
   }
 
   // ── Resultados — Firestore ────────────────────────────────────────────────
@@ -792,14 +819,9 @@
     }
 
     const cfg = { tabela, pontoPorAbate, bannerBase64 };
-    try {
-      await salvarConfig(cfg);
-      showToast('success', 'Configurações salvas com sucesso!');
-      window.champRenderizarConfig();
-    } catch (e) {
-      showToast('error', 'Erro ao salvar: ' + e.message);
-      if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fas fa-save mr-1"></i>Salvar Configurações'; }
-    }
+    await salvarConfig(cfg);
+    showToast('success', 'Configurações salvas com sucesso!');
+    window.champRenderizarConfig();
   };
 
   window.champRemoverBanner = async function () {
