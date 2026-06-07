@@ -2808,7 +2808,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
     const ev = String(eventType||'').toLowerCase();
     const hourNum = parseInt(String(hour||'').match(/(\d{1,2})/)?.[1] || 0, 10);
     
-    if (ev === 'liga' || ev.includes('modo-liga') || ev.includes('modo liga')) return 15;
+    if (ev === 'liga' || ev === 'acesso' || ev.includes('modo-liga') || ev.includes('modo liga') || ev.includes('acesso')) return 15;
     if (ev.includes('camp-final') || canonicalType(eventType) === 'camp-final') {
       if (isCampFinalDate && hourNum === 18) return 2;
       return 2;
