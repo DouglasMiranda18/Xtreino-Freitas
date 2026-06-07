@@ -265,17 +265,17 @@ window.confirmarParticipacao = async function() {
         }
 
         const {
-            collection, addDoc, runTransaction, doc,
+            collection, runTransaction, doc,
             serverTimestamp, arrayUnion
         } = await import(_FS_URL);
 
-        const regsRef = collection(window.firebaseDb, 'registrations');
-
-        // Transação atômica: 1 leitura + 1 escrita — sem nenhuma query extra em registrations
-        // O campo claimedBy guarda os UIDs que já resgataram; evita duplicidade sem custo extra
+        const regsRef  = collection(window.firebaseDb, 'registrations');
         const bonusRef = doc(window.firebaseDb, 'bonus_links', _bonusLinkId);
-        let slotNum = 1;
+        const nomeEvento = _bonusLink.eventName || _LABELS_EVENTO[_bonusLink.eventType] || _bonusLink.eventType;
 
+        // Transação atômica: contador + inscrição numa única operação.
+        // Se a inscrição falhar, o contador é revertido automaticamente.
+        let slotNum = 1;
         await runTransaction(window.firebaseDb, async (tx) => {
             const bonusSnap = await tx.get(bonusRef);
             if (!bonusSnap.exists()) throw new Error('Link bônus não encontrado.');
@@ -289,39 +289,40 @@ window.confirmarParticipacao = async function() {
 
             slotNum = (bd.usedCount || 0) + 1;
             const novoStatus = slotNum >= bd.quantity ? 'expirado' : 'ativo';
+            const slotDisplay = `Vaga #${slotNum}`;
+
+            // Atualiza contador no bonus_links
             tx.update(bonusRef, {
                 usedCount: slotNum,
-                status: novoStatus,
+                status:    novoStatus,
                 claimedBy: arrayUnion(_usuarioAtual.uid)
             });
-        });
 
-        const slotDisplay = `Vaga #${slotNum}`;
-        const nomeEvento = _bonusLink.eventName || _LABELS_EVENTO[_bonusLink.eventType] || _bonusLink.eventType;
-
-        // Criar inscrição
-        await addDoc(regsRef, {
-            userId:       _usuarioAtual.uid,
-            teamName,
-            teamLogoUrl,
-            teamLogoThumb,
-            teamId:       _perfilUsuario?.teamId || null,
-            leaderName:   _perfilUsuario?.name || _usuarioAtual.displayName || teamName,
-            email:        _usuarioAtual.email,
-            phone,
-            schedule:     _bonusLink.schedule,
-            date:         _bonusLink.date,
-            eventType:    _bonusLink.eventType,
-            title:        `${nomeEvento} - ${_bonusLink.schedule}`,
-            price:        0,
-            slot:         slotNum,
-            slotNumber:   slotNum,
-            slotDisplay,
-            status:       'confirmed',
-            origem:       'bonus',
-            bonusCode:    _bonusLink.code,
-            bonusLinkId:  _bonusLinkId,
-            createdAt:    serverTimestamp()
+            // Cria inscrição dentro da mesma transação — se falhar, tudo reverte
+            const regRef = doc(regsRef);
+            tx.set(regRef, {
+                userId:       _usuarioAtual.uid,
+                teamName,
+                teamLogoUrl,
+                teamLogoThumb,
+                teamId:       _perfilUsuario?.teamId || null,
+                leaderName:   _perfilUsuario?.name || _usuarioAtual.displayName || teamName,
+                email:        _usuarioAtual.email,
+                phone,
+                schedule:     _bonusLink.schedule,
+                date:         _bonusLink.date,
+                eventType:    _bonusLink.eventType,
+                title:        `${nomeEvento} - ${_bonusLink.schedule}`,
+                price:        0,
+                slot:         slotNum,
+                slotNumber:   slotNum,
+                slotDisplay,
+                status:       'confirmed',
+                origem:       'bonus',
+                bonusCode:    _bonusLink.code,
+                bonusLinkId:  _bonusLinkId,
+                createdAt:    serverTimestamp()
+            });
         });
 
         _mostrarSucesso(teamName, nomeEvento);
