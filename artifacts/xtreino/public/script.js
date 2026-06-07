@@ -9604,6 +9604,7 @@ const EVENT_URL_MAP = {
     'modo-liga':       '/modoliga',
     'semanal-freitas': '/semanal',
     'camp-freitas':    '/campeonato',
+    'acesso':          '/acesso',
 };
 function _eventoUrl(eventType, docId) {
     // Eventos estáticos: usar URL limpa do mapa
