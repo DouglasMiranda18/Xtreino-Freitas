@@ -578,7 +578,7 @@ async function loadUserNotifications() {
             const isRead = readIds.has(d.id);
             const dateStr = n.createdAt ? new Date(n.createdAt.toDate ? n.createdAt.toDate() : n.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
 
-            const isCredentials = n.notifyType === 'credentials';
+            const isCredentials = n.notifyType === 'credentials' || n.notifyType === 'finalists';
             const isTabela = n.notifyType === 'tabela';
             const mostrarTabela = isTabela || !!n.tabelaLink;
 
@@ -803,7 +803,7 @@ function playNotifSound() {
 }
 
 function showNotifToast(notif, { forceSoundBtn = false } = {}) {
-    const isCredentials = notif.notifyType === 'credentials';
+    const isCredentials = notif.notifyType === 'credentials' || notif.notifyType === 'finalists';
     const isTabela = notif.notifyType === 'tabela' || !!notif.tabelaLink;
     const icon = isCredentials ? '🎮' : isTabela ? '📊' : '🔔';
     const bg = isCredentials
