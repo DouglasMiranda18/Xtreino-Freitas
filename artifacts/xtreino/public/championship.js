@@ -250,9 +250,6 @@
           <i class="fas fa-trophy"></i> Finalizar Campeonato
         </button>
         `}
-        <button onclick="window.champAdicionarEquipe()" class="px-3 py-2 bg-gray-100 text-gray-700 rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-gray-200 transition-colors border border-gray-300">
-          <i class="fas fa-plus"></i> Adicionar Equipe
-        </button>
         <button onclick="window.champExportar('png')" class="px-3 py-2 bg-gray-600 text-white rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-gray-700 transition-colors">
           <i class="fas fa-image"></i> PNG
         </button>
@@ -442,10 +439,7 @@
           <div class="text-center py-10">
             <i class="fas fa-exclamation-triangle text-yellow-500 text-2xl mb-3 block"></i>
             <p class="text-gray-600 font-medium">Nenhum inscrito confirmado nesta data/horário.</p>
-            <p class="text-gray-400 text-sm mt-1">Verifique a data e o horário selecionados.</p>
-            <button onclick="window.champAdicionarEquipe()" class="mt-4 px-4 py-2 bg-orange-600 text-white rounded-xl text-sm font-semibold hover:bg-orange-700">
-              <i class="fas fa-plus mr-1"></i> Adicionar Equipe Manualmente
-            </button>
+            <p class="text-gray-400 text-sm mt-1">Verifique a data e o horário selecionados, ou aguarde as inscrições serem confirmadas.</p>
           </div>`;
         return;
       }
@@ -494,68 +488,112 @@
     const equipes = _coletarDadosDaTabela();
     const ordenadas = ordenarEquipes(equipes);
     const isFinal = hora === '22h';
-    const banner = _config?.bannerBase64 || null;
+
+    // Garantir que _config está carregado antes de tentar usar o banner
+    if (!_config) await carregarConfig();
+
+    const bannerSrc = _config?.bannerBase64 || null;
+    if (!bannerSrc) {
+      showToast('warning', 'Nenhum banner configurado. Acesse Configurações → Tabela de Pontuação para adicionar o banner personalizado.', 'Banner ausente', 6000);
+      return;
+    }
+    const bgSrc = bannerSrc;
     const exportEl = document.getElementById('champExportCanvas');
     if (!exportEl) { showToast('error', 'Elemento de exportação não encontrado.'); return; }
 
-    exportEl.innerHTML = `
-      <div id="champExportInner" style="background:#1a1a2e;color:#fff;padding:28px;width:680px;font-family:'Segoe UI',sans-serif;border-radius:12px;">
-        ${banner ? `<img src="${banner}" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;margin-bottom:16px;">` : ''}
-        <div style="text-align:center;margin-bottom:20px;">
-          <div style="font-size:22px;font-weight:900;color:#f97316;">Campeonato Semanal Freitas</div>
-          <div style="font-size:14px;color:#94a3b8;margin-top:4px;">${faseFmt} — ${data}</div>
-        </div>
-        <table style="width:100%;border-collapse:separate;border-spacing:0 4px;font-size:13px;">
-          <thead>
-            <tr style="background:#f97316;color:#fff;">
-              <th style="padding:10px 8px;text-align:left;border-radius:8px 0 0 8px;">#</th>
-              <th style="padding:10px 8px;text-align:left;">Equipe</th>
-              <th style="padding:10px 8px;text-align:center;">Abates</th>
-              <th style="padding:10px 8px;text-align:center;">Pontos</th>
-              <th style="padding:10px 8px;text-align:center;border-radius:0 8px 8px 0;">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${ordenadas.map((e, i) => `
-              <tr style="background:${i % 2 === 0 ? '#16213e' : '#0f3460'};${(!isFinal && i < 4) ? 'border-left:3px solid #22c55e;' : ''}">
-                <td style="padding:8px;font-weight:bold;color:${i===0?'#ffd700':i===1?'#c0c0c0':i===2?'#cd7f32':'#94a3b8'};border-radius:6px 0 0 6px;">${i+1}º</td>
-                <td style="padding:8px;">${e.nome}</td>
-                <td style="padding:8px;text-align:center;">${e.abates}</td>
-                <td style="padding:8px;text-align:center;font-weight:bold;color:#f97316;">${e.pontos}</td>
-                <td style="padding:8px;text-align:center;border-radius:0 6px 6px 0;">${isFinal ? (i===0?'🏆':i===1?'🥈':i===2?'🥉':'') : (i<4?'🟢 CLASS.':'❌')}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-        <div style="text-align:center;color:#475569;font-size:11px;margin-top:16px;">XTreino Freitas • ${new Date().toLocaleDateString('pt-BR')}</div>
-      </div>
-    `;
-    // Posicionar fora da tela mas visível para o html2canvas capturar corretamente
-    exportEl.style.cssText = 'position:absolute;top:-9999px;left:0;display:block;';
-
+    // ── Exportação direta via Canvas 2D ───────────────────────────────────────
+    // A imagem tabela-semanal.jpg já possui toda a estrutura visual (slots 01-12,
+    // colunas B! A! P!). Apenas sobrepõe os dados nas posições corretas.
     try {
       showToast('info', 'Gerando exportação...', null, 3000);
-      const inner = document.getElementById('champExportInner');
 
-      // Aguardar carregamento de todas as imagens (inclui o banner base64)
-      const imgs = inner.querySelectorAll('img');
-      await Promise.all(Array.from(imgs).map(img =>
-        new Promise(resolve => {
-          if (img.complete && img.naturalWidth > 0) { resolve(); return; }
-          img.onload = resolve;
-          img.onerror = resolve;
-        })
-      ));
+      // Tamanho nativo da imagem template: 1080 × 1080
+      const W = 1080, H = 1080;
 
-      const { default: html2canvas } = await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js');
-      const canvas = await html2canvas(inner, {
-        backgroundColor: '#1a1a2e',
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: false
+      // Posições dos slots dentro da imagem (calibrado para 1080x1080)
+      // Linha 1 (coroa/1º) topo: 305px; cada linha tem ~56px de altura
+      const ROW_TOP_0 = 305;
+      const ROW_H    = 56;
+      // Colunas X
+      const COL_NOME_X  = 235;   // esquerda — nome da equipe
+      const COL_NOME_W  = 370;   // largura máxima do nome
+      const COL_B_CX    = 647;   // centro — B! (booyahs totais)
+      const COL_A_CX    = 762;   // centro — A! (abates)
+      const COL_P_CX    = 882;   // centro — P! (pontos)
+
+      const canvas = document.createElement('canvas');
+      canvas.width  = W;
+      canvas.height = H;
+      const ctx = canvas.getContext('2d');
+
+      // 1. Desenhar imagem de fundo
+      await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => { ctx.drawImage(img, 0, 0, W, H); resolve(); };
+        img.onerror = reject;
+        img.src = bgSrc;
       });
 
+      // 2. Sobrepor dados das equipes (máx 12 linhas)
+      const MAX_LINHAS = 12;
+      ordenadas.slice(0, MAX_LINHAS).forEach((e, i) => {
+        const rowCY = ROW_TOP_0 + (i * ROW_H) + Math.round(ROW_H / 2) + 3; // centro vertical
+        const booyahs = (e.q1booyah ? 1 : 0) + (e.q2booyah ? 1 : 0);
+        const nome = (e.nome || '').toUpperCase();
+
+        // Sombra de texto para legibilidade
+        ctx.shadowColor   = 'rgba(0,0,0,0.85)';
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+        ctx.shadowBlur    = 3;
+
+        // Nome da equipe — tamanho adaptativo
+        const fontSize = nome.length > 16 ? 18 : nome.length > 12 ? 20 : 23;
+        ctx.font      = `900 ${fontSize}px "Arial Black", Arial, sans-serif`;
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        // Truncar se necessário
+        let nomeRender = nome;
+        while (ctx.measureText(nomeRender).width > COL_NOME_W && nomeRender.length > 2) {
+          nomeRender = nomeRender.slice(0, -1);
+        }
+        if (nomeRender !== nome) nomeRender = nomeRender.slice(0, -1) + '…';
+        ctx.fillText(nomeRender, COL_NOME_X, rowCY);
+
+        // B! — booyahs
+        ctx.font      = '900 22px "Arial Black", Arial, sans-serif';
+        ctx.fillStyle = '#00e5ff';
+        ctx.textAlign = 'center';
+        ctx.fillText(booyahs > 0 ? String(booyahs) : '0', COL_B_CX, rowCY);
+
+        // A! — abates
+        ctx.fillText(String(e.abates || 0), COL_A_CX, rowCY);
+
+        // P! — pontos
+        ctx.fillStyle = '#f97316';
+        ctx.fillText(String(e.pontos || 0), COL_P_CX, rowCY);
+
+        // Linha classificada (top 4 na semi): destaque sutil
+        if (!isFinal && i < 4) {
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = 'rgba(34,197,94,0.6)';
+          ctx.lineWidth   = 3;
+          ctx.strokeRect(COL_NOME_X - 4, ROW_TOP_0 + (i * ROW_H) + 2, COL_P_CX + 60, ROW_H - 4);
+        }
+      });
+
+      // 3. Remover sombra e assinar
+      ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+      const dataFmt = data.split('-').reverse().join('/');
+      ctx.font      = 'bold 20px Arial';
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText(`${faseFmt}  •  ${dataFmt}`, W / 2, H - 28);
+
+      // 4. Download
       const link = document.createElement('a');
       link.download = `resultado_${data}_${hora}.png`;
       link.href = canvas.toDataURL('image/png');
@@ -563,9 +601,6 @@
       showToast('success', 'PNG exportado com sucesso!');
     } catch (e) {
       showToast('error', 'Erro na exportação: ' + e.message);
-    } finally {
-      exportEl.style.display = 'none';
-      exportEl.innerHTML = '';
     }
   };
 
@@ -573,7 +608,12 @@
   window.champRenderizarConfig = async function () {
     const container = document.getElementById('champConfigContent');
     if (!container) return;
-    if (!_config) await carregarConfig();
+    try {
+      if (!_config) await carregarConfig();
+    } catch (_) {
+      _config = { tabela: { ...LBFF_DEFAULT }, pontoPorAbate: 1, bannerBase64: null };
+    }
+    if (!_config) _config = { tabela: { ...LBFF_DEFAULT }, pontoPorAbate: 1, bannerBase64: null };
     const tabela = _config.tabela || LBFF_DEFAULT;
     const posLabels = ['1º','2º','3º','4º','5º','6º','7º','8º','9º','10º','11º','12º'];
     container.innerHTML = `
@@ -731,10 +771,25 @@
         el._champBound = true;
       }
     });
+    // Carregar automaticamente ao abrir a seção
+    await window.champCarregarFase();
   };
 
   window.initChampConfig = async function () {
-    await window.champRenderizarConfig();
+    try {
+      await window.champRenderizarConfig();
+    } catch (e) {
+      const container = document.getElementById('champConfigContent');
+      if (container) container.innerHTML = `
+        <div class="text-center py-10">
+          <i class="fas fa-exclamation-triangle text-red-400 text-2xl mb-3 block"></i>
+          <p class="text-red-600 font-medium text-sm">Erro ao carregar configurações</p>
+          <p class="text-gray-400 text-xs mt-1">${e?.message || 'Erro desconhecido'}</p>
+          <button onclick="window.initChampConfig()" class="mt-4 px-4 py-2 bg-orange-600 text-white rounded-xl text-sm font-semibold hover:bg-orange-700 transition-colors">
+            <i class="fas fa-redo mr-1"></i> Tentar novamente
+          </button>
+        </div>`;
+    }
   };
 
 })();
