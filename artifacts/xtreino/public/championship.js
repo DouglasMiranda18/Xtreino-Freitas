@@ -51,6 +51,11 @@
   }
 
   // ── Config LBFF ──────────────────────────────────────────────────────────
+  // Coleção usada: 'config' (regras já deployadas no Firebase)
+  // Documento: 'championship_lbff' — tabela de pontos + banner do Semanal
+  const CFG_COLLECTION = 'config';
+  const CFG_DOC_ID     = 'championship_lbff';
+
   async function carregarConfig() {
     if (!window.firebaseDb) {
       _config = { tabela: LBFF_DEFAULT, pontoPorAbate: 1, bannerBase64: null };
@@ -58,7 +63,11 @@
     }
     const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     try {
-      const snap = await getDoc(doc(window.firebaseDb, 'championship_config', 'semanal_lbff'));
+      // Tenta o novo local primeiro; fallback para o antigo (championship_config) para não perder dados existentes
+      let snap = await getDoc(doc(window.firebaseDb, CFG_COLLECTION, CFG_DOC_ID));
+      if (!snap.exists()) {
+        snap = await getDoc(doc(window.firebaseDb, 'championship_config', 'semanal_lbff'));
+      }
       _config = snap.exists() ? snap.data() : { tabela: { ...LBFF_DEFAULT }, pontoPorAbate: 1, bannerBase64: null };
     } catch (_) {
       _config = { tabela: { ...LBFF_DEFAULT }, pontoPorAbate: 1, bannerBase64: null };
@@ -68,7 +77,7 @@
 
   async function salvarConfig(cfg) {
     const { doc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-    await setDoc(doc(window.firebaseDb, 'championship_config', 'semanal_lbff'), {
+    await setDoc(doc(window.firebaseDb, CFG_COLLECTION, CFG_DOC_ID), {
       ...cfg,
       updatedAt: serverTimestamp()
     });
