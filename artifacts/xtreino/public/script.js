@@ -601,10 +601,14 @@ async function loadUserNotifications() {
             let credentialsHtml = '';
             if (isCredentials) {
                 const hasSlots = Array.isArray(n.slotList) && n.slotList.length > 0;
+                const isFinalists = n.notifyType === 'finalists';
+                const btnLabel = isFinalists
+                    ? (hasSlots ? '🏆 Ver Slot' : '🏆 Ver Credenciais')
+                    : `🎮 Ver Credenciais da Sala${hasSlots ? ' + Lista' : ''}`;
                 credentialsHtml = `
                     <button onclick="event.stopPropagation();openCredenciaisModal('${d.id}')"
                         style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;width:100%;padding:11px 16px;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;border-radius:12px;font-weight:900;font-size:13px;letter-spacing:0.5px;cursor:pointer;animation:roomPulse 1.5s infinite;box-shadow:0 0 0 0 rgba(124,58,237,0.7)">
-                        🎮 Ver Credenciais da Sala${hasSlots ? ' + Lista' : ''}
+                        ${btnLabel}
                     </button>`;
             }
 
@@ -673,14 +677,14 @@ window.openCredenciaisModal = function(notifId) {
     if (idEl)   idEl.textContent   = n.roomId       || '—';
     if (passEl) passEl.textContent = n.roomPassword || '—';
 
-    // Botão entrar na sala
+    // Botão entrar na sala — só mostra quando há roomLink
     const linkBtn = document.getElementById('credModalLink');
     if (linkBtn) {
         if (n.roomLink) {
             linkBtn.href = n.roomLink;
-            linkBtn.classList.remove('hidden');
+            linkBtn.style.display = 'flex';
         } else {
-            linkBtn.classList.add('hidden');
+            linkBtn.style.display = 'none';
         }
     }
 
