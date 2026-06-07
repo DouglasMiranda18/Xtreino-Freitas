@@ -572,14 +572,15 @@
 
       const W = 800, H = 800;
 
-      // ── Coordenadas (calibradas para 800×800 via imagem exportada) ───────────
-      const ROW_TOP_0   = 330;  // topo da 1ª linha (coroa) — medido no PNG exportado
-      const ROW_H       = 39;   // altura de cada linha
-      const COL_NOME_CX = 330;  // CENTRO da área de nome (posição=160 a B!=500 → c=330)
-      const COL_NOME_W  = 320;  // largura máxima do nome (para truncar)
-      const COL_B_CX    = 527;  // centro da coluna B! (Top 1 — fundo amarelo)
-      const COL_A_CX    = 597;  // centro da coluna A! (Abates)
-      const COL_P_CX    = 661;  // centro da coluna P! (Pontos)
+      // ── Posições EXATAS medidas com PIL pixel-a-pixel no template 800×800 ────
+      // Y: centro de cada célula da coluna B! (amarela) detectado automaticamente
+      const ROW_Y = [351, 387, 424, 461, 497, 534, 570, 607, 644, 680, 717, 753];
+      // X: centro de cada coluna detectado por transição de cor
+      const COL_NOME_CX = 333;  // centro área nome (x=172..495)
+      const COL_NOME_W  = 315;  // largura máx para truncar (x=172..498)
+      const COL_B_CX    = 529;  // centro coluna B! amarela (x=498..560)
+      const COL_A_CX    = 599;  // centro coluna A! clara   (x=563..635)
+      const COL_P_CX    = 675;  // centro coluna P! escura  (x=653..698)
 
       const canvas = document.createElement('canvas');
       canvas.width  = W;
@@ -605,8 +606,8 @@
       // 2. Sobrepor dados das equipes (máx 12 linhas)
       const MAX_LINHAS = 12;
       ordenadas.slice(0, MAX_LINHAS).forEach((e, i) => {
-        // Centro vertical da linha
-        const rowCY = ROW_TOP_0 + i * ROW_H + Math.round(ROW_H / 2);
+        // Y exato desta linha (pixel medido do template)
+        const rowCY = ROW_Y[i];
         // B! = quantas vezes foi Top 1
         const booyahs = (e.q1booyah ? 1 : 0) + (e.q2booyah ? 1 : 0);
         const nome = (e.nome || '').toUpperCase();
