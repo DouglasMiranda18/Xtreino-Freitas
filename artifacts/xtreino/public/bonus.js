@@ -318,7 +318,7 @@ window.confirmarParticipacao = async function() {
             msg.toLowerCase().includes('resource_exhausted') ||
             err.code === 'resource-exhausted'
         ) {
-            msg = 'O sistema atingiu o limite de acessos simultâneos. Aguarde alguns minutos e tente novamente.';
+            msg = 'O banco de dados atingiu o limite diário do plano gratuito. As inscrições voltam a funcionar automaticamente a partir das 04h (horário de Brasília). Entre em contato com a organização se precisar de suporte.';
         }
         alert('❌ ' + msg);
         if (btn) {
