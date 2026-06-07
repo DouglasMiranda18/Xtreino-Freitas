@@ -528,34 +528,32 @@
     // Garantir que _config está carregado antes de tentar usar o banner
     if (!_config) await carregarConfig();
 
-    const bannerSrc = _config?.bannerBase64 || null;
-    if (!bannerSrc) {
-      showToast('warning', 'Nenhum banner configurado. Acesse Configurações → Tabela de Pontuação para adicionar o banner personalizado.', 'Banner ausente', 6000);
-      return;
-    }
-    const bgSrc = bannerSrc;
+    // Banner padrão fixo (800×800px); usuário pode substituir via Configurações
+    const BANNER_PADRAO = 'assets/tabela-semanal-default.jpg';
+    const bgSrc = _config?.bannerBase64 || BANNER_PADRAO;
+
     const exportEl = document.getElementById('champExportCanvas');
     if (!exportEl) { showToast('error', 'Elemento de exportação não encontrado.'); return; }
 
-    // ── Exportação direta via Canvas 2D ───────────────────────────────────────
-    // A imagem tabela-semanal.jpg já possui toda a estrutura visual (slots 01-12,
-    // colunas B! A! P!). Apenas sobrepõe os dados nas posições corretas.
+    // ── Exportação via Canvas 2D ───────────────────────────────────────────────
+    // O template tabela-semanal-default.jpg tem 800×800 px nativos.
+    // Coordenadas calibradas para esse tamanho:
+    //   B! = quantas vezes pegou Top 1 (booyahs)
+    //   A! = abates total
+    //   P! = pontuação total
     try {
       showToast('info', 'Gerando exportação...', null, 3000);
 
-      // Tamanho nativo da imagem template: 1080 × 1080
-      const W = 1080, H = 1080;
+      const W = 800, H = 800;
 
-      // Posições dos slots dentro da imagem (calibrado para 1080x1080)
-      // Linha 1 (coroa/1º) topo: 305px; cada linha tem ~56px de altura
-      const ROW_TOP_0 = 305;
-      const ROW_H    = 56;
-      // Colunas X
-      const COL_NOME_X  = 235;   // esquerda — nome da equipe
-      const COL_NOME_W  = 370;   // largura máxima do nome
-      const COL_B_CX    = 647;   // centro — B! (booyahs totais)
-      const COL_A_CX    = 762;   // centro — A! (abates)
-      const COL_P_CX    = 882;   // centro — P! (pontos)
+      // ── Coordenadas (calibradas para 800×800) ─────────────────────────────
+      const ROW_TOP_0  = 340;   // topo da 1ª linha (coroa)
+      const ROW_H      = 38;    // altura de cada linha
+      const COL_NOME_X = 175;   // início do nome da equipe (após número da posição)
+      const COL_NOME_W = 320;   // largura máxima do nome
+      const COL_B_CX   = 527;   // centro da coluna B! (Top 1)
+      const COL_A_CX   = 598;   // centro da coluna A! (Abates)
+      const COL_P_CX   = 667;   // centro da coluna P! (Pontos)
 
       const canvas = document.createElement('canvas');
       canvas.width  = W;
@@ -565,30 +563,39 @@
       // 1. Desenhar imagem de fundo
       await new Promise((resolve, reject) => {
         const img = new Image();
-        img.crossOrigin = 'anonymous';
+        // crossOrigin apenas para URLs externas (evita erro CORS com arquivo local)
+        if (bgSrc.startsWith('http')) img.crossOrigin = 'anonymous';
         img.onload = () => { ctx.drawImage(img, 0, 0, W, H); resolve(); };
-        img.onerror = reject;
+        img.onerror = () => {
+          // Se banner externo falhar, tentar com o padrão local
+          const fallback = new Image();
+          fallback.onload = () => { ctx.drawImage(fallback, 0, 0, W, H); resolve(); };
+          fallback.onerror = reject;
+          fallback.src = BANNER_PADRAO;
+        };
         img.src = bgSrc;
       });
 
       // 2. Sobrepor dados das equipes (máx 12 linhas)
       const MAX_LINHAS = 12;
       ordenadas.slice(0, MAX_LINHAS).forEach((e, i) => {
-        const rowCY = ROW_TOP_0 + (i * ROW_H) + Math.round(ROW_H / 2) + 3; // centro vertical
+        // Centro vertical da linha
+        const rowCY = ROW_TOP_0 + i * ROW_H + Math.round(ROW_H / 2);
+        // B! = quantas vezes foi Top 1
         const booyahs = (e.q1booyah ? 1 : 0) + (e.q2booyah ? 1 : 0);
         const nome = (e.nome || '').toUpperCase();
 
         // Sombra de texto para legibilidade
-        ctx.shadowColor   = 'rgba(0,0,0,0.85)';
+        ctx.shadowColor   = 'rgba(0,0,0,0.9)';
         ctx.shadowOffsetX = 1;
         ctx.shadowOffsetY = 1;
-        ctx.shadowBlur    = 3;
+        ctx.shadowBlur    = 4;
 
         // Nome da equipe — tamanho adaptativo
-        const fontSize = nome.length > 16 ? 18 : nome.length > 12 ? 20 : 23;
-        ctx.font      = `900 ${fontSize}px "Arial Black", Arial, sans-serif`;
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'left';
+        const fontSize = nome.length > 18 ? 11 : nome.length > 13 ? 13 : 15;
+        ctx.font         = `900 ${fontSize}px "Arial Black", Arial, sans-serif`;
+        ctx.fillStyle    = '#ffffff';
+        ctx.textAlign    = 'left';
         ctx.textBaseline = 'middle';
         // Truncar se necessário
         let nomeRender = nome;
@@ -598,36 +605,24 @@
         if (nomeRender !== nome) nomeRender = nomeRender.slice(0, -1) + '…';
         ctx.fillText(nomeRender, COL_NOME_X, rowCY);
 
-        // B! — booyahs
-        ctx.font      = '900 22px "Arial Black", Arial, sans-serif';
-        ctx.fillStyle = '#00e5ff';
+        // Números: B!, A!, P!
+        ctx.font      = '900 14px "Arial Black", Arial, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(booyahs > 0 ? String(booyahs) : '0', COL_B_CX, rowCY);
 
-        // A! — abates
+        // B! — Top 1 (fundo amarelo no template → texto escuro)
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillText(String(booyahs), COL_B_CX, rowCY);
+
+        // A! — abates (fundo escuro no template → texto branco)
+        ctx.fillStyle = '#ffffff';
         ctx.fillText(String(e.abates || 0), COL_A_CX, rowCY);
 
-        // P! — pontos
-        ctx.fillStyle = '#f97316';
+        // P! — pontos (fundo escuro → texto branco)
         ctx.fillText(String(e.pontos || 0), COL_P_CX, rowCY);
-
-        // Linha classificada (top 4 na semi): destaque sutil
-        if (!isFinal && i < 4) {
-          ctx.shadowBlur = 0;
-          ctx.strokeStyle = 'rgba(34,197,94,0.6)';
-          ctx.lineWidth   = 3;
-          ctx.strokeRect(COL_NOME_X - 4, ROW_TOP_0 + (i * ROW_H) + 2, COL_P_CX + 60, ROW_H - 4);
-        }
       });
 
-      // 3. Remover sombra e assinar
+      // 3. Remover sombra
       ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
-      const dataFmt = data.split('-').reverse().join('/');
-      ctx.font      = 'bold 20px Arial';
-      ctx.fillStyle = 'rgba(255,255,255,0.55)';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      ctx.fillText(`${faseFmt}  •  ${dataFmt}`, W / 2, H - 28);
 
       // 4. Download
       const link = document.createElement('a');
