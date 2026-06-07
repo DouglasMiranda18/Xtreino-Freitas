@@ -254,6 +254,9 @@ window.confirmarParticipacao = async function() {
                     const canvas = document.createElement('canvas');
                     canvas.width = SIZE; canvas.height = SIZE;
                     const ctx = canvas.getContext('2d');
+                    // Preenche fundo branco antes de desenhar — evita fundo preto em logos PNG com transparência ao exportar como JPEG
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, SIZE, SIZE);
                     const min = Math.min(img.width, img.height);
                     const sx = (img.width - min) / 2, sy = (img.height - min) / 2;
                     ctx.drawImage(img, sx, sy, min, min, 0, 0, SIZE, SIZE);
