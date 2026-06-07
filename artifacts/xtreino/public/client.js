@@ -3684,6 +3684,31 @@ function renderNotifications(notifs, readIds) {
                 <div style="font-size:10px;font-weight:800;color:#4338ca;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">🔑 Senha</div>
                 <div style="font-size:26px;font-weight:900;color:#312e81;font-family:monospace;letter-spacing:3px;user-select:all;word-break:break-all">${escapeHtml(hasRoomPassword ? String(n.roomPassword) : '—')}</div>
             </div>`;
+            // Lista de slots (vagas) enviada junto com as credenciais
+            let slotListHtml = '';
+            if (Array.isArray(n.slotList) && n.slotList.length > 0) {
+                const isLiga = n.slotList.length === 15;
+                const rows = n.slotList.map((s, idx) => {
+                    const label = isLiga
+                        ? `Vaga ${String.fromCharCode(65 + idx)}`
+                        : `Vaga #${idx + 1}`;
+                    const teamDisplay = s.teamName
+                        ? `<span style="font-weight:700;color:#1e1b4b">${escapeHtml(s.teamName)}</span>`
+                        : `<span style="color:#9ca3af;font-style:italic">Vaga livre</span>`;
+                    return `<tr style="border-top:1px solid #e0d9f7">
+                        <td style="padding:5px 8px;font-size:12px;font-weight:700;color:#7c3aed;white-space:nowrap">${label}</td>
+                        <td style="padding:5px 8px;font-size:13px">${teamDisplay}</td>
+                    </tr>`;
+                }).join('');
+                slotListHtml = `
+                <div style="margin-top:10px;background:#f5f3ff;border:1.5px solid #c4b5fd;border-radius:12px;overflow:hidden">
+                    <div style="padding:8px 12px;background:#7c3aed;display:flex;align-items:center;gap:6px">
+                        <i class="fas fa-list-ol" style="color:#e9d5ff;font-size:11px"></i>
+                        <span style="font-size:10px;font-weight:800;color:#e9d5ff;text-transform:uppercase;letter-spacing:1px">Lista de Times</span>
+                    </div>
+                    <table style="width:100%;border-collapse:collapse">${rows}</table>
+                </div>`;
+            }
             credentialsHtml = `
                 <div style="margin-top:12px;background:linear-gradient(135deg,#f5f3ff,#eef2ff);border:2px solid #c4b5fd;border-radius:16px;padding:16px">
                     <p style="font-size:10px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;display:flex;align-items:center;gap:4px">
@@ -3694,6 +3719,7 @@ function renderNotifications(notifs, readIds) {
                         ${pwBox}
                     </div>
                     ${linkBtn}
+                    ${slotListHtml}
                 </div>`;
         }
 
