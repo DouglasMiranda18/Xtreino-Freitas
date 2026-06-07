@@ -5876,8 +5876,8 @@ function getEventCapacity(eventType, hourStr, dateStr) {
     const hour = String(hourStr || '').toLowerCase().replace(/\s/g, '');
     const dateIso = dateStr || (document.getElementById('schedDate')?.value || null);
 
-    // Modo liga: 15
-    if (type === 'modo-liga') return 15;
+    // Modo liga / Acesso (mesmo formato de sala): 15
+    if (type === 'modo-liga' || type === 'acesso') return 15;
 
     // Camp Final: apenas 2 vagas fixas
     if (type === 'camp-final') return 2;
