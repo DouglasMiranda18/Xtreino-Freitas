@@ -3893,7 +3893,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
       _matchedDocs.forEach((d, idx) => {
         const r = d.data();
         const isPending    = r.status === 'pending';
-        const isFreeManual = r.freeSlot === true || r.listingType === 'free';
+        const isFreeManual = r.freeSlot === true || r.listingType === 'free' || r.origem === 'bonus';
         const row          = makeRow(d, r, isPending, isFreeManual, idx + 1);
         if (isPending) {
           countPending++;
