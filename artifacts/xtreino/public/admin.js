@@ -12066,18 +12066,39 @@ async function sendEventNotification() {
         // batchId agrupa todas as notificações deste envio — evita duplicatas na listagem do admin
         const batchId = `batch_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
-        // Ao enviar credenciais para um horário específico, incluir lista de slots na notificação
+        // Ao enviar credenciais para um horário específico, incluir lista de slots na notificação.
+        // CRÍTICO: usar docsToNotify (já filtrado ao slot/evento correto) — evita re-query com docId
+        // que retornaria vazio porque registrations são salvas com eventType='acesso', não com o docId.
         let slotList = null;
         let slotCapacity = null;
         if (notifyType === 'credentials' && selectedSchedule !== 'all') {
             try {
-                const [selDate2, ...schedParts2] = selectedSchedule.split('||');
-                const selSched2 = schedParts2.join('||');
-                const slotData = await buildSlotData(selDate2, eventId, selSched2);
-                if (slotData.slots.length > 0) {
-                    slotList = slotData.slots;
-                    slotCapacity = slotData.capacity;
+                const { doc: _sd, getDoc: _sgd } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+                // Buscar eventType do doc adminEvents para determinar a capacidade correta
+                let _evType = '';
+                try {
+                    const _evSnap2 = await _sgd(_sd(window.firebaseDb, 'adminEvents', eventId));
+                    if (_evSnap2.exists()) _evType = (_evSnap2.data().eventType || '').toLowerCase();
+                } catch(_) {}
+                const _isLigaType = _evType.includes('liga') || _evType.includes('acesso') || _evType === 'modo-liga';
+                const _cap = _isLigaType ? 15 : 12;
+
+                // Montar lista a partir de docsToNotify (já filtrado ao slot correto)
+                // ordenado por slotNumber → slot → createdAt
+                const _sorted = [...docsToNotify].sort((a, b) => {
+                    const ra = a.data(), rb = b.data();
+                    const sa = ra.slotNumber ?? ra.slot ?? 9999;
+                    const sb = rb.slotNumber ?? rb.slot ?? 9999;
+                    if (sa !== sb) return sa - sb;
+                    return ((ra.createdAt?.toDate?.() || new Date(0)) - (rb.createdAt?.toDate?.() || new Date(0)));
+                });
+                const _teams = _sorted.map(d => d.data().teamName || d.data().name || '');
+                const _slots = [];
+                for (let i = 0; i < _cap; i++) {
+                    _slots.push({ slot: i + 1, teamName: _teams[i] || '' });
                 }
+                slotList = _slots;
+                slotCapacity = _cap;
             } catch (_) {}
         }
 
