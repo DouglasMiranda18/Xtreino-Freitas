@@ -11721,16 +11721,21 @@ function selectNotifyType(type) {
         card.style.borderColor     = isSelected ? (hexMap[c] || '#a855f7') : '';
         card.style.backgroundColor = isSelected ? (bgMap[c]  || '#faf5ff') : '';
     });
-    const roomSec      = document.getElementById('eventNotifyRoomLinkSection');
-    const tabSec       = document.getElementById('eventNotifyTabelaSection');
-    const finalistsSec = document.getElementById('eventNotifyFinalistsSection');
-    const msgEl        = document.getElementById('eventNotifyMessage');
-    const optLabel     = document.getElementById('notifyMsgOptLabel');
+    const roomSec        = document.getElementById('eventNotifyRoomLinkSection');
+    const tabSec         = document.getElementById('eventNotifyTabelaSection');
+    const finalistsSec   = document.getElementById('eventNotifyFinalistsSection');
+    const msgEl          = document.getElementById('eventNotifyMessage');
+    const optLabel       = document.getElementById('notifyMsgOptLabel');
+    const stepSchedule   = document.getElementById('notifyStepSchedule');
+    const stepContentLbl = document.getElementById('notifyStepContentLabel');
     // Finalistas = credenciais enviadas apenas para os times da final
     if (roomSec)      roomSec.classList.toggle('hidden', type !== 'credentials' && type !== 'finalists');
     if (tabSec)       tabSec.classList.toggle('hidden',  type !== 'tabela');
     if (finalistsSec) finalistsSec.classList.toggle('hidden', type !== 'finalists');
     if (optLabel) optLabel.textContent = (type === 'custom') ? '(obrigatória)' : '(opcional)';
+    // Finalistas: oculta etapa de horário (data já está no card) e renumera Conteúdo
+    if (stepSchedule)   stepSchedule.classList.toggle('hidden', type === 'finalists');
+    if (stepContentLbl) stepContentLbl.textContent = (type === 'finalists') ? '2 · Conteúdo' : '3 · Conteúdo';
     if (type === 'credentials' || type === 'finalists') {
         if (msgEl) msgEl.placeholder = 'Ex: Use as credenciais abaixo para entrar na sala. Boa sorte!';
     } else if (type === 'tabela') {
