@@ -394,6 +394,9 @@ async function loadDashboard() {
        
         // Verificar role de afiliado após carregar perfil
         await checkAffiliateRole();
+
+        // Inscrições do dia (agenda de hoje)
+        loadTodayRegistrations();
         
         // Load recent orders
         await loadRecentOrders();
@@ -402,6 +405,83 @@ async function loadDashboard() {
         await loadStats();
     } catch (error) {
         
+    }
+}
+
+// Inscrições do dia — mostra eventos agendados para hoje no dashboard
+async function loadTodayRegistrations() {
+    const container  = document.getElementById('todayRegistrations');
+    const badge      = document.getElementById('todayRegsBadge');
+    const dateLabel  = document.getElementById('todayRegsDateLabel');
+    if (!container) return;
+
+    // Data de hoje no fuso BR (UTC-3)
+    const hoje = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().split('T')[0];
+    if (dateLabel) {
+        const [, m, d] = hoje.split('-');
+        dateLabel.textContent = `${d}/${m}`;
+    }
+
+    if (!currentUser?.uid) {
+        container.innerHTML = '<p style="color:#9ca3af;text-align:center;font-size:13px;padding:4px 0">Faça login para ver suas inscrições.</p>';
+        return;
+    }
+
+    try {
+        const allRegs = await fetchUserDocs('registrations', 200, false);
+        const validStatuses = new Set(['paid', 'confirmed', 'approved', 'pending']);
+        const todayRegs = allRegs
+            .filter(d => d.data.date === hoje && validStatuses.has(d.data.status || ''))
+            .map(d => ({ id: d.id, ...d.data }));
+
+        // Ordenar por hora do schedule ("14h" → 14)
+        const getHour = s => {
+            const m2 = String(s || '').match(/(\d{1,2})\s*h/i);
+            return m2 ? parseInt(m2[1], 10) : 99;
+        };
+        todayRegs.sort((a, b) => getHour(a.schedule) - getHour(b.schedule));
+
+        if (badge) {
+            badge.textContent = todayRegs.length;
+            badge.style.display = todayRegs.length > 0 ? '' : 'none';
+        }
+
+        if (todayRegs.length === 0) {
+            container.innerHTML = '<p style="color:#9ca3af;text-align:center;font-size:13px;padding:4px 0">Nenhuma inscrição para hoje 🎮</p>';
+            return;
+        }
+
+        const eventIcons = {
+            'xtreino-tokens': '🎮', 'modo-liga': '⚔️',
+            'semanal-freitas': '🏆', 'camp-freitas': '🥇'
+        };
+        const statusInfo = {
+            paid:      { label: 'Confirmado',   color: '#10b981', bg: '#d1fae5' },
+            confirmed: { label: 'Confirmado',   color: '#10b981', bg: '#d1fae5' },
+            approved:  { label: 'Aprovado',     color: '#3b82f6', bg: '#dbeafe' },
+            pending:   { label: 'Aguard. pag.', color: '#f59e0b', bg: '#fef3c7' },
+        };
+
+        container.innerHTML = todayRegs.map(r => {
+            const icon = eventIcons[r.eventType] || '🎮';
+            const s    = statusInfo[r.status] || statusInfo.pending;
+            const slot = r.slotDisplay || (r.slot ? `Vaga #${r.slot}` : '');
+            const schedule = r.schedule || r.hour || '';
+            const name = r.title || r.eventType || r.teamName || 'Evento';
+            return `
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f3f4f6;last-child:border-bottom:none">
+                <div style="width:38px;height:38px;background:linear-gradient(135deg,#ede9fe,#dbeafe);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0">${icon}</div>
+                <div style="flex:1;min-width:0">
+                    <div style="font-size:13px;font-weight:800;color:#1f2937;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</div>
+                    <div style="font-size:11px;color:#6b7280;margin-top:2px">${schedule}${slot ? ' &bull; ' + slot : ''}</div>
+                </div>
+                <div style="flex-shrink:0">
+                    <span style="font-size:10px;font-weight:700;color:${s.color};background:${s.bg};border-radius:6px;padding:3px 8px;white-space:nowrap">${s.label}</span>
+                </div>
+            </div>`;
+        }).join('');
+    } catch (err) {
+        container.innerHTML = '<p style="color:#9ca3af;text-align:center;font-size:13px;padding:4px 0">Erro ao carregar inscrições.</p>';
     }
 }
 
