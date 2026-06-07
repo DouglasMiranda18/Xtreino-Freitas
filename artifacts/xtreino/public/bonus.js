@@ -235,15 +235,32 @@ window.confirmarParticipacao = async function() {
             throw new Error('O prazo desta vaga bônus já expirou.');
         }
 
-        // Logo em base64 (sem precisar do Firebase Storage)
+        // Logo: redimensiona para 128x128 JPEG (thumbnail seguro para Firestore)
         let teamLogoUrl = null;
+        let teamLogoThumb = null;
         const logoFile = document.getElementById('bonusLogoFile')?.files?.[0];
         if (logoFile) {
-            teamLogoUrl = await new Promise((resolve, reject) => {
+            const rawDataUrl = await new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = e => resolve(e.target.result);
                 reader.onerror = () => reject(new Error('Erro ao ler o arquivo de logo.'));
                 reader.readAsDataURL(logoFile);
+            });
+            // Redimensiona para 128x128 JPEG — nunca ultrapassa ~30 KB em base64
+            teamLogoThumb = await new Promise(resolve => {
+                const img = new Image();
+                img.onload = () => {
+                    const SIZE = 128;
+                    const canvas = document.createElement('canvas');
+                    canvas.width = SIZE; canvas.height = SIZE;
+                    const ctx = canvas.getContext('2d');
+                    const min = Math.min(img.width, img.height);
+                    const sx = (img.width - min) / 2, sy = (img.height - min) / 2;
+                    ctx.drawImage(img, sx, sy, min, min, 0, 0, SIZE, SIZE);
+                    resolve(canvas.toDataURL('image/jpeg', 0.7));
+                };
+                img.onerror = () => resolve(null);
+                img.src = rawDataUrl;
             });
         }
 
@@ -287,6 +304,7 @@ window.confirmarParticipacao = async function() {
             userId:       _usuarioAtual.uid,
             teamName,
             teamLogoUrl,
+            teamLogoThumb,
             teamId:       _perfilUsuario?.teamId || null,
             leaderName:   _perfilUsuario?.name || _usuarioAtual.displayName || teamName,
             email:        _usuarioAtual.email,
