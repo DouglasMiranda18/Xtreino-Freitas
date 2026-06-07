@@ -420,7 +420,7 @@
         const faltam = HORAS_SEMI.filter((h, i) => !(resultados[i] && resultados[i].status === 'finalizado'));
         showToast('success', `Semifinal ${hora} finalizada! Faltam: ${faltam.join(', ')}`);
       }
-      setTimeout(() => window.champCarregarFase(), 600);
+      setTimeout(() => { window.champCarregarFase(); _atualizarResumoSemis(data); }, 600);
     } catch (e) {
       showToast('error', 'Erro: ' + e.message);
     }
@@ -440,6 +440,30 @@
       showToast('error', 'Erro: ' + e.message);
     }
   };
+
+  // ── Resumo das Semifinais ────────────────────────────────────────────────
+  async function _atualizarResumoSemis(data) {
+    if (!data) return;
+    const IDS = { '19h': 'champResumo19h', '20h': 'champResumo20h', '21h': 'champResumo21h' };
+    for (const [hora, elId] of Object.entries(IDS)) {
+      const el = document.getElementById(elId);
+      if (!el) continue;
+      try {
+        const res = await carregarResultado(data, hora);
+        if (!res || !res.teams) { el.innerHTML = '<span class="text-gray-400">Sem dados</span>'; continue; }
+        const top4 = (res.teams || []).filter(t => t.classificado).slice(0, 4);
+        if (top4.length === 0) { el.innerHTML = '<span class="text-gray-400">Aguardando finalização</span>'; continue; }
+        const status = res.status === 'finalizado'
+          ? '<span class="inline-block mb-1 text-xs font-bold text-green-600">✅ Finalizado</span><br>'
+          : '<span class="inline-block mb-1 text-xs font-bold text-yellow-600">🟡 Em apuração</span><br>';
+        el.innerHTML = status + top4.map((t, i) =>
+          `<span class="inline-block text-xs font-semibold">${i + 1}º ${t.nome || '?'}</span>`
+        ).join('<br>');
+      } catch (_) {
+        el.innerHTML = '<span class="text-gray-400">—</span>';
+      }
+    }
+  }
 
   window.champCarregarFase = async function () {
     const data = document.getElementById('champDataInput')?.value;
@@ -480,6 +504,8 @@
         return;
       }
       _renderizarFormResultado(data, hora, equipes, resultadoExistente);
+      // Atualizar painel de resumo das 3 semis em paralelo (não bloqueia)
+      _atualizarResumoSemis(data);
     } catch (e) {
       if (formWrapper) formWrapper.innerHTML = `<div class="text-red-500 text-sm py-4 text-center"><i class="fas fa-times-circle mr-1"></i>Erro: ${e.message}</div>`;
     }
@@ -546,14 +572,14 @@
 
       const W = 800, H = 800;
 
-      // ── Coordenadas (calibradas para 800×800) ─────────────────────────────
-      const ROW_TOP_0  = 340;   // topo da 1ª linha (coroa)
-      const ROW_H      = 38;    // altura de cada linha
-      const COL_NOME_X = 175;   // início do nome da equipe (após número da posição)
-      const COL_NOME_W = 320;   // largura máxima do nome
-      const COL_B_CX   = 527;   // centro da coluna B! (Top 1)
-      const COL_A_CX   = 598;   // centro da coluna A! (Abates)
-      const COL_P_CX   = 667;   // centro da coluna P! (Pontos)
+      // ── Coordenadas (calibradas para 800×800 via imagem exportada) ───────────
+      const ROW_TOP_0   = 330;  // topo da 1ª linha (coroa) — medido no PNG exportado
+      const ROW_H       = 39;   // altura de cada linha
+      const COL_NOME_CX = 330;  // CENTRO da área de nome (posição=160 a B!=500 → c=330)
+      const COL_NOME_W  = 320;  // largura máxima do nome (para truncar)
+      const COL_B_CX    = 527;  // centro da coluna B! (Top 1 — fundo amarelo)
+      const COL_A_CX    = 597;  // centro da coluna A! (Abates)
+      const COL_P_CX    = 661;  // centro da coluna P! (Pontos)
 
       const canvas = document.createElement('canvas');
       canvas.width  = W;
@@ -591,11 +617,11 @@
         ctx.shadowOffsetY = 1;
         ctx.shadowBlur    = 4;
 
-        // Nome da equipe — tamanho adaptativo
+        // Nome da equipe — centralizado na área de nome, tamanho adaptativo
         const fontSize = nome.length > 18 ? 11 : nome.length > 13 ? 13 : 15;
         ctx.font         = `900 ${fontSize}px "Arial Black", Arial, sans-serif`;
         ctx.fillStyle    = '#ffffff';
-        ctx.textAlign    = 'left';
+        ctx.textAlign    = 'center';
         ctx.textBaseline = 'middle';
         // Truncar se necessário
         let nomeRender = nome;
@@ -603,7 +629,7 @@
           nomeRender = nomeRender.slice(0, -1);
         }
         if (nomeRender !== nome) nomeRender = nomeRender.slice(0, -1) + '…';
-        ctx.fillText(nomeRender, COL_NOME_X, rowCY);
+        ctx.fillText(nomeRender, COL_NOME_CX, rowCY);
 
         // Números: B!, A!, P!
         ctx.font      = '900 14px "Arial Black", Arial, sans-serif';
