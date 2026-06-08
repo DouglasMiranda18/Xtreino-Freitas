@@ -16,6 +16,7 @@ let _bonusLink = null;
 let _bonusLinkId = null;
 let _usuarioAtual = null;
 let _perfilUsuario = null;
+let _bonusLinkBlocked = null; // { titulo, mensagem } quando o prazo/vagas estão esgotados
 
 // ── Inicialização ──────────────────────────────────────────────────────────────
 
@@ -77,25 +78,19 @@ async function _carregarBonusLink(code) {
         _bonusLink = { id: docSnap.id, ...docSnap.data() };
         _bonusLinkId = docSnap.id;
 
-        // Validações de estado
+        // Link pausado pelo admin: erro imediato (decisão explícita da organização)
         if (_bonusLink.status === 'pausado') {
             _mostrarErro('Link pausado', 'Este link de vaga bônus está temporariamente pausado pela organização.');
             return;
         }
-        if (_bonusLink.status === 'expirado') {
-            _mostrarErro('Vagas esgotadas', 'Todas as vagas bônus disponíveis já foram preenchidas.');
-            return;
+
+        // Vagas esgotadas ou prazo vencido: guardar motivo, mas NÃO mostrar erro ainda.
+        // O check de inscrição existente em _renderizarParticipacao decidirá o que exibir.
+        if (_bonusLink.status === 'expirado' || (_bonusLink.usedCount || 0) >= (_bonusLink.quantity || 0)) {
+            _bonusLinkBlocked = { titulo: 'Vagas esgotadas', mensagem: 'Todas as vagas bônus disponíveis já foram preenchidas.' };
         }
-        if ((_bonusLink.usedCount || 0) >= (_bonusLink.quantity || 0)) {
-            _mostrarErro('Vagas esgotadas', 'Todas as vagas bônus disponíveis já foram preenchidas.');
-            return;
-        }
-        if (_bonusLink.expiresAt) {
-            const expiry = new Date(_bonusLink.expiresAt);
-            if (expiry < new Date()) {
-                _mostrarErro('Prazo encerrado', 'O período de inscrição para esta vaga bônus já encerrou.');
-                return;
-            }
+        if (_bonusLink.expiresAt && new Date(_bonusLink.expiresAt) < new Date()) {
+            _bonusLinkBlocked = { titulo: 'Prazo encerrado', mensagem: 'O período de inscrição para esta vaga bônus já encerrou.' };
         }
 
         _renderizarInfoBonus();
@@ -151,13 +146,17 @@ async function _carregarPerfilUsuario(uid) {
 
 // ── Renderizar área de participação ───────────────────────────────────────────
 
-function _renderizarParticipacao() {
+async function _renderizarParticipacao() {
     const container = document.getElementById('participacaoContainer');
     if (!container || !_bonusLink) return;
 
     if (!_usuarioAtual) {
+        // Sem login: se bloqueado, indica que podem entrar para ver sua inscrição
+        const msg = _bonusLinkBlocked
+            ? 'Se você já está inscrito nesta vaga, faça login para ver sua inscrição e as credenciais da sala.'
+            : 'Faça login para participar desta vaga bônus';
         container.innerHTML = `
-            <p class="text-gray-400 text-sm text-center mb-3">Faça login para participar desta vaga bônus</p>
+            <p class="text-gray-400 text-sm text-center mb-3">${msg}</p>
             <a href="/" class="block w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-6 rounded-xl text-center transition-colors btn-participar">
                 <i class="fas fa-sign-in-alt mr-2"></i>Entrar / Cadastrar
             </a>
@@ -165,7 +164,172 @@ function _renderizarParticipacao() {
         return;
     }
 
-    // Campos sempre em branco para o usuário preencher
+    // Logado: verificar se já está inscrito antes de qualquer coisa
+    await _verificarInscricaoExistente();
+}
+
+// ── Verificar inscrição existente ─────────────────────────────────────────────
+
+async function _verificarInscricaoExistente() {
+    const container = document.getElementById('participacaoContainer');
+    if (!container) return;
+
+    container.innerHTML = `<div class="text-center text-gray-400 text-sm py-3"><i class="fas fa-circle-notch fa-spin mr-2"></i>Verificando sua inscrição...</div>`;
+
+    try {
+        const { collection, query, where, getDocs } = await import(_FS_URL);
+
+        // 1ª tentativa: buscar pelo bonusCode (mais preciso)
+        let regDoc = null;
+        try {
+            const snap = await getDocs(query(
+                collection(window.firebaseDb, 'registrations'),
+                where('userId', '==', _usuarioAtual.uid),
+                where('bonusCode', '==', _bonusLink.code)
+            ));
+            if (!snap.empty) regDoc = { id: snap.docs[0].id, ...snap.docs[0].data() };
+        } catch (_) {}
+
+        // 2ª tentativa: buscar por userId + eventType + date (fallback)
+        if (!regDoc) {
+            try {
+                const snap2 = await getDocs(query(
+                    collection(window.firebaseDb, 'registrations'),
+                    where('userId', '==', _usuarioAtual.uid),
+                    where('eventType', '==', _bonusLink.eventType),
+                    where('date', '==', _bonusLink.date)
+                ));
+                snap2.forEach(d => {
+                    const r = d.data();
+                    if (!regDoc && r.schedule === _bonusLink.schedule) regDoc = { id: d.id, ...r };
+                });
+            } catch (_) {}
+        }
+
+        if (regDoc) {
+            // Usuário inscrito → buscar credenciais e mostrar card
+            const notif = await _buscarCredenciais();
+            _renderizarInscricaoExistente(regDoc, notif);
+        } else if (_bonusLinkBlocked) {
+            // Não inscrito e link bloqueado → mostrar motivo
+            container.innerHTML = `
+                <div class="text-center py-4">
+                    <div class="text-4xl mb-3">⏰</div>
+                    <p class="text-red-400 font-bold">${_bonusLinkBlocked.titulo}</p>
+                    <p class="text-gray-400 text-sm mt-2">${_bonusLinkBlocked.mensagem}</p>
+                </div>`;
+        } else {
+            // Não inscrito e link aberto → mostrar formulário
+            _renderizarFormulario();
+        }
+    } catch (err) {
+        console.error('[Bonus] Erro ao verificar inscrição:', err);
+        if (_bonusLinkBlocked) {
+            container.innerHTML = `<div class="text-center py-4"><p class="text-red-400 text-sm">${_bonusLinkBlocked.mensagem}</p></div>`;
+        } else {
+            _renderizarFormulario();
+        }
+    }
+}
+
+// ── Buscar credenciais de sala nas notificações ───────────────────────────────
+
+async function _buscarCredenciais() {
+    try {
+        const { collection, query, where, getDocs } = await import(_FS_URL);
+        const snap = await getDocs(query(
+            collection(window.firebaseDb, 'notifications'),
+            where('targetUserId', '==', _usuarioAtual.uid)
+        ));
+        const nomeEvento = (_bonusLink.eventName || _LABELS_EVENTO[_bonusLink.eventType] || '').toLowerCase();
+        const hora = String(_bonusLink.schedule || '').match(/(\d{1,2})\s*h/i)?.[1] || '';
+        let melhor = null, melhorTs = 0;
+        snap.forEach(d => {
+            const n = d.data();
+            if (n.notifyType !== 'credentials' && n.notifyType !== 'finalists') return;
+            if (!n.roomId) return;
+            // Verificar se a notificação é deste evento comparando eventName e horário
+            const nEvId = String(n.eventId || '').toLowerCase();
+            const nEvNm = String(n.eventName || '').toLowerCase();
+            const nSched = String(n.schedule || '').toLowerCase();
+            const matchEvento = nEvId.includes(_bonusLink.eventType) || nEvNm.includes(nomeEvento) || nomeEvento.includes(nEvNm);
+            const matchHora  = !hora || nSched.includes(hora + 'h') || nSched.includes(hora + '/') || nSched.includes(hora);
+            if (matchEvento && matchHora) {
+                const ts = n.createdAt?.toMillis?.() || n.createdAt?.seconds * 1000 || 0;
+                if (ts > melhorTs) { melhor = n; melhorTs = ts; }
+            }
+        });
+        return melhor;
+    } catch (_) {
+        return null;
+    }
+}
+
+// ── Renderizar card de inscrição existente ────────────────────────────────────
+
+function _renderizarInscricaoExistente(reg, notif) {
+    const container = document.getElementById('participacaoContainer');
+    if (!container) return;
+
+    const nomeEvento = _bonusLink.eventName || _LABELS_EVENTO[_bonusLink.eventType] || _bonusLink.eventType;
+    const [ano, mes, dia] = (_bonusLink.date || '').split('-');
+    const dataFmt = dia ? `${dia}/${mes}/${ano}` : '—';
+    const slotDisplay = reg.slotDisplay || (reg.slot ? `Vaga #${reg.slot}` : '');
+
+    let credHtml = '';
+    if (notif && notif.roomId) {
+        credHtml = `
+            <div style="margin-top:14px;background:linear-gradient(135deg,#f5f3ff,#eef2ff);border:2px solid #c4b5fd;border-radius:14px;padding:14px">
+                <p style="font-size:10px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+                    <i class="fas fa-door-open"></i> Credenciais da Sala
+                </p>
+                <div style="display:flex;gap:8px;margin-bottom:${notif.roomLink ? '10px' : '0'}">
+                    <div style="flex:1;background:#fff;border:2px solid #c4b5fd;border-radius:10px;padding:10px;text-align:center">
+                        <div style="font-size:9px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">🎮 ID da Sala</div>
+                        <div style="font-size:22px;font-weight:900;color:#4c1d95;font-family:monospace;letter-spacing:2px;user-select:all;word-break:break-all">${_esc(notif.roomId)}</div>
+                    </div>
+                    <div style="flex:1;background:#fff;border:2px solid #a5b4fc;border-radius:10px;padding:10px;text-align:center">
+                        <div style="font-size:9px;font-weight:800;color:#4338ca;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">🔑 Senha</div>
+                        <div style="font-size:22px;font-weight:900;color:#312e81;font-family:monospace;letter-spacing:2px;user-select:all;word-break:break-all">${_esc(notif.roomPassword || '—')}</div>
+                    </div>
+                </div>
+                ${notif.roomLink ? `<a href="${_esc(notif.roomLink)}" target="_blank" rel="noopener noreferrer"
+                    style="display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border-radius:10px;font-size:13px;font-weight:800;text-decoration:none">
+                    <i class="fas fa-external-link-alt"></i> Entrar na Sala</a>` : ''}
+            </div>`;
+    } else {
+        credHtml = `
+            <div style="margin-top:14px;background:#1f2937;border:1.5px solid #374151;border-radius:12px;padding:12px;text-align:center">
+                <p style="color:#9ca3af;font-size:12px"><i class="fas fa-clock text-orange-400 mr-1"></i>ID e senha da sala serão enviados próximo ao horário do evento.</p>
+                <p style="color:#6b7280;font-size:11px;margin-top:4px">Volte aqui ou acesse sua <a href="/" style="color:#f97316;text-decoration:underline">área do cliente</a> para ver.</p>
+            </div>`;
+    }
+
+    container.innerHTML = `
+        <div style="background:linear-gradient(135deg,#064e3b,#065f46);border:2px solid #10b981;border-radius:14px;padding:14px;margin-bottom:12px">
+            <p style="font-size:10px;font-weight:800;color:#6ee7b7;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+                <i class="fas fa-check-circle"></i> Você já está inscrito!
+            </p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px">
+                <div><span style="color:#6ee7b7;font-weight:600">Time:</span><br><span style="color:#fff;font-weight:800">${_esc(reg.teamName || '—')}</span></div>
+                <div><span style="color:#6ee7b7;font-weight:600">Data:</span><br><span style="color:#fff;font-weight:800">${dataFmt}</span></div>
+                <div><span style="color:#6ee7b7;font-weight:600">Horário:</span><br><span style="color:#fff;font-weight:800">${_esc(_bonusLink.schedule || '—')}</span></div>
+                ${slotDisplay ? `<div><span style="color:#6ee7b7;font-weight:600">Vaga:</span><br><span style="color:#fff;font-weight:800">${_esc(slotDisplay)}</span></div>` : ''}
+            </div>
+        </div>
+        ${credHtml}
+        <a href="/" style="display:block;margin-top:12px;text-align:center;color:#9ca3af;font-size:12px;text-decoration:underline">
+            ← Ver todos os meus pedidos na plataforma
+        </a>
+    `;
+}
+
+// ── Renderizar formulário de inscrição ────────────────────────────────────────
+
+function _renderizarFormulario() {
+    const container = document.getElementById('participacaoContainer');
+    if (!container) return;
+
     container.innerHTML = `
         <div class="mb-4">
             <label class="block text-sm font-medium text-gray-300 mb-1">
@@ -198,8 +362,7 @@ function _renderizarParticipacao() {
         <p class="text-center text-xs text-gray-500 mt-3">Sua inscrição é gratuita e será confirmada imediatamente.</p>
     `;
 
-    // Preview do logo ao selecionar arquivo
-    document.getElementById('bonusLogoFile').addEventListener('change', function() {
+    document.getElementById('bonusLogoFile')?.addEventListener('change', function() {
         const file = this.files[0];
         if (!file) return;
         const reader = new FileReader();
