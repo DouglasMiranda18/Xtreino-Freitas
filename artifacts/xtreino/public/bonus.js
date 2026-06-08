@@ -16,7 +16,8 @@ let _bonusLink = null;
 let _bonusLinkId = null;
 let _usuarioAtual = null;
 let _perfilUsuario = null;
-let _bonusLinkBlocked = null; // { titulo, mensagem } quando o prazo/vagas estão esgotados
+let _bonusLinkBlocked = null;    // { titulo, mensagem } quando o prazo/vagas estão esgotados
+let _credPollingInterval = null; // polling automático para detectar credenciais enviadas pelo admin
 
 // ── Inicialização ──────────────────────────────────────────────────────────────
 
@@ -128,6 +129,74 @@ function _renderizarInfoBonus() {
 
     document.getElementById('loadingState').classList.add('hidden');
     document.getElementById('bonusCard').classList.remove('hidden');
+
+    // Carregar lista de times inscritos de forma assíncrona (não bloqueia renderização)
+    _carregarListaSlots();
+}
+
+// ── Carregar lista de times inscritos nesta vaga bônus ───────────────────────
+
+async function _carregarListaSlots() {
+    const container = document.getElementById('slotsListContainer');
+    if (!container || !_bonusLink) return;
+
+    try {
+        const { collection, query, where, getDocs } = await import(_FS_URL);
+        let slots = [];
+
+        // 1ª tentativa: bonusCode (mais preciso)
+        try {
+            const snap = await getDocs(query(
+                collection(window.firebaseDb, 'registrations'),
+                where('bonusCode', '==', _bonusLink.code)
+            ));
+            snap.forEach(d => slots.push(d.data()));
+        } catch (_) {}
+
+        // Fallback: eventType + date
+        if (slots.length === 0 && _bonusLink.date) {
+            try {
+                const snap2 = await getDocs(query(
+                    collection(window.firebaseDb, 'registrations'),
+                    where('eventType', '==', _bonusLink.eventType),
+                    where('date', '==', _bonusLink.date)
+                ));
+                snap2.forEach(d => slots.push(d.data()));
+            } catch (_) {}
+        }
+
+        if (slots.length === 0) return;
+
+        slots.sort((a, b) => (a.slotNumber || a.slot || 0) - (b.slotNumber || b.slot || 0));
+        const total = _bonusLink.quantity || slots.length;
+
+        container.innerHTML = `
+            <div class="mt-4 bg-gray-800 border border-gray-700 rounded-2xl p-4">
+                <h3 class="text-sm font-bold text-gray-300 mb-3 flex items-center gap-2">
+                    🎮 Times Inscritos
+                    <span class="bg-orange-600 text-white text-xs font-black px-2 py-0.5 rounded-full">${slots.length} / ${total}</span>
+                </h3>
+                <div class="space-y-2">
+                    ${slots.map(s => `
+                        <div class="flex items-center gap-3 bg-gray-700/50 rounded-xl px-3 py-2.5">
+                            ${s.teamLogoThumb
+                                ? `<img src="${_esc(s.teamLogoThumb)}" class="w-9 h-9 rounded-lg object-cover border border-gray-600 flex-shrink-0">`
+                                : `<div class="w-9 h-9 rounded-lg bg-gray-600 flex items-center justify-center flex-shrink-0"><i class="fas fa-gamepad text-gray-400 text-sm"></i></div>`
+                            }
+                            <div class="flex-1 min-w-0">
+                                <div class="text-white font-bold text-sm truncate">${_esc(s.teamName || '—')}</div>
+                            </div>
+                            <span class="text-xs text-orange-400 font-bold bg-gray-800 border border-orange-500/30 rounded-lg px-2 py-1 flex-shrink-0">
+                                #${s.slotNumber || s.slot || '?'}
+                            </span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    } catch (err) {
+        console.error('[Bonus] Erro ao carregar lista de slots:', err);
+    }
 }
 
 // ── Carregar perfil do usuário no Firestore ───────────────────────────────────
@@ -299,9 +368,10 @@ function _renderizarInscricaoExistente(reg, notif) {
             </div>`;
     } else {
         credHtml = `
-            <div style="margin-top:14px;background:#1f2937;border:1.5px solid #374151;border-radius:12px;padding:12px;text-align:center">
+            <div id="credenciaisAguardando" style="margin-top:14px;background:#1f2937;border:1.5px solid #374151;border-radius:12px;padding:12px;text-align:center">
                 <p style="color:#9ca3af;font-size:12px"><i class="fas fa-clock text-orange-400 mr-1"></i>ID e senha da sala serão enviados próximo ao horário do evento.</p>
                 <p style="color:#6b7280;font-size:11px;margin-top:4px">Volte aqui ou acesse sua <a href="/" style="color:#f97316;text-decoration:underline">área do cliente</a> para ver.</p>
+                <p id="credPollingStatus" style="color:#4b5563;font-size:10px;margin-top:6px"><i class="fas fa-circle-notch fa-spin" style="color:#6b7280;margin-right:4px"></i>Verificando automaticamente a cada 30s...</p>
             </div>`;
     }
 
@@ -322,6 +392,25 @@ function _renderizarInscricaoExistente(reg, notif) {
             ← Ver todos os meus pedidos na plataforma
         </a>
     `;
+
+    // Polling automático: se ainda sem credenciais, verificar a cada 30s
+    if (_credPollingInterval) { clearInterval(_credPollingInterval); _credPollingInterval = null; }
+    if (!notif) {
+        const _regSnapshot = reg; // captura o registro atual para o closure
+        _credPollingInterval = setInterval(async () => {
+            const novaNotif = await _buscarCredenciais();
+            if (novaNotif) {
+                clearInterval(_credPollingInterval);
+                _credPollingInterval = null;
+                _renderizarInscricaoExistente(_regSnapshot, novaNotif);
+            } else {
+                // Atualizar indicador de última verificação
+                const statusEl = document.getElementById('credPollingStatus');
+                const agora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                if (statusEl) statusEl.innerHTML = `<i class="fas fa-circle-notch fa-spin" style="color:#6b7280;margin-right:4px"></i>Última verificação: ${agora} — próxima em 30s`;
+            }
+        }, 30000);
+    }
 }
 
 // ── Renderizar formulário de inscrição ────────────────────────────────────────
