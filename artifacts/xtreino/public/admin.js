@@ -3023,7 +3023,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
     const lockButton = isStaff ? '' : `<button class="px-2 py-1 ${locked?'bg-red-600 text-white':'bg-yellow-400 text-black'} rounded text-xs" data-toggle-lock="${hour}">${locked?'Destravar':'Travar'}</button>`;
     const permLockButton = isStaff ? '' : `<button class="px-2 py-1 ${permLocked?'bg-purple-700 text-white':'bg-gray-400 text-white'} rounded text-xs font-bold" data-toggle-perm-lock="${hour}" title="${permLocked?'Remover trava permanente deste horário':'Travar este horário permanentemente (todas as datas)'}">∞ ${permLocked?'Destrav. Fixo':'Fixar'}</button>`;
     
-    tr.innerHTML = `<td class="py-2">${hour}${permBadge}</td><td class="py-2">${occupiedText}</td><td class="py-2 flex flex-wrap gap-1">
+    tr.innerHTML = `<td class="py-2">${hour}${permBadge}</td><td class="py-2" data-board-count="${hour}" data-board-cap="${capacity}" data-board-occ="${occupied}">${occupiedText}</td><td class="py-2 flex flex-wrap gap-1">
       <button class="px-2 py-1 bg-blue-600 text-white rounded text-xs" data-add-hour="${hour}">Adicionar</button>
       <button class="px-2 py-1 bg-gray-200 text-gray-800 rounded text-xs" data-manage-hour="${hour}">Gerenciar</button>
       <button class="px-2 py-1 bg-emerald-600 text-white rounded text-xs" data-export-hour="${hour}">Exportar</button>
@@ -3214,6 +3214,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
   })();
 
   let _isLoadingBoard = false;
+  let _boardRefreshInterval = null; // Opção 4: intervalo de atualização automática do board
   async function loadBoard(){
     if (_isLoadingBoard) return;
     _isLoadingBoard = true;
@@ -3376,6 +3377,28 @@ window.showWarningToast = function(message, title = 'Atenção') {
 
       // ===== Bind dos botões de ação =====
       bindBoardTableActions(tbody, date, eventType, ovEventType, rawEventId, evFieldType);
+
+      // ===== Opção 4: badge ao vivo — atualiza contagem a cada 60 s sem reload =====
+      if (_boardRefreshInterval) { clearInterval(_boardRefreshInterval); _boardRefreshInterval = null; }
+      const _liveDate = date, _liveField = evFieldType, _liveOv = ovEventType, _liveRaw = rawEventId;
+      _boardRefreshInterval = setInterval(async () => {
+        try {
+          const freshOcc = await fetchRegistrationsByDate(_liveDate, _liveField, _liveOv, _liveRaw);
+          document.querySelectorAll('[data-board-count]').forEach(td => {
+            const h = td.dataset.boardCount;
+            const cap = parseInt(td.dataset.boardCap || '0', 10);
+            const occ = freshOcc[h] || 0;
+            const rem = Math.max(0, cap - occ);
+            const newText = rem === 0 ? 'Lotado' : `Restam ${rem}`;
+            if (td.textContent !== newText) {
+              td.textContent = newText;
+              td.style.transition = 'color 0.5s';
+              td.style.color = '#2563eb';
+              setTimeout(() => { td.style.color = ''; }, 2000);
+            }
+          });
+        } catch (_) {}
+      }, 60000);
 
     } catch (e) {
       console.error('❌ Erro em loadBoard:', e.message || e);
@@ -12197,6 +12220,33 @@ async function sendEventNotification() {
 
     try {
         const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+        // Opção 2: buscar dados frescos antes de enviar (captura inscrições feitas após abrir o modal)
+        try {
+            const { collection: _frc, query: _frq, where: _frw, getDocs: _frg } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+            const _freshTypes = [...new Set([
+                ..._notifyEventDocs.map(d => d.data().eventType).filter(Boolean),
+                eventId
+            ].filter(Boolean))];
+            const _freshMap = new Map(_notifyEventDocs.map(d => [d.id, d]));
+            const _freshValidStatuses = new Set(['paid', 'confirmed', 'approved']);
+            for (const _ft of _freshTypes) {
+                try {
+                    const _fs = await _frg(_frq(_frc(window.firebaseDb, 'registrations'), _frw('eventType', '==', _ft)));
+                    _fs.forEach(d => { if (_freshValidStatuses.has(d.data().status || '')) _freshMap.set(d.id, d); });
+                } catch (_) {}
+            }
+            const _brNow2 = new Date(Date.now() - 3 * 60 * 60 * 1000);
+            const _todayStr2 = _brNow2.toISOString().split('T')[0];
+            _notifyEventDocs = [..._freshMap.values()].filter(d => {
+                const r = d.data();
+                if (!_freshValidStatuses.has(r.status || '')) return false;
+                if (r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date) && r.date < _todayStr2) return false;
+                return true;
+            });
+        } catch (_fe) {
+            console.warn('[Notify] Falha ao buscar dados frescos, usando cache:', _fe.message);
+        }
 
         let docsToNotify = _notifyEventDocs;
         let filterLabel = '';
