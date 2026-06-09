@@ -191,7 +191,10 @@ async function _carregarListaSlots() {
 
         const regulares = slots.filter(s => s._origem === 'regular').length;
         const bonus     = slots.filter(s => s._origem === 'bonus').length;
-        const totalCap  = (_bonusLink.quantity || 0) + regulares;
+        // Usar initialOffset gravado no link (fixo no momento da criação).
+        // Fallback para o count atual só se o campo ainda não existe (links antigos).
+        const _initOffset = typeof _bonusLink.initialOffset === 'number' ? _bonusLink.initialOffset : regulares;
+        const totalCap  = (_bonusLink.quantity || 0) + _initOffset;
 
         container.innerHTML = `
             <div class="mt-4 bg-gray-800 border border-gray-700 rounded-2xl p-4">
