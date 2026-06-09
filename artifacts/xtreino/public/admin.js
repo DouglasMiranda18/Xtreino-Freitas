@@ -11947,11 +11947,12 @@ async function loadEventsPreview() {
         previewEl.innerHTML = snap.docs.map(d => {
             const ev = d.data();
             const statusCls = statusColors[ev.status] || 'bg-gray-100 text-gray-600';
-            const catStr = catLabel[ev.category] || ev.category;
+            // Normaliza category para lowercase antes de buscar no mapa (evita 'CAMP' não encontrado)
+            const catStr = catLabel[(ev.category || '').toLowerCase()] || ev.category || '—';
             return `<div class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                 <div class="flex items-center gap-2 min-w-0">
                     <span class="text-xs text-gray-500 whitespace-nowrap">${catStr}</span>
-                    <span class="font-medium text-sm truncate">${escapeAdminHtml(ev.name)}</span>
+                    <span class="font-medium text-sm truncate">${escapeAdminHtml(ev.name || '(sem nome)')}</span>
                     <span class="text-xs px-1.5 py-0.5 rounded-full ${statusCls} whitespace-nowrap">${ev.status || 'Aberto'}</span>
                 </div>
                 <span class="text-xs text-gray-400 whitespace-nowrap ml-2">${ev.tipo} · ${ev.modo} · ${ev.vagas} vagas</span>
