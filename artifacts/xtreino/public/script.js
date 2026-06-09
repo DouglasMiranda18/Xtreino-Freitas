@@ -7950,7 +7950,9 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts, targetDates = n
                 const fromRegs    = Number(regSlotMax[normKey]) || 0;
                 // Se não há inscrições reais para o horário, reiniciar contador
                 // (evita slot inflado quando inscrições de teste foram deletadas)
-                const current     = fromRegs === 0 ? 0 : Math.max(fromCounter, fromRegs);
+                // Quando targetDates fornecido, regs filtradas por data são fonte de verdade
+                // (slotCounters acumula entre datas e pode inflar o slot)
+                const current     = fromRegs === 0 ? 0 : (targetDates ? fromRegs : Math.max(fromCounter, fromRegs));
                 startSlots[sched] = current + 1;
                 // Sempre gravar com chave normalizada (unifica admin e PIX/tokens)
                 counts[normKey]   = current + n;
