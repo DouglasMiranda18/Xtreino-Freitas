@@ -1221,6 +1221,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
                 const _normSchedLink = _normH(schedule);
                 _allSnap.forEach(d => {
                     const r = d.data();
+                    if (r.status === 'pending') return; // pendentes não ocupam slot
                     if (_normH(r.schedule || r.hour || '') === _normSchedLink) _count++;
                 });
                 _nextSlot = _count + 1;
