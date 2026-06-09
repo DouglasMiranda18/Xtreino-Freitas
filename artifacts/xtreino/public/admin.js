@@ -1197,10 +1197,6 @@ window.showWarningToast = function(message, title = 'Atenção') {
                 if (mH) return parseInt(mH[1],10)+'h';
                 return str;
             };
-            // slot = timestamp em segundos — garante que aparece por último na ordenação do board
-            // (MP usa 1, 2, 3... então timestamp sempre é maior)
-            // O board atribui letras A, B, C... automaticamente por posição (idx+1) — não depende de slotDisplay
-            const nextSlot = Math.floor(Date.now() / 1000);
             // rawEvType para consistência com MP
             const _rawDocId = (typeEl?.selectedOptions?.[0]?.dataset?.rawEventId || typeEl?.value || '').trim();
             let _rawEvType = _rawDocId;
@@ -1210,9 +1206,30 @@ window.showWarningToast = function(message, title = 'Atenção') {
             } catch(_) {}
             payload.eventType = _rawEvType || eventType || null;
             payload.teamName = teamName;
-            payload.slot = nextSlot;
-            payload.slotNumber = nextSlot;
-            payload.slotDisplay = null;
+
+            // Calcular próximo slot sequencial real (total de inscritos no horário + 1)
+            // Assim o time aparece na lista bônus com número correto em vez de "—"
+            let _nextSlot = Math.floor(Date.now() / 1000); // fallback timestamp (links sem bonus)
+            let _nextSlotDisplay = null;
+            try {
+                const _allSnap = await _gd(_q(
+                    collection(window.firebaseDb, 'registrations'),
+                    _w('eventType', '==', payload.eventType || eventType),
+                    _w('date', '==', date)
+                ));
+                let _count = 0;
+                const _normSchedLink = _normH(schedule);
+                _allSnap.forEach(d => {
+                    const r = d.data();
+                    if (_normH(r.schedule || r.hour || '') === _normSchedLink) _count++;
+                });
+                _nextSlot = _count + 1;
+                _nextSlotDisplay = `Vaga #${_nextSlot}`;
+            } catch (_) {}
+
+            payload.slot = _nextSlot;
+            payload.slotNumber = _nextSlot;
+            payload.slotDisplay = _nextSlotDisplay;
             await addDoc(collection(window.firebaseDb,'registrations'), { ...payload, createdAt: serverTimestamp() });
             const notifMsg = clientUserId
               ? 'Time adicionado! O cliente receberá notificações de ID/senha.'
@@ -13272,7 +13289,24 @@ window.createBonusLink = async function() {
     const eventName = selEl?.selectedOptions?.[0]?.textContent?.trim() || _BONUS_EVENT_LABELS[eventType] || eventType;
 
     try {
-        const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const { collection, addDoc, serverTimestamp, getDocs, query: _bq, where: _bw } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+        // Captura o offset de vagas regulares no momento da criação do link.
+        // Usado para fixar totalCap = initialOffset + quantity (não cresce com novas vendas).
+        let initialOffset = 0;
+        try {
+            const _snap = await getDocs(_bq(
+                collection(window.firebaseDb, 'registrations'),
+                _bw('eventType', '==', eventType),
+                _bw('date', '==', date)
+            ));
+            const _linkH = String(schedule || '').match(/(\d+)/)?.[1] || '';
+            _snap.forEach(d => {
+                const r = d.data();
+                const _regH = String(r.schedule || r.hour || '').match(/(\d+)/)?.[1] || '';
+                if (!_linkH || _regH === _linkH) initialOffset++;
+            });
+        } catch (_) {}
 
         await addDoc(collection(window.firebaseDb, 'bonus_links'), {
             code,
@@ -13282,6 +13316,7 @@ window.createBonusLink = async function() {
             date,
             quantity,
             usedCount: 0,
+            initialOffset,
             limitPerTeam: Math.max(1, limitPerTeam || 1),
             expiresAt: expiresAtRaw ? new Date(expiresAtRaw).toISOString() : null,
             status: 'ativo',
