@@ -7615,7 +7615,7 @@ async function submitSchedule(e, useTokens = false) {
             // São totalmente independentes: rodar juntos economiza 3-5s
             const [_slotAlloc, [_wlArr, _teamLogoDataMap]] = await Promise.all([
                 Object.keys(_sc).length > 0
-                    ? allocateSlotsFromDB(rawEventType, _sc)
+                    ? allocateSlotsFromDB(rawEventType, _sc, datesToUse)
                     : Promise.resolve({}),
                 Promise.all([
                     Promise.all(_schedPairs.map(p => getWhatsAppLink(rawEventType, p.normalizedHour, p.d).catch(() => null))),
@@ -7890,7 +7890,7 @@ async function fetchRegsForSlotCount(rawEventType) {
 // Retorna: { "schedule_key": firstSlotNumber } ou null se ambos os métodos falharem
 // Nível 1: transação atômica via slotCounters
 // Nível 2: fallback com seeding atômico — elimina race condition entre compradores simultâneos
-async function allocateSlotsFromDB(rawEventType, scheduleCounts) {
+async function allocateSlotsFromDB(rawEventType, scheduleCounts, targetDates = null) {
     const { doc, runTransaction, collection, query, where, getDocs } =
         await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     const counterRef = doc(window.firebaseDb, 'slotCounters', rawEventType);
@@ -7907,6 +7907,7 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts) {
 
     // Lê registrations reais como fonte de verdade (inclui inserções manuais do admin)
     // Usa chave normalizada para casar "21h" (manual) com "Domingo - 21h" (PIX/tokens)
+    // targetDates: filtrar apenas registrations das datas desta compra (evita slots históricos)
     const regSlotMax = {};
     try {
         const _snap = await getDocs(query(
@@ -7916,6 +7917,8 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts) {
         _snap.forEach(d => {
             const data = d.data();
             if (!data.schedule) return;
+            // Filtrar por data quando disponível (evita histórico de outras datas contaminando o contador)
+            if (targetDates && Array.isArray(targetDates) && !targetDates.includes(data.date)) return;
             let num = 0;
             if (data.slot != null || data.slotNumber != null) {
                 num = Number(data.slot ?? data.slotNumber) || 0;
@@ -7925,7 +7928,8 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts) {
                 if (/^[A-Za-z]$/.test(_sr)) num = _sr.toUpperCase().charCodeAt(0) - 64;
                 else { const _sn = parseInt(_sr.replace(/^#/, ''), 10); if (!isNaN(_sn)) num = _sn; }
             }
-            if (num > 0) {
+            // Ignorar timestamps gravados como slot (> 9999)
+            if (num > 0 && num <= 9999) {
                 const normKey = _normH(data.schedule);
                 if (num > (regSlotMax[normKey] || 0)) regSlotMax[normKey] = num;
             }
@@ -8045,8 +8049,11 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
                     snap.forEach(d => {
                         const r = d.data();
                         if (!r.schedule) return;
+                        // Filtrar por data (evita slots históricos de datas anteriores)
+                        if (!dates.includes(r.date)) return;
                         const sn = Number(r.slotNumber || r.slot || 0);
-                        if (!isNaN(sn) && sn > (scheduleSlotCount[r.schedule] || 0)) {
+                        // Ignorar timestamps gravados como slot (> 9999)
+                        if (!isNaN(sn) && sn > 0 && sn <= 9999 && sn > (scheduleSlotCount[r.schedule] || 0)) {
                             scheduleSlotCount[r.schedule] = sn;
                         }
                     });
@@ -8901,7 +8908,7 @@ async function createRegistrationsForEvent(eventType, datesToUse, teamsData, tim
     // ── Alocar slots (transação) + upload logos em PARALELO ──────────────
     const [_slotAlloc, _logoMap] = await Promise.all([
         Object.keys(_sc).length > 0
-            ? allocateSlotsFromDB(eventType, _sc)
+            ? allocateSlotsFromDB(eventType, _sc, datesToUse)
             : Promise.resolve({}),
         (async () => {
             const _map = {};
