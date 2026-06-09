@@ -182,6 +182,14 @@ async function _carregarListaSlots() {
 
         if (allRegs.size === 0) return;
 
+        // Filtrar status inválidos — pending não conta como time inscrito
+        const _validStatus = new Set(['paid', 'confirmed', 'approved']);
+        for (const [id, r] of allRegs) {
+            if (!_validStatus.has(r.status)) allRegs.delete(id);
+        }
+
+        if (allRegs.size === 0) return;
+
         // Ordenar por slot numérico (ignorar timestamps > 9999)
         const slots = [...allRegs.values()].sort((a, b) => {
             const na = _slotNum(a.slot, a.slotNumber) ?? 9999;
