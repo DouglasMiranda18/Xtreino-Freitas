@@ -10627,11 +10627,11 @@ async function sendAdminNotification() {
     const title = titleEl.value.trim();
     const message = messageEl.value.trim();
     const target = targetEl.value;
-    const targetUserId = (target === 'user' && userIdEl) ? userIdEl.value.trim() : null;
+    const emailInput = (target === 'user' && userIdEl) ? userIdEl.value.trim().toLowerCase() : null;
 
     if (!title) { showToast('warning', 'Informe o título da notificação.', 'Atenção'); return; }
     if (!message) { showToast('warning', 'Informe a mensagem da notificação.', 'Atenção'); return; }
-    if (target === 'user' && !targetUserId) { showToast('warning', 'Informe o UID do usuário destinatário.', 'Atenção'); return; }
+    if (target === 'user' && !emailInput) { showToast('warning', 'Informe o e-mail do usuário destinatário.', 'Atenção'); return; }
 
     if (!window.firebaseDb) { showToast('error', 'Firebase não inicializado.', 'Erro'); return; }
 
@@ -10639,8 +10639,19 @@ async function sendAdminNotification() {
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Enviando...'; }
 
     try {
-        const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const user = window.firebaseAuth?.currentUser;
+        const { collection, addDoc, serverTimestamp, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const adminUser = window.firebaseAuth?.currentUser;
+
+        let targetUserId = null;
+        if (target === 'user' && emailInput) {
+            const q = query(collection(window.firebaseDb, 'users'), where('email', '==', emailInput));
+            const snap = await getDocs(q);
+            if (snap.empty) {
+                showToast('error', `Nenhum usuário encontrado com o e-mail: ${emailInput}`, 'Usuário não encontrado');
+                return;
+            }
+            targetUserId = snap.docs[0].id;
+        }
 
         await addDoc(collection(window.firebaseDb, 'notifications'), {
             title,
@@ -10648,11 +10659,11 @@ async function sendAdminNotification() {
             type: target,
             targetUserId: targetUserId || null,
             createdAt: serverTimestamp(),
-            createdBy: user ? (user.displayName || user.email || user.uid) : 'Admin',
-            createdByUid: user ? user.uid : null
+            createdBy: adminUser ? (adminUser.displayName || adminUser.email || adminUser.uid) : 'Admin',
+            createdByUid: adminUser ? adminUser.uid : null
         });
 
-        showToast('success', `Notificação enviada para ${target === 'all' ? 'todos os usuários' : 'usuário específico'}.`, 'Sucesso');
+        showToast('success', `Notificação enviada para ${target === 'all' ? 'todos os usuários' : emailInput}.`, 'Sucesso');
         titleEl.value = '';
         messageEl.value = '';
         if (userIdEl) userIdEl.value = '';
@@ -10664,6 +10675,65 @@ async function sendAdminNotification() {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Enviar Notificação'; }
     }
 }
+
+async function premiarVencedorTreino() {
+    const emailEl = document.getElementById('premiacaoEmail');
+    const eventoEl = document.getElementById('premiacaoEvento');
+    const email = emailEl?.value?.trim().toLowerCase();
+    const evento = eventoEl?.value || 'xtreino-tokens';
+    const eventoNome = evento === 'modo-liga' ? 'XTreino Modo Liga' : 'XTreino Freitas';
+    const premioTokens = 3.5;
+
+    if (!email) { showToast('warning', 'Informe o e-mail do vencedor.', 'Atenção'); return; }
+    if (!window.firebaseDb) { showToast('error', 'Firebase não inicializado.', 'Erro'); return; }
+
+    const btn = document.querySelector('[onclick="premiarVencedorTreino()"]');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Premiando...'; }
+
+    try {
+        const { collection, query, where, getDocs, doc, updateDoc, increment, addDoc, serverTimestamp } =
+            await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+        // Buscar usuário pelo e-mail
+        const q = query(collection(window.firebaseDb, 'users'), where('email', '==', email));
+        const snap = await getDocs(q);
+        if (snap.empty) {
+            showToast('error', `Nenhum usuário encontrado com o e-mail: ${email}`, 'Usuário não encontrado');
+            return;
+        }
+
+        const userId = snap.docs[0].id;
+        const userNome = snap.docs[0].data().displayName || snap.docs[0].data().name || email;
+
+        // Creditar tokens
+        await updateDoc(doc(window.firebaseDb, 'users', userId), {
+            tokens: increment(premioTokens)
+        });
+
+        // Enviar notificação in-app
+        await addDoc(collection(window.firebaseDb, 'notifications'), {
+            title: '🏆 Você foi premiado!',
+            message: `Parabéns! Você ganhou ${premioTokens} tokens como prêmio do ${eventoNome}. Use para se inscrever no Semanal Freitas!`,
+            type: 'user',
+            targetUserId: userId,
+            createdAt: serverTimestamp(),
+            createdBy: window.firebaseAuth?.currentUser?.email || 'Admin',
+            createdByUid: window.firebaseAuth?.currentUser?.uid || null
+        });
+
+        // Log
+        await logAdminAction('premiar_vencedor', `Premiou ${email} (${userNome}) com ${premioTokens} tokens — ${eventoNome}`);
+
+        showToast('success', `✅ ${premioTokens} tokens creditados para ${userNome} (${email})!`, 'Premiação realizada');
+        if (emailEl) emailEl.value = '';
+    } catch (err) {
+        console.error('Erro ao premiar vencedor:', err);
+        showToast('error', 'Erro ao premiar: ' + (err.message || err), 'Erro');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-trophy mr-1"></i> Premiar Vencedor (+3,50 tokens)'; }
+    }
+}
+window.premiarVencedorTreino = premiarVencedorTreino;
 
 async function loadAdminNotifications() {
     const listEl = document.getElementById('adminNotifList');
