@@ -469,14 +469,19 @@ async function loadTodayRegistrations() {
             const slot = (() => {
                 const d = r.slotDisplay;
                 if (d && !/^\d{5,}/.test(String(d))) {
-                    // Normalizar formato antigo "Vaga #X" → "Slot X"
-                    return String(d).replace(/^Vaga\s*#?(\d+)$/, 'Slot $1').replace(/^Vaga\s*([A-Za-z])$/, 'Slot $1');
+                    // Normalizar formatos antigos e Liga para o padrão atual
+                    return String(d)
+                        .replace(/^Vaga\s*#?(\d+)$/, 'Slot $1')   // "Vaga #3" → "Slot 3"
+                        .replace(/^Vaga\s*([A-Za-z])$/, 'Letra $1') // "Vaga J" → "Letra J"
+                        .replace(/^Slot\s+([A-Za-z])$/, 'Letra $1'); // "Slot J" → "Letra J"
                 }
                 const n = Number(r.slot || r.slotNumber || 0);
                 return (n > 0 && n <= 9999) ? `Slot ${n}` : '';
             })();
             const schedule = r.schedule || r.hour || '';
-            const name = r.title || r.eventType || r.teamName || 'Evento';
+            // Remover sufixo de slot/letra do título (já aparece na linha abaixo)
+            const name = (r.title || r.eventType || r.teamName || 'Evento')
+                .replace(/\s*[-–]\s*(Slot\s*\d+|Letra\s*[A-Za-z]|Vaga\s*#?\d+|Vaga\s*[A-Za-z]|Grupo\s+\d+\s*[•·]\s*Slot\s*\d+)$/i, '');
             return `
             <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f3f4f6;last-child:border-bottom:none">
                 <div style="width:38px;height:38px;background:linear-gradient(135deg,#ede9fe,#dbeafe);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0">${icon}</div>
@@ -3779,7 +3784,7 @@ function renderNotifications(notifs, readIds) {
                 const isLiga = n.slotList.length === 15;
                 const rows = n.slotList.map((s, idx) => {
                     const label = isLiga
-                        ? `Slot ${String.fromCharCode(65 + idx)}`
+                        ? `Letra ${String.fromCharCode(65 + idx)}`
                         : `Slot ${idx + 1}`;
                     const teamDisplay = s.teamName
                         ? `<span style="font-weight:700;color:#1e1b4b">${escapeHtml(s.teamName)}</span>`
