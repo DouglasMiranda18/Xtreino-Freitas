@@ -597,9 +597,11 @@ window.confirmarParticipacao = async function() {
                 _w('date', '==', _bonusLink.date)
             ));
             const _linkH = String(_bonusLink.schedule || '').match(/(\d+)/)?.[1] || '';
+            const _validStOff = new Set(['paid', 'confirmed', 'approved']);
             _snap.forEach(d => {
                 const r = d.data();
                 if (r.bonusCode === _bonusLink.code) return; // pular inscrições desta própria vaga bônus
+                if (!_validStOff.has(r.status)) return; // ignorar pending
                 const _regH = String(r.schedule || r.hour || '').match(/(\d+)/)?.[1] || '';
                 if (!_linkH || _regH === _linkH) _offsetRegulares++;
             });
@@ -624,7 +626,12 @@ window.confirmarParticipacao = async function() {
             const _contadorBonus = (bd.usedCount || 0) + 1;
             slotNum = _offsetRegulares + _contadorBonus;
             const novoStatus = _contadorBonus >= bd.quantity ? 'expirado' : 'ativo';
-            const slotDisplay = `Vaga #${slotNum}`;
+            // Modo Liga usa letras (A, B, C...) — demais eventos usam #número
+            const _evTL = String(_bonusLink.eventType || '').toLowerCase();
+            const _isLigaBon = _evTL === 'modo-liga' || _evTL.includes('liga') || _evTL.includes('modo');
+            const slotDisplay = _isLigaBon
+                ? `Vaga ${String.fromCharCode(64 + slotNum)}`
+                : `Vaga #${slotNum}`;
 
             // Atualiza contador no bonus_links (SÓ o contador bônus, sem offset)
             tx.update(bonusRef, {
