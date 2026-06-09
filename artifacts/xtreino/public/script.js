@@ -5872,6 +5872,10 @@ function _calEventHours(eventType) {
     if (t === 'modo-liga')       return ['14','15','17','18'];
     if (t === 'semanal-freitas') return ['20','21','22'];
     if (t === 'camp-freitas')    return ['19','20','21','22','23'];
+    // Eventos dinâmicos: usar slots do scheduleConfig
+    if (typeof scheduleConfig !== 'undefined' && scheduleConfig[eventType]?.slots?.length > 0) {
+        return scheduleConfig[eventType].slots.map(s => String(s).replace(/\D/g, ''));
+    }
     return [];
 }
 
@@ -6194,6 +6198,14 @@ function isValidScheduleDate(dateStr, eventType) {
     if (eventType === 'modo-liga' || eventType === 'semanal-freitas') {
         const dayOfWeek = date.getDay();
         return dayOfWeek >= 1 && dayOfWeek <= 5;
+    }
+
+    // Eventos dinâmicos/desconhecidos: respeitar allowedWeekdays do scheduleConfig
+    if (typeof scheduleConfig !== 'undefined' && scheduleConfig[eventType]) {
+        const cfg = scheduleConfig[eventType];
+        if (Array.isArray(cfg.allowedWeekdays) && cfg.allowedWeekdays.length > 0) {
+            return cfg.allowedWeekdays.includes(date.getDay());
+        }
     }
 
     // Por padrão: qualquer dia não-passado é válido
