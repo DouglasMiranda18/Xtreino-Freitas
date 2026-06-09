@@ -190,11 +190,14 @@ async function _carregarListaSlots() {
 
         if (allRegs.size === 0) return;
 
-        // Ordenar por slot numérico (ignorar timestamps > 9999)
+        // Ordenar por slot numérico; tiebreaker por createdAt (cobre dados antigos sem slot)
         const slots = [...allRegs.values()].sort((a, b) => {
             const na = _slotNum(a.slot, a.slotNumber) ?? 9999;
             const nb = _slotNum(b.slot, b.slotNumber) ?? 9999;
-            return na - nb;
+            if (na !== nb) return na - nb;
+            const ta = a.createdAt?.seconds ?? 0;
+            const tb = b.createdAt?.seconds ?? 0;
+            return ta - tb;
         });
 
         const regulares = slots.filter(s => s._origem === 'regular').length;
