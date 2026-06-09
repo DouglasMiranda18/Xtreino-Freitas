@@ -621,15 +621,18 @@ async function loadInscritos(evId) {
             bySchedule[key].regs.push(r);
         });
 
-        // Ordena dentro de cada grupo por slot → createdAt
+        // Ordena dentro de cada grupo por createdAt (chegada) — slotNumber como fallback
         Object.values(bySchedule).forEach(group => {
             group.regs.sort((a, b) => {
+                const ta = a.createdAt?.seconds ?? null;
+                const tb = b.createdAt?.seconds ?? null;
+                if (ta !== null && tb !== null) return ta - tb;
                 const sa = a.slot != null ? Number(a.slot) : (a.slotNumber != null ? Number(a.slotNumber) : null);
                 const sb = b.slot != null ? Number(b.slot) : (b.slotNumber != null ? Number(b.slotNumber) : null);
                 if (sa !== null && sb !== null) return sa - sb;
                 if (sa !== null) return -1;
                 if (sb !== null) return 1;
-                return (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0);
+                return 0;
             });
             // Deduplicação por ID de documento
             const seenIds = new Set();
