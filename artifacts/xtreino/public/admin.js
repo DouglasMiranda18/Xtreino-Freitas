@@ -13341,3 +13341,75 @@ window.deleteBonusLink = async function(id) {
         alert('Erro ao excluir: ' + err.message);
     }
 };
+
+// ── Migração: corrigir slots bônus corrompidos ────────────────────────────────
+// Uso: no console do navegador rode  fixarSlotsBonus('ID_DO_BONUS_LINK')
+// Corrige registrations bônus com slots inflados + redefine usedCount correto.
+window.fixarSlotsBonus = async function(bonusLinkId) {
+    if (!window.firebaseDb) { console.error('[Fix] firebaseDb não disponível.'); return; }
+    if (!bonusLinkId) { console.error('[Fix] Passe o ID do bonus_link como argumento.'); return; }
+
+    const FS = 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+    const {
+        collection, doc, getDoc, getDocs, query, where, writeBatch, serverTimestamp
+    } = await import(FS);
+
+    const db = window.firebaseDb;
+
+    // 1. Ler o bonus_link
+    const blSnap = await getDoc(doc(db, 'bonus_links', bonusLinkId));
+    if (!blSnap.exists()) { console.error('[Fix] bonus_link não encontrado:', bonusLinkId); return; }
+    const bl = blSnap.data();
+    console.log('[Fix] bonus_link carregado:', bl.eventType, bl.date, bl.schedule, '| quantity:', bl.quantity, '| usedCount atual:', bl.usedCount);
+
+    // 2. Buscar inscrições bônus (pelo bonusCode)
+    const bonusSnap = await getDocs(query(
+        collection(db, 'registrations'),
+        where('bonusCode', '==', bl.code)
+    ));
+    const bonusRegs = bonusSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    bonusRegs.sort((a, b) => {
+        const ta = a.createdAt?.toMillis?.() ?? a.createdAt ?? 0;
+        const tb = b.createdAt?.toMillis?.() ?? b.createdAt ?? 0;
+        return ta - tb;
+    });
+    console.log('[Fix]', bonusRegs.length, 'inscrições bônus encontradas');
+
+    // 3. Contar vagas regulares no mesmo horário (para calcular offset)
+    let offsetRegulares = 0;
+    const regSnap = await getDocs(query(
+        collection(db, 'registrations'),
+        where('eventType', '==', bl.eventType),
+        where('date', '==', bl.date)
+    ));
+    const linkH = String(bl.schedule || '').match(/(\d+)/)?.[1] || '';
+    regSnap.forEach(d => {
+        const r = d.data();
+        if (r.bonusCode === bl.code) return; // pular as bônus desta vaga
+        const regH = String(r.schedule || r.hour || '').match(/(\d+)/)?.[1] || '';
+        if (!linkH || regH === linkH) offsetRegulares++;
+    });
+    console.log('[Fix] offset regulares:', offsetRegulares);
+
+    // 4. Re-atribuir slots: offset+1, offset+2, offset+3...
+    const batch = writeBatch(db);
+    bonusRegs.forEach((reg, i) => {
+        const novoSlot        = offsetRegulares + (i + 1);
+        const novoSlotDisplay = `Vaga #${novoSlot}`;
+        const regRef = doc(db, 'registrations', reg.id);
+        batch.update(regRef, { slot: novoSlot, slotDisplay: novoSlotDisplay, slotNumber: novoSlot });
+        console.log(`[Fix]  ${reg.teamName || reg.id}: slot ${reg.slot} → ${novoSlot} (${novoSlotDisplay})`);
+    });
+
+    // 5. Corrigir usedCount no bonus_link (= quantidade real de bônus inscritos)
+    const novoUsedCount = bonusRegs.length;
+    const novoStatus = novoUsedCount >= bl.quantity ? 'expirado' : 'ativo';
+    batch.update(doc(db, 'bonus_links', bonusLinkId), {
+        usedCount: novoUsedCount,
+        status: novoStatus
+    });
+    console.log(`[Fix] bonus_link usedCount: ${bl.usedCount} → ${novoUsedCount} | status: ${novoStatus}`);
+
+    await batch.commit();
+    console.log('[Fix] ✅ Migração concluída com sucesso!');
+};
