@@ -465,7 +465,13 @@ async function loadTodayRegistrations() {
         container.innerHTML = todayRegs.map(r => {
             const icon = eventIcons[r.eventType] || '🎮';
             const s    = statusInfo[r.status] || statusInfo.pending;
-            const slot = r.slotDisplay || (r.slot ? `Vaga #${r.slot}` : '');
+            // Problema 3: ignorar slot/slotDisplay que sejam timestamps (> 9999)
+            const slot = (() => {
+                const d = r.slotDisplay;
+                if (d && !/^\d{5,}/.test(String(d))) return d;
+                const n = Number(r.slot || r.slotNumber || 0);
+                return (n > 0 && n <= 9999) ? `Vaga #${n}` : '';
+            })();
             const schedule = r.schedule || r.hour || '';
             const name = r.title || r.eventType || r.teamName || 'Evento';
             return `
