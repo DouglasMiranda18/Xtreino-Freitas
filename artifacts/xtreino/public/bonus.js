@@ -212,24 +212,32 @@ async function _carregarListaSlots() {
                 </h3>
                 ${regulares > 0 ? `<p class="text-xs text-gray-500 mb-3">${regulares} regular${regulares > 1 ? 'es' : ''} + ${bonus} bônus</p>` : ''}
                 <div class="space-y-2">
-                    ${slots.map(s => {
-                        const num = _slotNum(s.slot, s.slotNumber);
-                        const isBon = s._origem === 'bonus';
-                        return `
-                        <div class="flex items-center gap-3 bg-gray-700/50 rounded-xl px-3 py-2.5">
-                            ${s.teamLogoThumb
-                                ? `<img src="${_esc(s.teamLogoThumb)}" class="w-9 h-9 rounded-lg object-cover border border-gray-600 flex-shrink-0">`
-                                : `<div class="w-9 h-9 rounded-lg bg-gray-600 flex items-center justify-center flex-shrink-0"><i class="fas fa-gamepad text-gray-400 text-sm"></i></div>`
-                            }
-                            <div class="flex-1 min-w-0">
-                                <div class="text-white font-bold text-sm truncate">${_esc(s.teamName || '—')}</div>
-                                ${isBon ? '<div class="text-xs text-orange-400">vaga bônus</div>' : '<div class="text-xs text-gray-500">vaga regular</div>'}
-                            </div>
-                            <span class="text-xs font-bold bg-gray-800 border rounded-lg px-2 py-1 flex-shrink-0 ${isBon ? 'text-orange-400 border-orange-500/30' : 'text-gray-400 border-gray-600'}">
-                                ${num ? `#${num}` : '—'}
-                            </span>
-                        </div>`;
-                    }).join('')}
+                    ${(() => {
+                        const _evTLista = String(_bonusLink?.eventType || '').toLowerCase();
+                        const _isLigaLista = _evTLista === 'modo-liga' || _evTLista.includes('liga') || _evTLista.includes('modo');
+                        return slots.map((s, idx) => {
+                            const num = _slotNum(s.slot, s.slotNumber);
+                            const isBon = s._origem === 'bonus';
+                            // Modo Liga: letra pela posição (A, B, C...) — demais: #número
+                            const slotLabel = _isLigaLista
+                                ? String.fromCharCode(65 + idx)
+                                : (num ? `#${num}` : '—');
+                            return `
+                            <div class="flex items-center gap-3 bg-gray-700/50 rounded-xl px-3 py-2.5">
+                                ${s.teamLogoThumb
+                                    ? `<img src="${_esc(s.teamLogoThumb)}" class="w-9 h-9 rounded-lg object-cover border border-gray-600 flex-shrink-0">`
+                                    : `<div class="w-9 h-9 rounded-lg bg-gray-600 flex items-center justify-center flex-shrink-0"><i class="fas fa-gamepad text-gray-400 text-sm"></i></div>`
+                                }
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-white font-bold text-sm truncate">${_esc(s.teamName || '—')}</div>
+                                    ${isBon ? '<div class="text-xs text-orange-400">vaga bônus</div>' : '<div class="text-xs text-gray-500">vaga regular</div>'}
+                                </div>
+                                <span class="text-xs font-bold bg-gray-800 border rounded-lg px-2 py-1 flex-shrink-0 ${isBon ? 'text-orange-400 border-orange-500/30' : 'text-gray-400 border-gray-600'}">
+                                    ${slotLabel}
+                                </span>
+                            </div>`;
+                        }).join('');
+                    })()}
                 </div>
             </div>
         `;
