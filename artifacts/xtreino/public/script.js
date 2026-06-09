@@ -695,7 +695,9 @@ window.openCredenciaisModal = function(notifId) {
         const slots = Array.isArray(n.slotList) ? n.slotList : [];
         if (slots.length > 0) {
             listEl2.innerHTML = slots.map(s => {
-                const num = String(s.slot).padStart(2, '0');
+                // Problema 3: slot como timestamp → mostrar '?' em vez do número enorme
+                const _rawN = Number(s.slot);
+                const num = (_rawN > 0 && _rawN <= 9999) ? String(_rawN).padStart(2, '0') : '?';
                 const name = s.teamName || '';
                 const filled = !!name;
                 return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:${filled ? 'linear-gradient(135deg,#f5f3ff,#eef2ff)' : '#f9fafb'};border:1.5px solid ${filled ? '#c4b5fd' : '#e5e7eb'}">
@@ -8209,8 +8211,10 @@ function showSlotConfirmationModal(slots, eventName, isLiga, eventId, groupLink)
                     }
                     innerHtml = `<div class="font-bold text-orange-600 text-sm">SUA LETRA É ${letra} — EQUIPE: ${s.team}</div><div class="text-sm font-semibold text-green-700 mt-0.5">Inscrição confirmada!</div>`;
                 } else {
-                    const slotSection = s.slot != null
-                        ? `<div class="mt-0.5"><span class="text-2xl font-black text-orange-600">${s.slot}</span><span class="text-xs font-semibold text-gray-500 ml-1">← Esse é o seu SLOT na Sala.</span></div>`
+                    // Problema 3: só mostrar slot se for número sequencial (não timestamp)
+                    const _slotN = Number(s.slot);
+                    const slotSection = (_slotN > 0 && _slotN <= 9999)
+                        ? `<div class="mt-0.5"><span class="text-2xl font-black text-orange-600">${_slotN}</span><span class="text-xs font-semibold text-gray-500 ml-1">← Esse é o seu SLOT na Sala.</span></div>`
                         : `<div class="text-sm font-semibold text-green-700">Inscrição confirmada!</div>`;
                     innerHtml = `<div class="font-semibold text-gray-800 text-sm">${s.team}</div>${slotSection}`;
                 }
