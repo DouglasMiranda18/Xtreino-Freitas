@@ -7923,8 +7923,8 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts, targetDates = n
             if (data.slot != null || data.slotNumber != null) {
                 num = Number(data.slot ?? data.slotNumber) || 0;
             } else if (data.slotDisplay) {
-                // suporta "Slot A"→1, "Slot B"→2, "Slot 3"→3 e formatos antigos "Vaga #3"→3
-                const _sr = String(data.slotDisplay).replace(/^(Slot\s*#?|Vaga\s*#?)/i, '').trim();
+                // suporta "Slot 3"→3, "Letra A"→1, "Vaga #3"→3 e variantes
+                const _sr = String(data.slotDisplay).replace(/^(Letra\s*|Slot\s*#?|Vaga\s*#?)/i, '').trim();
                 if (/^[A-Za-z]$/.test(_sr)) num = _sr.toUpperCase().charCodeAt(0) - 64;
                 else { const _sn = parseInt(_sr, 10); if (!isNaN(_sn)) num = _sn; }
             }
@@ -7978,7 +7978,7 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts, targetDates = n
 function computeSlotDisplay(slotNumber, vagas, grupos, isLiga, eventType = '') {
     // Modo Liga: exibir letra (A, B, C...) em vez de número
     if (isLiga || String(eventType).toLowerCase() === 'modo-liga') {
-        return `Slot ${String.fromCharCode(64 + slotNumber)}`;
+        return `Letra ${String.fromCharCode(64 + slotNumber)}`;
     }
     const slotsPerGroup = grupos > 1 ? Math.ceil(vagas / grupos) : vagas;
     if (vagas > 0 && grupos > 1 && slotsPerGroup > 0) {
@@ -8095,7 +8095,7 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
                     let slotDisplay = null;
                     if (!isLiga) {
                         if (rawEventType === 'modo-liga') {
-                            slotDisplay = `Slot ${String.fromCharCode(64 + slotNumber)}`;
+                            slotDisplay = `Letra ${String.fromCharCode(64 + slotNumber)}`;
                         } else if (vagas > 0 && grupos > 1 && slotsPerGroup > 0) {
                             const groupNum = Math.ceil(slotNumber / slotsPerGroup);
                             const posInGroup = slotNumber - (groupNum - 1) * slotsPerGroup;
@@ -8208,22 +8208,23 @@ function showSlotConfirmationModal(slots, eventName, isLiga, eventId, groupLink)
             const rows = bySchedule[sched].map((s, sIdx) => {
                 let innerHtml;
                 if (eventId === 'modo-liga') {
-                    // Modo Liga: exibir letra em destaque
-                    // "Vaga A" → "A" | "Vaga #2" → "B" | "Vaga 3" → "C"
-                    const _raw = s.slot ? s.slot.replace(/^Vaga\s*/i, '').trim() : '';
+                    // Modo Liga: exibir letra em destaque — suporta "Letra A", "Slot A", "Vaga A"
+                    const _raw = s.slot ? s.slot.replace(/^(Letra|Slot|Vaga)\s*/i, '').trim() : '';
                     let letra;
                     if (/^[A-Za-z]$/.test(_raw)) {
                         letra = _raw.toUpperCase();
                     } else {
-                        const n = parseInt(_raw.replace(/^#/, ''), 10);
+                        const n = parseInt(_raw, 10);
                         letra = (!isNaN(n) && n > 0) ? String.fromCharCode(64 + n) : '?';
                     }
                     innerHtml = `<div class="font-bold text-orange-600 text-sm">SUA LETRA É ${letra} — EQUIPE: ${s.team}</div><div class="text-sm font-semibold text-green-700 mt-0.5">Inscrição confirmada!</div>`;
                 } else {
-                    // Problema 3: só mostrar slot se for número sequencial (não timestamp)
-                    const _slotN = Number(s.slot);
+                    // Extrair número do slot (suporta "Slot 3", "Vaga #3" ou número puro)
+                    const _rawSlot = String(s.slot || '');
+                    const _matchSlot = _rawSlot.match(/(\d+)\s*$/);
+                    const _slotN = _matchSlot ? parseInt(_matchSlot[1], 10) : Number(s.slot);
                     const slotSection = (_slotN > 0 && _slotN <= 9999)
-                        ? `<div class="mt-0.5"><span class="text-2xl font-black text-orange-600">${_slotN}</span><span class="text-xs font-semibold text-gray-500 ml-1">← Esse é o seu SLOT na Sala.</span></div>`
+                        ? `<div class="mt-1"><span class="inline-flex items-center gap-1 bg-orange-100 border-2 border-orange-400 rounded-lg px-3 py-1"><span class="text-xs font-black text-orange-600 uppercase tracking-widest">SLOT</span><span class="text-base font-black text-orange-500 mx-0.5">—</span><span class="text-2xl font-black text-orange-700">${_slotN}</span></span></div>`
                         : `<div class="text-sm font-semibold text-green-700">Inscrição confirmada!</div>`;
                     innerHtml = `<div class="font-semibold text-gray-800 text-sm">${s.team}</div>${slotSection}`;
                 }
@@ -9996,7 +9997,7 @@ window.openPixModal = function(pixData, regIds, externalRef, assignedSlotsData, 
             slotInfoEl.innerHTML = assignedSlotsData.map(function(s) {
                 // Para modo-liga: exibir letra no círculo em vez do número
                 var _isModoLiga = rawEventType === 'modo-liga';
-                var _slotRaw = s.slotDisplay ? s.slotDisplay.replace(/^(Slot\s*#?|Vaga\s*#?)/i, '').trim() : '';
+                var _slotRaw = s.slotDisplay ? s.slotDisplay.replace(/^(Letra\s*|Slot\s*#?|Vaga\s*#?)/i, '').trim() : '';
                 var _slotBadge;
                 if (_isModoLiga) {
                     if (/^[A-Za-z]$/.test(_slotRaw)) {
