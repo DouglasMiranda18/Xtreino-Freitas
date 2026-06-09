@@ -221,10 +221,10 @@ async function _carregarListaSlots() {
                         return slots.map((s, idx) => {
                             const num = _slotNum(s.slot, s.slotNumber);
                             const isBon = s._origem === 'bonus';
-                            // Modo Liga: letra pela posição (A, B, C...) — demais: #número
+                            // Modo Liga: letra pela posição (A, B, C...) — demais: #posição sequencial
                             const slotLabel = _isLigaLista
                                 ? String.fromCharCode(65 + idx)
-                                : (num ? `#${num}` : '—');
+                                : `#${idx + 1}`;
                             return `
                             <div class="flex items-center gap-3 bg-gray-700/50 rounded-xl px-3 py-2.5">
                                 ${s.teamLogoThumb
