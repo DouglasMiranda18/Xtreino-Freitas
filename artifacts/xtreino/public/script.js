@@ -7923,10 +7923,10 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts, targetDates = n
             if (data.slot != null || data.slotNumber != null) {
                 num = Number(data.slot ?? data.slotNumber) || 0;
             } else if (data.slotDisplay) {
-                // modo-liga: "Vaga A"→1, "Vaga B"→2, "Vaga #3"→3
-                const _sr = String(data.slotDisplay).replace(/^Vaga\s*/i, '').trim();
+                // suporta "Slot A"→1, "Slot B"→2, "Slot 3"→3 e formatos antigos "Vaga #3"→3
+                const _sr = String(data.slotDisplay).replace(/^(Slot\s*#?|Vaga\s*#?)/i, '').trim();
                 if (/^[A-Za-z]$/.test(_sr)) num = _sr.toUpperCase().charCodeAt(0) - 64;
-                else { const _sn = parseInt(_sr.replace(/^#/, ''), 10); if (!isNaN(_sn)) num = _sn; }
+                else { const _sn = parseInt(_sr, 10); if (!isNaN(_sn)) num = _sn; }
             }
             // Ignorar timestamps gravados como slot (> 9999)
             if (num > 0 && num <= 9999) {
@@ -7974,19 +7974,19 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts, targetDates = n
     return startSlotsFallback;
 }
 
-// ===== Helper: calcula o texto do slot (Vaga #N ou Grupo X • Vaga Y) =====
+// ===== Helper: calcula o texto do slot (Slot N ou Grupo X • Slot Y) =====
 function computeSlotDisplay(slotNumber, vagas, grupos, isLiga, eventType = '') {
     // Modo Liga: exibir letra (A, B, C...) em vez de número
     if (isLiga || String(eventType).toLowerCase() === 'modo-liga') {
-        return `Vaga ${String.fromCharCode(64 + slotNumber)}`;
+        return `Slot ${String.fromCharCode(64 + slotNumber)}`;
     }
     const slotsPerGroup = grupos > 1 ? Math.ceil(vagas / grupos) : vagas;
     if (vagas > 0 && grupos > 1 && slotsPerGroup > 0) {
         const groupNum = Math.ceil(slotNumber / slotsPerGroup);
         const posInGroup = slotNumber - (groupNum - 1) * slotsPerGroup;
-        return `Grupo ${groupNum} • Vaga ${posInGroup}`;
+        return `Grupo ${groupNum} • Slot ${posInGroup}`;
     }
-    return `Vaga #${slotNumber}`;
+    return `Slot ${slotNumber}`;
 }
 
 // ===== EVENTO GRÁTIS: Inscrição direta com atribuição de slot =====
@@ -8095,13 +8095,13 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
                     let slotDisplay = null;
                     if (!isLiga) {
                         if (rawEventType === 'modo-liga') {
-                            slotDisplay = `Vaga ${String.fromCharCode(64 + slotNumber)}`;
+                            slotDisplay = `Slot ${String.fromCharCode(64 + slotNumber)}`;
                         } else if (vagas > 0 && grupos > 1 && slotsPerGroup > 0) {
                             const groupNum = Math.ceil(slotNumber / slotsPerGroup);
                             const posInGroup = slotNumber - (groupNum - 1) * slotsPerGroup;
-                            slotDisplay = `Grupo ${groupNum} • Vaga ${posInGroup}`;
+                            slotDisplay = `Grupo ${groupNum} • Slot ${posInGroup}`;
                         } else {
-                            slotDisplay = `Vaga #${slotNumber}`;
+                            slotDisplay = `Slot ${slotNumber}`;
                         }
                     }
 
@@ -9996,23 +9996,26 @@ window.openPixModal = function(pixData, regIds, externalRef, assignedSlotsData, 
             slotInfoEl.innerHTML = assignedSlotsData.map(function(s) {
                 // Para modo-liga: exibir letra no círculo em vez do número
                 var _isModoLiga = rawEventType === 'modo-liga';
-                var _slotRaw = s.slotDisplay ? s.slotDisplay.replace(/^Vaga\s*/i, '').trim() : '';
+                var _slotRaw = s.slotDisplay ? s.slotDisplay.replace(/^(Slot\s*#?|Vaga\s*#?)/i, '').trim() : '';
                 var _slotBadge;
                 if (_isModoLiga) {
                     if (/^[A-Za-z]$/.test(_slotRaw)) {
                         _slotBadge = _slotRaw.toUpperCase();
                     } else {
-                        var _n = parseInt(_slotRaw.replace(/^#/, ''), 10);
+                        var _n = parseInt(_slotRaw, 10);
                         _slotBadge = (!isNaN(_n) && _n > 0) ? String.fromCharCode(64 + _n) : '✓';
                     }
                 } else {
                     _slotBadge = s.slotNum || '✓';
                 }
+                var _slotLabel = _isModoLiga
+                    ? (s.slotDisplay || '')
+                    : (s.slotNum ? 'Seu Slot é Slot ' + s.slotNum : (s.slotDisplay || ''));
                 return '<div class="flex items-start gap-3 py-1 border-b border-green-100 last:border-0">' +
                     '<div class="w-8 h-8 rounded-full bg-green-600 text-white text-xs font-black flex items-center justify-center flex-shrink-0">' + _slotBadge + '</div>' +
                     '<div class="min-w-0">' +
                     '<p class="font-bold text-gray-800 text-sm truncate">' + (s.team || '—') + '</p>' +
-                    '<p class="text-xs text-gray-500">' + (s.schedule || '') + (s.slotDisplay ? ' · ' + s.slotDisplay : '') + '</p>' +
+                    '<p class="text-xs text-gray-500">' + (s.schedule || '') + (_slotLabel ? ' · ' + _slotLabel : '') + '</p>' +
                     (s.whatsappLink ? '<a href="' + s.whatsappLink + '" target="_blank" class="text-xs text-green-600 hover:underline flex items-center gap-1 mt-0.5"><i class="fab fa-whatsapp"></i> Entrar no grupo</a>' : '') +
                     '</div></div>';
             }).join('');
