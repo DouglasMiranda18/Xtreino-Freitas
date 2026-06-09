@@ -3943,15 +3943,19 @@ window.showWarningToast = function(message, title = 'Atenção') {
         _matchedDocs.push(d);
       });
 
-      // Ordenar por slot crescente → createdAt (= ordem de compra), igual ao painel Inscritos
+      // Ordenar por tempo de chegada (createdAt) — posição sequencial global, igual ao painel bônus
+      // Fallback: slotNumber quando createdAt ausente
       _matchedDocs.sort((a, b) => {
         const ra = a.data(), rb = b.data();
+        const ta = ra.createdAt?.seconds ?? null;
+        const tb = rb.createdAt?.seconds ?? null;
+        if (ta !== null && tb !== null) return ta - tb;
         const sa = ra.slot != null ? Number(ra.slot) : (ra.slotNumber != null ? Number(ra.slotNumber) : null);
         const sb = rb.slot != null ? Number(rb.slot) : (rb.slotNumber != null ? Number(rb.slotNumber) : null);
         if (sa !== null && sb !== null) return sa - sb;
         if (sa !== null) return -1;
         if (sb !== null) return 1;
-        return (ra.createdAt?.seconds ?? 0) - (rb.createdAt?.seconds ?? 0);
+        return 0;
       });
 
       _matchedDocs.forEach((d, idx) => {
@@ -12892,15 +12896,18 @@ async function repairEventSlots() {
             bySchedule[sched].push({ id: d.id, data: r });
         });
 
-        // Dentro de cada horário, ordenar por slotNumber existente → createdAt como fallback
+        // Dentro de cada horário, ordenar por createdAt (chegada) — slotNumber como fallback
         Object.values(bySchedule).forEach(arr => {
             arr.sort((a, b) => {
+                const ta = a.data.createdAt?.seconds ?? null;
+                const tb = b.data.createdAt?.seconds ?? null;
+                if (ta !== null && tb !== null) return ta - tb;
                 const sa = a.data.slot != null ? Number(a.data.slot) : (a.data.slotNumber != null ? Number(a.data.slotNumber) : null);
                 const sb = b.data.slot != null ? Number(b.data.slot) : (b.data.slotNumber != null ? Number(b.data.slotNumber) : null);
                 if (sa !== null && sb !== null) return sa - sb;
                 if (sa !== null) return -1;
                 if (sb !== null) return 1;
-                return (a.data.createdAt?.seconds ?? 0) - (b.data.createdAt?.seconds ?? 0);
+                return 0;
             });
         });
 
