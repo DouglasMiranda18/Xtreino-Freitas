@@ -2132,5 +2132,28 @@
   #purchaseModal .grid > div:last-child {
     padding: 0.875rem !important;
   }
+
+  /* Prevenir scroll lateral dentro do modal Reservar Vaga */
+  #scheduleModal > div > * {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+  #scheduleModal #customCalendar,
+  #scheduleModal #customCalendar * {
+    box-sizing: border-box !important;
+    max-width: 100% !important;
+  }
+  #scheduleModal #customCalendar {
+    overflow-x: hidden !important;
+    width: 100% !important;
+  }
+  #scheduleModal .grid {
+    min-width: 0 !important;
+  }
+  #scheduleModal .grid > * {
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
 }
 </style>
