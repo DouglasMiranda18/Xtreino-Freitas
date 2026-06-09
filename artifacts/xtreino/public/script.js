@@ -694,14 +694,16 @@ window.openCredenciaisModal = function(notifId) {
     if (listEl2) {
         const slots = Array.isArray(n.slotList) ? n.slotList : [];
         if (slots.length > 0) {
-            listEl2.innerHTML = slots.map(s => {
-                // Problema 3: slot como timestamp → mostrar '?' em vez do número enorme
-                const _rawN = Number(s.slot);
-                const num = (_rawN > 0 && _rawN <= 9999) ? String(_rawN).padStart(2, '0') : '?';
+            // Modo Liga (15 vagas) → exibe letra (A, B, C...); demais → número (01, 02...)
+            const _isLigaSlot = slots.length === 15;
+            listEl2.innerHTML = slots.map((s, idx) => {
+                const label = _isLigaSlot
+                    ? String.fromCharCode(65 + idx)
+                    : (() => { const _rawN = Number(s.slot); return (_rawN > 0 && _rawN <= 9999) ? String(_rawN).padStart(2, '0') : '?'; })();
                 const name = s.teamName || '';
                 const filled = !!name;
                 return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:${filled ? 'linear-gradient(135deg,#f5f3ff,#eef2ff)' : '#f9fafb'};border:1.5px solid ${filled ? '#c4b5fd' : '#e5e7eb'}">
-                    <span style="min-width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:${filled ? 'linear-gradient(135deg,#7c3aed,#4f46e5)' : '#e5e7eb'};color:${filled ? '#fff' : '#9ca3af'};border-radius:8px;font-size:11px;font-weight:900;flex-shrink:0">${num}</span>
+                    <span style="min-width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:${filled ? 'linear-gradient(135deg,#7c3aed,#4f46e5)' : '#e5e7eb'};color:${filled ? '#fff' : '#9ca3af'};border-radius:8px;font-size:11px;font-weight:900;flex-shrink:0">${label}</span>
                     <span style="font-size:13px;font-weight:${filled ? '700' : '400'};color:${filled ? '#1f2937' : '#9ca3af'};flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${filled ? name : 'Vaga livre'}</span>
                     ${filled ? '<span style="font-size:10px">✅</span>' : ''}
                 </div>`;
