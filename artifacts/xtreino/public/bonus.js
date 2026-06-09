@@ -190,17 +190,17 @@ async function _carregarListaSlots() {
 
         if (allRegs.size === 0) return;
 
-        // Ordenar: regulares SEMPRE antes dos bônus (independente do slotNumber armazenado)
-        // Dentro de cada grupo: slotNumber crescente, createdAt como tiebreaker para nulls
-        const _sortFn = (a, b) => {
+        // Ordenar por tempo de chegada (createdAt) — quem chegou primeiro fica na posição mais baixa,
+        // independente de ser regular ou bônus. Fallback: slotNumber quando createdAt ausente.
+        const slots = [...allRegs.values()].sort((a, b) => {
+            const ta = a.createdAt?.seconds ?? null;
+            const tb = b.createdAt?.seconds ?? null;
+            if (ta !== null && tb !== null) return ta - tb;
+            // fallback para slotNumber quando createdAt não disponível
             const na = _slotNum(a.slot, a.slotNumber) ?? 9999;
             const nb = _slotNum(b.slot, b.slotNumber) ?? 9999;
-            if (na !== nb) return na - nb;
-            return (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0);
-        };
-        const _regulares = [...allRegs.values()].filter(s => s._origem === 'regular').sort(_sortFn);
-        const _bonus     = [...allRegs.values()].filter(s => s._origem === 'bonus').sort(_sortFn);
-        const slots = [..._regulares, ..._bonus];
+            return na - nb;
+        });
 
         const regulares = slots.filter(s => s._origem === 'regular').length;
         const bonus     = slots.filter(s => s._origem === 'bonus').length;
