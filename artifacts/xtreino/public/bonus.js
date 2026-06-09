@@ -225,6 +225,11 @@ async function _carregarListaSlots() {
                 </div>
             </div>
         `;
+        // Corrigir vagas restantes: totalCap - todos inscritos (regular + bônus)
+        // _renderizarInfoBonus() mostra valor provisório; aqui atualizamos com o real.
+        const elVagas = document.getElementById('bonusVagasRestantes');
+        if (elVagas) elVagas.textContent = Math.max(0, totalCap - slots.length);
+
     } catch (err) {
         console.error('[Bonus] Erro ao carregar lista de slots:', err);
     }
