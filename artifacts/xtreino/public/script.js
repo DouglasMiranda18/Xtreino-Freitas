@@ -5667,6 +5667,24 @@ function openScheduleModal(eventType) {
     // Resetar datas múltiplas selecionadas ao abrir
     selectedDates = [];
     renderSelectedDatesList();
+    // Inicializar calendário customizado com o mês atual (ou mês do evento para camp)
+    (() => {
+        const _inp = document.getElementById('schedDate');
+        const _existingVal = _inp?.value;
+        const _now = new Date();
+        const _pad = n => String(n).padStart(2, '0');
+        let _initYear, _initMonth;
+        if (_existingVal && /^\d{4}-\d{2}-\d{2}$/.test(_existingVal)) {
+            const [_ey, _em] = _existingVal.split('-').map(Number);
+            _initYear = _ey; _initMonth = _em - 1;
+        } else {
+            _initYear = _now.getFullYear(); _initMonth = _now.getMonth();
+            if (_inp) _inp.value = `${_initYear}-${_pad(_initMonth + 1)}-${_pad(_now.getDate())}`;
+        }
+        window._calState = { year: _initYear, month: _initMonth, lockedDates: new Set(), globalLocked: false };
+        renderCustomCalendar(_initYear, _initMonth);
+        loadLockedDatesForCalendar(eventType);
+    })();
     renderScheduleTimes();
     // Preenche dados se logado
     try {
@@ -5796,54 +5814,237 @@ function addSelectedDate() {
     if (!selectedDates.includes(date)) {
         selectedDates.push(date);
         renderSelectedDatesList();
+        const s = window._calState;
+        if (s) renderCustomCalendar(s.year, s.month);
     }
 }
 
 function removeSelectedDate(dateStr) {
     selectedDates = selectedDates.filter(d => d !== dateStr);
-    // Remove os horários associados a essa data
     selectedTimes = selectedTimes.filter(item => item.date !== dateStr);
     renderSelectedDatesList();
     updateReservationsSummary();
-    // Se a data removida for a data atualmente exibida, re-renderiza os horários
     const currentDate = document.getElementById('schedDate')?.value;
-    if (currentDate === dateStr) {
-        renderScheduleTimes();
-    }
+    if (currentDate === dateStr) renderScheduleTimes();
+    const s = window._calState;
+    if (s) renderCustomCalendar(s.year, s.month);
 }
 
 function clearSelectedDates() {
     selectedDates = [];
-    selectedTimes = []; // Remove todos os horários, pois não têm mais data associada
+    selectedTimes = [];
     renderSelectedDatesList();
     updateReservationsSummary();
     renderScheduleTimes();
+    const s = window._calState;
+    if (s) renderCustomCalendar(s.year, s.month);
 }
 
 function initScheduleDate() {
     const input = document.getElementById('schedDate');
+    if (!input) return;
     const today = new Date();
-    // Sempre mostra a data de hoje — a validação de dia da semana fica a cargo de renderScheduleTimes/isValidScheduleDate
     const y = today.getFullYear();
     const m = String(today.getMonth() + 1).padStart(2, '0');
     const d = String(today.getDate()).padStart(2, '0');
     input.value = `${y}-${m}-${d}`;
+    if (!window._calState) window._calState = { year: y, month: today.getMonth(), lockedDates: new Set(), globalLocked: false };
+    renderCustomCalendar(window._calState.year, window._calState.month);
 }
 function setSchedToday() {
-    initScheduleDate();
-    updateSelectedDate();
-    renderScheduleTimes();
+    const today = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    selectCalendarDate(`${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`);
 }
 function setSchedTomorrow() {
-    const input = document.getElementById('schedDate');
     const t = new Date();
     t.setDate(t.getDate() + 1);
-    const y = t.getFullYear();
-    const m = String(t.getMonth() + 1).padStart(2, '0');
-    const d = String(t.getDate()).padStart(2, '0');
-    input.value = `${y}-${m}-${d}`;
+    const pad = n => String(n).padStart(2, '0');
+    selectCalendarDate(`${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`);
+}
+
+// ===== CALENDÁRIO CUSTOMIZADO =====
+
+// Horas padrão de cada evento — usadas para detectar "dia totalmente travado"
+function _calEventHours(eventType) {
+    const t = String(eventType || '').toLowerCase();
+    if (t === 'xtreino-tokens')  return ['14','15','16','17','18','19','20','21','22','23'];
+    if (t === 'modo-liga')       return ['14','15','17','18'];
+    if (t === 'semanal-freitas') return ['20','21','22'];
+    if (t === 'camp-freitas')    return ['19','20','21','22','23'];
+    return [];
+}
+
+// Carrega travas do Firestore e re-renderiza o calendário (assíncrono, não bloqueia UI)
+async function loadLockedDatesForCalendar(eventType) {
+    const state = window._calState;
+    if (!state || !window.firebaseDb || !eventType) return;
+    try {
+        const { collection, query, where, getDocs, doc, getDoc } =
+            await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        // Checar trava geral
+        const gSnap = await getDoc(doc(window.firebaseDb, 'event_global_locks', eventType));
+        if (gSnap.exists() && gSnap.data().locked === true) {
+            state.globalLocked = true;
+            renderCustomCalendar(state.year, state.month);
+            return;
+        }
+        state.globalLocked = false;
+        // Buscar overrides travados (filtrar locked==true em JS para evitar índice composto)
+        const ovSnap = await getDocs(query(
+            collection(window.firebaseDb, 'schedule_overrides'),
+            where('eventType', '==', eventType)
+        ));
+        const defaultHours = _calEventHours(eventType);
+        const lockedByDate = {};
+        ovSnap.forEach(d => {
+            const data = d.data();
+            if (!data.locked || !data.date) return;
+            const hh = String(data.hour || data.hh || '').replace(/\D/g, '');
+            if (!hh) return;
+            if (!lockedByDate[data.date]) lockedByDate[data.date] = new Set();
+            lockedByDate[data.date].add(hh);
+        });
+        const lockedDates = new Set();
+        if (defaultHours.length > 0) {
+            for (const [date, hours] of Object.entries(lockedByDate)) {
+                if (defaultHours.every(h => hours.has(h))) lockedDates.add(date);
+            }
+        }
+        state.lockedDates = lockedDates;
+        renderCustomCalendar(state.year, state.month);
+    } catch (e) {
+        console.warn('[Cal] Erro ao carregar travas:', e);
+    }
+}
+
+function renderCustomCalendar(year, month) {
+    const container = document.getElementById('customCalendarContainer');
+    if (!container) return;
+    if (!window._calState) window._calState = {};
+    window._calState.year  = year;
+    window._calState.month = month;
+
+    const modal      = document.getElementById('scheduleModal');
+    const eventType  = modal?.dataset?.eventType || window._currentScheduleEventType || null;
+    const today      = new Date();
+    today.setHours(0, 0, 0, 0);
+    const pad        = n => String(n).padStart(2, '0');
+    const todayStr   = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+    const currentVal = document.getElementById('schedDate')?.value || '';
+    const selDates   = (typeof selectedDates !== 'undefined') ? selectedDates : [];
+    const lockedSet  = window._calState?.lockedDates || new Set();
+    const globalLocked = !!window._calState?.globalLocked;
+
+    const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                        'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    const dayNames   = ['D','S','T','Q','Q','S','S'];
+    const firstDow   = new Date(year, month, 1).getDay();
+    const daysInMon  = new Date(year, month + 1, 0).getDate();
+
+    let cells = '';
+    for (let i = 0; i < firstDow; i++) cells += '<div></div>';
+
+    for (let day = 1; day <= daysInMon; day++) {
+        const dateStr    = `${year}-${pad(month + 1)}-${pad(day)}`;
+        const isPast     = dateStr < todayStr;
+        const isToday    = dateStr === todayStr;
+        const isSelected = dateStr === currentVal;
+        const isInList   = selDates.includes(dateStr);
+        const isLocked   = !isPast && (globalLocked || lockedSet.has(dateStr));
+        const isValid    = !isPast && isValidScheduleDate(dateStr, eventType);
+
+        let cls, click, inner;
+        if (isLocked) {
+            cls   = 'cursor-not-allowed';
+            click = '';
+            inner = `<span class="text-[11px] leading-none text-red-400">${day}</span><span class="text-[8px] leading-none text-red-400">🔒</span>`;
+        } else if (isPast || !isValid) {
+            cls   = 'text-gray-300 cursor-not-allowed';
+            click = '';
+            inner = `<span>${day}</span>`;
+        } else if (isSelected && isInList) {
+            cls   = 'bg-orange-500 text-white rounded-xl font-black cursor-pointer shadow-sm';
+            click = `onclick="selectCalendarDate('${dateStr}')"`;
+            inner = `<span>${day}</span><span class="block w-1 h-1 rounded-full bg-white opacity-80 mt-0.5"></span>`;
+        } else if (isSelected) {
+            cls   = 'bg-orange-500 text-white rounded-xl font-black cursor-pointer shadow-sm';
+            click = `onclick="selectCalendarDate('${dateStr}')"`;
+            inner = `<span>${day}</span>`;
+        } else if (isInList) {
+            cls   = 'bg-orange-100 text-orange-700 rounded-xl font-bold cursor-pointer border-2 border-orange-300';
+            click = `onclick="selectCalendarDate('${dateStr}')"`;
+            inner = `<span>${day}</span><span class="block w-1.5 h-1.5 rounded-full bg-orange-400 mt-0.5"></span>`;
+        } else if (isToday) {
+            cls   = 'border-2 border-blue-500 rounded-xl text-blue-700 font-bold cursor-pointer hover:bg-blue-50';
+            click = `onclick="selectCalendarDate('${dateStr}')"`;
+            inner = `<span>${day}</span>`;
+        } else {
+            cls   = 'text-gray-700 font-semibold cursor-pointer hover:bg-orange-50 hover:text-orange-600 rounded-xl transition-colors';
+            click = `onclick="selectCalendarDate('${dateStr}')"`;
+            inner = `<span>${day}</span>`;
+        }
+        cells += `<div class="h-9 flex flex-col items-center justify-center text-xs ${cls}" ${click}>${inner}</div>`;
+    }
+
+    // Atalhos Hoje / Amanhã
+    const tom     = new Date(today);
+    tom.setDate(today.getDate() + 1);
+    const tomStr     = `${tom.getFullYear()}-${pad(tom.getMonth() + 1)}-${pad(tom.getDate())}`;
+    const todayOk    = !globalLocked && !lockedSet.has(todayStr) && isValidScheduleDate(todayStr, eventType);
+    const tomorrowOk = !globalLocked && !lockedSet.has(tomStr) && isValidScheduleDate(tomStr, eventType);
+
+    container.innerHTML = `
+        <div class="flex items-center justify-between mb-2">
+            <button onclick="prevCalendarMonth()" class="w-8 h-8 flex items-center justify-center text-blue-600 hover:bg-blue-50 rounded-lg font-bold text-xl transition-colors">‹</button>
+            <span class="text-sm font-bold text-gray-800">${monthNames[month]} ${year}</span>
+            <button onclick="nextCalendarMonth()" class="w-8 h-8 flex items-center justify-center text-blue-600 hover:bg-blue-50 rounded-lg font-bold text-xl transition-colors">›</button>
+        </div>
+        <div class="grid grid-cols-7 gap-0.5 mb-1">
+            ${dayNames.map(d => `<div class="text-center text-[10px] font-bold text-gray-400 pb-1">${d}</div>`).join('')}
+        </div>
+        <div class="grid grid-cols-7 gap-0.5">${cells}</div>
+        <div class="flex gap-2 mt-3">
+            <button ${todayOk ? `onclick="selectCalendarDate('${todayStr}')"` : 'disabled'}
+                    class="flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${todayOk ? 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200 cursor-pointer' : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'}">
+                📅 Hoje
+            </button>
+            <button ${tomorrowOk ? `onclick="selectCalendarDate('${tomStr}')"` : 'disabled'}
+                    class="flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${tomorrowOk ? 'bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200 cursor-pointer' : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'}">
+                📅 Amanhã
+            </button>
+        </div>
+        <div class="flex flex-wrap gap-x-3 mt-2 text-[10px] text-gray-400">
+            <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-full bg-orange-500"></span>Selecionado</span>
+            <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-full border-2 border-blue-500"></span>Hoje</span>
+            <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-full bg-red-300"></span>Fechado</span>
+            <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-full bg-gray-200"></span>Indisponível</span>
+        </div>`;
+}
+
+function selectCalendarDate(dateStr) {
+    if (!dateStr) return;
+    const input = document.getElementById('schedDate');
+    if (input) input.value = dateStr;
+    const [_y, _m] = dateStr.split('-').map(Number);
+    if (window._calState) { window._calState.year = _y; window._calState.month = _m - 1; }
     updateSelectedDate();
     renderScheduleTimes();
+    renderCustomCalendar(_y, _m - 1);
+}
+
+function prevCalendarMonth() {
+    const s = window._calState;
+    if (!s) return;
+    if (s.month === 0) { s.month = 11; s.year--; } else { s.month--; }
+    renderCustomCalendar(s.year, s.month);
+}
+
+function nextCalendarMonth() {
+    const s = window._calState;
+    if (!s) return;
+    if (s.month === 11) { s.month = 0; s.year++; } else { s.month++; }
+    renderCustomCalendar(s.year, s.month);
 }
 
 // Função para atualizar a data selecionada
