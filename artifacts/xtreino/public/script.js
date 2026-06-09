@@ -7905,10 +7905,9 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts, targetDates = n
         return str;
     };
 
-    // Lê registrations reais como fonte de verdade (inclui inserções manuais do admin)
-    // Usa chave normalizada para casar "21h" (manual) com "Domingo - 21h" (PIX/tokens)
-    // targetDates: filtrar apenas registrations das datas desta compra (evita slots históricos)
-    const regSlotMax = {};
+    // Conta registrations reais por horário (COUNT, não MAX) — imune a dados corrompidos
+    // targetDates: filtrar apenas datas desta compra (evita histórico de outras datas)
+    const regSlotCount = {};
     try {
         const _snap = await getDocs(query(
             collection(window.firebaseDb, 'registrations'),
@@ -7917,27 +7916,16 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts, targetDates = n
         _snap.forEach(d => {
             const data = d.data();
             if (!data.schedule) return;
-            // Filtrar por data quando disponível (evita histórico de outras datas contaminando o contador)
+            // Filtrar por data quando disponível
             if (targetDates && Array.isArray(targetDates) && !targetDates.includes(data.date)) return;
-            let num = 0;
-            if (data.slot != null || data.slotNumber != null) {
-                num = Number(data.slot ?? data.slotNumber) || 0;
-            } else if (data.slotDisplay) {
-                // suporta "Slot 3"→3, "Letra A"→1, "Vaga #3"→3 e variantes
-                const _sr = String(data.slotDisplay).replace(/^(Letra\s*|Slot\s*#?|Vaga\s*#?)/i, '').trim();
-                if (/^[A-Za-z]$/.test(_sr)) num = _sr.toUpperCase().charCodeAt(0) - 64;
-                else { const _sn = parseInt(_sr, 10); if (!isNaN(_sn)) num = _sn; }
-            }
-            // Ignorar timestamps gravados como slot (> 9999)
-            if (num > 0 && num <= 9999) {
-                const normKey = _normH(data.schedule);
-                if (num > (regSlotMax[normKey] || 0)) regSlotMax[normKey] = num;
-            }
+            // Contar a registration (COUNT) — ignora o valor do slot para evitar inflação
+            const normKey = _normH(data.schedule);
+            regSlotCount[normKey] = (regSlotCount[normKey] || 0) + 1;
         });
     } catch (_) {}
 
-    // Transação atômica: usa max(slotCounters, registrations) — auto-corrige dessincronia
-    // Chave normalizada (ex: "Quarta - 19h" → "19h") para consistência entre fluxos
+    // Transação atômica: usa COUNT(regs) como base quando targetDates fornecido
+    // Quando não há datas (modo legado), mantém max(counter, count) por segurança
     try {
         const startSlots = {};
         await runTransaction(window.firebaseDb, async (tx) => {
@@ -7945,16 +7933,12 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts, targetDates = n
             const counts = counterDoc.exists() ? { ...counterDoc.data() } : {};
             for (const [sched, n] of Object.entries(scheduleCounts)) {
                 const normKey     = _normH(sched);
-                // Ler de chave normalizada (novo padrão) com fallback para chave legada crua
                 const fromCounter = Number(counts[normKey]) || Number(counts[sched]) || 0;
-                const fromRegs    = Number(regSlotMax[normKey]) || 0;
-                // Se não há inscrições reais para o horário, reiniciar contador
-                // (evita slot inflado quando inscrições de teste foram deletadas)
-                // Quando targetDates fornecido, regs filtradas por data são fonte de verdade
-                // (slotCounters acumula entre datas e pode inflar o slot)
-                const current     = fromRegs === 0 ? 0 : (targetDates ? fromRegs : Math.max(fromCounter, fromRegs));
+                const fromRegs    = Number(regSlotCount[normKey]) || 0;
+                // targetDates: COUNT das regs filtradas por data é fonte de verdade
+                // sem targetDates: max(counter, count) para compatibilidade
+                const current     = targetDates ? fromRegs : Math.max(fromCounter, fromRegs);
                 startSlots[sched] = current + 1;
-                // Sempre gravar com chave normalizada (unifica admin e PIX/tokens)
                 counts[normKey]   = current + n;
             }
             tx.set(counterRef, counts, { merge: true });
@@ -7968,7 +7952,7 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts, targetDates = n
     // Fallback puro sem escrita no slotCounters
     const startSlotsFallback = {};
     for (const [sched] of Object.entries(scheduleCounts)) {
-        startSlotsFallback[sched] = (Number(regSlotMax[_normH(sched)]) || 0) + 1;
+        startSlotsFallback[sched] = (Number(regSlotCount[_normH(sched)]) || 0) + 1;
     }
     console.log('[SlotDB] startSlots (fallback):', JSON.stringify(startSlotsFallback));
     return startSlotsFallback;
