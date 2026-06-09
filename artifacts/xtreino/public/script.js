@@ -8129,6 +8129,8 @@ async function allocateSlotsFromDB(rawEventType, scheduleCounts, targetDates = n
         _snap.forEach(d => {
             const data = d.data();
             if (!data.schedule) return;
+            // Pendentes não contam — só confirmaados/pagos ocupam slot
+            if (data.status === 'pending') return;
             // Filtrar por data quando disponível
             if (targetDates && Array.isArray(targetDates) && !targetDates.includes(data.date)) return;
             // Contar a registration (COUNT) — ignora o valor do slot para evitar inflação
