@@ -13507,8 +13507,10 @@ window.createBonusLink = async function() {
                 _bw('date', '==', date)
             ));
             const _linkH = String(schedule || '').match(/(\d+)/)?.[1] || '';
+            const _validStInit = new Set(['paid', 'confirmed', 'approved']);
             _snap.forEach(d => {
                 const r = d.data();
+                if (!_validStInit.has(r.status)) return; // ignorar pending no offset inicial
                 const _regH = String(r.schedule || r.hour || '').match(/(\d+)/)?.[1] || '';
                 if (!_linkH || _regH === _linkH) initialOffset++;
             });
