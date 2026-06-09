@@ -3814,6 +3814,17 @@ window.showWarningToast = function(message, title = 'Atenção') {
       const modal         = document.getElementById('modalManageHour');
       if (!listConfirmed || !modal) return;
 
+      // Salvar contexto para uso pelo botão SPEC
+      window._currentManageHour = { date, eventType, hour, rawEventId };
+
+      // Mostrar botão SPEC apenas para Modo Liga
+      const specFooter = document.getElementById('specFooter');
+      if (specFooter) {
+        const _evL = String(eventType||'').toLowerCase() + String(rawEventId||'').toLowerCase();
+        const _isLiga = _evL.includes('liga') || _evL.includes('modo');
+        specFooter.classList.toggle('hidden', !_isLiga);
+      }
+
       if (title) title.textContent = `Gerenciar ${hour} — ${date}`;
 
       // Reset: mostrar aba "Confirmados" por padrão
@@ -10734,6 +10745,114 @@ async function premiarVencedorTreino() {
     }
 }
 window.premiarVencedorTreino = premiarVencedorTreino;
+
+// ==================== PACOTE SPEC (Modo Liga) ====================
+async function baixarPacoteSPEC() {
+    const ctx = window._currentManageHour;
+    if (!ctx || !window.firebaseDb) { showToast('error', 'Contexto do horário não encontrado.', 'Erro'); return; }
+
+    const { date, eventType, hour, rawEventId } = ctx;
+    const btn = document.getElementById('specDownloadBtn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Gerando ZIP...'; }
+
+    try {
+        // Carregar JSZip dinamicamente se necessário
+        if (typeof JSZip === 'undefined') {
+            await new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+                s.onload = resolve; s.onerror = reject;
+                document.head.appendChild(s);
+            });
+        }
+
+        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+        // Buscar inscrições confirmadas do horário
+        const snap = await getDocs(query(collection(window.firebaseDb, 'registrations'), where('date', '==', date)));
+        const validStatuses = new Set(['paid', 'confirmed', 'approved']);
+        const normalizeHour = (s) => { const m = String(s || '').match(/(\d{1,2})/); return m ? String(parseInt(m[1], 10)).padStart(2, '0') : null; };
+        const targetHH = normalizeHour(hour);
+        const evLower = String(eventType || '').toLowerCase();
+        const rawIdLower = String(rawEventId || '').toLowerCase();
+
+        const matched = [];
+        snap.forEach(d => {
+            const r = d.data();
+            if (!validStatuses.has(r.status)) return;
+            const rEvL = String(r.eventType || '').toLowerCase();
+            if (!(evLower && rEvL.includes(evLower)) && !(rawIdLower && rEvL.includes(rawIdLower))) return;
+            const regHH = normalizeHour(String(r.schedule || '')) || normalizeHour(String(r.hour || ''));
+            if (targetHH && regHH && targetHH !== regHH) return;
+            matched.push({ id: d.id, ...r });
+        });
+
+        matched.sort((a, b) => {
+            const sa = a.slot != null ? Number(a.slot) : (a.slotNumber != null ? Number(a.slotNumber) : 9999);
+            const sb = b.slot != null ? Number(b.slot) : (b.slotNumber != null ? Number(b.slotNumber) : 9999);
+            if (sa !== sb) return sa - sb;
+            return (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0);
+        });
+
+        if (matched.length === 0) { showToast('warning', 'Nenhuma inscrição confirmada neste horário.', 'Atenção'); return; }
+
+        // Código SPEC: A=902000034, B=902000035, ... Z=902000059
+        const letterCode = (posIdx) => String(902000033 + posIdx);
+
+        // Buscar imagens como blob (com fallback para placeholder)
+        const PLACEHOLDER = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAABmJLR0QA/wD/AP+gvaeTAAAADUlEQVRo3mNkYGBgAAAABAABJjarzgAAAABJRU5ErkJggg==';
+        const placeholderBlob = await (await fetch(PLACEHOLDER)).blob();
+
+        const fetchBlob = async (url) => {
+            if (!url) return null;
+            try {
+                const r = await fetch(url, { mode: 'cors' });
+                if (!r.ok) throw new Error();
+                return await r.blob();
+            } catch { return null; }
+        };
+
+        // Montar entradas
+        const entries = [];
+        for (let i = 0; i < matched.length; i++) {
+            const r = matched[i];
+            const posIdx = i + 1;
+            const letter = String.fromCharCode(64 + posIdx);
+            const code = letterCode(posIdx);
+            const logoUrl = r.teamLogoUrl || r.teamLogoThumb || null;
+            const blob = (await fetchBlob(logoUrl)) || placeholderBlob;
+            entries.push({ code, letter, teamName: r.teamName || `Time ${letter}`, blob });
+        }
+
+        // Criar ZIP com 3 pastas
+        const zip = new JSZip();
+        for (const pasta of ['BackPackPics', 'HeadPics', 'GloowallPics']) {
+            const folder = zip.folder(pasta);
+            for (const e of entries) {
+                folder.file(`${e.code}.png`, e.blob);
+            }
+        }
+
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(zipBlob);
+        a.download = `spec_modoliga_${hour.replace(':', 'h')}_${date}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+
+        await logAdminAction('spec_download', `Gerou pacote SPEC Modo Liga — ${hour} / ${date} — ${entries.length} times`);
+        showToast('success', `✅ Pacote SPEC gerado com ${entries.length} times! Verifique seus downloads.`, 'Download iniciado');
+
+    } catch (err) {
+        console.error('Erro ao gerar pacote SPEC:', err);
+        showToast('error', 'Erro ao gerar ZIP: ' + (err.message || err), 'Erro');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-download mr-2"></i>Baixar Pacote SPEC'; }
+    }
+}
+window.baixarPacoteSPEC = baixarPacoteSPEC;
 
 async function loadAdminNotifications() {
     const listEl = document.getElementById('adminNotifList');
