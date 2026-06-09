@@ -468,9 +468,12 @@ async function loadTodayRegistrations() {
             // Problema 3: ignorar slot/slotDisplay que sejam timestamps (> 9999)
             const slot = (() => {
                 const d = r.slotDisplay;
-                if (d && !/^\d{5,}/.test(String(d))) return d;
+                if (d && !/^\d{5,}/.test(String(d))) {
+                    // Normalizar formato antigo "Vaga #X" → "Slot X"
+                    return String(d).replace(/^Vaga\s*#?(\d+)$/, 'Slot $1').replace(/^Vaga\s*([A-Za-z])$/, 'Slot $1');
+                }
                 const n = Number(r.slot || r.slotNumber || 0);
-                return (n > 0 && n <= 9999) ? `Vaga #${n}` : '';
+                return (n > 0 && n <= 9999) ? `Slot ${n}` : '';
             })();
             const schedule = r.schedule || r.hour || '';
             const name = r.title || r.eventType || r.teamName || 'Evento';
@@ -3776,8 +3779,8 @@ function renderNotifications(notifs, readIds) {
                 const isLiga = n.slotList.length === 15;
                 const rows = n.slotList.map((s, idx) => {
                     const label = isLiga
-                        ? `Vaga ${String.fromCharCode(65 + idx)}`
-                        : `Vaga #${idx + 1}`;
+                        ? `Slot ${String.fromCharCode(65 + idx)}`
+                        : `Slot ${idx + 1}`;
                     const teamDisplay = s.teamName
                         ? `<span style="font-weight:700;color:#1e1b4b">${escapeHtml(s.teamName)}</span>`
                         : `<span style="color:#9ca3af;font-style:italic">Vaga livre</span>`;
