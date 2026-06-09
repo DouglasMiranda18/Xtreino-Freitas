@@ -535,7 +535,8 @@
     
     /* Hero section - altura ajustada */
     #home {
-        min-height: calc(100vh - 80px) !important;
+        min-height: unset !important;
+        height: auto !important;
         padding-top: 5rem !important;
     }
     
