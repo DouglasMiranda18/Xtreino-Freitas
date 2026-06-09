@@ -19,6 +19,12 @@ let _perfilUsuario = null;
 let _bonusLinkBlocked = null;    // { titulo, mensagem } quando o prazo/vagas estão esgotados
 let _credPollingInterval = null; // polling automático para detectar credenciais enviadas pelo admin
 
+// Utilitário: retorna número do slot somente se for sequencial (não timestamp)
+function _slotNum(slot, slotNumber) {
+    const n = Number(slot ?? slotNumber ?? 0);
+    return (n > 0 && n <= 9999) ? n : null;
+}
+
 // ── Inicialização ──────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -142,42 +148,63 @@ async function _carregarListaSlots() {
 
     try {
         const { collection, query, where, getDocs } = await import(_FS_URL);
-        let slots = [];
+        const allRegs = new Map(); // docId → {data, _origem}
 
-        // 1ª tentativa: bonusCode (mais preciso)
+        // 1. Buscar inscrições desta vaga bônus (pelo bonusCode)
         try {
             const snap = await getDocs(query(
                 collection(window.firebaseDb, 'registrations'),
                 where('bonusCode', '==', _bonusLink.code)
             ));
-            snap.forEach(d => slots.push(d.data()));
+            snap.forEach(d => allRegs.set(d.id, { ...d.data(), _origem: 'bonus' }));
         } catch (_) {}
 
-        // Fallback: eventType + date
-        if (slots.length === 0 && _bonusLink.date) {
+        // 2. Buscar TODAS as registrations do eventType + date (regulares + bônus de outros códigos)
+        if (_bonusLink.date) {
             try {
                 const snap2 = await getDocs(query(
                     collection(window.firebaseDb, 'registrations'),
                     where('eventType', '==', _bonusLink.eventType),
                     where('date', '==', _bonusLink.date)
                 ));
-                snap2.forEach(d => slots.push(d.data()));
+                snap2.forEach(d => {
+                    if (allRegs.has(d.id)) return; // já incluído como bônus
+                    const r = d.data();
+                    // Filtrar pelo mesmo horário (comparação pelo número da hora)
+                    const linkH = String(_bonusLink.schedule || '').match(/(\d+)/)?.[1] || '';
+                    const regH  = String(r.schedule || r.hour || '').match(/(\d+)/)?.[1] || '';
+                    if (!linkH || linkH === regH) {
+                        allRegs.set(d.id, { ...r, _origem: 'regular' });
+                    }
+                });
             } catch (_) {}
         }
 
-        if (slots.length === 0) return;
+        if (allRegs.size === 0) return;
 
-        slots.sort((a, b) => (a.slotNumber || a.slot || 0) - (b.slotNumber || b.slot || 0));
-        const total = _bonusLink.quantity || slots.length;
+        // Ordenar por slot numérico (ignorar timestamps > 9999)
+        const slots = [...allRegs.values()].sort((a, b) => {
+            const na = _slotNum(a.slot, a.slotNumber) ?? 9999;
+            const nb = _slotNum(b.slot, b.slotNumber) ?? 9999;
+            return na - nb;
+        });
+
+        const regulares = slots.filter(s => s._origem === 'regular').length;
+        const bonus     = slots.filter(s => s._origem === 'bonus').length;
+        const totalCap  = (_bonusLink.quantity || 0) + regulares;
 
         container.innerHTML = `
             <div class="mt-4 bg-gray-800 border border-gray-700 rounded-2xl p-4">
-                <h3 class="text-sm font-bold text-gray-300 mb-3 flex items-center gap-2">
+                <h3 class="text-sm font-bold text-gray-300 mb-1 flex items-center gap-2">
                     🎮 Times Inscritos
-                    <span class="bg-orange-600 text-white text-xs font-black px-2 py-0.5 rounded-full">${slots.length} / ${total}</span>
+                    <span class="bg-orange-600 text-white text-xs font-black px-2 py-0.5 rounded-full">${slots.length} / ${totalCap}</span>
                 </h3>
+                ${regulares > 0 ? `<p class="text-xs text-gray-500 mb-3">${regulares} regular${regulares > 1 ? 'es' : ''} + ${bonus} bônus</p>` : ''}
                 <div class="space-y-2">
-                    ${slots.map(s => `
+                    ${slots.map(s => {
+                        const num = _slotNum(s.slot, s.slotNumber);
+                        const isBon = s._origem === 'bonus';
+                        return `
                         <div class="flex items-center gap-3 bg-gray-700/50 rounded-xl px-3 py-2.5">
                             ${s.teamLogoThumb
                                 ? `<img src="${_esc(s.teamLogoThumb)}" class="w-9 h-9 rounded-lg object-cover border border-gray-600 flex-shrink-0">`
@@ -185,12 +212,13 @@ async function _carregarListaSlots() {
                             }
                             <div class="flex-1 min-w-0">
                                 <div class="text-white font-bold text-sm truncate">${_esc(s.teamName || '—')}</div>
+                                ${isBon ? '<div class="text-xs text-orange-400">vaga bônus</div>' : '<div class="text-xs text-gray-500">vaga regular</div>'}
                             </div>
-                            <span class="text-xs text-orange-400 font-bold bg-gray-800 border border-orange-500/30 rounded-lg px-2 py-1 flex-shrink-0">
-                                #${s.slotNumber || s.slot || '?'}
+                            <span class="text-xs font-bold bg-gray-800 border rounded-lg px-2 py-1 flex-shrink-0 ${isBon ? 'text-orange-400 border-orange-500/30' : 'text-gray-400 border-gray-600'}">
+                                ${num ? `#${num}` : '—'}
                             </span>
-                        </div>
-                    `).join('')}
+                        </div>`;
+                    }).join('')}
                 </div>
             </div>
         `;
@@ -343,7 +371,13 @@ function _renderizarInscricaoExistente(reg, notif) {
     const nomeEvento = _bonusLink.eventName || _LABELS_EVENTO[_bonusLink.eventType] || _bonusLink.eventType;
     const [ano, mes, dia] = (_bonusLink.date || '').split('-');
     const dataFmt = dia ? `${dia}/${mes}/${ano}` : '—';
-    const slotDisplay = reg.slotDisplay || (reg.slot ? `Vaga #${reg.slot}` : '');
+    // Problema 3: ignorar slotDisplay/slot que sejam timestamps (> 9999)
+    const slotDisplay = (() => {
+        const d = reg.slotDisplay;
+        if (d && !/^\d{5,}/.test(String(d))) return d;
+        const n = _slotNum(reg.slot, reg.slotNumber);
+        return n ? `Vaga #${n}` : '';
+    })();
 
     let credHtml = '';
     if (notif && notif.roomId) {
@@ -375,7 +409,15 @@ function _renderizarInscricaoExistente(reg, notif) {
             </div>`;
     }
 
-    container.innerHTML = `
+    // Problema 2: banner de aviso urgente (aparece sempre que o inscrito acessa o link)
+    const _bannerUrgente = `
+        <div style="background:linear-gradient(135deg,#7f1d1d,#991b1b);border:2px solid #ef4444;border-radius:14px;padding:13px 15px;margin-bottom:12px;text-align:center">
+            <p style="color:#fff;font-size:14px;font-weight:900;margin:0;letter-spacing:0.3px">🚨 ID E SENHA SÃO ENVIADOS AQUI</p>
+            <p style="color:#fca5a5;font-size:12px;font-weight:700;margin:5px 0 0">Faltando ~10 min do horário — salva este link! 🔥</p>
+            <p style="color:#fecaca;font-size:11px;font-weight:600;margin:4px 0 0">NÃO FALTE — honre sua vaga gratuita!</p>
+        </div>`;
+
+    container.innerHTML = _bannerUrgente + `
         <div style="background:linear-gradient(135deg,#064e3b,#065f46);border:2px solid #10b981;border-radius:14px;padding:14px;margin-bottom:12px">
             <p style="font-size:10px;font-weight:800;color:#6ee7b7;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;display:flex;align-items:center;gap:6px">
                 <i class="fas fa-check-circle"></i> Você já está inscrito!
@@ -528,6 +570,25 @@ window.confirmarParticipacao = async function() {
         const bonusRef = doc(window.firebaseDb, 'bonus_links', _bonusLinkId);
         const nomeEvento = _bonusLink.eventName || _LABELS_EVENTO[_bonusLink.eventType] || _bonusLink.eventType;
 
+        // Problema 1: calcular offset das vagas regulares para numeração sequencial correta
+        // Ex: 3 vendidas normalmente → primeiro bônus vira #4, não #1
+        let _offsetRegulares = 0;
+        try {
+            const { getDocs: _gd, query: _q, collection: _c, where: _w } = await import(_FS_URL);
+            const _snap = await _gd(_q(
+                _c(window.firebaseDb, 'registrations'),
+                _w('eventType', '==', _bonusLink.eventType),
+                _w('date', '==', _bonusLink.date)
+            ));
+            const _linkH = String(_bonusLink.schedule || '').match(/(\d+)/)?.[1] || '';
+            _snap.forEach(d => {
+                const r = d.data();
+                if (r.bonusCode === _bonusLink.code) return; // pular inscrições desta própria vaga bônus
+                const _regH = String(r.schedule || r.hour || '').match(/(\d+)/)?.[1] || '';
+                if (!_linkH || _regH === _linkH) _offsetRegulares++;
+            });
+        } catch (_) {}
+
         // Transação atômica: contador + inscrição numa única operação.
         // Se a inscrição falhar, o contador é revertido automaticamente.
         let slotNum = 1;
@@ -542,8 +603,9 @@ window.confirmarParticipacao = async function() {
             const jaResgatou = Array.isArray(bd.claimedBy) && bd.claimedBy.includes(_usuarioAtual.uid);
             if (jaResgatou) throw new Error('Você já resgatou esta vaga bônus.');
 
-            slotNum = (bd.usedCount || 0) + 1;
-            const novoStatus = slotNum >= bd.quantity ? 'expirado' : 'ativo';
+            // Slot bônus começa após as vagas regulares: 3 regulares → bônus #4, #5, #6...
+            slotNum = _offsetRegulares + (bd.usedCount || 0) + 1;
+            const novoStatus = slotNum >= (_offsetRegulares + bd.quantity) ? 'expirado' : 'ativo';
             const slotDisplay = `Vaga #${slotNum}`;
 
             // Atualiza contador no bonus_links
