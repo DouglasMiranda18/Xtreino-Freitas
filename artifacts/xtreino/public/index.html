@@ -1074,25 +1074,18 @@
                                     <p class="text-xs text-gray-400">Dia em que você quer jogar</p>
                                 </div>
                             </div>
-                            <div class="p-4 space-y-3 bg-white">
-                                <input type="date" id="schedDate" class="w-full bg-gray-50 border-2 border-blue-200 rounded-xl px-4 py-2.5 text-base font-semibold focus:border-blue-500 focus:outline-none transition-colors" />
-                                <div class="grid grid-cols-2 gap-2">
-                                    <button onclick="setSchedToday()" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-3 rounded-xl font-semibold transition-colors text-sm flex items-center justify-center gap-1">
-                                        <i class="fas fa-calendar-day text-xs"></i> Hoje
+                            <div class="p-3 bg-white">
+                                <input type="hidden" id="schedDate" />
+                                <div id="customCalendarContainer" class="min-h-[200px]"></div>
+                                <div class="flex gap-2 mt-2">
+                                    <button type="button" onclick="addSelectedDate()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl font-semibold text-xs transition-colors flex items-center justify-center gap-1">
+                                        <i class="fas fa-plus text-xs"></i> Adicionar esta data
                                     </button>
-                                    <button onclick="setSchedTomorrow()" class="bg-gray-500 hover:bg-gray-600 text-white py-2 px-3 rounded-xl font-semibold transition-colors text-sm flex items-center justify-center gap-1">
-                                        <i class="fas fa-calendar-plus text-xs"></i> Amanhã
-                                    </button>
-                                </div>
-                                <div class="grid grid-cols-2 gap-2">
-                                    <button type="button" onclick="addSelectedDate()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 py-1.5 px-3 rounded-lg font-semibold text-xs transition-colors">
-                                        + Adicionar data
-                                    </button>
-                                    <button type="button" onclick="clearSelectedDates()" class="bg-gray-100 hover:bg-gray-200 text-gray-500 py-1.5 px-3 rounded-lg text-xs transition-colors">
-                                        Limpar datas
+                                    <button type="button" onclick="clearSelectedDates()" class="bg-gray-100 hover:bg-gray-200 text-gray-500 py-2 px-3 rounded-xl text-xs transition-colors" title="Limpar todas as datas">
+                                        <i class="fas fa-trash-alt text-xs"></i>
                                     </button>
                                 </div>
-                                <div id="selectedDatesList" class="text-xs text-gray-600 space-y-1"></div>
+                                <div id="selectedDatesList" class="text-xs text-gray-600 space-y-1 mt-2"></div>
                             </div>
                         </div>
 
