@@ -1224,7 +1224,9 @@ window.showWarningToast = function(message, title = 'Atenção') {
                     if (_normH(r.schedule || r.hour || '') === _normSchedLink) _count++;
                 });
                 _nextSlot = _count + 1;
-                _nextSlotDisplay = `Vaga #${_nextSlot}`;
+                // Modo Liga usa letras (A, B, C...) — demais eventos usam #número
+                const _isLigaManual = (() => { const _t = String(_rawEvType || '').toLowerCase(); return _t === 'modo-liga' || _t.includes('liga'); })();
+                _nextSlotDisplay = _isLigaManual ? `Vaga ${String.fromCharCode(64 + _nextSlot)}` : `Vaga #${_nextSlot}`;
             } catch (_) {}
 
             payload.slot = _nextSlot;
