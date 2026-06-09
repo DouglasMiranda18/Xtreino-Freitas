@@ -10854,6 +10854,12 @@ async function baixarPacoteSPEC() {
 }
 window.baixarPacoteSPEC = baixarPacoteSPEC;
 
+// Wrapper chamado pelos botões SPEC no modal de Slots por Horário
+window.baixarPacoteSPECPorGrupo = function(eventType, rawEventId, date, hour) {
+    window._currentManageHour = { date, eventType, hour, rawEventId };
+    baixarPacoteSPEC();
+};
+
 async function loadAdminNotifications() {
     const listEl = document.getElementById('adminNotifList');
     if (!listEl) return;
@@ -12742,17 +12748,28 @@ async function openEventSlotsModal(eventId, eventName) {
             pending: 'bg-orange-100 text-orange-700'
         };
 
+        // Detectar se é Modo Liga para exibir botão SPEC
+        const _isLigaEv = eventId === 'modo-liga' || (_evFieldType || '').includes('liga') || (_evFieldType || '').includes('modo');
+
         let html = '';
         for (const key of schedKeys) {
             const { date: groupDate, sched, regs } = bySchedule[key];
             const dateFmtHeader = groupDate && /^\d{4}-\d{2}-\d{2}$/.test(groupDate)
                 ? groupDate.split('-').reverse().slice(0,2).join('/') : groupDate;
+            const _specBtn = _isLigaEv
+                ? `<button onclick="baixarPacoteSPECPorGrupo('${escapeAdminHtml(_evFieldType||'')}','${escapeAdminHtml(eventId)}','${escapeAdminHtml(groupDate)}','${escapeAdminHtml(sched)}')"
+                          class="ml-auto px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors flex-shrink-0"
+                          title="Baixar Pacote SPEC para este horário">
+                     <i class="fas fa-download"></i> SPEC
+                   </button>`
+                : '';
             html += `
             <div class="mb-6">
-                <div class="flex items-center gap-2 mb-3">
+                <div class="flex items-center gap-2 mb-3 flex-wrap">
                     <span class="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-clock mr-1"></i>${escapeAdminHtml(sched)}</span>
                     <span class="text-xs font-semibold text-gray-600">${escapeAdminHtml(dateFmtHeader)}</span>
                     <span class="text-xs text-gray-400">${regs.length} inscrito(s)</span>
+                    ${_specBtn}
                 </div>
                 <div class="overflow-x-auto rounded-lg border border-gray-200">
                 <table class="w-full text-sm">
