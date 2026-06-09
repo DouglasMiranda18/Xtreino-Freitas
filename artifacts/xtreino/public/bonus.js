@@ -603,14 +603,16 @@ window.confirmarParticipacao = async function() {
             const jaResgatou = Array.isArray(bd.claimedBy) && bd.claimedBy.includes(_usuarioAtual.uid);
             if (jaResgatou) throw new Error('Você já resgatou esta vaga bônus.');
 
-            // Slot bônus começa após as vagas regulares: 3 regulares → bônus #4, #5, #6...
-            slotNum = _offsetRegulares + (bd.usedCount || 0) + 1;
-            const novoStatus = slotNum >= (_offsetRegulares + bd.quantity) ? 'expirado' : 'ativo';
+            // _contadorBonus: quantos bônus já foram criados (0→1→2→3, NÃO inclui offset)
+            // slotNum:        número absoluto do slot para exibição (offset + contador)
+            const _contadorBonus = (bd.usedCount || 0) + 1;
+            slotNum = _offsetRegulares + _contadorBonus;
+            const novoStatus = _contadorBonus >= bd.quantity ? 'expirado' : 'ativo';
             const slotDisplay = `Vaga #${slotNum}`;
 
-            // Atualiza contador no bonus_links
+            // Atualiza contador no bonus_links (SÓ o contador bônus, sem offset)
             tx.update(bonusRef, {
-                usedCount: slotNum,
+                usedCount: _contadorBonus,
                 status:    novoStatus,
                 claimedBy: arrayUnion(_usuarioAtual.uid)
             });
