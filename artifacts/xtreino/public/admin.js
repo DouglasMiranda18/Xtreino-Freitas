@@ -4141,10 +4141,13 @@ async function buildSlotData(date, eventType, hour) {
       teams.push({ teamName: r.teamName || r.name || r.email || 'Time', slot: slotNum, createdAt: r.createdAt?.toDate?.() || new Date(0) });
     });
     teams.sort((a, b) => {
+      const ta = a.createdAt?.getTime?.() || 0;
+      const tb = b.createdAt?.getTime?.() || 0;
+      if (ta > 0 && tb > 0) return ta - tb;
       if (a.slot !== null && b.slot !== null) return a.slot - b.slot;
       if (a.slot !== null) return -1;
       if (b.slot !== null) return 1;
-      return (a.createdAt?.getTime?.() || 0) - (b.createdAt?.getTime?.() || 0);
+      return 0;
     });
     const _evN = normalize(eventType);
     const capacity = (_evN.includes('liga') || _evN.includes('acesso')) ? 15 : 12;
@@ -4193,12 +4196,15 @@ async function buildExportList(date, eventType, hour){
     const slotNum = r.slot != null ? Number(r.slot) : (r.slotNumber != null ? Number(r.slotNumber) : null);
     teams.push({ name, slot: slotNum, createdAt: r.createdAt?.toDate?.() || new Date(0) });
   });
-  // Ordenar por slot crescente (mesma ordem do painel Inscritos); sem slot → por data de criação
+  // Ordenar por createdAt (chegada) — slotNumber como fallback
   teams.sort((a, b) => {
+    const ta = a.createdAt?.getTime?.() || 0;
+    const tb = b.createdAt?.getTime?.() || 0;
+    if (ta > 0 && tb > 0) return ta - tb;
     if (a.slot !== null && b.slot !== null) return a.slot - b.slot;
     if (a.slot !== null) return -1;
     if (b.slot !== null) return 1;
-    return (a.createdAt?.getTime?.() || 0) - (b.createdAt?.getTime?.() || 0);
+    return 0;
   });
   // Definir capacidade por tipo (modo liga = 15; demais = 12)
   const type = String(eventType||'').toLowerCase();
@@ -4236,9 +4242,9 @@ async function buildExportList(date, eventType, hour){
     const header = `:::𝑳𝑰𝑺𝑻𝑨 𝑴𝑶𝑫𝑶 𝑳𝑰𝑮𝑨 ⋮ 𝑿𝑻 𝑭𝑹𝑬𝑰𝑻𝑨𝑺 ${H}H:::\n\n\n\n➺🆔 𝑬  𝑺𝑬𝑵𝐇𝑨: 𝟏𝟎 𝑴𝐈𝑵𝑼𝑻𝑶𝑺 𝑨𝑵𝑻𝑬𝑺\n\n➺🏷️𝑹𝑬𝑮𝑹𝑨𝑺 𝑵𝑨 𝑫𝑬𝑺𝑪𝑹𝐈ÇÃ𝐎\n`;
     // Garantir que todos os slots sejam incluídos, mesmo vazios, sem pular linhas
     const lines = slots.map(s=>{
-      const num = String(s.idx).padStart(2,'0');
+      const letra = String.fromCharCode(64 + s.idx); // A, B, C...
       const teamName = s.team || ''; // Slot vazio fica sem nome, mas linha é criada
-      return `   ⃟🩵 ${num}: ${teamName}`;
+      return `   ⃟🩵 ${letra}: ${teamName}`;
     }).filter(line => line.trim()).join('\n\n'); // Filtrar linhas completamente vazias
     const footer = `\n\n「📽️」𝑺𝑻𝑹𝑬𝑨𝑴𝑬𝑹: \n\n「🧑🏻‍🏫」𝑪𝑶𝑨𝑪𝑯:`;
     return `${header}\n${lines}\n\n${footer}`;
@@ -12555,10 +12561,12 @@ async function sendEventNotification() {
                 // ordenado por slotNumber → slot → createdAt
                 const _sorted = [...docsToNotify].sort((a, b) => {
                     const ra = a.data(), rb = b.data();
+                    const ta = ra.createdAt?.toDate?.()?.getTime() || 0;
+                    const tb = rb.createdAt?.toDate?.()?.getTime() || 0;
+                    if (ta > 0 && tb > 0) return ta - tb;
                     const sa = ra.slotNumber ?? ra.slot ?? 9999;
                     const sb = rb.slotNumber ?? rb.slot ?? 9999;
-                    if (sa !== sb) return sa - sb;
-                    return ((ra.createdAt?.toDate?.() || new Date(0)) - (rb.createdAt?.toDate?.() || new Date(0)));
+                    return sa - sb;
                 });
                 const _teams = _sorted.map(d => d.data().teamName || d.data().name || '');
                 const _slots = [];
