@@ -9869,9 +9869,9 @@ async function loadDynamicEvents() {
         const colRef = collection(window.firebaseDb, 'adminEvents');
         let snap;
         try {
-            snap = await getDocs(query(colRef, where('status', '==', 'Aberto'), orderBy('createdAt', 'desc')));
+            snap = await getDocs(query(colRef, where('status', 'in', ['Aberto', 'Em breve']), orderBy('createdAt', 'desc')));
         } catch (_) {
-            snap = await getDocs(query(colRef, where('status', '==', 'Aberto')));
+            snap = await getDocs(query(colRef, where('status', 'in', ['Aberto', 'Em breve'])));
         }
 
         if (snap.empty) {
@@ -9913,11 +9913,21 @@ async function loadDynamicEvents() {
             const formatoStr = (ev.formato || '').toUpperCase();
             const modoStr = (ev.modo || '').toUpperCase();
             const tipoStr = (ev.tipo || '').toUpperCase();
+            const _isEmBreve = ev.status === 'Em breve';
             const btnLabel = _isEquipeEvent ? 'INSCREVER TIME' : (ev.entrada === 'PAGO' && ev.preco ? `INSCREVER — ${preco}` : 'RESERVAR VAGA');
             const evTypeParaModal = ev.eventType || d.id;
             const btnOnclick = _isEquipeEvent ? `abrirModalEquipe('${evTypeParaModal}')` : `openScheduleModal('${evTypeParaModal}')`;
             const hasRegras = !!(ev.regras && ev.regras.trim());
-            const btnHtml = `<div class="flex flex-col gap-2">
+            const btnHtml = _isEmBreve
+                ? `<div class="flex flex-col gap-2">
+                    <button disabled class="w-full py-2 rounded-lg font-semibold bg-gray-300 text-gray-500 cursor-not-allowed">EM BREVE</button>
+                    <div class="flex gap-2">
+                        <a href="${_eventoUrl(ev.eventType, d.id)}" class="flex-1 text-center border border-gray-300 text-gray-400 py-2 rounded-lg font-semibold text-sm block pointer-events-none opacity-50">
+                            <i class="fas fa-info-circle mr-1"></i>Ver Detalhes
+                        </a>
+                    </div>
+                </div>`
+                : `<div class="flex flex-col gap-2">
                 <button onclick="${btnOnclick}" class="w-full btn-primary py-2 rounded-lg font-semibold">${btnLabel}</button>
                 <div class="flex gap-2">
                     <a href="${_eventoUrl(ev.eventType, d.id)}" class="flex-1 text-center border border-gray-300 hover:border-orange-400 text-gray-600 hover:text-orange-600 py-2 rounded-lg font-semibold text-sm transition-colors block">
@@ -9931,14 +9941,21 @@ async function loadDynamicEvents() {
 
             const quedasStr = ev.quedas ? `${ev.quedas}x` : null;
             const mapasList = Array.isArray(ev.mapas) && ev.mapas.length ? ev.mapas.join(' • ') : null;
-            return `<article class="product-card" data-category="${ev.category || ''}" data-event-id="${d.id}">
+            const emBreveOverlay = _isEmBreve ? `
+                <div style="position:absolute;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:2;">
+                    <div style="background:#f59e0b;color:#000;font-weight:900;font-size:1rem;letter-spacing:0.1em;padding:0.4rem 1.2rem;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,0.4);">
+                        ⏳ EM BREVE
+                    </div>
+                </div>` : '';
+            return `<article class="product-card" data-category="${ev.category || ''}" data-event-id="${d.id}"${_isEmBreve ? ' style="opacity:0.75;filter:grayscale(35%);"' : ''}>
                 <div class="px-1 pb-1 flex flex-wrap gap-1">
                     ${catLabel ? `<span class="inline-block bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded">${catLabel}</span>` : ''}
                     ${formatoStr ? `<span class="inline-block bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded">${formatoStr}</span>` : ''}
                     ${quedasStr ? `<span class="inline-block bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded">${quedasStr} QUEDAS</span>` : ''}
                 </div>
-                <div class="product-media">
+                <div class="product-media" style="position:relative;">
                     <img src="${imgSrc}" alt="${ev.name || 'Evento'}" loading="lazy" referrerpolicy="no-referrer" onerror="this.src='${placeholderImg}'">
+                    ${emBreveOverlay}
                 </div>
                 <div class="product-title">${ev.name || 'Evento'}</div>
                 <div class="product-desc">
