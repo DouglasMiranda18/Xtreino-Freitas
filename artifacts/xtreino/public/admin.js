@@ -11069,6 +11069,8 @@ function openNewEventForm() {
     const fmtElNew = document.getElementById('evtFormato');
     if (fmtElNew) fmtElNew.value = 'Misto';
     document.getElementById('evtStatus').value = 'Aberto';
+    const _ordemEl = document.getElementById('evtOrdem');
+    if (_ordemEl) _ordemEl.value = '';
     document.getElementById('evtPremiado').value = 'NÃO';
     document.getElementById('evtEntrada').value = 'GRÁTIS';
     document.getElementById('evtVagas').value = '';
@@ -11262,6 +11264,7 @@ async function saveEventForm() {
         pontuacao: (document.getElementById('evtPontuacao')?.value || '').trim(),
         youtubeUrl: (document.getElementById('evtYoutubeUrl')?.value || '').trim(),
         bannerSize: bannerSizeEl ? bannerSizeEl.value : '1920x1080',
+        ordem: parseInt(document.getElementById('evtOrdem')?.value, 10) || null,
         updatedAt: new Date().toISOString()
     };
 
@@ -11421,6 +11424,8 @@ async function editEventItem(eventId) {
         const fmtEl = document.getElementById('evtFormato');
         if (fmtEl) fmtEl.value = (ev.formato || 'MISTO').toUpperCase();
         document.getElementById('evtStatus').value = ev.status || 'Aberto';
+        const ordemEl = document.getElementById('evtOrdem');
+        if (ordemEl) ordemEl.value = ev.ordem != null ? ev.ordem : '';
         document.getElementById('evtPremiado').value = ev.premiado || 'NÃO';
         const premiacaoEl = document.getElementById('evtPremiacao');
         if (premiacaoEl) premiacaoEl.value = ev.premiacao || '';
