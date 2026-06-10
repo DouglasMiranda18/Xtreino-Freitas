@@ -12730,15 +12730,18 @@ async function openEventSlotsModal(eventId, eventName) {
             bySchedule[key].regs.push(r);
         });
 
-        // Ordenar por slot crescente → createdAt (= ordem de compra) dentro de cada data/hora
+        // Ordenar por createdAt (chegada) — slotNumber como fallback
         Object.values(bySchedule).forEach(group => {
             group.regs.sort((a, b) => {
+                const ta = a.createdAt?.seconds ?? null;
+                const tb = b.createdAt?.seconds ?? null;
+                if (ta !== null && tb !== null) return ta - tb;
                 const sa = a.slot != null ? Number(a.slot) : (a.slotNumber != null ? Number(a.slotNumber) : null);
                 const sb = b.slot != null ? Number(b.slot) : (b.slotNumber != null ? Number(b.slotNumber) : null);
                 if (sa !== null && sb !== null) return sa - sb;
                 if (sa !== null) return -1;
                 if (sb !== null) return 1;
-                return (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0);
+                return 0;
             });
             // Deduplica apenas por ID de documento
             const seenIds = new Set();
