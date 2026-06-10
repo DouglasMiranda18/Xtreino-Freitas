@@ -5819,6 +5819,11 @@ function addSelectedDate() {
         const s = window._calState;
         if (s) renderCustomCalendar(s.year, s.month);
     }
+    // Scroll suave para "Escolha o Horário" após adicionar a data
+    setTimeout(() => {
+        const horarioEl = document.getElementById('schedTimes');
+        if (horarioEl) horarioEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 150);
 }
 
 function removeSelectedDate(dateStr) {
