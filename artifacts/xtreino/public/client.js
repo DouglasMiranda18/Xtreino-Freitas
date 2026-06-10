@@ -576,13 +576,13 @@ function displayRecentOrders(orders) {
             : `R$ ${order.price?.toFixed(2) || '0,00'}`;
 
         return `
-            <div class="flex items-center justify-between py-3 border-b border-gray-200 last:border-b-0">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid rgba(255,255,255,0.07)" class="last:border-b-0">
                 <div>
-                    <p class="font-medium text-gray-900">${order.title || 'Reserva'}</p>
-                    <p class="text-sm text-gray-500">${formatDate(order.date)}</p>
+                    <p style="font-size:13px;font-weight:700;color:#fff;margin:0">${order.title || 'Reserva'}</p>
+                    <p style="font-size:11px;color:rgba(255,255,255,0.45);margin:3px 0 0">${formatDate(order.date)}</p>
                 </div>
-                <div class="text-right">
-                    <p class="font-medium text-gray-900">${valorDisplay}</p>
+                <div style="text-align:right;flex-shrink:0;margin-left:12px">
+                    <p style="font-size:13px;font-weight:700;color:#ecd414;margin:0 0 4px">${valorDisplay}</p>
                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status, order)}">
                         ${getStatusText(order.status, order)}
                     </span>
