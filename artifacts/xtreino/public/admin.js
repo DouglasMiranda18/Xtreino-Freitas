@@ -11351,6 +11351,7 @@ async function loadEventsList(category) {
         const statusColors = {
             'Aberto': 'bg-green-100 text-green-700',
             'Em andamento': 'bg-blue-100 text-blue-700',
+            'Em breve': 'bg-yellow-100 text-yellow-700',
             'Fechado': 'bg-red-100 text-red-700'
         };
 
