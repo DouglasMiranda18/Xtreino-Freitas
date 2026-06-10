@@ -9868,15 +9868,7 @@ async function loadDynamicEvents() {
         const { collection, query, where, getDocs, orderBy } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
         const colRef = collection(window.firebaseDb, 'adminEvents');
         let snap;
-        try {
-            snap = await getDocs(query(colRef, where('status', 'in', ['Aberto', 'Em breve']), orderBy('ordem', 'asc'), orderBy('createdAt', 'desc')));
-        } catch (_) {
-            try {
-                snap = await getDocs(query(colRef, where('status', 'in', ['Aberto', 'Em breve']), orderBy('ordem', 'asc')));
-            } catch (__) {
-                snap = await getDocs(query(colRef, where('status', 'in', ['Aberto', 'Em breve'])));
-            }
-        }
+        snap = await getDocs(query(colRef, where('status', 'in', ['Aberto', 'Em breve'])));
 
         if (snap.empty) {
             grid.classList.add('hidden');
@@ -9887,7 +9879,17 @@ async function loadDynamicEvents() {
         const placeholderImg = 'assets/images/events/CAMP.jpeg';
         const categoryLabels = { camp: 'CAMP', xtreino: 'XTREINO', diario: 'DIÁRIO' };
 
-        const cards = snap.docs.map(d => {
+        // Ordenar: ordem asc (null/undefined vai pro final), depois createdAt desc
+        const docsSorted = [...snap.docs].sort((a, b) => {
+            const oa = a.data().ordem != null ? a.data().ordem : 9999;
+            const ob = b.data().ordem != null ? b.data().ordem : 9999;
+            if (oa !== ob) return oa - ob;
+            const ca = a.data().createdAt || '';
+            const cb = b.data().createdAt || '';
+            return cb > ca ? 1 : cb < ca ? -1 : 0;
+        });
+
+        const cards = docsSorted.map(d => {
             const ev = d.data();
             const _isFreeEv = !ev.preco || ev.entrada === 'GRÁTIS' || Number(ev.preco) === 0;
             // Apenas eventos GRATUITOS do tipo xtreino-tokens usam o modal de time gratuito
