@@ -6044,7 +6044,7 @@ function selectCalendarDate(dateStr) {
     renderCustomCalendar(_y, _m - 1);
     // Scroll suave para "Escolha o Horário" ao clicar em um dia
     setTimeout(() => {
-        const horarioEl = document.getElementById('schedTimes');
+        const horarioEl = document.getElementById('horarioSection');
         if (horarioEl) horarioEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 150);
 }
