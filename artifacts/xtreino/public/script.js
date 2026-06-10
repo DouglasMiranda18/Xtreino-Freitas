@@ -6042,6 +6042,11 @@ function selectCalendarDate(dateStr) {
     updateSelectedDate();
     renderScheduleTimes();
     renderCustomCalendar(_y, _m - 1);
+    // Scroll suave para "Escolha o Horário" ao clicar em um dia
+    setTimeout(() => {
+        const horarioEl = document.getElementById('schedTimes');
+        if (horarioEl) horarioEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 150);
 }
 
 function prevCalendarMonth() {
