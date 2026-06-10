@@ -76,176 +76,255 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="mobile-optimizations.css">
     <link rel="icon" type="image/png" href="assets/images/Logo - Xtreino Freitas.png">
+    <style>
+        /* Tab nav dark theme — override Tailwind active classes */
+        .tab-button { transition: color 0.15s, border-color 0.15s; }
+        .tab-button.text-blue-600,
+        .tab-button.active { color: #07b7b4 !important; }
+        .tab-button.border-blue-500 { border-bottom-color: #07b7b4 !important; }
+        .tab-button.text-gray-500 { color: rgba(255,255,255,0.45) !important; }
+        .tab-button.border-transparent { border-bottom-color: transparent !important; }
+
+        /* Cards das abas secundárias (pedidos, perfil, etc.) ficam brancos sobre fundo escuro — OK */
+        /* Login prompt dark */
+        #loginPromptOverlay {
+            background: rgba(10,13,20,0.95) !important;
+        }
+        /* Scrollbar oculta na tab nav */
+        nav::-webkit-scrollbar { display: none; }
+
+        /* Itens dentro de todayRegistrations e recentOrders herdados do client.js — ajustar cor de texto */
+        #todayRegistrations [style*="color:#1f2937"],
+        #recentOrders [style*="color:#1f2937"] { color: #fff !important; }
+        #todayRegistrations [style*="color:#6b7280"],
+        #recentOrders [style*="color:#6b7280"] { color: rgba(255,255,255,0.55) !important; }
+    </style>
 </head>
 
-<body class="bg-gray-50">
+<body style="background:#0f172a;min-height:100vh;color:#fff">
+
     <!-- Header -->
-    <header class="w-full border-b border-gray-200 bg-white sticky top-0 z-40">
-        <nav class="container mx-auto px-4 md:px-6 py-3 md:py-4 flex items-center justify-between">
-            <div class="flex items-center space-x-2 md:space-x-3 min-w-0 flex-1">
-                <img src="assets/images/Logo - Xtreino Freitas.png" alt="X-TREINO FREITAS"
-                    class="h-12 w-12 md:h-16 md:w-16 rounded-lg object-contain flex-shrink-0" />
-                <div class="min-w-0">
-                    <h1 class="text-base md:text-lg font-bold truncate">Minha Conta</h1>
-                </div>
+    <header style="background:#0d1424;border-bottom:1px solid rgba(7,183,180,0.2);position:sticky;top:0;z-index:40">
+        <nav style="max-width:960px;margin:0 auto;padding:11px 16px;display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:10px">
+                <img src="assets/images/Logo - Xtreino Freitas.png" alt="XTreino Freitas" style="height:42px;width:42px;border-radius:10px;object-fit:contain">
+                <span style="font-size:12px;font-weight:900;color:#07b7b4;letter-spacing:1.5px;text-transform:uppercase">Minha Conta</span>
             </div>
-            <div class="flex items-center gap-2 md:gap-4 flex-shrink-0">
-                <a href="index.html"
-                    class="text-xs md:text-sm px-2 md:px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 flex items-center gap-1 md:gap-2 whitespace-nowrap">
-                    <i class="fas fa-home"></i>
-                    <span class="hidden sm:inline">Voltar ao Site</span>
-                    <span class="sm:hidden">Voltar</span>
+            <div style="display:flex;align-items:center;gap:8px">
+                <a href="index.html" style="display:flex;align-items:center;gap:6px;padding:7px 12px;border:1px solid rgba(7,183,180,0.35);border-radius:8px;color:#07b7b4;font-size:12px;font-weight:700;text-decoration:none">
+                    <i class="fas fa-home"></i><span>Início</span>
                 </a>
-                <button id="notificationBellBtn" onclick="switchTab('notifications')" title="Notificações"
-                    class="relative p-2 rounded-lg border border-gray-300 hover:bg-gray-100 text-gray-600 transition-colors">
-                    <i class="fas fa-bell text-lg"></i>
-                    <span id="notifBadge"
-                        class="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 hidden">0</span>
+                <button id="notificationBellBtn" onclick="switchTab('notifications')" style="position:relative;padding:8px 10px;border:1px solid rgba(255,255,255,0.12);border-radius:8px;background:transparent;color:#aaa;cursor:pointer">
+                    <i class="fas fa-bell" style="font-size:15px"></i>
+                    <span id="notifBadge" class="hidden" style="position:absolute;top:-5px;right:-5px;background:#ef4444;color:#fff;font-size:10px;font-weight:800;border-radius:99px;min-width:16px;height:16px;display:flex;align-items:center;justify-content:center;padding:0 4px">0</span>
                 </button>
-                <button id="logoutBtn"
-                    class="bg-red-600 text-white px-3 md:px-4 py-2 rounded-md text-xs md:text-sm hover:bg-red-700 whitespace-nowrap">
+                <button id="logoutBtn" style="padding:7px 14px;background:#ef4444;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">
                     Sair
                 </button>
             </div>
         </nav>
     </header>
 
+    <!-- Tab Nav gaming -->
+    <div style="background:#0d1424;border-bottom:1px solid rgba(255,255,255,0.07);position:sticky;top:65px;z-index:39">
+        <nav style="max-width:960px;margin:0 auto;padding:0 12px;display:flex;overflow-x:auto;gap:0;scrollbar-width:none">
+            <button id="dashboardTab" class="tab-button active border-transparent text-gray-500" style="padding:13px 14px;font-size:12px;font-weight:700;white-space:nowrap;border:none;background:transparent;cursor:pointer;color:#07b7b4;border-bottom:2px solid #07b7b4;flex-shrink:0">
+                🏠 Dashboard
+            </button>
+            <button id="ordersTab" class="tab-button border-transparent text-gray-500" style="padding:13px 14px;font-size:12px;font-weight:700;white-space:nowrap;border:none;background:transparent;cursor:pointer;color:rgba(255,255,255,0.5);border-bottom:2px solid transparent;flex-shrink:0">
+                📋 Pedidos
+            </button>
+            <button id="productsTab" class="tab-button border-transparent text-gray-500" style="padding:13px 14px;font-size:12px;font-weight:700;white-space:nowrap;border:none;background:transparent;cursor:pointer;color:rgba(255,255,255,0.5);border-bottom:2px solid transparent;flex-shrink:0">
+                🛍️ Produtos
+            </button>
+            <button id="tokensTab" class="tab-button border-transparent text-gray-500" style="padding:13px 14px;font-size:12px;font-weight:700;white-space:nowrap;border:none;background:transparent;cursor:pointer;color:rgba(255,255,255,0.5);border-bottom:2px solid transparent;flex-shrink:0">
+                🪙 Tokens
+            </button>
+            <button id="profileTab" class="tab-button border-transparent text-gray-500" style="padding:13px 14px;font-size:12px;font-weight:700;white-space:nowrap;border:none;background:transparent;cursor:pointer;color:rgba(255,255,255,0.5);border-bottom:2px solid transparent;flex-shrink:0">
+                👤 Perfil
+            </button>
+            <button id="affiliateTab" class="tab-button border-transparent text-gray-500 hidden" style="padding:13px 14px;font-size:12px;font-weight:700;white-space:nowrap;border:none;background:transparent;cursor:pointer;color:rgba(255,255,255,0.5);border-bottom:2px solid transparent;flex-shrink:0">
+                🤝 Afiliados
+            </button>
+            <button id="notificationsTab" class="tab-button border-transparent text-gray-500" style="padding:13px 14px;font-size:12px;font-weight:700;white-space:nowrap;border:none;background:transparent;cursor:pointer;color:rgba(255,255,255,0.5);border-bottom:2px solid transparent;flex-shrink:0">
+                🔔 Notificações
+                <span id="notifTabBadge" class="hidden" style="background:#ef4444;color:#fff;font-size:10px;font-weight:800;border-radius:99px;padding:1px 6px;margin-left:4px">0</span>
+            </button>
+        </nav>
+    </div>
+
     <!-- Main Content -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <!-- Welcome Hero -->
-        <div style="background:linear-gradient(135deg,#4c1d95 0%,#5b21b6 50%,#3730a3 100%);border-radius:1.25rem;padding:1.4rem 1.5rem;margin-bottom:1.5rem;position:relative;overflow:hidden">
-            <div style="position:absolute;top:-24px;right:-24px;width:130px;height:130px;background:rgba(255,255,255,0.07);border-radius:50%"></div>
-            <div style="position:absolute;bottom:-30px;right:70px;width:80px;height:80px;background:rgba(255,255,255,0.05);border-radius:50%"></div>
-            <div style="position:relative;z-index:1">
-                <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.1rem">
-                    <div style="width:46px;height:46px;background:rgba(255,255,255,0.18);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">🎮</div>
-                    <div>
-                        <div id="welcomeMessage" style="color:#fff;font-size:1rem;font-weight:900;line-height:1.2">Bem-vindo!</div>
-                    </div>
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px">
-                    <div style="background:rgba(255,255,255,0.12);border-radius:12px;padding:10px 8px;text-align:center">
-                        <div id="totalOrders" style="font-size:1.45rem;font-weight:900;color:#fff;line-height:1">0</div>
-                        <div style="font-size:9px;color:rgba(255,255,255,0.7);font-weight:700;margin-top:3px;text-transform:uppercase;letter-spacing:0.6px">Pedidos</div>
-                    </div>
-                    <div style="background:rgba(255,255,255,0.12);border-radius:12px;padding:10px 8px;text-align:center">
-                        <div id="totalSpent" style="font-size:1rem;font-weight:900;color:#fde68a;line-height:1.3">R$ 0</div>
-                        <div style="font-size:9px;color:rgba(255,255,255,0.7);font-weight:700;margin-top:3px;text-transform:uppercase;letter-spacing:0.6px">Gasto</div>
-                    </div>
-                    <div style="background:rgba(255,255,255,0.12);border-radius:12px;padding:10px 8px;text-align:center">
-                        <div id="availableTokens" style="font-size:1.45rem;font-weight:900;color:#6ee7b7;line-height:1">0</div>
-                        <div style="font-size:9px;color:rgba(255,255,255,0.7);font-weight:700;margin-top:3px;text-transform:uppercase;letter-spacing:0.6px">Tokens</div>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div style="max-width:960px;margin:0 auto;padding:20px 16px 100px">
 
-        <!-- Navigation Tabs -->
-        <div class="bg-white rounded-lg shadow-sm mb-8">
-            <div class="border-b border-gray-200">
-                <nav class="-mb-px flex space-x-4 md:space-x-8 px-4 md:px-6 overflow-x-auto scrollbar-hide">
-                    <button id="dashboardTab"
-                        class="tab-button active py-4 px-2 md:px-1 border-b-2 border-blue-500 font-medium text-sm text-blue-600 whitespace-nowrap flex-shrink-0">
-                        Dashboard
-                    </button>
-                    <button id="ordersTab"
-                        class="tab-button py-4 px-2 md:px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap flex-shrink-0">
-                        Meus Pedidos
-                    </button>
-                    <button id="productsTab"
-                        class="tab-button py-4 px-2 md:px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap flex-shrink-0">
-                        Meus Produtos
-                    </button>
-                    <button id="tokensTab"
-                        class="tab-button py-4 px-2 md:px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap flex-shrink-0">
-                        Meus Tokens
-                    </button>
-                    <button id="profileTab"
-                        class="tab-button py-4 px-2 md:px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap flex-shrink-0">
-                        Meu Perfil
-                    </button>
-                    <button id="affiliateTab"
-                        class="tab-button py-4 px-2 md:px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap flex-shrink-0 hidden">
-                        <i class="fas fa-handshake mr-1"></i>Afiliados
-                    </button>
-                    <button id="notificationsTab"
-                        class="tab-button py-4 px-2 md:px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap flex-shrink-0">
-                        <i class="fas fa-bell mr-1"></i>Notificações
-                        <span id="notifTabBadge" class="ml-1 bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 hidden">0</span>
-                    </button>
-                </nav>
-            </div>
-        </div>
-
-        <!-- Dashboard Tab -->
+        <!-- ===== DASHBOARD ===== -->
         <div id="dashboardContent" class="tab-content">
 
-            <!-- Aviso gaming -->
-            <div style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;margin-bottom:1.1rem;background:linear-gradient(135deg,#fffbeb,#fef3c7);border:2px solid #fbbf24;border-radius:14px;box-shadow:0 2px 8px rgba(251,191,36,0.15)">
-                <div style="width:36px;height:36px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🔔</div>
+            <!-- Welcome Card -->
+            <div style="background:linear-gradient(135deg,#0d1f2d 0%,#0a1929 100%);border:1px solid rgba(7,183,180,0.3);border-radius:16px;padding:20px;margin-bottom:14px;position:relative;overflow:hidden">
+                <div style="position:absolute;top:-30px;right:-30px;width:120px;height:120px;background:rgba(7,183,180,0.05);border-radius:50%;pointer-events:none"></div>
+                <div style="position:absolute;bottom:-20px;right:60px;width:70px;height:70px;background:rgba(236,212,20,0.04);border-radius:50%;pointer-events:none"></div>
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+                    <div style="width:44px;height:44px;background:rgba(7,183,180,0.12);border:1px solid rgba(7,183,180,0.35);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">🎮</div>
+                    <div>
+                        <div id="welcomeMessage" style="color:#fff;font-size:1rem;font-weight:900;line-height:1.3">Bem-vindo!</div>
+                        <div style="font-size:11px;color:#07b7b4;font-weight:600;letter-spacing:0.5px;margin-top:2px">XTreino Freitas</div>
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+                    <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px 8px;text-align:center">
+                        <div id="totalOrders" style="font-size:1.5rem;font-weight:900;color:#fff;line-height:1">0</div>
+                        <div style="font-size:9px;color:rgba(255,255,255,0.55);font-weight:700;margin-top:4px;text-transform:uppercase;letter-spacing:0.7px">Inscrições</div>
+                    </div>
+                    <div style="background:rgba(236,212,20,0.09);border:1px solid rgba(236,212,20,0.2);border-radius:12px;padding:12px 8px;text-align:center">
+                        <div id="totalSpent" style="font-size:1rem;font-weight:900;color:#ecd414;line-height:1.3">R$ 0</div>
+                        <div style="font-size:9px;color:rgba(236,212,20,0.65);font-weight:700;margin-top:4px;text-transform:uppercase;letter-spacing:0.7px">Investido</div>
+                    </div>
+                    <div style="background:rgba(7,183,180,0.09);border:1px solid rgba(7,183,180,0.22);border-radius:12px;padding:12px 8px;text-align:center">
+                        <div id="availableTokens" style="font-size:1.5rem;font-weight:900;color:#07b7b4;line-height:1">0</div>
+                        <div style="font-size:9px;color:rgba(7,183,180,0.75);font-weight:700;margin-top:4px;text-transform:uppercase;letter-spacing:0.7px">Tokens</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alerta credenciais -->
+            <div style="display:flex;align-items:flex-start;gap:12px;padding:13px 15px;margin-bottom:14px;background:rgba(236,212,20,0.07);border:1.5px solid rgba(236,212,20,0.3);border-radius:14px">
+                <div style="font-size:18px;flex-shrink:0;margin-top:1px">🔔</div>
                 <div>
-                    <div style="font-size:13px;font-weight:900;color:#92400e;margin-bottom:2px">ATENÇÃO — Credenciais da Sala</div>
-                    <div style="font-size:12px;color:#78350f;line-height:1.5">O ID e senha da sala saem aqui no site. Fique atento ao sininho <strong>10 min antes do seu horário!</strong></div>
+                    <div style="font-size:12px;font-weight:900;color:#ecd414;margin-bottom:3px;letter-spacing:0.5px">CREDENCIAIS DA SALA</div>
+                    <div style="font-size:12px;color:rgba(255,255,255,0.65);line-height:1.5">O ID e senha da sala saem aqui no site. Fique atento ao sininho <strong style="color:#fff">10 min antes do seu horário!</strong></div>
                 </div>
             </div>
 
             <!-- Ações rápidas -->
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.1rem">
-                <button onclick="switchTab('orders')" style="display:flex;align-items:center;gap:10px;padding:14px;background:#fff;border:1.5px solid #e5e7eb;border-radius:14px;cursor:pointer;text-align:left;box-shadow:0 1px 4px rgba(0,0,0,0.06);transition:box-shadow 0.15s" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,0.06)'">
-                    <div style="width:38px;height:38px;background:linear-gradient(135deg,#dbeafe,#ede9fe);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0">📋</div>
-                    <div>
-                        <div style="font-size:13px;font-weight:800;color:#1f2937">Meus Pedidos</div>
-                        <div style="font-size:11px;color:#6b7280;margin-top:1px">Ver inscrições</div>
-                    </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+                <button onclick="switchTab('orders')" style="display:flex;align-items:center;gap:10px;padding:14px;background:#1e293b;border:1px solid rgba(255,255,255,0.07);border-radius:14px;cursor:pointer;text-align:left;transition:border-color 0.15s" onmouseover="this.style.borderColor='rgba(7,183,180,0.4)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.07)'">
+                    <div style="width:36px;height:36px;background:rgba(7,183,180,0.12);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">📋</div>
+                    <div><div style="font-size:13px;font-weight:800;color:#fff">Meus Pedidos</div><div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:1px">Ver inscrições</div></div>
                 </button>
-                <button onclick="switchTab('tokens')" style="display:flex;align-items:center;gap:10px;padding:14px;background:#fff;border:1.5px solid #e5e7eb;border-radius:14px;cursor:pointer;text-align:left;box-shadow:0 1px 4px rgba(0,0,0,0.06);transition:box-shadow 0.15s" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,0.06)'">
-                    <div style="width:38px;height:38px;background:linear-gradient(135deg,#d1fae5,#a7f3d0);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0">🪙</div>
-                    <div>
-                        <div style="font-size:13px;font-weight:800;color:#1f2937">Meus Tokens</div>
-                        <div style="font-size:11px;color:#6b7280;margin-top:1px">Saldo e histórico</div>
-                    </div>
+                <button onclick="switchTab('tokens')" style="display:flex;align-items:center;gap:10px;padding:14px;background:#1e293b;border:1px solid rgba(255,255,255,0.07);border-radius:14px;cursor:pointer;text-align:left;transition:border-color 0.15s" onmouseover="this.style.borderColor='rgba(236,212,20,0.4)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.07)'">
+                    <div style="width:36px;height:36px;background:rgba(236,212,20,0.1);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">🪙</div>
+                    <div><div style="font-size:13px;font-weight:800;color:#fff">Meus Tokens</div><div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:1px">Saldo e histórico</div></div>
                 </button>
-                <button onclick="switchTab('notifications')" style="display:flex;align-items:center;gap:10px;padding:14px;background:#fff;border:1.5px solid #e5e7eb;border-radius:14px;cursor:pointer;text-align:left;box-shadow:0 1px 4px rgba(0,0,0,0.06);transition:box-shadow 0.15s" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,0.06)'">
-                    <div style="width:38px;height:38px;background:linear-gradient(135deg,#fce7f3,#fbcfe8);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0">🔔</div>
-                    <div>
-                        <div style="font-size:13px;font-weight:800;color:#1f2937">Notificações</div>
-                        <div style="font-size:11px;color:#6b7280;margin-top:1px">ID e senha da sala</div>
-                    </div>
+                <button onclick="switchTab('notifications')" style="display:flex;align-items:center;gap:10px;padding:14px;background:#1e293b;border:1px solid rgba(255,255,255,0.07);border-radius:14px;cursor:pointer;text-align:left;transition:border-color 0.15s" onmouseover="this.style.borderColor='rgba(239,68,68,0.4)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.07)'">
+                    <div style="width:36px;height:36px;background:rgba(239,68,68,0.1);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">🔔</div>
+                    <div><div style="font-size:13px;font-weight:800;color:#fff">Notificações</div><div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:1px">ID e senha da sala</div></div>
                 </button>
-                <button onclick="switchTab('profile')" style="display:flex;align-items:center;gap:10px;padding:14px;background:#fff;border:1.5px solid #e5e7eb;border-radius:14px;cursor:pointer;text-align:left;box-shadow:0 1px 4px rgba(0,0,0,0.06);transition:box-shadow 0.15s" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,0.06)'">
-                    <div style="width:38px;height:38px;background:linear-gradient(135deg,#fef9c3,#fde68a);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0">👤</div>
-                    <div>
-                        <div style="font-size:13px;font-weight:800;color:#1f2937">Meu Perfil</div>
-                        <div style="font-size:11px;color:#6b7280;margin-top:1px">Dados e avatar</div>
-                    </div>
+                <button onclick="switchTab('profile')" style="display:flex;align-items:center;gap:10px;padding:14px;background:#1e293b;border:1px solid rgba(255,255,255,0.07);border-radius:14px;cursor:pointer;text-align:left;transition:border-color 0.15s" onmouseover="this.style.borderColor='rgba(168,85,247,0.4)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.07)'">
+                    <div style="width:36px;height:36px;background:rgba(168,85,247,0.1);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">👤</div>
+                    <div><div style="font-size:13px;font-weight:800;color:#fff">Meu Perfil</div><div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:1px">Dados e avatar</div></div>
                 </button>
             </div>
 
-            <!-- Inscrições do Dia -->
-            <div style="background:#fff;border-radius:16px;border:1.5px solid #f3f4f6;box-shadow:0 1px 4px rgba(0,0,0,0.06);overflow:hidden;margin-bottom:10px">
-                <div style="padding:14px 16px;border-bottom:1.5px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between">
+            <!-- Próximos Treinos (dados reais) -->
+            <div style="background:#1e293b;border:1px solid rgba(7,183,180,0.18);border-radius:16px;overflow:hidden;margin-bottom:14px">
+                <div style="padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:space-between">
                     <div style="display:flex;align-items:center;gap:8px">
                         <span style="font-size:16px">📅</span>
-                        <span style="font-size:14px;font-weight:800;color:#1f2937">Inscrições de hoje</span>
-                        <span id="todayRegsDateLabel" style="font-size:12px;font-weight:600;color:#7c3aed;background:#f5f3ff;border-radius:6px;padding:2px 8px"></span>
+                        <span style="font-size:14px;font-weight:800;color:#fff">Próximos Treinos</span>
+                        <span id="todayRegsDateLabel" style="font-size:11px;font-weight:700;color:#07b7b4;background:rgba(7,183,180,0.1);border-radius:6px;padding:2px 8px"></span>
                     </div>
-                    <span id="todayRegsBadge" style="display:none;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;font-size:11px;font-weight:800;border-radius:99px;padding:2px 9px;min-width:22px;text-align:center">0</span>
+                    <span id="todayRegsBadge" style="display:none;background:#07b7b4;color:#0a0d14;font-size:11px;font-weight:900;border-radius:99px;padding:2px 10px;min-width:22px;text-align:center">0</span>
                 </div>
                 <div id="todayRegistrations" style="padding:14px 16px">
-                    <p style="color:#9ca3af;text-align:center;font-size:13px">Carregando...</p>
+                    <p style="color:rgba(255,255,255,0.35);text-align:center;font-size:13px">Carregando...</p>
                 </div>
             </div>
 
-            <!-- Pedidos recentes -->
-            <div style="background:#fff;border-radius:16px;border:1.5px solid #f3f4f6;box-shadow:0 1px 4px rgba(0,0,0,0.06);overflow:hidden">
-                <div style="padding:14px 16px;border-bottom:1.5px solid #f3f4f6;display:flex;align-items:center;gap:8px">
+            <!-- Pedidos Recentes (dados reais) -->
+            <div style="background:#1e293b;border:1px solid rgba(255,255,255,0.06);border-radius:16px;overflow:hidden;margin-bottom:14px">
+                <div style="padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:8px">
                     <span style="font-size:16px">🏆</span>
-                    <span style="font-size:14px;font-weight:800;color:#1f2937">Pedidos Recentes</span>
+                    <span style="font-size:14px;font-weight:800;color:#fff">Pedidos Recentes</span>
                 </div>
                 <div id="recentOrders" style="padding:16px">
-                    <p style="color:#9ca3af;text-align:center;font-size:13px">Carregando pedidos...</p>
+                    <p style="color:rgba(255,255,255,0.35);text-align:center;font-size:13px">Carregando pedidos...</p>
                 </div>
             </div>
+
+            <!-- EM BREVE: Desempenho -->
+            <div style="position:relative;background:#1e293b;border:1px solid rgba(255,255,255,0.06);border-radius:16px;overflow:hidden;margin-bottom:14px;min-height:130px">
+                <div style="position:absolute;inset:0;background:rgba(10,13,20,0.72);backdrop-filter:blur(2px);z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border-radius:16px">
+                    <div style="width:42px;height:42px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:12px;display:flex;align-items:center;justify-content:center">
+                        <i class="fas fa-lock" style="font-size:17px;color:rgba(255,255,255,0.4)"></i>
+                    </div>
+                    <div style="font-size:11px;font-weight:900;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:1.5px">⏳ Em Breve</div>
+                </div>
+                <div style="padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:space-between">
+                    <div style="display:flex;align-items:center;gap:8px"><span>📊</span><span style="font-size:14px;font-weight:800;color:#fff">Desempenho da Equipe</span></div>
+                    <span style="font-size:12px;color:rgba(255,255,255,0.3)">Essa semana</span>
+                </div>
+                <div style="padding:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+                    <div style="text-align:center"><div style="font-size:1.3rem;font-weight:900;color:#fff">--</div><div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:3px;text-transform:uppercase;letter-spacing:0.5px">Booyahs</div></div>
+                    <div style="text-align:center"><div style="font-size:1.3rem;font-weight:900;color:#fff">--</div><div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:3px;text-transform:uppercase;letter-spacing:0.5px">Abates</div></div>
+                    <div style="text-align:center"><div style="font-size:1.3rem;font-weight:900;color:#fff">--</div><div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:3px;text-transform:uppercase;letter-spacing:0.5px">K/D</div></div>
+                </div>
+            </div>
+
+            <!-- EM BREVE: Nível / XP -->
+            <div style="position:relative;background:#1e293b;border:1px solid rgba(255,255,255,0.06);border-radius:16px;overflow:hidden;margin-bottom:14px;min-height:130px">
+                <div style="position:absolute;inset:0;background:rgba(10,13,20,0.72);backdrop-filter:blur(2px);z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border-radius:16px">
+                    <div style="width:42px;height:42px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:12px;display:flex;align-items:center;justify-content:center">
+                        <i class="fas fa-lock" style="font-size:17px;color:rgba(255,255,255,0.4)"></i>
+                    </div>
+                    <div style="font-size:11px;font-weight:900;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:1.5px">⏳ Em Breve</div>
+                </div>
+                <div style="padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.06)">
+                    <div style="display:flex;align-items:center;gap:8px"><span>⭐</span><span style="font-size:14px;font-weight:800;color:#fff">Nível da Equipe</span></div>
+                </div>
+                <div style="padding:16px">
+                    <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px">
+                        <div style="width:48px;height:48px;background:rgba(236,212,20,0.08);border:1.5px solid rgba(236,212,20,0.2);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;opacity:0.4">🥇</div>
+                        <div>
+                            <div style="font-size:15px;font-weight:900;color:rgba(255,255,255,0.35)">OURO III</div>
+                            <div style="font-size:11px;color:rgba(255,255,255,0.25);margin-top:2px">Nível da Equipe</div>
+                        </div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.05);border-radius:99px;height:7px;overflow:hidden">
+                        <div style="width:58%;height:100%;background:linear-gradient(90deg,rgba(236,212,20,0.4),rgba(245,158,11,0.4));border-radius:99px"></div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;margin-top:5px">
+                        <span style="font-size:10px;color:rgba(255,255,255,0.25)">0 XP</span>
+                        <span style="font-size:10px;color:rgba(255,255,255,0.25)">3000 XP</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EM BREVE: Conquistas -->
+            <div style="position:relative;background:#1e293b;border:1px solid rgba(255,255,255,0.06);border-radius:16px;overflow:hidden;margin-bottom:14px;min-height:130px">
+                <div style="position:absolute;inset:0;background:rgba(10,13,20,0.72);backdrop-filter:blur(2px);z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border-radius:16px">
+                    <div style="width:42px;height:42px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:12px;display:flex;align-items:center;justify-content:center">
+                        <i class="fas fa-lock" style="font-size:17px;color:rgba(255,255,255,0.4)"></i>
+                    </div>
+                    <div style="font-size:11px;font-weight:900;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:1.5px">⏳ Em Breve</div>
+                </div>
+                <div style="padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.06)">
+                    <div style="display:flex;align-items:center;gap:8px"><span>🏅</span><span style="font-size:14px;font-weight:800;color:#fff">Conquistas</span></div>
+                </div>
+                <div style="padding:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+                    <div style="background:rgba(255,255,255,0.04);border-radius:12px;padding:14px 8px;text-align:center"><div style="font-size:22px;margin-bottom:6px;opacity:0.3">🏆</div><div style="font-size:10px;color:rgba(255,255,255,0.25);font-weight:700;letter-spacing:0.5px">BOOYAH!</div></div>
+                    <div style="background:rgba(255,255,255,0.04);border-radius:12px;padding:14px 8px;text-align:center"><div style="font-size:22px;margin-bottom:6px;opacity:0.3">🔥</div><div style="font-size:10px;color:rgba(255,255,255,0.25);font-weight:700;letter-spacing:0.5px">ASSÍDUO</div></div>
+                    <div style="background:rgba(255,255,255,0.04);border-radius:12px;padding:14px 8px;text-align:center"><div style="font-size:22px;margin-bottom:6px;opacity:0.3">⚔️</div><div style="font-size:10px;color:rgba(255,255,255,0.25);font-weight:700;letter-spacing:0.5px">CAÇADOR</div></div>
+                </div>
+            </div>
+
+            <!-- EM BREVE: Ranking -->
+            <div style="position:relative;background:#1e293b;border:1px solid rgba(255,255,255,0.06);border-radius:16px;overflow:hidden;margin-bottom:14px;min-height:130px">
+                <div style="position:absolute;inset:0;background:rgba(10,13,20,0.72);backdrop-filter:blur(2px);z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border-radius:16px">
+                    <div style="width:42px;height:42px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:12px;display:flex;align-items:center;justify-content:center">
+                        <i class="fas fa-lock" style="font-size:17px;color:rgba(255,255,255,0.4)"></i>
+                    </div>
+                    <div style="font-size:11px;font-weight:900;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:1.5px">⏳ Em Breve</div>
+                </div>
+                <div style="padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.06)">
+                    <div style="display:flex;align-items:center;gap:8px"><span>🏆</span><span style="font-size:14px;font-weight:800;color:#fff">Ranking Geral</span></div>
+                </div>
+                <div style="padding:16px;display:flex;flex-direction:column;gap:8px">
+                    <div style="display:flex;align-items:center;gap:12px;padding:10px;background:rgba(255,255,255,0.03);border-radius:10px;opacity:0.35"><span style="font-size:14px;font-weight:900;color:#ecd414;min-width:24px">#1</span><span style="font-size:12px;font-weight:700;color:#fff;flex:1">- - -</span><span style="font-size:12px;font-weight:800;color:rgba(255,255,255,0.5)">- - -</span></div>
+                    <div style="display:flex;align-items:center;gap:12px;padding:10px;background:rgba(255,255,255,0.03);border-radius:10px;opacity:0.35"><span style="font-size:14px;font-weight:900;color:#9ca3af;min-width:24px">#2</span><span style="font-size:12px;font-weight:700;color:#fff;flex:1">- - -</span><span style="font-size:12px;font-weight:800;color:rgba(255,255,255,0.5)">- - -</span></div>
+                    <div style="display:flex;align-items:center;gap:12px;padding:10px;background:rgba(255,255,255,0.03);border-radius:10px;opacity:0.35"><span style="font-size:14px;font-weight:900;color:#92400e;min-width:24px">#3</span><span style="font-size:12px;font-weight:700;color:#fff;flex:1">- - -</span><span style="font-size:12px;font-weight:800;color:rgba(255,255,255,0.5)">- - -</span></div>
+                </div>
+            </div>
+
         </div>
 
         <!-- Orders Tab (Events Only) -->
