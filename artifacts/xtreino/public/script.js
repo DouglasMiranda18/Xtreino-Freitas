@@ -9869,9 +9869,13 @@ async function loadDynamicEvents() {
         const colRef = collection(window.firebaseDb, 'adminEvents');
         let snap;
         try {
-            snap = await getDocs(query(colRef, where('status', 'in', ['Aberto', 'Em breve']), orderBy('createdAt', 'desc')));
+            snap = await getDocs(query(colRef, where('status', 'in', ['Aberto', 'Em breve']), orderBy('ordem', 'asc'), orderBy('createdAt', 'desc')));
         } catch (_) {
-            snap = await getDocs(query(colRef, where('status', 'in', ['Aberto', 'Em breve'])));
+            try {
+                snap = await getDocs(query(colRef, where('status', 'in', ['Aberto', 'Em breve']), orderBy('ordem', 'asc')));
+            } catch (__) {
+                snap = await getDocs(query(colRef, where('status', 'in', ['Aberto', 'Em breve'])));
+            }
         }
 
         if (snap.empty) {
