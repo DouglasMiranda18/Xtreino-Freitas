@@ -5,77 +5,79 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PLATAFORMA FREITAS - Treinamento eSports de Alta Performance</title>
     <link rel="icon" type="image/png" href="assets/images/Logo - Xtreino Freitas.png">
-    <!-- Anti-FOUC: esconde o body até o Tailwind processar as classes responsivas -->
-    <style>body{visibility:hidden}</style>
     <script>
-        // Carregar Tailwind com retry automático em caso de falha do CloudFlare
         (function() {
             const maxRetries = 5;
-            const retryDelay = 1000; // 1 segundo entre tentativas
+            const retryDelay = 1000;
             let retryCount = 0;
             let loaded = false;
-            
+            let _barTimer = null;
+            let _hidden = false;
+
+            // Anima a barra de progresso até ~85% enquanto carrega
+            document.addEventListener('DOMContentLoaded', function() {
+                let pct = 0;
+                const fill = document.getElementById('_ldBarFill');
+                const pctEl = document.getElementById('_ldPct');
+                _barTimer = setInterval(function() {
+                    pct = Math.min(pct + Math.random() * 10 + 4, 85);
+                    if (fill) fill.style.width = Math.round(pct) + '%';
+                    if (pctEl) pctEl.textContent = Math.round(pct) + '%';
+                    if (pct >= 85) clearInterval(_barTimer);
+                }, 160);
+            });
+
+            function hideLoadingScreen() {
+                if (_hidden) return;
+                _hidden = true;
+                if (_barTimer) clearInterval(_barTimer);
+                const scr = document.getElementById('_loadingScreen');
+                const fill = document.getElementById('_ldBarFill');
+                const pctEl = document.getElementById('_ldPct');
+                if (fill) fill.style.width = '100%';
+                if (pctEl) pctEl.textContent = '100%';
+                if (scr) {
+                    setTimeout(function() {
+                        scr.style.opacity = '0';
+                        setTimeout(function() { if (scr.parentNode) scr.parentNode.removeChild(scr); }, 400);
+                    }, 180);
+                }
+            }
+
             function tryLoadTailwind() {
                 if (loaded) return;
-                
                 const script = document.createElement('script');
-                script.src = 'https://cdn.tailwindcss.com?v=' + Date.now(); // Cache busting
+                script.src = 'https://cdn.tailwindcss.com?v=' + Date.now();
                 script.async = true;
-                
-                const timeout = setTimeout(() => {
+                const timeout = setTimeout(function() {
                     if (!loaded) {
-                        script.remove();
-                        retryCount++;
-                        if (retryCount < maxRetries) {
-                            console.warn(`⚠️ Timeout ao carregar Tailwind (tentativa ${retryCount}/${maxRetries}). Tentando novamente...`);
-                            setTimeout(tryLoadTailwind, retryDelay);
-                        } else {
-                            console.error('❌ Não foi possível carregar o Tailwind após', maxRetries, 'tentativas. O site pode não funcionar corretamente.');
-                            // Carregar estilos básicos como último recurso
-                            loadFallbackStyles();
-                        }
+                        script.remove(); retryCount++;
+                        if (retryCount < maxRetries) { setTimeout(tryLoadTailwind, retryDelay); }
+                        else { loadFallbackStyles(); }
                     }
-                }, 10000); // 10 segundos de timeout
-                
+                }, 10000);
                 script.onload = function() {
                     clearTimeout(timeout);
                     loaded = true;
-                    document.body.style.visibility = 'visible';
-                    console.log('✅ Tailwind carregado com sucesso!');
+                    hideLoadingScreen();
                 };
-                
                 script.onerror = function() {
-                    clearTimeout(timeout);
-                    script.remove();
-                    retryCount++;
-                    if (retryCount < maxRetries) {
-                        console.warn(`⚠️ Erro ao carregar Tailwind (tentativa ${retryCount}/${maxRetries}). Tentando novamente em ${retryDelay}ms...`);
-                        setTimeout(tryLoadTailwind, retryDelay);
-                    } else {
-                        console.error('❌ Não foi possível carregar o Tailwind após', maxRetries, 'tentativas.');
-                        loadFallbackStyles();
-                    }
+                    clearTimeout(timeout); script.remove(); retryCount++;
+                    if (retryCount < maxRetries) { setTimeout(tryLoadTailwind, retryDelay); }
+                    else { loadFallbackStyles(); }
                 };
-                
                 document.head.appendChild(script);
             }
-            
+
             function loadFallbackStyles() {
-                document.body.style.visibility = 'visible';
+                hideLoadingScreen();
                 const style = document.createElement('style');
-                style.textContent = `
-                    * { box-sizing: border-box; }
-                    body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
-                    .container { max-width: 1200px; margin: 0 auto; padding: 1rem; }
-                    .btn { padding: 0.5rem 1rem; border-radius: 0.25rem; cursor: pointer; border: none; }
-                    .hidden { display: none !important; }
-                `;
+                style.textContent = '* { box-sizing: border-box; } body { margin: 0; font-family: system-ui, -apple-system, sans-serif; } .hidden { display: none !important; }';
                 document.head.appendChild(style);
             }
-            
+
             tryLoadTailwind();
-            // Safety: garante que o body aparece em até 3s mesmo se algo falhar
-            setTimeout(function() { document.body.style.visibility = 'visible'; }, 3000);
+            setTimeout(hideLoadingScreen, 4000); // safety máximo 4s
         })();
     </script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -83,6 +85,29 @@
     <link rel="stylesheet" href="mobile-optimizations.css">
 </head>
 <body class="bg-white text-black enterprise-bg">
+    <!-- Loading Screen — inline CSS only, sem depender do Tailwind -->
+    <div id="_loadingScreen" style="position:fixed;inset:0;z-index:99999;background:#0a0d14;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity 0.4s ease;">
+        <!-- Logo -->
+        <img src="assets/images/Logo - Xtreino Freitas.png" alt="XTreino" style="width:76px;height:76px;border-radius:14px;object-fit:contain;filter:drop-shadow(0 0 14px rgba(7,183,180,0.6));">
+        <!-- Título -->
+        <div style="color:#ffffff;font-family:system-ui,-apple-system,sans-serif;font-size:0.8rem;font-weight:900;letter-spacing:0.4em;text-transform:uppercase;">Carregando...</div>
+        <!-- Barra container -->
+        <div style="position:relative;width:260px;">
+            <div style="width:260px;height:16px;background:#0f172a;border-radius:3px;border:1px solid rgba(7,183,180,0.5);overflow:hidden;box-shadow:0 0 12px rgba(7,183,180,0.25),inset 0 0 6px rgba(0,0,0,0.5);">
+                <div id="_ldBarFill" style="height:100%;width:0%;background:repeating-linear-gradient(60deg,#07b7b4 0px,#07b7b4 10px,#09d7d1 10px,#09d7d1 20px);transition:width 0.25s ease;box-shadow:0 0 10px #07b7b4,0 0 20px rgba(7,183,180,0.4);"></div>
+            </div>
+            <!-- Cantos decorativos -->
+            <div style="position:absolute;top:-3px;left:-3px;width:8px;height:8px;border-top:2px solid #ecd414;border-left:2px solid #ecd414;"></div>
+            <div style="position:absolute;top:-3px;right:-3px;width:8px;height:8px;border-top:2px solid #ecd414;border-right:2px solid #ecd414;"></div>
+            <div style="position:absolute;bottom:-3px;left:-3px;width:8px;height:8px;border-bottom:2px solid #ecd414;border-left:2px solid #ecd414;"></div>
+            <div style="position:absolute;bottom:-3px;right:-3px;width:8px;height:8px;border-bottom:2px solid #ecd414;border-right:2px solid #ecd414;"></div>
+        </div>
+        <!-- Percentual -->
+        <div id="_ldPct" style="color:#ecd414;font-family:system-ui,-apple-system,monospace;font-size:0.7rem;font-weight:700;letter-spacing:0.1em;min-width:3ch;text-align:center;">0%</div>
+        <!-- Subtítulo -->
+        <div style="color:#334155;font-family:system-ui,-apple-system,sans-serif;font-size:0.6rem;font-weight:600;letter-spacing:0.25em;text-transform:uppercase;">Plataforma Freitas</div>
+    </div>
+
     <!-- Top Alert -->
     <div id="topAlert" class="w-full bg-[var(--brand-yellow)] text-[var(--brand-black)] text-sm py-2 text-center">
         <span class="font-semibold">🏆 Participe dos treinos e concorra a um Celular!</span>
