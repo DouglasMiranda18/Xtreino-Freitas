@@ -39,7 +39,11 @@
                 if (scr) {
                     setTimeout(function() {
                         scr.style.opacity = '0';
-                        setTimeout(function() { if (scr.parentNode) scr.parentNode.removeChild(scr); }, 400);
+                        setTimeout(function() {
+                            if (scr.parentNode) scr.parentNode.removeChild(scr);
+                            var evt = document.getElementById('xtreinos');
+                            if (evt) evt.scrollIntoView({ behavior: 'instant', block: 'start' });
+                        }, 400);
                     }, 180);
                 }
             }
