@@ -3277,8 +3277,8 @@ async function processSuccessfulPayment(externalRef = null) {
 
         // ── COMPRA DE TOKENS ──
         // Busca direta por ID do documento (external_reference === docId)
-        const _uid = auth?.currentUser?.uid;
-        const _fdb = window.firebaseDb;
+        const _uid = auth?.currentUser?.uid || currentUser?.uid;
+        const _fdb = window.firebaseDb || db;
         if (_uid && _fdb && extRef) {
             try {
                 // Tenta busca direta por doc ID primeiro (sem índice, mais confiável)
