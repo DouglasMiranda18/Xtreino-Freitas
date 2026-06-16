@@ -3724,9 +3724,7 @@ window.purchaseTokensQuick = async function(quantity) {
             // Redirecionar na mesma aba (evita popup bloqueado / card branco)
             try { sessionStorage.setItem('lastCheckoutUrl', data.init_point); } catch(_) {}
             try { sessionStorage.setItem('lastExternalRef', data.external_reference || prefPayload.external_reference); } catch(_) {}
-            try {
-                window.location.href = data.init_point;
-            }
+            window.location.href = data.init_point;
         } else {
             showToast('error', 'Erro ao iniciar pagamento. Tente novamente.', 'Erro');
         }
