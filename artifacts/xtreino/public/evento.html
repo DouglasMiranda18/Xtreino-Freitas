@@ -331,7 +331,6 @@ function buildTabs(ev) {
     if (ev.rodadas) tabs.push({ id:'rodadas', icon:'fa-layer-group', label:'RODADAS' });
     if (ev.pontuacao) tabs.push({ id:'pontuacao', icon:'fa-trophy', label:'PONTUAÇÃO' });
     if (ev.youtubeUrl) tabs.push({ id:'live', icon:'fa-play-circle', label:'AO VIVO' });
-    tabs.push({ id:'inscritos', icon:'fa-list-ol', label:'INSCRITOS' });
     if (isSemanal) tabs.push({ id:'classificacao', icon:'fa-medal', label:'CLASSIFICAÇÃO' });
     if (ev.category === 'camp') tabs.push({ id:'grupos', icon:'fa-users', label:'GRUPOS' });
     document.getElementById('tabNav').innerHTML = tabs.map(t =>
@@ -461,7 +460,7 @@ async function loadEvent() {
         if (!_auth.currentUser) {
             try { await signInAnonymously(_auth); } catch(_e) {}
         }
-        loadInscritos(window._currentEventId || eventId);
+        checkAndUnlockInscritosTab(window._currentEventId || eventId);
 
         if (ev.status === 'Fechado') {
             const cta = document.getElementById('floatingCta');
@@ -534,6 +533,54 @@ window.loadPublicGroups = async function(phase) {
     }
 };
 
+async function checkAndUnlockInscritosTab(evId) {
+    const _db = window._evDb;
+    const _currentUid = window.currentUser?.uid;
+    const _isAnon = window.currentUser?.isAnonymous;
+    if (!_db || !_currentUid || _isAnon) return;
+
+    const _validStatuses = new Set(['confirmed', 'paid', 'approved']);
+    const _normalizedEvId = String(evId || '').toLowerCase().trim().replace(/[\s_]+/g, '-');
+    const _aliasMap = {
+        'xtreino-tokens': ['xtreino-tokens','xtreino-freitas','xtreino freitas','XTreino Freitas','xtreino tokens'],
+        'modo-liga': ['modo-liga','xtreino-modo-liga','xtreino modo liga','XTreino Modo Liga'],
+        'semanal-freitas': ['semanal-freitas','semanal freitas','Semanal Freitas'],
+        'camp-freitas': ['camp-freitas','campeonato-freitas','campeonato freitas','Campeonato Freitas'],
+    };
+    const _evTypesSet = new Set([evId, _normalizedEvId, _resolvedEventType].filter(Boolean));
+    Object.entries(_aliasMap).forEach(([canon, aliases]) => {
+        const normAliases = aliases.map(a => a.toLowerCase().replace(/[\s_]+/g, '-'));
+        if (normAliases.includes(_normalizedEvId) || aliases.includes(evId) || canon === _resolvedEventType) {
+            aliases.forEach(a => _evTypesSet.add(a));
+            _evTypesSet.add(canon);
+        }
+    });
+
+    let _hasConfirmed = false;
+    for (const _evType of _evTypesSet) {
+        if (_hasConfirmed) break;
+        try {
+            const _snap = await getDocs(query(collection(_db, 'registrations'),
+                where('userId', '==', _currentUid),
+                where('eventType', '==', _evType)
+            ));
+            _hasConfirmed = _snap.docs.some(d => _validStatuses.has(d.data().status));
+        } catch(_) {}
+    }
+
+    if (_hasConfirmed) {
+        const tabNav = document.getElementById('tabNav');
+        if (tabNav && !document.getElementById('tabBtn_inscritos')) {
+            const btn = document.createElement('button');
+            btn.id = 'tabBtn_inscritos';
+            btn.className = 'tab-btn px-4 py-2 rounded-lg text-xs font-bold';
+            btn.innerHTML = '<i class="fas fa-list-ol mr-1"></i>INSCRITOS';
+            btn.onclick = () => setTab('inscritos');
+            tabNav.appendChild(btn);
+        }
+    }
+}
+
 async function loadInscritos(evId) {
     const container = document.getElementById('inscritosContent');
     if (!container) return;
@@ -574,7 +621,7 @@ async function loadInscritos(evId) {
                     where('eventType', '==', _evType)
                 );
                 const _snap = await getDocs(_q);
-                _hasConfirmedVaga = _snap.docs.some(d => _validStatuses.has(d.data().status) || d.data().paidWithTokens === true);
+                _hasConfirmedVaga = _snap.docs.some(d => _validStatuses.has(d.data().status));
             } catch(_) {}
         }
         if (!_hasConfirmedVaga) {
