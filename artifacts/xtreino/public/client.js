@@ -3516,6 +3516,7 @@ window.purchaseTokens = async function(quantity) {
             title: `${baseQty} Token${baseQty > 1 ? 's' : ''} XTreino`,
             description: `${baseQty} Token${baseQty > 1 ? 's' : ''} XTreino`,
             item: `${baseQty} Token${baseQty > 1 ? 's' : ''} XTreino`,
+            type: 'tokens_purchase',
             amount: price,
             total: price,
             quantity: baseQty,
@@ -3534,10 +3535,14 @@ window.purchaseTokens = async function(quantity) {
         try {
             const docRef = await addDoc(collection(db, 'orders'), orderData);
             savedOrderId = docRef.id;
-            
+            // Gravar external_reference imediatamente (antes de chamar a Netlify function)
+            try {
+                await updateDoc(doc(db, 'orders', savedOrderId), {
+                    external_reference: savedOrderId,
+                    type: 'tokens_purchase'
+                });
+            } catch(_) {}
         } catch (err) {
-            
-            // continue but ensure we have a fallback id
             savedOrderId = `tokens_${currentUser.uid}_${Date.now()}`;
         }
 
