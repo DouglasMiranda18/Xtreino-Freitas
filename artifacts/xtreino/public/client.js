@@ -192,15 +192,27 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (!storage && window.firebaseApp) {
         try {
             storage = getStorage(window.firebaseApp);
-            
-        } catch (error) {
-            
-        }
+        } catch (error) {}
     }
-    
+
+    // Detectar retorno do Mercado Pago e salvar no sessionStorage ANTES de limpar a URL
+    try {
+        const _sp = new URLSearchParams(location.search);
+        const _colStatus = _sp.get('collection_status');
+        const _status    = _sp.get('status');
+        const _extRef    = _sp.get('external_reference');
+        const _approved  = _colStatus === 'approved' || _status === 'approved';
+        if (_approved && _extRef) {
+            // Salvar para processar após auth estar pronta (no onAuthStateChanged)
+            sessionStorage.setItem('mp_pending_ref', _extRef);
+            sessionStorage.setItem('mp_pending_status', 'approved');
+            // Limpar URL para não reprocessar no reload
+            history.replaceState({}, document.title, location.pathname);
+        }
+    } catch(_) {}
+
     await checkAuthState();
     setupEventListeners();
-    // Verificação de afiliado será feita após autenticação no onAuthStateChanged
     // Se vier com ?tab=myTokens, abrir direto essa aba
     try{
         const sp = new URLSearchParams(location.search);
@@ -209,24 +221,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             await switchTab('myTokens');
         }
     }catch(_){ }
-
-    // Tratar retorno do Mercado Pago para compra de tokens
-    try {
-        const _sp = new URLSearchParams(location.search);
-        const _colStatus = _sp.get('collection_status');
-        const _status    = _sp.get('status');
-        const _extRef    = _sp.get('external_reference');
-        const _approved  = _colStatus === 'approved' || _status === 'approved';
-        if (_approved && _extRef) {
-            history.replaceState({}, document.title, location.pathname);
-            // Aguardar auth estar pronta antes de processar
-            await new Promise(resolve => {
-                if (auth?.currentUser) { resolve(); return; }
-                const unsub = auth?.onAuthStateChanged ? auth.onAuthStateChanged(u => { unsub(); resolve(); }) : (() => { resolve(); })();
-            });
-            await processSuccessfulPayment(_extRef);
-        }
-    } catch(_) {}
 });
 
 // Check authentication state
@@ -246,6 +240,19 @@ async function checkAuthState() {
             await loadUserProfile();
             await loadDashboard();
             await reconcilePendingPayments();
+
+            // Processar retorno do Mercado Pago (tokens) — executar aqui onde auth é garantida
+            try {
+                const _mpRef    = sessionStorage.getItem('mp_pending_ref');
+                const _mpStatus = sessionStorage.getItem('mp_pending_status');
+                if (_mpRef && _mpStatus === 'approved') {
+                    sessionStorage.removeItem('mp_pending_ref');
+                    sessionStorage.removeItem('mp_pending_status');
+                    await processSuccessfulPayment(_mpRef);
+                    // Após creditar, abrir aba de tokens
+                    try { await switchTab('tokens'); } catch(_) {}
+                }
+            } catch(_) {}
             // Verificar role de afiliado após carregar perfil (já é chamado no loadDashboard, mas garantir)
             await checkAffiliateRole();
             // Iniciar contador de notificações não lidas
