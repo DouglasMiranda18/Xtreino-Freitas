@@ -3595,14 +3595,12 @@ window.purchaseTokens = async function(quantity) {
         }
 
         closeTokensPurchaseModal();
+        // Salvar referência para processar o retorno do MP
+        const _finalExtRef = data.external_reference || savedOrderId;
         try { sessionStorage.setItem('lastCheckoutUrl', data.init_point); } catch(_) {}
-        try {
-            window.open(data.init_point, '_blank');
-            showToast('success', 'Checkout aberto em nova aba. Finalize o pagamento no Mercado Pago.', 'Checkout');
-        } catch (openErr) {
-            
-            window.location.href = data.init_point;
-        }
+        try { sessionStorage.setItem('lastExternalRef', _finalExtRef); } catch(_) {}
+        // Redirecionar na mesma aba (evita popup bloqueado / card branco)
+        window.location.href = data.init_point;
     } catch (error) {
         
         showToast('error', `Erro ao processar compra de tokens: ${error && error.message ? error.message : String(error)}`, 'Erro');
@@ -3723,13 +3721,10 @@ window.purchaseTokensQuick = async function(quantity) {
                 // Continuar mesmo se der erro no Firestore
             }
             
-            // Abrir pagamento em nova aba (fallback para redirect)
+            // Redirecionar na mesma aba (evita popup bloqueado / card branco)
             try { sessionStorage.setItem('lastCheckoutUrl', data.init_point); } catch(_) {}
+            try { sessionStorage.setItem('lastExternalRef', data.external_reference || prefPayload.external_reference); } catch(_) {}
             try {
-                window.open(data.init_point, '_blank');
-                showToast('success', 'Checkout aberto em nova aba. Finalize o pagamento no Mercado Pago.', 'Checkout');
-            } catch (openErr) {
-                
                 window.location.href = data.init_point;
             }
         } else {
