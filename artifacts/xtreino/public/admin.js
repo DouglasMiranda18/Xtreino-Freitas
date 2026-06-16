@@ -2961,6 +2961,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
             const agg = overrides[k] || { lockedAny: false, extraOccupied: 0 };
             agg.lockedAny = agg.lockedAny || (raw.locked === true);
             if (raw.extraOccupied) agg.extraOccupied += Number(raw.extraOccupied || 0);
+            if (raw.freeUntil) agg.freeUntil = raw.freeUntil;
             overrides[k] = agg;
           });
         } catch (e) {
@@ -2987,6 +2988,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
           const agg = overrides[k] || { lockedAny: false, extraOccupied: 0 };
           agg.lockedAny = agg.lockedAny || (raw.locked === true);
           if (raw.extraOccupied) agg.extraOccupied += Number(raw.extraOccupied || 0);
+          if (raw.freeUntil) agg.freeUntil = raw.freeUntil;
           overrides[k] = agg;
         });
       } catch (e) {
@@ -3042,13 +3044,20 @@ window.showWarningToast = function(message, title = 'Atenção') {
 
     const lockButton = isStaff ? '' : `<button class="px-2 py-1 ${locked?'bg-red-600 text-white':'bg-yellow-400 text-black'} rounded text-xs" data-toggle-lock="${hour}">${locked?'Destravar':'Travar'}</button>`;
     const permLockButton = isStaff ? '' : `<button class="px-2 py-1 ${permLocked?'bg-purple-700 text-white':'bg-gray-400 text-white'} rounded text-xs font-bold" data-toggle-perm-lock="${hour}" title="${permLocked?'Remover trava permanente deste horário':'Travar este horário permanentemente (todas as datas)'}">∞ ${permLocked?'Destrav. Fixo':'Fixar'}</button>`;
-    
-    tr.innerHTML = `<td class="py-2">${hour}${permBadge}</td><td class="py-2" data-board-count="${hour}" data-board-cap="${capacity}" data-board-occ="${occupied}">${occupiedText}</td><td class="py-2 flex flex-wrap gap-1">
+
+    // Botão "Liberar Grátis": verde se ativo (freeUntil no futuro), cinza se inativo
+    const nowTs = Date.now();
+    const freeUntilTs = ovData.freeUntil ? new Date(ovData.freeUntil).getTime() : 0;
+    const isFreeActive = freeUntilTs > nowTs;
+    const freeButton = isStaff ? '' : `<button class="px-2 py-1 ${isFreeActive ? 'bg-green-600 text-white' : 'bg-slate-300 text-slate-800'} rounded text-xs font-bold" data-toggle-free="${hour}" title="${isFreeActive ? 'Cancelar gratuidade deste horário' : 'Liberar este horário como gratuito até o início'}">${isFreeActive ? '🟢 Grátis' : '🆓 Liberar'}</button>`;
+
+    tr.innerHTML = `<td class="py-2">${hour}${permBadge}${isFreeActive ? ' <span class="text-[10px] font-bold text-green-700 bg-green-100 rounded px-1">GRÁTIS</span>' : ''}</td><td class="py-2" data-board-count="${hour}" data-board-cap="${capacity}" data-board-occ="${occupied}">${occupiedText}</td><td class="py-2 flex flex-wrap gap-1">
       <button class="px-2 py-1 bg-blue-600 text-white rounded text-xs" data-add-hour="${hour}">Adicionar</button>
       <button class="px-2 py-1 bg-gray-200 text-gray-800 rounded text-xs" data-manage-hour="${hour}">Gerenciar</button>
       <button class="px-2 py-1 bg-emerald-600 text-white rounded text-xs" data-export-hour="${hour}">Exportar</button>
       ${lockButton}
       ${permLockButton}
+      ${freeButton}
     </td>`;
     
     return tr;
@@ -3482,10 +3491,67 @@ window.showWarningToast = function(message, title = 'Atenção') {
           const h = btnPermLock.getAttribute('data-toggle-perm-lock');
           await handleTogglePermanentLock(h, ovEventType);
         }
+        const btnFree = e.target.closest('[data-toggle-free]');
+        if (btnFree) {
+          const h = btnFree.getAttribute('data-toggle-free');
+          await handleToggleFree(h, date, ovEventType, rawEventId);
+        }
       } catch (e) {
         console.error('Erro ao processar ação da tabela:', e);
       }
     });
+  }
+
+  async function handleToggleFree(hour, date, ovEventType, rawEventId = null) {
+    const hh = extractHour(hour);
+    if (!hh) { showToast('error', 'Horário inválido.', 'Erro'); return; }
+
+    try {
+      const { collection: c, query: q, where: w, getDocs: g, doc, addDoc, updateDoc, deleteField, serverTimestamp } =
+        await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+      const ovRef = c(window.firebaseDb, 'schedule_overrides');
+      const snap = await g(q(ovRef, w('date', '==', date), w('eventType', '==', ovEventType), w('hour', '==', hh)));
+
+      const nowTs = Date.now();
+      let existingFreeUntil = null;
+      let existingDocId = null;
+
+      snap.forEach(d => {
+        const ft = d.data().freeUntil;
+        if (ft) { existingFreeUntil = new Date(ft).getTime(); existingDocId = d.id; }
+      });
+
+      const isFreeActive = existingFreeUntil && existingFreeUntil > nowTs;
+
+      if (isFreeActive) {
+        const ok = await showConfirm('Cancelar Gratuidade', `Cancelar a liberação gratuita do horário ${hh}h? O horário voltará ao preço normal.`, 'Cancelar Gratuidade', 'Manter Grátis');
+        if (!ok) return;
+        if (existingDocId) {
+          await updateDoc(doc(window.firebaseDb, 'schedule_overrides', existingDocId), { freeUntil: deleteField() });
+        }
+        showToast('info', `Horário ${hh}h voltou ao preço normal.`, 'Gratuidade Cancelada');
+      } else {
+        // Calcular freeUntil = hoje às hh:00 (hora do evento)
+        const [ano, mes, dia] = date.split('-').map(Number);
+        const horaNum = parseInt(hh, 10);
+        const freeUntil = new Date(ano, mes - 1, dia, horaNum, 0, 0).toISOString();
+
+        const ok = await showConfirm('Liberar Grátis', `Liberar o horário ${hh}h de ${date} como GRATUITO até o início?\n\nClientes verão "🆓 GRÁTIS" e não pagarão nada.`, 'Liberar Grátis', 'Cancelar');
+        if (!ok) return;
+
+        if (existingDocId) {
+          await updateDoc(doc(window.firebaseDb, 'schedule_overrides', existingDocId), { freeUntil });
+        } else {
+          await addDoc(ovRef, { date, eventType: ovEventType, hour: hh, hh, locked: false, freeUntil, updatedAt: serverTimestamp() });
+        }
+        showToast('success', `Horário ${hh}h liberado gratuitamente até o início!`, 'Grátis Ativado 🆓');
+      }
+      await loadBoard();
+    } catch (err) {
+      console.error('[handleToggleFree]', err);
+      showToast('error', 'Erro ao alterar gratuidade: ' + (err.message || err), 'Erro');
+    }
   }
 
   // Trava permanente de horário individual (sem data)
