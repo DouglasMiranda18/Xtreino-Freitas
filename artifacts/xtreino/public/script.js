@@ -6381,7 +6381,7 @@ async function renderScheduleTimes() {
 
         // Horário disponível — mostrar com vagas e barra de progresso
         const _pct = capacity > 0 ? Math.round((taken / capacity) * 100) : 0;
-        btn.innerHTML = `<span class="font-semibold">${time}</span><span class="block text-xs opacity-75 mt-0.5">${taken}/${capacity} vagas • ${_pct}%</span><div class="mt-1 w-full bg-black/10 rounded-full h-1"><div class="bg-current h-1 rounded-full transition-all" style="width:${_pct}%"></div></div>`;
+        btn.innerHTML = `<span class="font-semibold">${time}</span><span class="block text-xs opacity-75 mt-0.5">✅ VAGA DISPONÍVEL</span>`;
         btn.onclick = () => { selectTime(schedule, btn); };
         if (isTimeSelected(date, schedule)) {
             btn.classList.add('bg-blue-600', 'text-white');
@@ -6825,7 +6825,7 @@ async function updateOccupiedAndRefreshButtons(day, date, eventType, container) 
             btn.className = 'slot-btn';
             btn.disabled = false;
             const _pct = capacity > 0 ? Math.round((taken / capacity) * 100) : 0;
-            btn.innerHTML = `<span class="font-semibold">${time}</span><span class="block text-xs opacity-75 mt-0.5">${taken}/${capacity} vagas • ${_pct}%</span><div class="mt-1 w-full bg-black/10 rounded-full h-1"><div class="bg-current h-1 rounded-full transition-all" style="width:${_pct}%"></div></div>`;
+            btn.innerHTML = `<span class="font-semibold">${time}</span><span class="block text-xs opacity-75 mt-0.5">✅ VAGA DISPONÍVEL</span>`;
             btn.onclick = () => {
                 selectTime(schedule, btn);
             };
@@ -6871,7 +6871,7 @@ function addTeam() {
                 </label>
                 <div class="flex-1 space-y-2">
                     <div>
-                        <label class="text-xs font-bold text-gray-500 mb-1 block uppercase tracking-wide">Nome / Nick no Free Fire <span class="text-red-500">*</span></label>
+                        <label class="text-xs font-bold text-gray-500 mb-1 block uppercase tracking-wide">NOME DO TIME <span class="text-red-500">*</span></label>
                         <input type="text" data-field="name" placeholder="Ex: Team Freitas, xGamer123…"
                                class="w-full bg-white border-2 border-gray-200 rounded-xl px-3 py-2 text-sm font-semibold focus:border-purple-400 focus:outline-none transition-colors"
                                oninput="updateTeam('${teamId}', 'name', this.value)">
@@ -8727,6 +8727,39 @@ async function processSuccessfulPayment(externalRef = null) {
                         }
                         return;
                     }
+                }
+                // Creditar tokens se for compra de tokens
+                if (orderData2.type === 'tokens_purchase' || String(orderData2.title || '').toLowerCase().includes('token')) {
+                    const _tokenQty = Number(orderData2.quantity || orderData2.total || orderData2.amount || 0);
+                    if (_tokenQty > 0 && window.firebaseAuth?.currentUser) {
+                        try {
+                            const _uid = window.firebaseAuth.currentUser.uid;
+                            const { doc: _docFn, getDoc: _getFn, updateDoc: _updFn } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+                            const _uRef = _docFn(window.firebaseDb, 'users', _uid);
+                            const _uSnap = await _getFn(_uRef);
+                            if (_uSnap.exists()) {
+                                const _saldoAtual = Number(_uSnap.data().tokens || 0);
+                                const _novoSaldo = Number((_saldoAtual + _tokenQty).toFixed(2));
+                                await _updFn(_uRef, { tokens: _novoSaldo });
+                                // Atualizar em memória para refletir imediatamente
+                                if (window.currentUserProfile) {
+                                    window.currentUserProfile.tokens = _novoSaldo;
+                                    try { localStorage.setItem('assoc_profile', JSON.stringify(window.currentUserProfile)); } catch(_) {}
+                                }
+                                if (typeof updateHeaderTokenBadges === 'function') updateHeaderTokenBadges();
+                                if (typeof showToast === 'function') {
+                                    showToast('success', `${_tokenQty} token${_tokenQty > 1 ? 's' : ''} creditado${_tokenQty > 1 ? 's' : ''} na sua conta! Saldo: ${_novoSaldo}`, 'Tokens Creditados 🎮', 8000);
+                                }
+                                return;
+                            }
+                        } catch (_tokErr) {
+                            console.warn('[processSuccessfulPayment] Erro ao creditar tokens:', _tokErr?.message);
+                        }
+                    }
+                    if (typeof showToast === 'function') {
+                        showToast('success', 'Pagamento de tokens confirmado! Seu saldo será atualizado em instantes.', 'Tokens em Processamento 🎮', 8000);
+                    }
+                    return;
                 }
                 // Notificar admin para pedidos de Passe Booyah
                 if (orderData2.productId === 'passe-booyah') {
