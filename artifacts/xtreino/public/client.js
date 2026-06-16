@@ -3276,53 +3276,70 @@ async function processSuccessfulPayment(externalRef = null) {
             await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
 
         // ── COMPRA DE TOKENS ──
-        // Tenta buscar a order de tokens pelo external_reference + userId
+        // Busca direta por ID do documento (external_reference === docId)
         const _uid = auth?.currentUser?.uid;
-        if (_uid) {
+        const _fdb = window.firebaseDb;
+        if (_uid && _fdb && extRef) {
             try {
-                const _ordersRef = collection(window.firebaseDb, 'orders');
-                const _oSnap = await getDocs(query(_ordersRef,
-                    where('external_reference', '==', extRef),
-                    where('userId', '==', _uid)
-                ));
-                if (!_oSnap.empty) {
-                    const _oData = _oSnap.docs[0].data();
+                // Tenta busca direta por doc ID primeiro (sem índice, mais confiável)
+                let _oData = null;
+                let _oDocId = null;
+                try {
+                    const _directSnap = await getDoc(doc(_fdb, 'orders', extRef));
+                    if (_directSnap.exists()) {
+                        _oData = _directSnap.data();
+                        _oDocId = _directSnap.id;
+                    }
+                } catch(_) {}
+
+                // Fallback: query por external_reference (caso external_reference != docId)
+                if (!_oData) {
+                    try {
+                        const _qSnap = await getDocs(query(
+                            collection(_fdb, 'orders'),
+                            where('external_reference', '==', extRef),
+                            where('userId', '==', _uid)
+                        ));
+                        if (!_qSnap.empty) {
+                            _oData = _qSnap.docs[0].data();
+                            _oDocId = _qSnap.docs[0].id;
+                        }
+                    } catch(_) {}
+                }
+
+                if (_oData) {
                     const _isTokenOrder = _oData.type === 'tokens_purchase'
                         || String(_oData.title || '').toLowerCase().includes('token')
                         || String(_oData.item || '').toLowerCase().includes('token');
                     if (_isTokenOrder) {
                         const _qty = Number(_oData.quantity || _oData.total || _oData.amount || 0);
-                        // Atualizar status do pedido
-                        if (_oData.status !== 'paid') {
-                            try { await updateDoc(doc(window.firebaseDb, 'orders', _oSnap.docs[0].id), { status: 'paid', paidAt: serverTimestamp() }); } catch(_) {}
+                        // Marcar pedido como pago
+                        if (_oData.status !== 'paid' && _oDocId) {
+                            try { await updateDoc(doc(_fdb, 'orders', _oDocId), { status: 'paid', paidAt: serverTimestamp(), external_reference: extRef }); } catch(_) {}
                         }
-                        // Creditar tokens no perfil
+                        // Creditar tokens
                         if (_qty > 0) {
-                            try {
-                                const _uRef = doc(window.firebaseDb, 'users', _uid);
-                                const _uSnap = await getDoc(_uRef);
-                                const _saldoAtual = Number(_uSnap.exists() ? (_uSnap.data().tokens || 0) : 0);
-                                const _novoSaldo = Number((_saldoAtual + _qty).toFixed(2));
-                                await updateDoc(_uRef, { tokens: _novoSaldo });
-                                // Atualizar em memória
-                                if (userProfile) userProfile.tokens = _novoSaldo;
-                                if (window.currentUserProfile) window.currentUserProfile.tokens = _novoSaldo;
-                                try { localStorage.setItem('assoc_profile', JSON.stringify(window.currentUserProfile || userProfile)); } catch(_) {}
-                                // Atualizar UI
-                                const balEl = document.getElementById('myTokenBalance');
-                                if (balEl) balEl.textContent = `${_novoSaldo} Tokens`;
-                                const avEl = document.getElementById('availableTokens');
-                                if (avEl) avEl.textContent = _novoSaldo;
-                                showToast('success', `${_qty} token${_qty > 1 ? 's' : ''} creditado${_qty > 1 ? 's' : ''} na sua conta! Saldo: ${_novoSaldo}`, 'Tokens Creditados 🎮', 8000);
-                            } catch(_tokErr) {
-                                showToast('info', 'Pagamento confirmado! Seu saldo de tokens será atualizado em instantes.', 'Tokens em Processamento 🎮', 8000);
-                            }
+                            const _uRef = doc(_fdb, 'users', _uid);
+                            const _uSnap = await getDoc(_uRef);
+                            const _saldoAtual = Number(_uSnap.exists() ? (_uSnap.data().tokens || 0) : 0);
+                            const _novoSaldo = Number((_saldoAtual + _qty).toFixed(2));
+                            await updateDoc(_uRef, { tokens: _novoSaldo });
+                            if (userProfile) userProfile.tokens = _novoSaldo;
+                            if (window.currentUserProfile) window.currentUserProfile.tokens = _novoSaldo;
+                            try { localStorage.setItem('assoc_profile', JSON.stringify(window.currentUserProfile || userProfile)); } catch(_) {}
+                            const balEl = document.getElementById('myTokenBalance');
+                            if (balEl) balEl.textContent = `${_novoSaldo} Tokens`;
+                            const avEl = document.getElementById('availableTokens');
+                            if (avEl) avEl.textContent = _novoSaldo;
+                            showToast('success', `${_qty} token${_qty > 1 ? 's' : ''} creditado${_qty > 1 ? 's' : ''} na sua conta! Saldo: ${_novoSaldo}`, 'Tokens Creditados 🎮', 8000);
                         }
                         try { sessionStorage.removeItem('lastExternalRef'); } catch(_) {}
                         return;
                     }
                 }
-            } catch(_) {}
+            } catch(_tokErr) {
+                showToast('info', 'Pagamento confirmado! Tokens serão creditados em instantes.', 'Pagamento OK 🎮', 8000);
+            }
         }
 
         // ── PRODUTO DIGITAL (external_reference = "digital_<orderId>") ──
