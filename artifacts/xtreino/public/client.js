@@ -3607,6 +3607,25 @@ window.purchaseTokens = async function(quantity) {
     }
 }
 
+const _AFF_KEY    = 'xf_affiliate_ref';
+const _AFF_TS_KEY = 'xf_affiliate_ref_ts';
+const _AFF_TTL    = 30 * 24 * 60 * 60 * 1000; // 30 dias
+
+function getStoredAffiliateRef() {
+    try {
+        const ref = sessionStorage.getItem(_AFF_KEY) || localStorage.getItem(_AFF_KEY);
+        if (!ref) return null;
+        const tsStr = sessionStorage.getItem(_AFF_TS_KEY) || localStorage.getItem(_AFF_TS_KEY);
+        const ts = tsStr ? parseInt(tsStr, 10) : null;
+        if (ts && (Date.now() - ts) > _AFF_TTL) {
+            try { localStorage.removeItem(_AFF_KEY); localStorage.removeItem(_AFF_TS_KEY); } catch(_) {}
+            try { sessionStorage.removeItem(_AFF_KEY); sessionStorage.removeItem(_AFF_TS_KEY); } catch(_) {}
+            return null;
+        }
+        return ref;
+    } catch (_) { return null; }
+}
+
 function getActiveAffiliateCode(preferredAffiliateId = null) {
     if (preferredAffiliateId) return preferredAffiliateId;
     const storedRef = getStoredAffiliateRef();
