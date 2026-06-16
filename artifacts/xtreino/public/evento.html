@@ -588,7 +588,18 @@ async function loadInscritos(evId) {
             </div>`;
             return;
         }
-    } catch(_e) {}
+    } catch(_e) {
+        // Em caso de erro (ex: permissão Firestore), bloquear por segurança
+        container.innerHTML = `<div class="text-center py-10 px-4">
+            <div style="font-size:2.2rem;margin-bottom:12px">🔐</div>
+            <p class="text-white font-bold text-sm mb-2">Acesso Restrito</p>
+            <p class="text-slate-400 text-xs leading-relaxed">Os inscritos serão liberados após a confirmação da sua vaga.</p>
+            <button onclick="goRegister()" class="mt-4 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold px-5 py-2 rounded-full transition-colors">
+                <i class="fas fa-ticket-alt mr-1"></i> GARANTIR VAGA
+            </button>
+        </div>`;
+        return;
+    }
 
     try {
         // Mesmas variantes de tipo da fonte de verdade (Gerenciamento)
