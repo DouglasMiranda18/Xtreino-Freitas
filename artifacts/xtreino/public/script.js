@@ -6757,6 +6757,17 @@ async function updateOccupiedAndRefreshButtons(day, date, eventType, container) 
             if (ov.locked === true) {
                 lockedHours.add(ovHour);
             }
+            // Atualizar _freeHoursMap para esta data
+            window._freeHoursMap = window._freeHoursMap || {};
+            window._freeHoursMap[normalizedDate] = window._freeHoursMap[normalizedDate] || {};
+            if (ov.freeUntil) {
+                const _ft = new Date(ov.freeUntil).getTime();
+                if (_ft > Date.now()) {
+                    window._freeHoursMap[normalizedDate][ovHour] = ov.freeUntil;
+                } else {
+                    delete window._freeHoursMap[normalizedDate][ovHour];
+                }
+            }
         });
     } catch (err) {}
 
@@ -6847,8 +6858,15 @@ async function updateOccupiedAndRefreshButtons(day, date, eventType, container) 
             // Horário disponível - mostrar vagas e % preenchido
             btn.className = 'slot-btn';
             btn.disabled = false;
-            const _pct = capacity > 0 ? Math.round((taken / capacity) * 100) : 0;
-            btn.innerHTML = `<span class="font-semibold">${time}</span><span class="block text-xs opacity-75 mt-0.5">✅ VAGA DISPONÍVEL</span>`;
+            const _freeMapR = (window._freeHoursMap || {})[normalizedDate] || {};
+            const _isFreeHourR = !!_freeMapR[hour];
+            if (_isFreeHourR) {
+                btn.innerHTML = `<span class="font-semibold">${time}</span><span class="block text-xs font-bold mt-0.5" style="color:#16a34a">🆓 GRATUITO</span>`;
+                btn.dataset.freeSlot = 'true';
+            } else {
+                btn.innerHTML = `<span class="font-semibold">${time}</span><span class="block text-xs opacity-75 mt-0.5">✅ VAGA DISPONÍVEL</span>`;
+                btn.dataset.freeSlot = '';
+            }
             btn.onclick = () => {
                 selectTime(schedule, btn);
             };
