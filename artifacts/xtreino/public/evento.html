@@ -539,6 +539,57 @@ async function loadInscritos(evId) {
     if (!container) return;
     if (!_db) { container.innerHTML = '<div class="text-center py-6 text-slate-500 text-sm">Banco de dados não disponível.</div>'; return; }
     container.innerHTML = '<div class="text-center py-6 text-slate-500"><i class="fas fa-spinner fa-spin text-xl mb-2 block"></i>Carregando inscritos...</div>';
+
+    // Verificar se usuário possui vaga confirmada neste evento
+    const _currentUid = window.currentUser?.uid;
+    const _isAnon = window.currentUser?.isAnonymous;
+    if (!_currentUid || _isAnon) {
+        container.innerHTML = '<div class="text-center py-10 px-4"><div style="font-size:2rem;margin-bottom:10px">🔒</div><p class="text-slate-300 font-semibold text-sm mb-1">Conteúdo Exclusivo</p><p class="text-slate-400 text-xs">Faça login e garanta sua vaga para visualizar os times inscritos.</p></div>';
+        return;
+    }
+    try {
+        // Checa se o usuário tem registro confirmado/pago neste evento
+        const _validStatuses = new Set(['confirmed', 'paid', 'approved']);
+        const _normalizedEvId = String(evId || '').toLowerCase().trim().replace(/[\s_]+/g, '-');
+        const _aliasMap = {
+            'xtreino-tokens': ['xtreino-tokens','xtreino-freitas','xtreino freitas','XTreino Freitas','xtreino tokens'],
+            'modo-liga': ['modo-liga','xtreino-modo-liga','xtreino modo liga','XTreino Modo Liga'],
+            'semanal-freitas': ['semanal-freitas','semanal freitas','Semanal Freitas'],
+            'camp-freitas': ['camp-freitas','campeonato-freitas','campeonato freitas','Campeonato Freitas'],
+        };
+        const _evTypesSet = new Set([evId, _normalizedEvId, _resolvedEventType].filter(Boolean));
+        Object.entries(_aliasMap).forEach(([canon, aliases]) => {
+            const normAliases = aliases.map(a => a.toLowerCase().replace(/[\s_]+/g, '-'));
+            if (normAliases.includes(_normalizedEvId) || aliases.includes(evId) || canon === _resolvedEventType) {
+                aliases.forEach(a => _evTypesSet.add(a));
+                _evTypesSet.add(canon);
+            }
+        });
+        let _hasConfirmedVaga = false;
+        for (const _evType of _evTypesSet) {
+            if (_hasConfirmedVaga) break;
+            try {
+                const _q = query(collection(_db, 'registrations'),
+                    where('userId', '==', _currentUid),
+                    where('eventType', '==', _evType)
+                );
+                const _snap = await getDocs(_q);
+                _hasConfirmedVaga = _snap.docs.some(d => _validStatuses.has(d.data().status) || d.data().paidWithTokens === true);
+            } catch(_) {}
+        }
+        if (!_hasConfirmedVaga) {
+            container.innerHTML = `<div class="text-center py-10 px-4">
+                <div style="font-size:2.2rem;margin-bottom:12px">🔐</div>
+                <p class="text-white font-bold text-sm mb-2">Acesso Restrito</p>
+                <p class="text-slate-400 text-xs leading-relaxed">Os inscritos serão liberados após a confirmação da sua vaga.</p>
+                <button onclick="goRegister()" class="mt-4 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold px-5 py-2 rounded-full transition-colors">
+                    <i class="fas fa-ticket-alt mr-1"></i> GARANTIR VAGA
+                </button>
+            </div>`;
+            return;
+        }
+    } catch(_e) {}
+
     try {
         // Mesmas variantes de tipo da fonte de verdade (Gerenciamento)
         // Inclui: tipo canônico da URL (_resolvedEventType), ID bruto do doc e variações normalizadas
