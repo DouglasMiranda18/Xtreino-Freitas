@@ -209,6 +209,24 @@ document.addEventListener('DOMContentLoaded', async function() {
             await switchTab('myTokens');
         }
     }catch(_){ }
+
+    // Tratar retorno do Mercado Pago para compra de tokens
+    try {
+        const _sp = new URLSearchParams(location.search);
+        const _colStatus = _sp.get('collection_status');
+        const _status    = _sp.get('status');
+        const _extRef    = _sp.get('external_reference');
+        const _approved  = _colStatus === 'approved' || _status === 'approved';
+        if (_approved && _extRef) {
+            history.replaceState({}, document.title, location.pathname);
+            // Aguardar auth estar pronta antes de processar
+            await new Promise(resolve => {
+                if (auth?.currentUser) { resolve(); return; }
+                const unsub = auth?.onAuthStateChanged ? auth.onAuthStateChanged(u => { unsub(); resolve(); }) : (() => { resolve(); })();
+            });
+            await processSuccessfulPayment(_extRef);
+        }
+    } catch(_) {}
 });
 
 // Check authentication state
@@ -3237,11 +3255,7 @@ async function reconcilePendingPayments() {
 async function processSuccessfulPayment(externalRef = null) {
     const extRef = externalRef || sessionStorage.getItem('lastExternalRef');
     
-
-    if (!extRef) {
-        
-        return;
-    }
+    if (!extRef) return;
 
     // Recuperar IDs salvos (se houver)
     let regIds = [];
@@ -3253,6 +3267,56 @@ async function processSuccessfulPayment(externalRef = null) {
     try {
         const { collection, query, where, getDocs, doc, getDoc, updateDoc, addDoc, serverTimestamp, writeBatch } =
             await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+
+        // ── COMPRA DE TOKENS ──
+        // Tenta buscar a order de tokens pelo external_reference + userId
+        const _uid = auth?.currentUser?.uid;
+        if (_uid) {
+            try {
+                const _ordersRef = collection(window.firebaseDb, 'orders');
+                const _oSnap = await getDocs(query(_ordersRef,
+                    where('external_reference', '==', extRef),
+                    where('userId', '==', _uid)
+                ));
+                if (!_oSnap.empty) {
+                    const _oData = _oSnap.docs[0].data();
+                    const _isTokenOrder = _oData.type === 'tokens_purchase'
+                        || String(_oData.title || '').toLowerCase().includes('token')
+                        || String(_oData.item || '').toLowerCase().includes('token');
+                    if (_isTokenOrder) {
+                        const _qty = Number(_oData.quantity || _oData.total || _oData.amount || 0);
+                        // Atualizar status do pedido
+                        if (_oData.status !== 'paid') {
+                            try { await updateDoc(doc(window.firebaseDb, 'orders', _oSnap.docs[0].id), { status: 'paid', paidAt: serverTimestamp() }); } catch(_) {}
+                        }
+                        // Creditar tokens no perfil
+                        if (_qty > 0) {
+                            try {
+                                const _uRef = doc(window.firebaseDb, 'users', _uid);
+                                const _uSnap = await getDoc(_uRef);
+                                const _saldoAtual = Number(_uSnap.exists() ? (_uSnap.data().tokens || 0) : 0);
+                                const _novoSaldo = Number((_saldoAtual + _qty).toFixed(2));
+                                await updateDoc(_uRef, { tokens: _novoSaldo });
+                                // Atualizar em memória
+                                if (userProfile) userProfile.tokens = _novoSaldo;
+                                if (window.currentUserProfile) window.currentUserProfile.tokens = _novoSaldo;
+                                try { localStorage.setItem('assoc_profile', JSON.stringify(window.currentUserProfile || userProfile)); } catch(_) {}
+                                // Atualizar UI
+                                const balEl = document.getElementById('myTokenBalance');
+                                if (balEl) balEl.textContent = `${_novoSaldo} Tokens`;
+                                const avEl = document.getElementById('availableTokens');
+                                if (avEl) avEl.textContent = _novoSaldo;
+                                showToast('success', `${_qty} token${_qty > 1 ? 's' : ''} creditado${_qty > 1 ? 's' : ''} na sua conta! Saldo: ${_novoSaldo}`, 'Tokens Creditados 🎮', 8000);
+                            } catch(_tokErr) {
+                                showToast('info', 'Pagamento confirmado! Seu saldo de tokens será atualizado em instantes.', 'Tokens em Processamento 🎮', 8000);
+                            }
+                        }
+                        try { sessionStorage.removeItem('lastExternalRef'); } catch(_) {}
+                        return;
+                    }
+                }
+            } catch(_) {}
+        }
 
         // ── PRODUTO DIGITAL (external_reference = "digital_<orderId>") ──
         if (extRef && extRef.startsWith('digital_')) {
