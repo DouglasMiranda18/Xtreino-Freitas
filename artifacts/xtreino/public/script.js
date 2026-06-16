@@ -6282,56 +6282,55 @@ async function renderScheduleTimes() {
     try {
         const { collection, query, where, getDocs, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
 
-        [lockedHours, occupied] = await Promise.all([
-            // ─── Buscar schedule_overrides + event_hour_locks ───────────────
-            (async () => {
-                const locked = new Set();
-                // freeHours: Map<hour number, freeUntil ISO string>
-                window._freeHoursMap = window._freeHoursMap || {};
-                window._freeHoursMap[date] = {};
-                try {
-                    const ovSnap = await getDocs(query(
-                        collection(window.firebaseDb, 'schedule_overrides'),
-                        where('date', '==', date)
-                    ));
-                    ovSnap.forEach(doc => {
-                        const ov = doc.data();
-                        if (ov.date !== date) return;
-                        const _ovHourM = String(ov.hour || ov.hh || '').match(/^(\d{1,2})/);
-                        const ovHour = _ovHourM ? parseInt(_ovHourM[1], 10) : NaN;
-                        if (isNaN(ovHour)) return;
-                        const ovEv = ov.eventType || null;
-                        const match = !ovEv || !eventType || ovEv === eventType ||
-                            normalizeEventType(ovEv) === normalizeEventType(eventType);
-                        if (!match) return;
-                        if (ov.locked === true) locked.add(ovHour);
-                        if (ov.freeUntil) {
-                            const ft = new Date(ov.freeUntil).getTime();
-                            if (ft > Date.now()) window._freeHoursMap[date][ovHour] = ov.freeUntil;
-                        }
-                    });
-                } catch(_) {}
-                try {
-                    const hlSnap = await getDocs(collection(window.firebaseDb, 'event_hour_locks'));
-                    hlSnap.forEach(doc => {
-                        const data = doc.data();
-                        if (data.locked !== true) return;
-                        const docEv = (data.eventType || '').toLowerCase().replace(/[\s_]/g, '-');
-                        const curEv = (eventType || '').toLowerCase().replace(/[\s_]/g, '-');
-                        const match = !data.eventType || docEv === curEv ||
-                            doc.id.startsWith(curEv) || doc.id.startsWith(eventType || '');
-                        if (!match) return;
-                        // Usar parseInt completo + validar range 0-23
-                        // Evita que valores legados como '2000' (bug antigo) capturem hora 20
-                        const h = parseInt(String(data.hour || ''), 10);
-                        if (!isNaN(h) && h >= 0 && h <= 23) locked.add(h);
-                    });
-                } catch(_) {}
-                return locked;
-            })(),
-            // ─── Buscar ocupação atual ────────────────────────────────────────
+        // ── Disparar schedule_overrides, event_hour_locks e ocupação em PARALELO ──
+        window._freeHoursMap = window._freeHoursMap || {};
+        window._freeHoursMap[date] = {};
+
+        const _initHlCacheKey = `__hlCache_${eventType || 'all'}`;
+        const _initHlCache = window[_initHlCacheKey];
+        const _initHlPromise = (_initHlCache && Date.now() - _initHlCache.ts < 120000)
+            ? Promise.resolve(_initHlCache.hours)
+            : getDocs(collection(window.firebaseDb, 'event_hour_locks')).then(snap => {
+                const hours = new Set();
+                snap.forEach(d => {
+                    const data = d.data();
+                    if (data.locked !== true) return;
+                    const docEv = (data.eventType || '').toLowerCase().replace(/[\s_]/g, '-');
+                    const curEv = (eventType || '').toLowerCase().replace(/[\s_]/g, '-');
+                    const match = !data.eventType || docEv === curEv || d.id.startsWith(curEv) || d.id.startsWith(eventType || '');
+                    if (!match) return;
+                    const h = parseInt(String(data.hour || ''), 10);
+                    if (!isNaN(h) && h >= 0 && h <= 23) hours.add(h);
+                });
+                window[_initHlCacheKey] = { hours, ts: Date.now() };
+                return hours;
+            }).catch(() => new Set());
+
+        const [_initOvSnap, _initHlHours, _initOccupied] = await Promise.all([
+            getDocs(query(collection(window.firebaseDb, 'schedule_overrides'), where('date', '==', date))).catch(() => null),
+            _initHlPromise,
             fetchOccupiedForDate(day, date, eventType).catch(() => ({}))
         ]);
+
+        occupied = _initOccupied;
+        lockedHours = new Set(_initHlHours);
+        if (_initOvSnap) {
+            _initOvSnap.forEach(doc => {
+                const ov = doc.data();
+                if (ov.date !== date) return;
+                const _ovHourM = String(ov.hour || ov.hh || '').match(/^(\d{1,2})/);
+                const ovHour = _ovHourM ? parseInt(_ovHourM[1], 10) : NaN;
+                if (isNaN(ovHour)) return;
+                const ovEv = ov.eventType || null;
+                const match = !ovEv || !eventType || ovEv === eventType || normalizeEventType(ovEv) === normalizeEventType(eventType);
+                if (!match) return;
+                if (ov.locked === true) lockedHours.add(ovHour);
+                if (ov.freeUntil) {
+                    const ft = new Date(ov.freeUntil).getTime();
+                    if (ft > Date.now()) window._freeHoursMap[date][ovHour] = ov.freeUntil;
+                }
+            });
+        }
 
         // Listener em tempo real para atualizar contagem quando registrations mudarem
         if (window.__schedUnsub) { try { window.__schedUnsub(); } catch (_) { } }
@@ -6695,71 +6694,69 @@ async function checkMultipleSlotAvailability(date, selectedTimes, eventType, num
 
 
 async function updateOccupiedAndRefreshButtons(day, date, eventType, container) {
-    // IMPORTANTE: Sempre invalidar cache ao mudar de data para evitar dados antigos
-    // Garantir que a data está no formato correto (YYYY-MM-DD)
     const normalizedDate = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
-    if (!normalizedDate) {
-        
-        return;
-    }
+    if (!normalizedDate) return;
 
-    // cache por data - sempre buscar dados frescos para evitar cache de outra data
     const cacheKey = `${normalizedDate}__${eventType || 'all'}`;
-
-    // Invalidar cache se a data mudou (garantir dados frescos)
     const lastDate = window.__lastScheduleDate || null;
     if (lastDate !== normalizedDate) {
-        // Limpar cache de outras datas para evitar confusão
         Object.keys(scheduleCache).forEach(key => {
-            if (!key.startsWith(`${normalizedDate}__`)) {
-                delete scheduleCache[key];
-            }
+            if (!key.startsWith(`${normalizedDate}__`)) delete scheduleCache[key];
         });
         window.__lastScheduleDate = normalizedDate;
     }
 
-    let occupied = scheduleCache[cacheKey];
-    if (!occupied) {
-        try {
-            occupied = await fetchOccupiedForDate(day, normalizedDate, eventType);
-        } catch (_) {
-            occupied = {};
-        }
-        scheduleCache[cacheKey] = occupied;
-    }
+    // ── Disparar as 3 queries em PARALELO ────────────────────────────────────
+    const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
 
-    // Verificar horários travados diretamente do Firestore - SEMPRE para a data específica
-    // CRÍTICO: SEMPRE buscar dados FRESCOS (não usar cache de travas) para detectar removals
-    let lockedHours = new Set();
-    try {
-        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const ovRef = collection(window.firebaseDb, 'schedule_overrides');
+    const _occupiedPromise = scheduleCache[cacheKey]
+        ? Promise.resolve(scheduleCache[cacheKey])
+        : fetchOccupiedForDate(day, normalizedDate, eventType).catch(() => ({}));
 
-        // CRÍTICO: Buscar APENAS overrides da data específica (normalizada)
-        const ovSnap = await getDocs(query(ovRef, where('date', '==', normalizedDate)));
+    const _ovPromise = getDocs(query(
+        collection(window.firebaseDb, 'schedule_overrides'),
+        where('date', '==', normalizedDate)
+    )).catch(() => null);
 
+    // event_hour_locks: cache global de 2 min (não muda com frequência)
+    const _hlCacheKey = `__hlCache_${eventType || 'all'}`;
+    const _hlCache = window[_hlCacheKey];
+    const _hlPromise = (_hlCache && Date.now() - _hlCache.ts < 120000)
+        ? Promise.resolve(_hlCache.hours)
+        : getDocs(collection(window.firebaseDb, 'event_hour_locks')).then(snap => {
+            const hours = new Set();
+            snap.forEach(doc => {
+                const data = doc.data();
+                if (data.locked !== true) return;
+                const docEv = (data.eventType || '').toLowerCase().replace(/[\s_]/g, '-');
+                const curEv = (eventType || '').toLowerCase().replace(/[\s_]/g, '-');
+                const match = !data.eventType || docEv === curEv || doc.id.startsWith(curEv) || doc.id.startsWith(eventType || '');
+                if (!match) return;
+                const h = parseInt(String(data.hour || ''), 10);
+                if (!isNaN(h) && h >= 0 && h <= 23) hours.add(h);
+            });
+            window[_hlCacheKey] = { hours, ts: Date.now() };
+            return hours;
+        }).catch(() => new Set());
+
+    const [occupied, ovSnap, hlHours] = await Promise.all([_occupiedPromise, _ovPromise, _hlPromise]);
+    if (!scheduleCache[cacheKey]) scheduleCache[cacheKey] = occupied;
+
+    // Processar schedule_overrides
+    const lockedHours = new Set(hlHours);
+    window._freeHoursMap = window._freeHoursMap || {};
+    window._freeHoursMap[normalizedDate] = window._freeHoursMap[normalizedDate] || {};
+    if (ovSnap) {
         ovSnap.forEach(doc => {
             const ov = doc.data();
-            const ovDate = ov.date || '';
-            if (ovDate !== normalizedDate) return;
-
-            const _ovHM = String(ov.hour || ov.hh || '').match(/^(\d{1,2})/);
-            const ovHour = _ovHM ? parseInt(_ovHM[1], 10) : NaN;
+            if ((ov.date || '') !== normalizedDate) return;
+            const _m = String(ov.hour || ov.hh || '').match(/^(\d{1,2})/);
+            const ovHour = _m ? parseInt(_m[1], 10) : NaN;
             if (isNaN(ovHour)) return;
-
-            const ovEventType = ov.eventType || null;
-            const shouldApply = !ovEventType || !eventType ||
-                ovEventType === eventType ||
-                normalizeEventType(ovEventType) === normalizeEventType(eventType);
-
-            if (!shouldApply) return;
-
-            if (ov.locked === true) {
-                lockedHours.add(ovHour);
-            }
-            // Atualizar _freeHoursMap para esta data
-            window._freeHoursMap = window._freeHoursMap || {};
-            window._freeHoursMap[normalizedDate] = window._freeHoursMap[normalizedDate] || {};
+            const ovEv = ov.eventType || null;
+            const match = !ovEv || !eventType || ovEv === eventType || normalizeEventType(ovEv) === normalizeEventType(eventType);
+            if (!match) return;
+            if (ov.locked === true) lockedHours.add(ovHour);
             if (ov.freeUntil) {
                 const _ft = new Date(ov.freeUntil).getTime();
                 if (_ft > Date.now()) {
@@ -6769,31 +6766,7 @@ async function updateOccupiedAndRefreshButtons(day, date, eventType, container) 
                 }
             }
         });
-    } catch (err) {}
-
-    // Verificar travas permanentes por horário (event_hour_locks) — sem data, valem sempre
-    try {
-        const { collection: _c, getDocs: _g } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        if (window.firebaseDb) {
-            const hlSnap = await _g(_c(window.firebaseDb, 'event_hour_locks'));
-            console.log('[HourLocks] docs encontrados:', hlSnap.size, '| eventType atual:', eventType);
-            hlSnap.forEach(doc => {
-                const data = doc.data();
-                if (data.locked !== true) return;
-                const docEventType = (data.eventType || '').toLowerCase().replace(/[\s_]/g, '-');
-                const curEventType = (eventType || '').toLowerCase().replace(/[\s_]/g, '-');
-                const matchesType = !data.eventType || docEventType === curEventType || doc.id.startsWith(curEventType) || doc.id.startsWith((eventType||''));
-                console.log('[HourLocks] doc:', doc.id, '| docEventType:', docEventType, '| match:', matchesType);
-                if (!matchesType) return;
-                // Usar parseInt completo + validar range 0-23
-                // Evita que valores legados como '2000' (bug antigo) capturem hora 20
-                const h = parseInt(String(data.hour || ''), 10);
-                if (!isNaN(h) && h >= 0 && h <= 23) { lockedHours.add(h); console.log('[HourLocks] travando hora:', h); }
-            });
-        } else {
-            console.warn('[HourLocks] firebaseDb não disponível ainda');
-        }
-    } catch (err) { console.error('[HourLocks] erro:', err); }
+    }
 
     const now = new Date();
     const selectedDate = new Date(date + 'T00:00:00');
