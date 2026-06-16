@@ -6124,6 +6124,12 @@ function getEventPrice(eventType, hourStr, dateStr) {
     const type = String(eventType || '').toLowerCase();
     const hour = String(hourStr || '').toLowerCase().replace(/\s/g, '');
     const dateIso = dateStr || (document.getElementById('schedDate')?.value || null);
+    // Horário liberado gratuitamente pelo admin → preço zero
+    if (dateIso) {
+        const _freeMap = (window._freeHoursMap || {})[dateIso] || {};
+        const _hourNum = parseInt(hour.replace(/\D/g, ''), 10);
+        if (!isNaN(_hourNum) && _freeMap[_hourNum]) return 0;
+    }
     // Semanal Freitas 22h: R$ 7,00 (vaga direto na final)
     if (type === 'semanal-freitas' && (hour === '22h' || hour.includes('22'))) return 7.00;
     if (type === 'camp-final') return 100.00;
@@ -6280,6 +6286,9 @@ async function renderScheduleTimes() {
             // ─── Buscar schedule_overrides + event_hour_locks ───────────────
             (async () => {
                 const locked = new Set();
+                // freeHours: Map<hour number, freeUntil ISO string>
+                window._freeHoursMap = window._freeHoursMap || {};
+                window._freeHoursMap[date] = {};
                 try {
                     const ovSnap = await getDocs(query(
                         collection(window.firebaseDb, 'schedule_overrides'),
@@ -6294,7 +6303,12 @@ async function renderScheduleTimes() {
                         const ovEv = ov.eventType || null;
                         const match = !ovEv || !eventType || ovEv === eventType ||
                             normalizeEventType(ovEv) === normalizeEventType(eventType);
-                        if (match && ov.locked === true) locked.add(ovHour);
+                        if (!match) return;
+                        if (ov.locked === true) locked.add(ovHour);
+                        if (ov.freeUntil) {
+                            const ft = new Date(ov.freeUntil).getTime();
+                            if (ft > Date.now()) window._freeHoursMap[date][ovHour] = ov.freeUntil;
+                        }
                     });
                 } catch(_) {}
                 try {
@@ -6379,9 +6393,18 @@ async function renderScheduleTimes() {
             }
         }
 
+        // Verificar se este horário está liberado gratuitamente
+        const _freeMap = (window._freeHoursMap || {})[date] || {};
+        const _isFreeHour = !!_freeMap[hour];
+
         // Horário disponível — mostrar com vagas e barra de progresso
         const _pct = capacity > 0 ? Math.round((taken / capacity) * 100) : 0;
-        btn.innerHTML = `<span class="font-semibold">${time}</span><span class="block text-xs opacity-75 mt-0.5">✅ VAGA DISPONÍVEL</span>`;
+        if (_isFreeHour) {
+            btn.innerHTML = `<span class="font-semibold">${time}</span><span class="block text-xs font-bold mt-0.5" style="color:#16a34a">🆓 GRATUITO</span>`;
+            btn.dataset.freeSlot = 'true';
+        } else {
+            btn.innerHTML = `<span class="font-semibold">${time}</span><span class="block text-xs opacity-75 mt-0.5">✅ VAGA DISPONÍVEL</span>`;
+        }
         btn.onclick = () => { selectTime(schedule, btn); };
         if (isTimeSelected(date, schedule)) {
             btn.classList.add('bg-blue-600', 'text-white');
@@ -7779,6 +7802,13 @@ async function submitSchedule(e, useTokens = false) {
                 discountValue: appliedScheduleCoupon.discountValue,
                 context: 'events'
             };
+        }
+
+        // Horário liberado gratuitamente pelo admin → inscrição direta sem MP
+        if (finalPrice === 0 && !isFreeEvent) {
+            await handleFreeEventRegistration(rawEventType, cfg, teamsData, datesToUse, selectedTimes);
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+            return;
         }
 
         const totalReservations = teamsData.length * selectedTimes.length; // selectedTimes já inclui a multiplicação por datas
