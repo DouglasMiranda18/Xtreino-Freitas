@@ -4609,7 +4609,7 @@ window.openFAQModal = function (faqId) {
             content: `
                 <p>Assim que sua inscrição é confirmada, você recebe o link do grupo oficial (whatsapp), aqui mesmo no site. Vá em "meus pedidos" e clique em "acessar grupo de whatsapp"</p>
                 <p>Lá serão enviadas as informações da sala (ID e senha) e as atualizações do cronograma.</p>
-                <p class="text-blue-600 font-medium">💬 Fique atento — o ID e a Senha são enviados cerca de 10 minutos antes do início da partida.</p>
+                <p class="text-blue-600 font-medium">💬 Fique atento — o ID e a Senha são enviados cerca de 5 minutos antes do início da partida.</p>
             `
         },
         'faq5': {
@@ -6376,12 +6376,12 @@ async function renderScheduleTimes() {
         btn.className = 'slot-btn';
         btn.dataset.schedule = schedule;
 
-        // Menos de 12 min para o horário (hoje) — mostrar desabilitado
+        // Menos de 6 min para o horário (hoje) — mostrar desabilitado
         if (isToday) {
             const eventTime = new Date(selectedDate);
             eventTime.setHours(hour, 0, 0, 0);
             const mins = (eventTime - now) / (1000 * 60);
-            if (mins < 12) {
+            if (mins < 6) {
                 btn.className = 'slot-btn bg-gray-300 text-gray-500 cursor-not-allowed';
                 btn.disabled = true;
                 btn.innerHTML = `<span class="font-semibold">${time}</span><span class="block text-xs opacity-75 mt-0.5">Disponível em ${Math.ceil(mins)} min • ${taken}/${capacity}</span>`;
@@ -6802,8 +6802,8 @@ async function updateOccupiedAndRefreshButtons(day, date, eventType, container) 
                 // Horário já passou
                 isTimeAvailable = false;
                 timeMessage = 'Horário passou';
-            } else if (minutesUntilEvent < 12) {
-                // Ainda não passaram 12 minutos antes do horário
+            } else if (minutesUntilEvent < 6) {
+                // Ainda não passaram 6 minutos antes do horário
                 isTimeAvailable = false;
                 const minutesLeft = Math.ceil(minutesUntilEvent);
                 timeMessage = `Disponível em ${minutesLeft} min`;
@@ -8479,7 +8479,7 @@ function showSlotConfirmationModal(slots, eventName, isLiga, eventId, groupLink)
             <div class="space-y-3 mb-6">${slotsHtml}</div>
             <div class="p-4 bg-amber-50 border-2 border-amber-400 rounded-xl text-sm text-amber-900 mb-4 text-center leading-relaxed">
                 🔔 <strong>ATENÇÃO:</strong> O ID e senha da sala saem aqui no site mesmo.<br>
-                Fique atento ao sininho de notificações <strong>10 minutos antes do seu horário!</strong>
+                Fique atento ao sininho de notificações <strong>5 minutos antes do seu horário!</strong>
             </div>
             ${!isLiga ? `<div class="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-700 mb-4 text-center">
                 💡 Você receberá a lista de Slots junto com o ID E SENHA!
