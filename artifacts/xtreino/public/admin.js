@@ -3905,7 +3905,7 @@ window.showWarningToast = function(message, title = 'Atenção') {
       const regs = collection(window.firebaseDb,'registrations');
       // CRÍTICO: query por campo único (sem composite index) — igual ao fetchOccupiedForDate do script.js
       // date e status filtrados em JS depois
-      const _validManageStatuses = new Set(['paid','confirmed','approved','pending']);
+      const _validManageStatuses = new Set(['paid','confirmed','approved','pending','lisagem_gratis']);
       const _typesToQuery = [...new Set([evFieldType, eventType, rawEventId].filter(Boolean))];
       const _allRegDocs = new Map();
       await Promise.all(_typesToQuery.map(async t => {
@@ -3939,7 +3939,10 @@ window.showWarningToast = function(message, title = 'Atenção') {
         const logoHtml = _adminLogoUrl
           ? `<img src="${_adminLogoUrl}" class="w-7 h-7 rounded object-cover flex-shrink-0">`
           : `<div class="w-7 h-7 rounded bg-gray-100 flex items-center justify-center text-gray-400 flex-shrink-0 text-xs">${(r.teamName||'?').charAt(0).toUpperCase()}</div>`;
-        const statusBadge = isFreeManual
+        const isLisagemGratis = r.status === 'lisagem_gratis';
+        const statusBadge = isLisagemGratis
+          ? '<span class="text-xs bg-slate-100 text-slate-600 border border-slate-300 rounded px-1.5 py-0.5 font-bold">🆓 LISAGEM GRÁTIS</span>'
+          : isFreeManual
           ? '<span class="text-xs bg-orange-100 text-orange-700 border border-orange-300 rounded px-1.5 py-0.5">🎁 Grátis</span>'
           : isPending
             ? '<span class="text-xs bg-yellow-100 text-yellow-700 border border-yellow-300 rounded px-1.5 py-0.5">⏳ Pendente</span>'
@@ -3965,7 +3968,8 @@ window.showWarningToast = function(message, title = 'Atenção') {
              </button>`
           : '';
         const row = document.createElement('div');
-        row.className = 'flex items-center justify-between gap-3 p-2.5 rounded-lg border ' + (isPending ? 'border-yellow-200 bg-yellow-50' : 'border-green-100 bg-green-50/40');
+        const isLisagemGratisRow = r.status === 'lisagem_gratis';
+        row.className = 'flex items-center justify-between gap-3 p-2.5 rounded-lg border ' + (isLisagemGratisRow ? 'border-slate-200 bg-slate-50' : isPending ? 'border-yellow-200 bg-yellow-50' : 'border-green-100 bg-green-50/40');
         row.innerHTML = `
           <div class="flex items-center gap-2 min-w-0">
             ${logoHtml}
