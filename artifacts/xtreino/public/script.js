@@ -7803,10 +7803,36 @@ async function submitSchedule(e, useTokens = false) {
             const choice = window._freeSlotChoice;
             window._freeSlotChoice = null;
             if (choice === 'gratis') {
-                // Jogar Grátis: registra TODOS os horários como lisagem_gratis, sem pagamento
-                await handleFreeEventRegistration(rawEventType, cfg, teamsData, datesToUse, selectedTimes, 'lisagem_gratis');
-                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
-                return;
+                // Jogar Grátis: separar slots gratuitos dos pagos
+                const _isSlotFree = (item) => {
+                    const _fm = (window._freeHoursMap || {})[item.date] || {};
+                    const _mm = (item.schedule || '').match(/(\d{1,2})h/);
+                    const _hnum = _mm ? parseInt(_mm[1], 10) : null;
+                    return _hnum !== null && _fm[_hnum] != null;
+                };
+                const _freeTimes = selectedTimes.filter(_isSlotFree);
+                const _paidTimes = selectedTimes.filter(t => !_isSlotFree(t));
+
+                // Registrar apenas os slots gratuitos como lisagem_gratis
+                if (_freeTimes.length > 0) {
+                    await handleFreeEventRegistration(rawEventType, cfg, teamsData, datesToUse, _freeTimes, 'lisagem_gratis');
+                }
+
+                if (_paidTimes.length === 0) {
+                    // Todos os slots eram gratuitos → concluído sem pagamento
+                    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+                    return;
+                }
+
+                // Ainda há slots pagos → continuar para MP apenas com eles
+                selectedTimes.length = 0;
+                _paidTimes.forEach(t => selectedTimes.push(t));
+                finalPrice = 0;
+                for (const _pt of _paidTimes) {
+                    const _ph = (_pt.schedule.split(' - ')[1] || '').trim();
+                    finalPrice += getEventPrice(rawEventType, _ph, _pt.date) * teamsData.length;
+                }
+                // continua fluxo de pagamento abaixo apenas para os slots pagos
             }
             if (choice === 'pagar') {
                 // Pagar e Concorrer: adiciona ao finalPrice o valor dos slots liberados grátis
