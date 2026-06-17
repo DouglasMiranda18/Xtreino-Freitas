@@ -5947,89 +5947,23 @@ function renderCustomCalendar(year, month) {
     const lockedSet  = window._calState?.lockedDates || new Set();
     const globalLocked = !!window._calState?.globalLocked;
 
-    const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
-                        'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-    const dayNames   = ['D','S','T','Q','Q','S','S'];
-    const firstDow   = new Date(year, month, 1).getDay();
-    const daysInMon  = new Date(year, month + 1, 0).getDate();
-
-    let cells = '';
-    for (let i = 0; i < firstDow; i++) cells += '<div></div>';
-
-    for (let day = 1; day <= daysInMon; day++) {
-        const dateStr    = `${year}-${pad(month + 1)}-${pad(day)}`;
-        const isPast     = dateStr < todayStr;
-        const isToday    = dateStr === todayStr;
-        const isSelected = dateStr === currentVal;
-        const isInList   = selDates.includes(dateStr);
-        const isLocked   = !isPast && (globalLocked || lockedSet.has(dateStr));
-        const isValid    = !isPast && isValidScheduleDate(dateStr, eventType);
-
-        let cls, click, inner;
-        if (isLocked) {
-            cls   = 'cursor-not-allowed';
-            click = '';
-            inner = `<span class="text-[11px] leading-none text-red-400">${day}</span><span class="text-[8px] leading-none text-red-400">🔒</span>`;
-        } else if (isPast || !isValid) {
-            cls   = 'text-gray-300 cursor-not-allowed';
-            click = '';
-            inner = `<span>${day}</span>`;
-        } else if (isSelected && isInList) {
-            cls   = 'bg-orange-500 text-white rounded-xl font-black cursor-pointer shadow-sm';
-            click = `onclick="selectCalendarDate('${dateStr}')"`;
-            inner = `<span>${day}</span><span class="block w-1 h-1 rounded-full bg-white opacity-80 mt-0.5"></span>`;
-        } else if (isSelected) {
-            cls   = 'bg-orange-500 text-white rounded-xl font-black cursor-pointer shadow-sm';
-            click = `onclick="selectCalendarDate('${dateStr}')"`;
-            inner = `<span>${day}</span>`;
-        } else if (isInList) {
-            cls   = 'bg-orange-100 text-orange-700 rounded-xl font-bold cursor-pointer border-2 border-orange-300';
-            click = `onclick="selectCalendarDate('${dateStr}')"`;
-            inner = `<span>${day}</span><span class="block w-1.5 h-1.5 rounded-full bg-orange-400 mt-0.5"></span>`;
-        } else if (isToday) {
-            cls   = 'border-2 border-blue-500 rounded-xl text-blue-700 font-bold cursor-pointer hover:bg-blue-50';
-            click = `onclick="selectCalendarDate('${dateStr}')"`;
-            inner = `<span>${day}</span>`;
-        } else {
-            cls   = 'text-gray-700 font-semibold cursor-pointer hover:bg-orange-50 hover:text-orange-600 rounded-xl transition-colors';
-            click = `onclick="selectCalendarDate('${dateStr}')"`;
-            inner = `<span>${day}</span>`;
-        }
-        cells += `<div class="h-9 flex flex-col items-center justify-center text-xs ${cls}" ${click}>${inner}</div>`;
-    }
-
-    // Atalhos Hoje / Amanhã
-    const tom     = new Date(today);
+    // Apenas botões Hoje / Amanhã
+    const tom        = new Date(today);
     tom.setDate(today.getDate() + 1);
     const tomStr     = `${tom.getFullYear()}-${pad(tom.getMonth() + 1)}-${pad(tom.getDate())}`;
     const todayOk    = !globalLocked && !lockedSet.has(todayStr) && isValidScheduleDate(todayStr, eventType);
     const tomorrowOk = !globalLocked && !lockedSet.has(tomStr) && isValidScheduleDate(tomStr, eventType);
 
     container.innerHTML = `
-        <div class="flex items-center justify-between mb-2">
-            <button onclick="prevCalendarMonth()" class="w-8 h-8 flex items-center justify-center text-blue-600 hover:bg-blue-50 rounded-lg font-bold text-xl transition-colors">‹</button>
-            <span class="text-sm font-bold text-gray-800">${monthNames[month]} ${year}</span>
-            <button onclick="nextCalendarMonth()" class="w-8 h-8 flex items-center justify-center text-blue-600 hover:bg-blue-50 rounded-lg font-bold text-xl transition-colors">›</button>
-        </div>
-        <div class="grid grid-cols-7 gap-0.5 mb-1">
-            ${dayNames.map(d => `<div class="text-center text-[10px] font-bold text-gray-400 pb-1">${d}</div>`).join('')}
-        </div>
-        <div class="grid grid-cols-7 gap-0.5">${cells}</div>
-        <div class="flex gap-2 mt-3">
+        <div class="flex gap-3">
             <button ${todayOk ? `onclick="selectCalendarDate('${todayStr}')"` : 'disabled'}
-                    class="flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${todayOk ? 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200 cursor-pointer' : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'}">
+                    class="flex-1 py-3 text-sm font-bold rounded-xl border-2 transition-colors ${todayOk ? 'bg-blue-600 text-white hover:bg-blue-700 border-blue-600 cursor-pointer' : 'bg-gray-100 text-gray-300 border-gray-100 cursor-not-allowed'}">
                 📅 Hoje
             </button>
             <button ${tomorrowOk ? `onclick="selectCalendarDate('${tomStr}')"` : 'disabled'}
-                    class="flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${tomorrowOk ? 'bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200 cursor-pointer' : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'}">
+                    class="flex-1 py-3 text-sm font-bold rounded-xl border-2 transition-colors ${tomorrowOk ? 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300 cursor-pointer' : 'bg-gray-100 text-gray-300 border-gray-100 cursor-not-allowed'}">
                 📅 Amanhã
             </button>
-        </div>
-        <div class="flex flex-wrap gap-x-3 mt-2 text-[10px] text-gray-400">
-            <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-full bg-orange-500"></span>Selecionado</span>
-            <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-full border-2 border-blue-500"></span>Hoje</span>
-            <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-full bg-red-300"></span>Fechado</span>
-            <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-full bg-gray-200"></span>Indisponível</span>
         </div>`;
 }
 
