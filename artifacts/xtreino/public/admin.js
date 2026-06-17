@@ -4206,7 +4206,7 @@ async function buildSlotData(date, eventType, hour) {
       const regHH = normalizeHour(r.schedule) || normalizeHour(r.hour);
       if (regHH !== hh) return;
       const st = String(r.status || '').toLowerCase();
-      if (!['paid', 'confirmed'].includes(st)) return;
+      if (!['paid', 'confirmed', 'lisagem_gratis'].includes(st)) return;
       const slotNum = r.slot != null ? Number(r.slot) : (r.slotNumber != null ? Number(r.slotNumber) : null);
       teams.push({ teamName: r.teamName || r.name || r.email || 'Time', slot: slotNum, createdAt: r.createdAt?.toDate?.() || new Date(0) });
     });
@@ -4261,7 +4261,7 @@ async function buildExportList(date, eventType, hour){
     const regHH = normalizeHour(r.schedule) || normalizeHour(r.hour);
     if (regHH !== hh) return;
     const st = String(r.status||'').toLowerCase();
-    if (!['paid','confirmed'].includes(st)) return;
+    if (!['paid','confirmed','lisagem_gratis'].includes(st)) return;
     const name = r.teamName || r.name || r.email || 'Time';
     const slotNum = r.slot != null ? Number(r.slot) : (r.slotNumber != null ? Number(r.slotNumber) : null);
     teams.push({ name, slot: slotNum, createdAt: r.createdAt?.toDate?.() || new Date(0) });
@@ -10851,9 +10851,9 @@ async function baixarPacoteSPEC() {
 
         const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
 
-        // Buscar inscrições confirmadas do horário
+        // Buscar inscrições confirmadas do horário (inclui grátis pela lisagem)
         const snap = await getDocs(query(collection(window.firebaseDb, 'registrations'), where('date', '==', date)));
-        const validStatuses = new Set(['paid', 'confirmed', 'approved']);
+        const validStatuses = new Set(['paid', 'confirmed', 'approved', 'lisagem_gratis']);
         const normalizeHour = (s) => { const m = String(s || '').match(/(\d{1,2})/); return m ? String(parseInt(m[1], 10)).padStart(2, '0') : null; };
         const targetHH = normalizeHour(hour);
         const evLower = String(eventType || '').toLowerCase();
@@ -12336,7 +12336,7 @@ async function openEventNotifyModal(eventId, eventName) {
 
         // Buscar registrações por cada variante e mesclar (deduplicando por doc.id)
         const _docsMap = new Map();
-        const validStatuses = new Set(['confirmed', 'paid', 'approved']);
+        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'lisagem_gratis']);
         for (const _et of _notifyTypes) {
             try {
                 const snap = await getDocs(query(
@@ -12346,7 +12346,7 @@ async function openEventNotifyModal(eventId, eventName) {
                 snap.docs.forEach(d => { if (!_docsMap.has(d.id)) _docsMap.set(d.id, d); });
             } catch(_) {}
         }
-        // Mesma lógica do painel Gerenciar: filtra status inválidos E datas passadas
+        // Mesma lógica do painel Gerenciar: filtra status inválidos E datas passadas (inclui grátis pela lisagem)
         const _brNow = new Date(Date.now() - 3 * 60 * 60 * 1000);
         const _todayStr = _brNow.toISOString().split('T')[0];
         _notifyEventDocs = [..._docsMap.values()].filter(d => {
@@ -12746,8 +12746,8 @@ async function openEventSlotsModal(eventId, eventName) {
             } catch (_) {}
         }));
         const snap = { docs: [..._allDocs.values()] };
-        // Apenas inscrições confirmadas/pagas (sem pendentes)
-        const validStatuses = new Set(['confirmed', 'paid', 'approved']);
+        // Apenas inscrições confirmadas/pagas/grátis (sem pendentes)
+        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'lisagem_gratis']);
         // Data de hoje em horário de Brasília (UTC-3)
         const _brNow = new Date(Date.now() - 3 * 60 * 60 * 1000);
         const todayStr = _brNow.toISOString().split('T')[0];
@@ -12943,7 +12943,7 @@ async function repairEventSlots() {
             collection(window.firebaseDb, 'registrations'),
             where('eventType', '==', eventId)
         ));
-        const validStatuses = new Set(['confirmed', 'paid', 'approved']);
+        const validStatuses = new Set(['confirmed', 'paid', 'approved', 'lisagem_gratis']);
         // Data de hoje em horário de Brasília (UTC-3)
         const _brNow = new Date(Date.now() - 3 * 60 * 60 * 1000);
         const todayStr = _brNow.toISOString().split('T')[0];
