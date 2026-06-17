@@ -12531,7 +12531,7 @@ async function sendEventNotification() {
                 eventId
             ].filter(Boolean))];
             const _freshMap = new Map(_notifyEventDocs.map(d => [d.id, d]));
-            const _freshValidStatuses = new Set(['paid', 'confirmed', 'approved']);
+            const _freshValidStatuses = new Set(['paid', 'confirmed', 'approved', 'lisagem_gratis']);
             for (const _ft of _freshTypes) {
                 try {
                     const _fs = await _frg(_frq(_frc(window.firebaseDb, 'registrations'), _frw('eventType', '==', _ft)));
