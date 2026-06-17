@@ -7100,7 +7100,10 @@ function _updateFreeSlotPaymentUI() {
 
     if (anyFreeSelected) {
         const basePrice = cfg.price || 0;
-        const priceLabel = basePrice > 0 ? `R$${basePrice.toFixed(2).replace('.', ',')}` : '';
+        // Total real: todos os slots selecionados ao preço integral (slots grátis também contam se pagar)
+        const teamCount = Math.max(1, document.querySelectorAll('#teamsContainer > div').length || 1);
+        const totalPagar = basePrice * selectedTimes.length * teamCount;
+        const priceLabel = totalPagar > 0 ? `R$${totalPagar.toFixed(2).replace('.', ',')}` : '';
 
         // Botão "Jogar Grátis" (ocupa lugar do botão de tokens)
         payTokensBtn.className = 'w-full bg-white border-2 border-gray-300 hover:border-gray-400 text-gray-700 hover:bg-gray-50 py-3 px-4 rounded-xl font-bold transition-colors text-sm flex items-center justify-center gap-2';
@@ -7116,7 +7119,7 @@ function _updateFreeSlotPaymentUI() {
         // Botão "Pagar e Concorrer"
         submitBtn.style.background = 'linear-gradient(135deg,#07b7b4,#059669)';
         submitBtn.className = 'w-full text-white py-3.5 px-4 rounded-xl font-bold transition-all text-sm flex items-center justify-center gap-2 shadow-lg';
-        submitBtn.innerHTML = `🏆 ${basePrice > 0 ? `Pagar ${priceLabel} e ` : ''}Concorrer à Premiação`;
+        submitBtn.innerHTML = `🏆 ${priceLabel ? `Pagar ${priceLabel} e ` : ''}Concorrer à Premiação`;
         submitBtn.onclick = () => { if (!window._freeSlotChoice) window._freeSlotChoice = 'pagar'; };
     } else {
         // Restaurar botões originais
@@ -7789,22 +7792,39 @@ async function submitSchedule(e, useTokens = false) {
         }
 
         // Horário liberado pelo admin → verificar escolha feita nos botões do passo 4
-        if (finalPrice === 0 && !isFreeEvent) {
+        // Detectar se QUALQUER horário selecionado foi liberado gratuitamente (funciona com slots mistos também)
+        const _anyFreeSlot = selectedTimes.some(item => {
+            const freeMap = (window._freeHoursMap || {})[item.date] || {};
+            const _m = (item.schedule || '').match(/(\d{1,2})h/);
+            const _hh = _m ? parseInt(_m[1], 10) : null;
+            return _hh !== null && freeMap[_hh] != null;
+        });
+        if (_anyFreeSlot && !isFreeEvent) {
             const choice = window._freeSlotChoice;
             window._freeSlotChoice = null;
             if (choice === 'gratis') {
+                // Jogar Grátis: registra TODOS os horários como lisagem_gratis, sem pagamento
                 await handleFreeEventRegistration(rawEventType, cfg, teamsData, datesToUse, selectedTimes, 'lisagem_gratis');
                 if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
                 return;
             }
             if (choice === 'pagar') {
-                finalPrice = cfg.price || 0;
-                // continua o fluxo normal de pagamento abaixo
-            } else {
-                // fallback: nenhuma escolha capturada → overlay de segurança
+                // Pagar e Concorrer: adiciona ao finalPrice o valor dos slots liberados grátis
+                for (const _item of selectedTimes) {
+                    const _freeMap = (window._freeHoursMap || {})[_item.date] || {};
+                    const _m2 = (_item.schedule || '').match(/(\d{1,2})h/);
+                    const _hh2 = _m2 ? parseInt(_m2[1], 10) : null;
+                    if (_hh2 !== null && _freeMap[_hh2] != null) {
+                        finalPrice += (cfg.price || 0) * teamsData.length;
+                    }
+                }
+                // continua o fluxo normal de pagamento abaixo com finalPrice corrigido
+            } else if (finalPrice === 0) {
+                // Nenhuma escolha capturada e sem pagamento pendente → overlay de segurança
                 _showFreeSlotChoiceModal(rawEventType, cfg, teamsData, datesToUse, selectedTimes, submitBtn, oldText);
                 return;
             }
+            // Se choice === null mas finalPrice > 0 (slots mistos sem escolha), prossegue normalmente
         }
 
         const totalReservations = teamsData.length * selectedTimes.length; // selectedTimes já inclui a multiplicação por datas
@@ -8388,29 +8408,37 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
                         }
                     }
 
-                    await addDoc(collection(window.firebaseDb, 'registrations'), {
-                        userId: window.firebaseAuth.currentUser.uid,
-                        teamName: team.name,
-                        leaderName: window.currentUserProfile?.name || team.name,
-                        // email sempre = email do usuário logado para fetchUserDocs encontrar em "Meus Pedidos"
-                        email: window.firebaseAuth.currentUser.email,
-                        teamEmail: team.email,   // email de contato do time (formulário)
-                        phone: team.phone,
-                        schedule: schedKey,
-                        date: d,
-                        eventType: rawEventType,
-                        title: isLiga ? `${cfg.label} - ${schedKey}` : `${cfg.label} - ${slotDisplay}`,
-                        price: 0,
-                        slot: slotNumber,
-                        slotNumber: slotNumber,
-                        slotDisplay: slotDisplay,
-                        status: overrideStatus || 'confirmed',
-                        createdAt: serverTimestamp(),
-                        external_reference: externalRef,
-                        isFreeEvent: true,
-                        ...(overrideStatus === 'lisagem_gratis' ? { lisagemGratis: true } : {}),
-                        isLiga,
-                    });
+                    try {
+                        await addDoc(collection(window.firebaseDb, 'registrations'), {
+                            userId: window.firebaseAuth.currentUser.uid,
+                            teamName: team.name,
+                            leaderName: window.currentUserProfile?.name || team.name,
+                            // email sempre = email do usuário logado para fetchUserDocs encontrar em "Meus Pedidos"
+                            email: window.firebaseAuth.currentUser.email,
+                            teamEmail: team.email,   // email de contato do time (formulário)
+                            phone: team.phone,
+                            schedule: schedKey,
+                            date: d,
+                            eventType: rawEventType,
+                            title: isLiga ? `${cfg.label} - ${schedKey}` : `${cfg.label} - ${slotDisplay}`,
+                            price: 0,
+                            slot: slotNumber,
+                            slotNumber: slotNumber,
+                            slotDisplay: slotDisplay,
+                            status: overrideStatus || 'confirmed',
+                            createdAt: serverTimestamp(),
+                            external_reference: externalRef,
+                            isFreeEvent: true,
+                            ...(overrideStatus === 'lisagem_gratis' ? { lisagemGratis: true } : {}),
+                            isLiga,
+                        });
+                    } catch (addErr) {
+                        const msg = addErr?.code === 'permission-denied'
+                            ? `Permissão negada pelo banco de dados ao salvar inscrição grátis.\nCódigo: ${addErr.code}\nHorário: ${schedKey} | Data: ${d} | Tipo: ${rawEventType}`
+                            : `Erro ao salvar inscrição: ${addErr?.message || addErr}`;
+                        alert(msg);
+                        throw addErr;
+                    }
 
                     assignedSlots.push({ team: team.name, slot: slotDisplay, schedule: schedKey, isLiga });
                 }
