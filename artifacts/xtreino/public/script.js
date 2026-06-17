@@ -7117,7 +7117,7 @@ function _updateFreeSlotPaymentUI() {
         submitBtn.style.background = 'linear-gradient(135deg,#07b7b4,#059669)';
         submitBtn.className = 'w-full text-white py-3.5 px-4 rounded-xl font-bold transition-all text-sm flex items-center justify-center gap-2 shadow-lg';
         submitBtn.innerHTML = `🏆 ${basePrice > 0 ? `Pagar ${priceLabel} e ` : ''}Concorrer à Premiação`;
-        submitBtn.onclick = () => { window._freeSlotChoice = 'pagar'; };
+        submitBtn.onclick = () => { if (!window._freeSlotChoice) window._freeSlotChoice = 'pagar'; };
     } else {
         // Restaurar botões originais
         payTokensBtn.className = 'w-full bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-yellow-900 py-3 px-4 rounded-xl font-bold transition-colors text-sm flex items-center justify-center gap-2';
