@@ -7072,6 +7072,65 @@ function selectTime(schedule, element) {
             }
         }
     } catch (_) { }
+
+    // Atualizar botões de pagamento se houver slot free selecionado
+    _updateFreeSlotPaymentUI();
+}
+
+// Atualiza os botões do passo 4 ao selecionar/deselecionar slot free liberado pelo admin
+function _updateFreeSlotPaymentUI() {
+    const modal = document.getElementById('scheduleModal');
+    if (!modal) return;
+    const eventType = modal.dataset?.eventType || '';
+    const cfg = scheduleConfig[eventType] || {};
+    const isFreeEvent = (cfg.price === 0 || cfg.isFree === true) && !cfg.isProduct;
+    if (isFreeEvent) return; // evento naturalmente grátis — sem mudança
+
+    const payTokensBtn = document.getElementById('schedPayTokens');
+    const submitBtn    = document.getElementById('schedSubmit');
+    if (!payTokensBtn || !submitBtn) return;
+
+    // Verificar se algum horário selecionado é slot liberado manualmente pelo admin
+    const anyFreeSelected = selectedTimes.some(item => {
+        const freeMap = (window._freeHoursMap || {})[item.date] || {};
+        const m = (item.schedule || '').match(/(\d{1,2})h/);
+        const hh = m ? String(parseInt(m[1], 10)).padStart(2, '0') : null;
+        return hh ? (freeMap[hh] != null) : false;
+    });
+
+    if (anyFreeSelected) {
+        const basePrice = cfg.price || 0;
+        const priceLabel = basePrice > 0 ? `R$${basePrice.toFixed(2).replace('.', ',')}` : '';
+
+        // Botão "Jogar Grátis" (ocupa lugar do botão de tokens)
+        payTokensBtn.className = 'w-full bg-white border-2 border-gray-300 hover:border-gray-400 text-gray-700 hover:bg-gray-50 py-3 px-4 rounded-xl font-bold transition-colors text-sm flex items-center justify-center gap-2';
+        payTokensBtn.style.background = '';
+        payTokensBtn.innerHTML = '🆓 Jogar Grátis';
+        payTokensBtn.style.display = '';
+        payTokensBtn.onclick = (e) => {
+            e.preventDefault();
+            window._freeSlotChoice = 'gratis';
+            document.getElementById('schedSubmit')?.click();
+        };
+
+        // Botão "Pagar e Concorrer"
+        submitBtn.style.background = 'linear-gradient(135deg,#07b7b4,#059669)';
+        submitBtn.className = 'w-full text-white py-3.5 px-4 rounded-xl font-bold transition-all text-sm flex items-center justify-center gap-2 shadow-lg';
+        submitBtn.innerHTML = `🏆 ${basePrice > 0 ? `Pagar ${priceLabel} e ` : ''}Concorrer à Premiação`;
+        submitBtn.onclick = () => { window._freeSlotChoice = 'pagar'; };
+    } else {
+        // Restaurar botões originais
+        payTokensBtn.className = 'w-full bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-yellow-900 py-3 px-4 rounded-xl font-bold transition-colors text-sm flex items-center justify-center gap-2';
+        payTokensBtn.style.background = '';
+        payTokensBtn.innerHTML = '💎 Pagar com Tokens da Plataforma';
+        payTokensBtn.onclick = () => payScheduleWithTokens();
+
+        submitBtn.className = 'w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white py-3.5 px-4 rounded-xl font-bold transition-all text-sm flex items-center justify-center gap-2 shadow-lg';
+        submitBtn.style.background = '';
+        submitBtn.innerHTML = '<i class="fas fa-lock text-xs"></i> Pagar com PIX ou Cartão';
+        submitBtn.onclick = null;
+        window._freeSlotChoice = null;
+    }
 }
 
 // Função para lidar com compra de produtos da loja
@@ -7729,15 +7788,23 @@ async function submitSchedule(e, useTokens = false) {
             };
         }
 
-        // Horário liberado gratuitamente pelo admin → mostrar escolha ao cliente
-        if (finalPrice === 0 && !isFreeEvent && !window._freeSlotForcePay) {
-            _showFreeSlotChoiceModal(rawEventType, cfg, teamsData, datesToUse, selectedTimes, submitBtn, oldText);
-            return;
-        }
-        // Cliente escolheu pagar → usar preço base do evento e continuar fluxo normal
-        if (finalPrice === 0 && !isFreeEvent && window._freeSlotForcePay) {
-            window._freeSlotForcePay = false;
-            finalPrice = cfg.price || 0;
+        // Horário liberado pelo admin → verificar escolha feita nos botões do passo 4
+        if (finalPrice === 0 && !isFreeEvent) {
+            const choice = window._freeSlotChoice;
+            window._freeSlotChoice = null;
+            if (choice === 'gratis') {
+                await handleFreeEventRegistration(rawEventType, cfg, teamsData, datesToUse, selectedTimes, 'lisagem_gratis');
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+                return;
+            }
+            if (choice === 'pagar') {
+                finalPrice = cfg.price || 0;
+                // continua o fluxo normal de pagamento abaixo
+            } else {
+                // fallback: nenhuma escolha capturada → overlay de segurança
+                _showFreeSlotChoiceModal(rawEventType, cfg, teamsData, datesToUse, selectedTimes, submitBtn, oldText);
+                return;
+            }
         }
 
         const totalReservations = teamsData.length * selectedTimes.length; // selectedTimes já inclui a multiplicação por datas
