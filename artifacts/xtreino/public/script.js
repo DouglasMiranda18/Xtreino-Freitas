@@ -7729,11 +7729,15 @@ async function submitSchedule(e, useTokens = false) {
             };
         }
 
-        // Horário liberado gratuitamente pelo admin → inscrição direta sem MP
-        if (finalPrice === 0 && !isFreeEvent) {
-            await handleFreeEventRegistration(rawEventType, cfg, teamsData, datesToUse, selectedTimes);
-            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+        // Horário liberado gratuitamente pelo admin → mostrar escolha ao cliente
+        if (finalPrice === 0 && !isFreeEvent && !window._freeSlotForcePay) {
+            _showFreeSlotChoiceModal(rawEventType, cfg, teamsData, datesToUse, selectedTimes, submitBtn, oldText);
             return;
+        }
+        // Cliente escolheu pagar → usar preço base do evento e continuar fluxo normal
+        if (finalPrice === 0 && !isFreeEvent && window._freeSlotForcePay) {
+            window._freeSlotForcePay = false;
+            finalPrice = cfg.price || 0;
         }
 
         const totalReservations = teamsData.length * selectedTimes.length; // selectedTimes já inclui a multiplicação por datas
@@ -8156,7 +8160,53 @@ function computeSlotDisplay(slotNumber, vagas, grupos, isLiga, eventType = '') {
 }
 
 // ===== EVENTO GRÁTIS: Inscrição direta com atribuição de slot =====
-async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesToUse, selectedTimesArg) {
+function _showFreeSlotChoiceModal(rawEventType, cfg, teamsData, datesToUse, selectedTimes, submitBtn, oldText) {
+    const overlay = document.createElement('div');
+    overlay.id = '_freeSlotChoiceOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.88);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+
+    const basePrice = cfg.price || 0;
+    const priceLabel = basePrice > 0 ? `R$${basePrice.toFixed(2).replace('.', ',')}` : '';
+
+    overlay.innerHTML = `
+        <div style="background:#1e293b;border-radius:20px;padding:24px;max-width:340px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.6)">
+            <div style="text-align:center;margin-bottom:20px">
+                <div style="font-size:28px;margin-bottom:8px">🎉</div>
+                <div style="color:#ecd414;font-weight:900;font-size:15px;letter-spacing:0.5px;margin-bottom:6px">VAGA LIBERADA PELO ADMIN</div>
+                <div style="color:rgba(255,255,255,0.55);font-size:12px">Como você quer participar deste horário?</div>
+            </div>
+            <button id="_freeChoiceGratis" style="width:100%;background:rgba(255,255,255,0.06);border:2px solid rgba(255,255,255,0.18);border-radius:14px;padding:16px 14px;text-align:left;cursor:pointer;margin-bottom:10px;display:block">
+                <div style="color:#fff;font-size:14px;font-weight:800;margin-bottom:5px">🆓 Jogar Grátis</div>
+                <div style="color:rgba(255,255,255,0.5);font-size:11px;line-height:1.5">Entra na sala sem custo.<br>Não concorre a prêmios do evento.</div>
+            </button>
+            ${basePrice > 0 ? `<button id="_freeChoicePagar" style="width:100%;background:linear-gradient(135deg,#07b7b4,#059669);border:2px solid transparent;border-radius:14px;padding:16px 14px;text-align:left;cursor:pointer;display:block">
+                <div style="color:#fff;font-size:14px;font-weight:800;margin-bottom:5px">🏆 Pagar ${priceLabel} e Concorrer</div>
+                <div style="color:rgba(255,255,255,0.8);font-size:11px;line-height:1.5">Paga a taxa normal do evento.<br>Concorre às premiações normalmente.</div>
+            </button>` : ''}
+            <button id="_freeChoiceCancel" style="width:100%;background:transparent;border:none;color:rgba(255,255,255,0.3);font-size:12px;padding:14px 0 0;cursor:pointer">Cancelar</button>
+        </div>`;
+    document.body.appendChild(overlay);
+
+    overlay.querySelector('#_freeChoiceGratis')?.addEventListener('click', async () => {
+        overlay.remove();
+        await handleFreeEventRegistration(rawEventType, cfg, teamsData, datesToUse, selectedTimes, 'lisagem_gratis');
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+    });
+
+    overlay.querySelector('#_freeChoicePagar')?.addEventListener('click', () => {
+        overlay.remove();
+        window._freeSlotForcePay = true;
+        const btn = submitBtn || document.getElementById('schedSubmitBtn');
+        if (btn) btn.click();
+    });
+
+    overlay.querySelector('#_freeChoiceCancel')?.addEventListener('click', () => {
+        overlay.remove();
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+    });
+}
+
+async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesToUse, selectedTimesArg, overrideStatus) {
     try {
         if (!window.isLoggedIn || !window.firebaseAuth?.currentUser) {
             closeScheduleModal();
@@ -8287,10 +8337,11 @@ async function handleFreeEventRegistration(rawEventType, cfg, teamsData, datesTo
                         slot: slotNumber,
                         slotNumber: slotNumber,
                         slotDisplay: slotDisplay,
-                        status: 'confirmed',
+                        status: overrideStatus || 'confirmed',
                         createdAt: serverTimestamp(),
                         external_reference: externalRef,
                         isFreeEvent: true,
+                        ...(overrideStatus === 'lisagem_gratis' ? { lisagemGratis: true } : {}),
                         isLiga,
                     });
 
