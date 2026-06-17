@@ -6364,7 +6364,7 @@ async function fetchOccupiedForDate(day, date, eventType) {
         // CRÍTICO: usar apenas 1 filtro no Firestore (campo único) para nunca precisar de índice composto
         // date, status e eventType são filtrados em JS depois
         // Pendente NÃO conta como vaga ocupada — só inscrições efetivas
-        const validStatuses = new Set(['paid', 'confirmed', 'approved']);
+        const validStatuses = new Set(['paid', 'confirmed', 'approved', 'lisagem_gratis']);
         // Priorizar eventType (mais seletivo); se não houver, filtrar por date
         const q = eventType
             ? query(regsRef, where('eventType', '==', eventType))
