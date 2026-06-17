@@ -442,7 +442,7 @@ function _renderizarInscricaoExistente(reg, notif) {
     const _bannerUrgente = `
         <div style="background:linear-gradient(135deg,#7f1d1d,#991b1b);border:2px solid #ef4444;border-radius:14px;padding:13px 15px;margin-bottom:12px;text-align:center">
             <p style="color:#fff;font-size:14px;font-weight:900;margin:0;letter-spacing:0.3px">🚨 ID E SENHA SÃO ENVIADOS AQUI</p>
-            <p style="color:#fca5a5;font-size:12px;font-weight:700;margin:5px 0 0">Faltando ~10 min do horário — salva este link! 🔥</p>
+            <p style="color:#fca5a5;font-size:12px;font-weight:700;margin:5px 0 0">Faltando ~5 min do horário — salva este link! 🔥</p>
             <p style="color:#fecaca;font-size:11px;font-weight:600;margin:4px 0 0">NÃO FALTE — honre sua vaga gratuita!</p>
         </div>`;
 
