@@ -454,7 +454,7 @@ async function loadTodayRegistrations() {
 
     try {
         const allRegs = await fetchUserDocs('registrations', 200, false);
-        const validStatuses = new Set(['paid', 'confirmed', 'approved', 'pending']);
+        const validStatuses = new Set(['paid', 'confirmed', 'approved', 'pending', 'lisagem_gratis']);
         const todayRegs = allRegs
             .filter(d => d.data.date === hoje && validStatuses.has(d.data.status || ''))
             .map(d => ({ id: d.id, ...d.data }));
@@ -481,10 +481,11 @@ async function loadTodayRegistrations() {
             'semanal-freitas': '🏆', 'camp-freitas': '🥇'
         };
         const statusInfo = {
-            paid:      { label: 'Confirmado',   color: '#10b981', bg: '#d1fae5' },
-            confirmed: { label: 'Confirmado',   color: '#10b981', bg: '#d1fae5' },
-            approved:  { label: 'Aprovado',     color: '#3b82f6', bg: '#dbeafe' },
-            pending:   { label: 'Aguard. pag.', color: '#f59e0b', bg: '#fef3c7' },
+            paid:           { label: 'Confirmado',   color: '#10b981', bg: '#d1fae5' },
+            confirmed:      { label: 'Confirmado',   color: '#10b981', bg: '#d1fae5' },
+            approved:       { label: 'Aprovado',     color: '#3b82f6', bg: '#dbeafe' },
+            pending:        { label: 'Aguard. pag.', color: '#f59e0b', bg: '#fef3c7' },
+            lisagem_gratis: { label: '🆓 Grátis',    color: '#07b7b4', bg: '#ccfbf1' },
         };
 
         container.innerHTML = todayRegs.map(r => {
