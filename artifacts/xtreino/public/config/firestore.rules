@@ -335,10 +335,10 @@ service cloud.firestore {
       allow create, update, delete: if isAuthorizedAdminOrDesign() || isGerente();
     }
 
-    // schedule_overrides
+    // schedule_overrides — admin pode liberar/travar horários sem exigir whitelist de email
     match /schedule_overrides/{overrideId} {
       allow read: if true;
-      allow create, update, delete: if isAuthorizedAdminOrDesign() || isGerente();
+      allow create, update, delete: if isAdmin() || isGerente() || isDesign();
     }
 
     // notifications: gerente, staff e admin podem criar/editar; usuários podem criar notificações de pedido para admin
