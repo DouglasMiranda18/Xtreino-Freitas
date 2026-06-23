@@ -343,8 +343,8 @@ window.showWarningToast = function(message, title = 'Atenção') {
                'sectionTokens','sectionCoupons','sectionCouponUsage','sectionAffiliates',
                'sectionAffiliateSales','sectionAffiliatePayouts','sectionPasseBooyah','sectionShirtOrders',
                'sectionProducts','sectionNotificationsAdmin'],
-    // ADMIN: gerenciador de eventos + notificações + vagas bônus + campeonato
-    admin: ['sectionEvents','sectionBonusSlots','sectionNotificationsAdmin',
+    // ADMIN: gerenciador de eventos + horários + notificações + campeonato
+    admin: ['sectionEvents','sectionSchedules','sectionNotificationsAdmin',
             'sectionChampResults','sectionChampConfig'],
     // STAFF: notificações, eventos e campeonato
     staff: ['sectionEvents','sectionNotificationsAdmin','sectionChampResults'],
