@@ -4028,18 +4028,26 @@ window.showWarningToast = function(message, title = 'Atenção') {
         return 0;
       });
 
-      _matchedDocs.forEach((d, idx) => {
+      // Separar confirmados e pendentes antes de numerar — pendentes não ocupam slot
+      const _confirmedDocs = _matchedDocs.filter(d => d.data().status !== 'pending');
+      const _pendingDocs   = _matchedDocs.filter(d => d.data().status === 'pending');
+
+      // Confirmados recebem posição sequencial real (1, 2, 3...)
+      _confirmedDocs.forEach((d, idx) => {
         const r = d.data();
-        const isPending    = r.status === 'pending';
         const isFreeManual = r.freeSlot === true || r.listingType === 'free' || r.origem === 'bonus';
-        const row          = makeRow(d, r, isPending, isFreeManual, idx + 1);
-        if (isPending) {
-          countPending++;
-          if (listPending) listPending.appendChild(row);
-        } else {
-          countConfirmed++;
-          listConfirmed.appendChild(row);
-        }
+        const row = makeRow(d, r, false, isFreeManual, idx + 1);
+        countConfirmed++;
+        listConfirmed.appendChild(row);
+      });
+
+      // Pendentes aparecem sem número de slot (posIdx = null)
+      _pendingDocs.forEach(d => {
+        const r = d.data();
+        const isFreeManual = r.freeSlot === true || r.listingType === 'free' || r.origem === 'bonus';
+        const row = makeRow(d, r, true, isFreeManual, null);
+        countPending++;
+        if (listPending) listPending.appendChild(row);
       });
 
       // Atualizar contadores nas abas
